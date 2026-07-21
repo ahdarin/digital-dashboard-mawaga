@@ -22,23 +22,27 @@ class GoogleAuthController extends Controller
 
         $user = User::where('email', $googleUser->getEmail())->first();
 
-        // User belum terdaftar sama sekali -> tolak
         if (!$user) {
             $this->logAttempt(null, 'login_failed', $request);
             return redirect()->route('login')
                 ->withErrors(['email' => 'Akun tidak ditemukan. Hubungi Admin untuk didaftarkan.']);
         }
 
-        // User terdaftar tapi belum aktif (pending/invited/inactive/rejected) -> tolak
-        if ($user->status !== 'active') {
+        if (!in_array($user->status, ['active', 'invited'])) {
             $this->logAttempt($user, 'login_failed', $request);
             return redirect()->route('login')
                 ->withErrors(['email' => 'Akun Anda belum aktif. Status: ' . $user->status]);
         }
 
-        // Simpan google_id kalau baru pertama kali login via Google
+        $updates = [];
         if (!$user->google_id) {
-            $user->update(['google_id' => $googleUser->getId()]);
+            $updates['google_id'] = $googleUser->getId();
+        }
+        if ($user->status === 'invited') {
+            $updates['status'] = 'active';
+        }
+        if (!empty($updates)) {
+            $user->update($updates);
         }
 
         Auth::login($user, remember: true);

@@ -64,8 +64,8 @@
                 </a>
 
                 <p class="text-xs text-gray-400 mt-6 text-center">
-                    {{-- Klien 523 Studio? <a href="{{ route('client.login') ?? '#' }}" class="text-[#0d8276] underline font-semibold">Login di sini</a> --}}
-                    Klien 523 Studio? <a href="#" class="text-[#0d8276] underline font-semibold">Login di sini</a>
+                    Klien 523 Studio? <a href="{{ route('client.login') ?? '#' }}" class="text-[#0d8276] underline font-semibold">Login di sini</a>
+                    {{-- Klien 523 Studio? <a href="#" class="text-[#0d8276] underline font-semibold">Login di sini</a> --}}
                 </p>
             </div>
         </div>

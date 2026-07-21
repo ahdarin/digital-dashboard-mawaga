@@ -25,7 +25,6 @@ class RoleSeeder extends Seeder
                 'name' => 'Admin Demo',
                 'email' => 'admin@523studio.test',
                 'password' => bcrypt('password'),
-                'is_active' => true,
             ]);
         }
     }
