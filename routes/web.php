@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ClientOnboardingController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('production-workflow.index');
     Route::patch('/production-workflow/{contentItem}/status', [ProductionWorkflowController::class, 'updateStatus'])
         ->name('production-workflow.update-status');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
     Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
@@ -30,6 +32,10 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/client-onboarding', [ClientOnboardingController::class, 'index'])->name('client-onboarding.index');
     Route::get('/client-onboarding/create', [ClientOnboardingController::class, 'create'])->name('client-onboarding.create');
     Route::post('/client-onboarding', [ClientOnboardingController::class, 'store'])->name('client-onboarding.store');
+    Route::get('/client-onboarding/{client}', [ClientOnboardingController::class, 'show'])->name('client-onboarding.show');
+    Route::get('/client-onboarding/{client}/edit', [ClientOnboardingController::class, 'edit'])->name('client-onboarding.edit');
+    Route::put('/client-onboarding/{client}', [ClientOnboardingController::class, 'update'])->name('client-onboarding.update');
+    Route::delete('/client-onboarding/{client}', [ClientOnboardingController::class, 'destroy'])->name('client-onboarding.destroy');
 });
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
