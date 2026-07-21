@@ -16,6 +16,12 @@ class FonnteService
             'message' => $message,
         ]);
 
+        \Log::info('Fonnte response', [
+            'status_code' => $response->status(),
+            'body' => $response->body(),
+            'target' => $phoneNumber,
+        ]);
+
         if (!$response->successful()) {
             Log::error('Fonnte send failed', ['response' => $response->body()]);
             return false;

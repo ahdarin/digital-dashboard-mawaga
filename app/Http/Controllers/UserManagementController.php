@@ -56,6 +56,6 @@ class UserManagementController extends Controller
 
     private function authorizeManage(): void
     {
-        abort_unless(auth()->user()?->can('user_management', 'manage'), 403);
+        abort_unless(auth()->user()?->hasPermissionTo('user_management', 'manage'), 403);
     }
 }

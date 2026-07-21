@@ -69,6 +69,6 @@ class ClientOnboardingController extends Controller
 
     private function authorizeManage(): void
     {
-        abort_unless(auth()->user()?->can('client', 'manage'), 403);
+        abort_unless(auth()->user()?->hasPermissionTo('client', 'manage'), 403);
     }
 }
