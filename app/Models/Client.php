@@ -15,4 +15,20 @@ class Client extends Model
     public function packages() { return $this->hasMany(ClientPackage::class); }
     public function contentPlans() { return $this->hasMany(ContentPlan::class); }
     public function contentItems() { return $this->hasMany(ContentItem::class); }
+
+    // --- Tambahan untuk Client Management ---
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function owner()
+    {
+        return $this->hasOne(User::class)->whereHas('role', fn ($q) => $q->where('name', 'Client Owner'));
+    }
+
+    public function activePackage()
+    {
+        return $this->hasOne(ClientPackage::class)->where('status', 'active')->latestOfMany('start_date');
+    }
 }
