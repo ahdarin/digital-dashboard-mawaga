@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['role_id', 'client_id', 'name', 'email', 'phone_number', 'google_id', 'password', 'status'])]
+#[Fillable(['role_id', 'client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
@@ -69,5 +69,20 @@ class User extends Authenticatable
     public function isClientUser(): bool
     {
         return !is_null($this->client_id);
+    }
+
+    public function clientAssignments(): HasMany
+    {
+        return $this->hasMany(UserClientAssignment::class);
+    }
+
+    public function assignedClients()
+    {
+        return $this->belongsToMany(Client::class, 'user_client_assignments');
+    }
+
+    public function canSeeAllClients(): bool
+    {
+        return $this->hasAnyRole([UserRole::CEO, UserRole::Admin]);
     }
 }

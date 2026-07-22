@@ -11,7 +11,9 @@ use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Platform;
 use App\Models\User;
+use App\Models\ContentItemAssignment;
 use Illuminate\Database\Seeder;
+use App\Models\UserClientAssignment;
 
 class ProductionWorkflowDemoSeeder extends Seeder
 {
@@ -25,7 +27,7 @@ class ProductionWorkflowDemoSeeder extends Seeder
 
         $type = ContentType::firstOrCreate(['name' => 'Design']);
         $platform = Platform::firstOrCreate(['name' => 'Instagram']);
-        $user = User::first();
+        $user = User::where('email', 'ahdaalamin2506@gmail.com')->first();
 
         // Wajib ada dulu karena content_items butuh client_package_id via content_plans
         $clientPackage = ClientPackage::firstOrCreate(
@@ -62,7 +64,7 @@ class ProductionWorkflowDemoSeeder extends Seeder
                 'platform_id' => $platform->id,
                 'title' => "Demo Content Item #" . ($i + 1),
                 'brief' => 'Contoh brief untuk testing board.',
-                'deadline_at' => now()->addDays($i + 1),
+                'deadline_at' => now()->subDay()->addDays($i),
             ]);
 
             ContentWorkflow::create([
@@ -70,6 +72,25 @@ class ProductionWorkflowDemoSeeder extends Seeder
                 'current_pic_id' => $user->id,
                 'current_status' => $status,
             ]);
+
+            ContentItemAssignment::create([
+                'content_item_id' => $item->id,
+                'user_id' => $user->id,
+                'assignment_role' => 'content_creator',
+            ]);
+
+            if ($i === 0) {
+                ContentItemAssignment::create([
+                    'content_item_id' => $item->id,
+                    'user_id' => $user->id,
+                    'assignment_role' => 'designer',
+                ]);
+            }
         }
+
+        UserClientAssignment::firstOrCreate([
+            'user_id' => $user->id,
+            'client_id' => $client->id,
+        ]);
     }
 }

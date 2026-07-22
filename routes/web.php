@@ -7,6 +7,8 @@ use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ClientOnboardingController;
 use App\Http\Controllers\DashboardController;
+use App\Console\Commands\UpdateOverdueContentItems;
+use Illuminate\Support\Facades\Schedule;
 
 Route::get('/', function () {
     return view('welcome');
@@ -23,6 +25,16 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::patch('/production-workflow/{contentItem}/status', [ProductionWorkflowController::class, 'updateStatus'])
         ->name('production-workflow.update-status');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('/production-workflow/{contentItem}', [ProductionWorkflowController::class, 'show'])
+    ->name('production-workflow.show');
+
+    Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
+        ->name('content-revision.store');
+    Route::patch('/production-workflow/{contentItem}/revisions/{revision}/resolve', [ContentRevisionController::class, 'resolve'])
+        ->name('content-revision.resolve');
+    Route::post('/production-workflow/{contentItem}/publications', [ContentPublicationController::class, 'store'])
+        ->name('content-publication.store');
 
     Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
     Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
@@ -61,3 +73,6 @@ Route::middleware(['auth', 'client.user'])->group(function () {
         return 'Client Dashboard (belum dibuat)';
     })->name('client.dashboard');
 });
+
+//KF203.a : peringatan otomatis ketika tugas berstatus Overdue atau memasuki masa kritis tenggat waktu.
+Schedule::command(UpdateOverdueContentItems::class)->hourly();

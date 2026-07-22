@@ -11,21 +11,48 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            'CEO', 'Content Creator', 'Graphic Designer', 'MSO', 'Admin',
-            'Client Owner', 'Client Member',
+            'CEO',
+            'Content Creator',
+            'Graphic Designer',
+            'MSO',
+            'Admin',
+            'Client Owner',
+            'Client Member',
         ];
 
         foreach ($roles as $name) {
-            Role::firstOrCreate(['name' => $name]);
-        }
-
-        if (User::count() === 0) {
-            User::create([
-                'role_id' => Role::where('name', 'Admin')->first()->id,
-                'name' => 'Admin Demo',
-                'email' => 'admin@523studio.test',
-                'password' => bcrypt('password'),
+            Role::firstOrCreate([
+                'name' => $name,
             ]);
         }
+
+        // Admin Demo
+        $adminRole = Role::where('name', 'Admin')->first();
+
+        User::firstOrCreate(
+            [
+                'email' => 'admin@523studio.test',
+            ],
+            [
+                'role_id' => $adminRole->id,
+                'name' => 'Admin Demo',
+                'password' => bcrypt('password'),
+                'status' => 'active',
+            ]
+        );
+
+        // CEO
+        $ceoRole = Role::where('name', 'CEO')->first();
+
+        User::firstOrCreate(
+            [
+                'email' => 'ahdaalamin2506@gmail.com',
+            ],
+            [
+                'role_id' => $ceoRole->id,
+                'name' => 'Ahda',
+                'status' => 'active',
+            ]
+        );
     }
 }

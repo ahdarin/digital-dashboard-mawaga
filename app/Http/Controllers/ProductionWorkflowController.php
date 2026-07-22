@@ -6,6 +6,7 @@ use App\Models\ContentStatusLog;
 use App\Models\ContentWorkflow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Support\WorkflowTransitions;
 
 class ProductionWorkflowController extends Controller
 {
@@ -16,23 +17,45 @@ class ProductionWorkflowController extends Controller
         'uploaded', 'cancelled',
     ];
 
-    public function index()
+    public function index(Request $request)
     {
-        $items = ContentItem::with(['client', 'contentType', 'platform', 'workflow.currentPic'])
-            ->whereHas('workflow')
-            ->get()
-            ->groupBy(fn ($item) => $item->workflow->current_status);
+        $user = $request->user();
+
+        $itemsQuery = ContentItem::with([
+                'client', 'contentType', 'platform',
+                'workflow.currentPic',
+                'assignments.user',
+            ])
+            ->whereHas('workflow');
+
+        // Batasi hanya client yang di-assign, kecuali CEO/Admin
+        if (!$user->canSeeAllClients()) {
+            $assignedClientIds = $user->assignedClients()->pluck('clients.id');
+            $itemsQuery->whereIn('client_id', $assignedClientIds);
+        }
+
+        // Filter dropdown by client (opsional, dari query string)
+        if ($request->filled('client_id')) {
+            $itemsQuery->where('client_id', $request->input('client_id'));
+        }
+
+        $items = $itemsQuery->get()->groupBy(fn ($item) => $item->workflow->current_status);
 
         $board = [];
         foreach ($this->statuses as $status) {
             $board[$status] = $items->get($status, collect());
         }
 
-        // dd($board);
+        // Daftar client untuk dropdown filter (hanya yang relevan buat user ini)
+        $clientOptions = $user->canSeeAllClients()
+            ? \App\Models\Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
 
         return view('production-workflow.index', [
             'board' => $board,
             'statuses' => $this->statuses,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $request->input('client_id'),
         ]);
     }
 
@@ -45,20 +68,46 @@ class ProductionWorkflowController extends Controller
 
         $workflow = $contentItem->workflow;
         $fromStatus = $workflow->current_status;
+        $toStatus = $validated['to_status'];
 
-        DB::transaction(function () use ($workflow, $contentItem, $fromStatus, $validated, $request) {
-            $workflow->update(['current_status' => $validated['to_status']]);
+        if (!WorkflowTransitions::isValid($fromStatus, $toStatus)) {
+            $fromLabel = WorkflowTransitions::label($fromStatus);
+            $toLabel = WorkflowTransitions::label($toStatus);
+
+            return response()->json([
+                'success' => false,
+                'message' => "Tidak bisa memindahkan dari '{$fromLabel}' langsung ke '{$toLabel}'.",
+            ], 422);
+        }
+
+        DB::transaction(function () use ($workflow, $contentItem, $fromStatus, $toStatus, $validated, $request) {
+            $workflow->update(['current_status' => $toStatus]);
 
             ContentStatusLog::create([
                 'content_item_id' => $contentItem->id,
                 'changed_by' => $request->user()->id,
                 'from_status' => $fromStatus,
-                'to_status' => $validated['to_status'],
+                'to_status' => $toStatus,
                 'notes' => $validated['notes'] ?? null,
                 'changed_at' => now(),
             ]);
         });
 
-        return response()->json(['success' => true, 'status' => $validated['to_status']]);
+        return response()->json(['success' => true, 'status' => $toStatus]);
+    }
+
+    public function show(ContentItem $contentItem)
+    {
+        $contentItem->load([
+            'client', 'contentType', 'platform',
+            'workflow.currentPic',
+            'assignments.user',
+            'statusLogs.changedBy',
+            'revisions.requestedBy',
+            'publications.platform',
+            'publications.publishedBy',
+        ]);
+
+        return view('production-workflow.show', compact('contentItem'));
     }
 }

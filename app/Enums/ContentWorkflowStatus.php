@@ -1,9 +1,11 @@
+<?php
+
+namespace App\Enums;
+
 enum ContentWorkflowStatus: string
 {
-    case Planned = 'planned';
     case BriefReady = 'brief_ready';
     case InProgress = 'in_progress';
-    case InDesign = 'in_design';
     case WaitingReview = 'waiting_review';
     case Revision = 'revision';
     case Approved = 'approved';

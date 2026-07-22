@@ -27,4 +27,6 @@ class ContentItem extends Model
     public function workflow() { return $this->hasOne(ContentWorkflow::class); }
     public function statusLogs() { return $this->hasMany(ContentStatusLog::class); }
     public function assignments() { return $this->hasMany(ContentItemAssignment::class); }
+    public function revisions() { return $this->hasMany(ContentRevision::class); }
+    public function publications() { return $this->hasMany(ContentPublication::class); }
 }

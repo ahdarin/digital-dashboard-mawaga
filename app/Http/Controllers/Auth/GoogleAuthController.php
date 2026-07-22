@@ -38,6 +38,9 @@ class GoogleAuthController extends Controller
         if (!$user->google_id) {
             $updates['google_id'] = $googleUser->getId();
         }
+        if ($googleUser->getAvatar()) {
+            $updates['avatar_url'] = $googleUser->getAvatar();
+        }
         if ($user->status === 'invited') {
             $updates['status'] = 'active';
         }

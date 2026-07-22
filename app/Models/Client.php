@@ -31,4 +31,9 @@ class Client extends Model
     {
         return $this->hasOne(ClientPackage::class)->where('status', 'active')->latestOfMany('start_date');
     }
+
+    public function assignedUsers()
+    {
+        return $this->belongsToMany(User::class, 'user_client_assignments');
+    }
 }
