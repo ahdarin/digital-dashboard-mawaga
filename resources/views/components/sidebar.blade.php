@@ -5,7 +5,7 @@
         ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'bar_chart'],
         ['label' => 'AI Advisor', 'route' => 'ai-advisor', 'icon' => 'insights'],
         ['label' => 'Client', 'route' => 'client-onboarding.index', 'icon' => 'group'],
-        ['label' => 'Team', 'route' => 'user-management.index', 'icon' => 'groups'],
+        ['label' => 'Team', 'route' => 'team-performance.index', 'icon' => 'groups'],
         ['label' => 'Settings', 'route' => 'settings', 'icon' => 'settings'],
     ];
 @endphp

@@ -43,6 +43,10 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
+                            <a href="{{ route('user-client-assignment.edit', $user) }}" class="text-[#044b46] text-xs font-semibold hover:underline mr-3">
+                                Assign Client
+                            </a>
+                            
                             @if ($user->status !== 'inactive')
                                 <form action="{{ route('user-management.destroy', $user) }}" method="POST" onsubmit="return confirm('Nonaktifkan user ini?')">
                                     @csrf @method('DELETE')

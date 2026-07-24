@@ -11,6 +11,7 @@ use App\Http\Controllers\ContentRevisionController;
 use App\Http\Controllers\ContentPublicationController;
 use App\Http\Controllers\TeamPerformanceController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserClientAssignmentController;
 use App\Console\Commands\UpdateOverdueContentItems;
 use Illuminate\Support\Facades\Schedule;
 
@@ -44,6 +45,11 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
     Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
+
+    Route::get('/user-management/{user}/clients', [UserClientAssignmentController::class, 'edit'])
+        ->name('user-client-assignment.edit');
+    Route::put('/user-management/{user}/clients', [UserClientAssignmentController::class, 'update'])
+        ->name('user-client-assignment.update');
 
     Route::get('/client-onboarding', [ClientOnboardingController::class, 'index'])->name('client-onboarding.index');
     Route::get('/client-onboarding/create', [ClientOnboardingController::class, 'create'])->name('client-onboarding.create');
