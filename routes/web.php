@@ -7,6 +7,10 @@ use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ClientOnboardingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ContentRevisionController;
+use App\Http\Controllers\ContentPublicationController;
+use App\Http\Controllers\TeamPerformanceController;
+use App\Http\Controllers\ProfileController;
 use App\Console\Commands\UpdateOverdueContentItems;
 use Illuminate\Support\Facades\Schedule;
 
@@ -48,6 +52,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/client-onboarding/{client}/edit', [ClientOnboardingController::class, 'edit'])->name('client-onboarding.edit');
     Route::put('/client-onboarding/{client}', [ClientOnboardingController::class, 'update'])->name('client-onboarding.update');
     Route::delete('/client-onboarding/{client}', [ClientOnboardingController::class, 'destroy'])->name('client-onboarding.destroy');
+
+    Route::get('/team-performance', [TeamPerformanceController::class, 'index'])->name('team-performance.index');
+
+    Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
+    Route::get('/profile', function () {
+        return redirect()->route('profile.show', auth()->id());
+    })->name('profile.me');
 });
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');

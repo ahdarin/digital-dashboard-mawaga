@@ -22,15 +22,20 @@
                 <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#044b46] rounded-full"></span>
             </button>
 
-            <div class="flex items-center gap-3 pl-3 border-l border-gray-100">
-                <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0">
-                    {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
-                </div>
+            <a href="{{ route('profile.me') }}" class="flex items-center gap-3 pl-3 border-l border-gray-100 hover:opacity-80 transition-opacity">
+                @if (auth()->user()->avatar_url)
+                    <img src="{{ auth()->user()->avatar_url }}" referrerpolicy="no-referrer"
+                        class="w-9 h-9 rounded-full object-cover shrink-0">
+                @else
+                    <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                        {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
+                    </div>
+                @endif
                 <div class="hidden md:block leading-tight">
                     <p class="text-sm font-semibold text-[#191c1c]">{{ auth()->user()->name ?? 'User' }}</p>
                     <p class="text-xs text-gray-400">{{ auth()->user()->role->name ?? '-' }}</p>
                 </div>
-            </div>
+            </a>
 
         </div>
     </div>
