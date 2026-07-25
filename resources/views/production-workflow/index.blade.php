@@ -31,7 +31,7 @@
             </div>
 
             <a href="#"
-                class="bg-[#044b46] text-white text-sm font-semibold px-4 h-[42px] rounded-lg hover:bg-[#044b46]/90 flex items-center gap-2">
+                class="bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-4 h-[42px] rounded-lg hover:opacity-90 flex items-center gap-2 shadow-[0_4px_10px_rgba(4,75,70,0.25)]">
                 <span class="material-symbols-outlined text-[18px]">add</span>
                 New Task
             </a>
@@ -39,7 +39,7 @@
     </header>
 
     {{-- Toast notifikasi sederhana --}}
-    <div x-show="toast" x-transition class="fixed top-6 right-6 z-50 bg-[#044b46] text-white px-4 py-2 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
+    <div x-show="toast" x-transition class="fixed top-6 right-6 z-50 bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white px-4 py-2 rounded-lg shadow-[0_8px_20px_rgba(4,75,70,0.35)] text-sm" x-text="toast" style="display: none;"></div>
 
     {{-- Kanban Area --}}
     <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-gray-50">
@@ -48,14 +48,18 @@
         @endphp
 
         @foreach ($statuses as $status)
+            @php
+                $columnColors = ['#044b46', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#f43f5e', '#0a8f76', '#64748b'];
+                $dotColor = $columnColors[$loop->index % count($columnColors)];
+            @endphp
             <div
-                class="flex-shrink-0 w-[300px] h-full flex flex-col bg-gray-100 rounded-xl border border-gray-200"
+                class="flex-shrink-0 w-[300px] h-full flex flex-col bg-gray-50/80 rounded-xl border border-gray-200 shadow-[0_2px_10px_rgba(15,23,42,0.04)]"
                 x-on:dragover.prevent
                 x-on:drop="onDrop($event, '{{ $status }}')"
             >
-                <div class="p-3 border-b border-gray-200 flex items-center justify-between rounded-t-xl">
+                <div class="p-3 border-b border-gray-200 flex items-center justify-between rounded-t-xl bg-white/60">
                     <h3 class="text-xs font-semibold text-gray-700 flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full bg-[#044b46]"></div>
+                        <div class="w-2 h-2 rounded-full" style="background-color: {{ $dotColor }}"></div>
                         {{ $statusLabels[$status] }}
                     </h3>
                     <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
@@ -73,7 +77,7 @@
                             draggable="true"
                             x-on:dragstart="onDragStart($event, {{ $item->id }})"
                             x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                            class="bg-white p-4 rounded-lg border shadow-sm hover:shadow-md transition-shadow cursor-move {{ $isOverdue ? 'border-2 border-red-400' : 'border-gray-200' }}"
+                            class="bg-white p-4 rounded-lg border shadow-[0_2px_10px_rgba(15,23,42,0.05)] hover:shadow-[0_6px_20px_rgba(15,23,42,0.1)] hover:-translate-y-0.5 transition-all duration-150 cursor-move {{ $isOverdue ? 'border-2 border-rose-400' : 'border-gray-200' }}"
                         >
                             <div class="flex justify-between items-start mb-2">
                                 <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
@@ -103,7 +107,7 @@
                                                     referrerpolicy="no-referrer"
                                                     class="w-6 h-6 rounded-full ring-2 ring-white object-cover">
                                             @else
-                                                <div class="w-6 h-6 rounded-full bg-[#044b46] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
+                                                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white">
                                                     {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                 </div>
                                             @endif
@@ -133,7 +137,7 @@
                                                             referrerpolicy="no-referrer"
                                                             class="w-7 h-7 rounded-full object-cover">
                                                     @else
-                                                        <div class="w-7 h-7 rounded-full bg-[#044b46] text-white text-xs font-bold flex items-center justify-center">
+                                                        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] text-white text-xs font-bold flex items-center justify-center">
                                                             {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                         </div>
                                                     @endif

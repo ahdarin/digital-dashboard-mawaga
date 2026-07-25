@@ -13,8 +13,10 @@
 <aside class="w-[260px] shrink-0 bg-white flex flex-col h-screen sticky top-0 border-r border-gray-100">
 
     {{-- Brand --}}
-    <div class="px-6 py-6 flex items-center gap-2">
-        <span class="material-symbols-outlined text-[#044b46] text-[26px]">water_drop</span>
+    <div class="px-6 py-6 flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#044b46] to-[#0a8f76] flex items-center justify-center shadow-[0_4px_14px_rgba(4,75,70,0.35)]">
+            <span class="material-symbols-outlined text-white text-[18px]">water_drop</span>
+        </div>
         <span class="text-lg font-extrabold text-[#191c1c]">523 Studio</span>
     </div>
 
@@ -25,12 +27,11 @@
                 $isActive = Route::has($item['route']) && request()->routeIs($item['route']);
             @endphp
 
-            
-                <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
-                class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors duration-150
+            <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
+                class="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-150
                     {{ $isActive
-                        ? 'bg-gray-100 text-[#191c1c]'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-[#191c1c]' }}"
+                        ? 'bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white shadow-[0_6px_16px_rgba(4,75,70,0.28)]'
+                        : 'text-gray-500 hover:bg-[#f4f9f7] hover:text-[#044b46]' }}"
             >
                 <span class="material-symbols-outlined text-[20px]">{{ $item['icon'] }}</span>
                 <span>{{ $item['label'] }}</span>
@@ -43,7 +44,7 @@
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit"
-                    class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors duration-150">
+                    class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-rose-600 bg-gradient-to-r from-rose-50 to-rose-100/60 hover:from-rose-100 hover:to-rose-100 transition-colors duration-150 shadow-[0_2px_8px_rgba(244,63,94,0.12)]">
                 <span class="material-symbols-outlined text-[20px]">logout</span>
                 Logout
             </button>

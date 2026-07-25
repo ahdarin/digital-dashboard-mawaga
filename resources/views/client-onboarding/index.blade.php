@@ -9,7 +9,7 @@
         <h1 class="text-4xl font-extrabold text-[#191c1c]">Client Management</h1>
 
         <a href="{{ route('client-onboarding.create') }}"
-           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-[#044b46]/90 transition-colors duration-150 shrink-0">
+           class="flex items-center gap-2 bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shrink-0 shadow-[0_6px_16px_rgba(4,75,70,0.25)]">
             <span class="material-symbols-outlined text-[18px]">person_add</span>
             Add Client
         </a>
@@ -30,7 +30,7 @@
                 name="search"
                 value="{{ $search }}"
                 placeholder="Search clients, emails, or plans..."
-                class="w-full pl-11 pr-4 py-3 text-sm bg-white rounded-xl shadow-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#044b46]/30"
+                class="w-full pl-11 pr-4 py-3 text-sm bg-white rounded-xl shadow-[0_4px_16px_rgba(15,23,42,0.06)] border-0 focus:outline-none focus:ring-2 focus:ring-[#044b46]/30"
             >
         </div>
 
@@ -38,7 +38,7 @@
             <select
                 name="status"
                 onchange="this.form.submit()"
-                class="appearance-none bg-white shadow-sm rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-[#191c1c] focus:outline-none focus:ring-2 focus:ring-[#044b46]/30 cursor-pointer"
+                class="appearance-none bg-white shadow-[0_4px_16px_rgba(15,23,42,0.06)] rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-[#191c1c] focus:outline-none focus:ring-2 focus:ring-[#044b46]/30 cursor-pointer"
             >
                 <option value="all" {{ $status === 'all' ? 'selected' : '' }}>Status: All</option>
                 <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
@@ -52,7 +52,7 @@
     </form>
 
     {{-- Table --}}
-    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] overflow-hidden">
 <table class="w-full text-sm text-left">
     <thead>
         <tr class="border-b border-gray-100">
@@ -69,7 +69,7 @@
             <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors duration-150">
                 <td class="px-6 py-4">
                     <a href="{{ route('client-onboarding.show', $client) }}" class="flex items-center gap-3 group">
-                        <div class="w-10 h-10 rounded-full bg-[#044b46]/10 text-[#044b46] flex items-center justify-center text-sm font-bold shrink-0">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-[0_3px_8px_rgba(4,75,70,0.25)]">
                             {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
                         </div>
                         <div>

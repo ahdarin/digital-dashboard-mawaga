@@ -22,6 +22,19 @@ class AnalyticsController extends Controller
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
         $selectedClientId = $request->input('client_id');
+        $clientOptions = Client::where('status', 'active')->get();
+
+        // Sengaja: kalau belum pilih client, JANGAN agregat semua client
+        // sekaligus (biar nggak "ramai" dan lambat) - tampilkan empty
+        // state, minta pilih client dulu di dropdown.
+        if (! $selectedClientId) {
+            return view('analytics.index', [
+                'noClientSelected' => true,
+                'clientOptions' => $clientOptions,
+                'selectedClientId' => null,
+                'period' => $period,
+            ]);
+        }
 
         $end = Carbon::now()->endOfDay();
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
@@ -119,8 +132,6 @@ class AnalyticsController extends Controller
             ->take(5)
             ->values();
 
-        $clientOptions = Client::where('status', 'active')->get();
-
         return view('analytics.index', compact(
             'stats', 'trend', 'platformBreakdown', 'topContent',
             'clientOptions', 'selectedClientId', 'period'
@@ -165,6 +176,7 @@ class AnalyticsController extends Controller
             'daysTracked', 'bestDate', 'trend', 'syncLogs'
         ));
     }
+
 
     private function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
     {

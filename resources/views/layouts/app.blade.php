@@ -7,9 +7,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>[x-cloak] { display: none !important; }</style>
+    <style>
+        [x-cloak] { display: none !important; }
+        body {
+            background-color: #f8faf8;
+            background-image:
+                radial-gradient(circle at 100% 0%, rgba(4,75,70,0.05) 0%, transparent 40%),
+                radial-gradient(circle at 0% 100%, rgba(4,75,70,0.04) 0%, transparent 35%);
+            background-attachment: fixed;
+        }
+    </style>
 </head>
-<body class="bg-[#f8faf8] text-[#191c1c] min-h-screen">
+<body class="text-[#191c1c] min-h-screen">
 
     <div class="flex min-h-screen">
 

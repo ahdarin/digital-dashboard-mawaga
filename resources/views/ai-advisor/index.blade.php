@@ -16,12 +16,13 @@
         <div class="flex-1 min-w-0 space-y-6">
 
             {{-- Strategic Recommendation --}}
-            <div class="relative bg-white rounded-2xl shadow-sm p-8 overflow-hidden">
-                <div class="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-[#044b46]/5 blur-2xl"></div>
+            <div class="relative bg-gradient-to-br from-white via-white to-[#f0f8f5] rounded-2xl shadow-[0_8px_32px_rgba(4,75,70,0.10)] p-8 overflow-hidden border border-[#044b46]/5">
+                <div class="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#044b46]/15 to-emerald-300/10 blur-2xl"></div>
+                <div class="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-indigo-200/10 blur-2xl"></div>
 
                 <div class="flex items-center gap-2 mb-5">
-                    <div class="w-8 h-8 rounded-full bg-[#044b46]/10 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[#044b46] text-[18px]">auto_awesome</span>
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] flex items-center justify-center shadow-[0_4px_10px_rgba(4,75,70,0.3)]">
+                        <span class="material-symbols-outlined text-white text-[18px]">auto_awesome</span>
                     </div>
                     <span class="text-xs font-bold tracking-wider text-[#044b46] uppercase">{{ $recommendation['label'] }}</span>
                 </div>
@@ -35,7 +36,7 @@
                 </p>
 
                 {{-- Action Items --}}
-                <div class="bg-[#f4f6fb] rounded-xl p-5 mb-6">
+                <div class="bg-gradient-to-br from-indigo-50/70 to-[#f4f6fb] rounded-xl p-5 mb-6 border border-indigo-100/50">
                     <h3 class="text-sm font-bold text-gray-700 mb-3">Action Items</h3>
                     <ul class="space-y-2.5">
                         @foreach ($actionItems as $item)
@@ -50,7 +51,7 @@
                 {{-- Actions --}}
                 <div class="flex items-center gap-3">
                     <button type="button"
-                            class="bg-[#044b46] text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-[#044b46]/90 transition-colors duration-150">
+                            class="bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-6 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shadow-[0_6px_16px_rgba(4,75,70,0.28)]">
                         Apply Strategy
                     </button>
                     <button type="button"
@@ -72,11 +73,17 @@
                     <div class="grid grid-cols-3 gap-5">
                         @php
                             $pillarIcons = ['school', 'auto_stories', 'lightbulb'];
+                            $pillarStyles = [
+                                ['chip' => 'bg-gradient-to-br from-[#044b46] to-[#0a8f76]', 'icon' => 'text-white'],
+                                ['chip' => 'bg-gradient-to-br from-indigo-500 to-indigo-400', 'icon' => 'text-white'],
+                                ['chip' => 'bg-gradient-to-br from-amber-400 to-amber-300', 'icon' => 'text-white'],
+                            ];
                         @endphp
                         @foreach ($topPillars as $i => $pillar)
-                            <div class="bg-white rounded-2xl shadow-sm p-6">
-                                <div class="w-11 h-11 rounded-xl bg-[#044b46]/10 flex items-center justify-center mb-4">
-                                    <span class="material-symbols-outlined text-[#044b46] text-[22px]">
+                            @php $ps = $pillarStyles[$i] ?? $pillarStyles[0]; @endphp
+                            <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-6 hover:-translate-y-0.5 transition-transform duration-150">
+                                <div class="w-11 h-11 rounded-xl {{ $ps['chip'] }} flex items-center justify-center mb-4 shadow-[0_4px_10px_rgba(0,0,0,0.12)]">
+                                    <span class="material-symbols-outlined {{ $ps['icon'] }} text-[22px]">
                                         {{ $pillarIcons[$i] ?? 'label' }}
                                     </span>
                                 </div>
@@ -94,25 +101,25 @@
         <div class="w-[340px] shrink-0 flex flex-col gap-6">
 
             {{-- AI Confidence --}}
-            <div class="bg-white rounded-2xl shadow-sm p-6">
+            <div class="bg-gradient-to-br from-[#044b46] to-[#0a6b5c] rounded-2xl shadow-[0_8px_28px_rgba(4,75,70,0.35)] p-6 text-white">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-bold tracking-wider text-gray-400 uppercase">AI Confidence</span>
-                    <div class="w-9 h-9 rounded-full bg-[#044b46]/10 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[#044b46] text-[18px]">psychology</span>
+                    <span class="text-xs font-bold tracking-wider text-white/70 uppercase">AI Confidence</span>
+                    <div class="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-white text-[18px]">psychology</span>
                     </div>
                 </div>
 
-                <p class="text-4xl font-extrabold text-[#191c1c] mb-4">{{ $confidence }}%</p>
+                <p class="text-4xl font-extrabold text-white mb-4">{{ $confidence }}%</p>
 
-                <div class="w-full h-2 rounded-full bg-gray-100 overflow-hidden mb-4">
-                    <div class="h-full bg-[#044b46] rounded-full" style="width: {{ $confidence }}%"></div>
+                <div class="w-full h-2 rounded-full bg-white/20 overflow-hidden mb-4">
+                    <div class="h-full bg-white rounded-full" style="width: {{ $confidence }}%"></div>
                 </div>
 
-                <p class="text-xs text-gray-500 leading-relaxed">{{ $confidenceNote }}</p>
+                <p class="text-xs text-white/70 leading-relaxed">{{ $confidenceNote }}</p>
             </div>
 
             {{-- Suggested Split --}}
-            <div class="bg-white rounded-2xl shadow-sm p-6">
+            <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-6">
                 <h2 class="text-xl font-extrabold text-[#191c1c] mb-5">Suggested Split</h2>
 
                 <div class="space-y-4">

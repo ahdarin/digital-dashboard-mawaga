@@ -25,8 +25,8 @@
             </div>
         </div>
 
-        <span class="text-xs font-semibold px-3 py-1.5 rounded-full
-            {{ $contentItem->is_posted ? 'bg-[#044b46]/10 text-[#044b46]' : 'bg-amber-100 text-amber-700' }}">
+        <span class="text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm
+            {{ $contentItem->is_posted ? 'bg-gradient-to-r from-[#044b46] to-[#0a8f76] text-white' : 'bg-amber-100 text-amber-700' }}">
             {{ $contentItem->is_posted ? 'Published' : 'Belum Terpublikasi' }}
         </span>
     </div>
@@ -38,22 +38,22 @@
 
             {{-- Mini stat cards --}}
             <div class="grid grid-cols-3 gap-4">
-                <div class="bg-white rounded-xl border border-gray-200 p-5">
+                <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                     <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Total Views</p>
                     <p class="text-2xl font-extrabold text-[#191c1c]">{{ number_format($totalViews) }}</p>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 p-5">
+                <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                     <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Avg. Engagement</p>
                     <p class="text-2xl font-extrabold text-[#191c1c]">{{ $avgEngagement }}%</p>
                 </div>
-                <div class="bg-white rounded-xl border border-gray-200 p-5">
+                <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                     <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Hari Terlacak</p>
                     <p class="text-2xl font-extrabold text-[#191c1c]">{{ $daysTracked }}</p>
                 </div>
             </div>
 
             {{-- Performance trend chart --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-sm font-bold text-gray-700">Views Trend</h3>
                     <div class="flex items-center gap-2">
@@ -65,27 +65,12 @@
                 @if ($trend->isEmpty())
                     <p class="text-sm text-gray-400 text-center py-16">Belum ada metrik yang tercatat untuk konten ini.</p>
                 @else
-                    @php
-                        $max = max($trend->max('value'), 1);
-                        $peak = $trend->sortByDesc('value')->keys()->first();
-                    @endphp
-                    <div class="flex items-end justify-between gap-2 h-48 overflow-x-auto">
-                        @foreach ($trend as $i => $point)
-                            <div class="flex-1 min-w-[24px] flex flex-col items-center gap-2">
-                                <span class="text-[10px] font-semibold text-gray-400">{{ $point['value'] > 0 ? number_format($point['value']) : '' }}</span>
-                                <div
-                                    class="w-full max-w-8 rounded-t-lg transition-all duration-300 {{ $i === $peak && $point['value'] > 0 ? 'bg-[#044b46]' : 'bg-[#044b46]/25' }}"
-                                    style="height: {{ max(($point['value'] / $max) * 100, 4) }}%"
-                                ></div>
-                                <span class="text-[10px] font-medium text-gray-400">{{ $point['label'] }}</span>
-                            </div>
-                        @endforeach
-                    </div>
+                    <x-trend-chart :trend="$trend" />
                 @endif
             </div>
 
             {{-- Metric history table --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                 <h3 class="text-sm font-bold text-gray-700 mb-4">Metric History ({{ $metrics->count() }})</h3>
 
                 @if ($metrics->isEmpty())
@@ -126,7 +111,7 @@
         <div class="space-y-6">
 
             {{-- Content Info --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                 <h3 class="text-sm font-bold text-gray-700 mb-4">Content Info</h3>
 
                 <div class="space-y-3 text-sm">
@@ -158,7 +143,7 @@
             </div>
 
             {{-- Sync Log --}}
-            <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                 <h3 class="text-sm font-bold text-gray-700 mb-4">Sync Log ({{ $syncLogs->count() }})</h3>
 
                 @if ($syncLogs->isEmpty())
