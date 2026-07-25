@@ -55,6 +55,10 @@ class User extends Authenticatable
         return $this->hasMany(MagicLoginToken::class);
     }
 
+    public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Notification::class);
+    }
     public function hasAnyRole(array $roles): bool
     {
         $roleValues = array_map(fn (UserRole $r) => $r->value, $roles);

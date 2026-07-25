@@ -13,6 +13,10 @@ use App\Http\Controllers\TeamPerformanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserClientAssignmentController;
 use App\Console\Commands\UpdateOverdueContentItems;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AiAdvisorController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Schedule;
 
 Route::get('/', function () {
@@ -60,6 +64,14 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::delete('/client-onboarding/{client}', [ClientOnboardingController::class, 'destroy'])->name('client-onboarding.destroy');
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])->name('team-performance.index');
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
+
+    Route::get('/ai-advisor', [AiAdvisorController::class, 'index'])->name('ai-advisor');
+
+    Route::get('/settings', [SettingsController::class, 'index'])->name('settings'); 
+    Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.mark-all-read');
 
     Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile', function () {
