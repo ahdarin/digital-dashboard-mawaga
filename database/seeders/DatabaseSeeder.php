@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             ClientUserDemoSeeder::class,
             ProductionWorkflowDemoSeeder::class,
             PermissionSeeder::class,
+            AnalyticsDemoSeeder::class,
         ]);
     }
 }

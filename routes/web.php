@@ -17,6 +17,8 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AiAdvisorController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Client\ApprovalController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Schedule;
 
 Route::get('/', function () {
@@ -77,6 +79,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/profile', function () {
         return redirect()->route('profile.show', auth()->id());
     })->name('profile.me');
+
+    Route::get('/publishing-tracker', [ContentPublicationController::class, 'index'])->name('publishing-tracker.index');
+
+    Route::get('/revision-log', [ContentRevisionController::class, 'index'])->name('revision-log.index');
+
+    Route::get('/report', [ReportController::class, 'index'])->name('report.index');
+    Route::post('/report/generate', [ReportController::class, 'generate'])->name('report.generate');
 });
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
@@ -98,9 +107,12 @@ Route::post('/client/login', [ClientMagicLinkController::class, 'requestLink'])
 Route::get('/client/magic-login/{token}', [ClientMagicLinkController::class, 'verify'])->name('client.magic-login.verify');
 
 Route::middleware(['auth', 'client.user'])->group(function () {
-    Route::get('/client/dashboard', function () {
-        return 'Client Dashboard (belum dibuat)';
-    })->name('client.dashboard');
+    Route::get('/client/dashboard', [ApprovalController::class, 'index'])->name('client.dashboard');
+
+    Route::get('/client/approval', [ApprovalController::class, 'index'])->name('client.approval.index');
+    Route::get('/client/approval/{contentItem}', [ApprovalController::class, 'show'])->name('client.approval.show');
+    Route::post('/client/approval/{contentItem}/approve', [ApprovalController::class, 'approve'])->name('client.approval.approve');
+    Route::post('/client/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.approval.request-revision');
 });
 
 //KF203.a : peringatan otomatis ketika tugas berstatus Overdue atau memasuki masa kritis tenggat waktu.

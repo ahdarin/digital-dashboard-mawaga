@@ -7,6 +7,10 @@
         'ai_insight' => ['icon' => 'auto_awesome', 'bg' => 'bg-emerald-50', 'color' => 'text-emerald-600'],
         'task' => ['icon' => 'assignment', 'bg' => 'bg-blue-50', 'color' => 'text-blue-600'],
         'system' => ['icon' => 'cloud_done', 'bg' => 'bg-blue-50', 'color' => 'text-blue-600'],
+        'overdue' => ['icon' => 'warning', 'bg' => 'bg-red-50', 'color' => 'text-red-600'],
+        'revision' => ['icon' => 'edit_note', 'bg' => 'bg-orange-50', 'color' => 'text-orange-600'],
+        'approval' => ['icon' => 'check_circle', 'bg' => 'bg-green-50', 'color' => 'text-green-600'],
+        'publish' => ['icon' => 'publish', 'bg' => 'bg-teal-50', 'color' => 'text-teal-600'],
     ];
 @endphp
 
@@ -56,6 +60,8 @@
                                 'task' => 'Tasks',
                                 'ai_insight' => 'AI Insights',
                                 'mention' => 'Mentions',
+                                'overdue' => 'Overdue',
+                                'revision' => 'Revisions',
                             ] as $key => $label)
                                 <button @click="tab = '{{ $key }}'" type="button"
                                         :class="tab === '{{ $key }}' ? 'bg-[#044b46] text-white' : 'bg-white text-gray-500 hover:bg-gray-100'"

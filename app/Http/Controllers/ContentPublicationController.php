@@ -6,9 +6,40 @@ use App\Models\ContentItem;
 use App\Models\ContentPublication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Client;
 
 class ContentPublicationController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $query = ContentPublication::with(['contentItem.client', 'platform', 'publishedBy'])
+            ->latest('published_at');
+
+        if (!$user->canSeeAllClients()) {
+            $assignedClientIds = $user->assignedClients()->pluck('clients.id');
+            $query->whereHas('contentItem', fn ($q) => $q->whereIn('client_id', $assignedClientIds));
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('contentItem', fn ($q) => $q->where('client_id', $request->input('client_id')));
+        }
+
+        $publications = $query->paginate(15)->withQueryString();
+
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
+
+        return view('publishing-tracker.index', [
+            'publications' => $publications,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $request->input('client_id'),
+        ]);
+    }
+
     public function store(Request $request, ContentItem $contentItem)
     {
         $validated = $request->validate([

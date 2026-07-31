@@ -4,10 +4,46 @@ namespace App\Http\Controllers;
 
 use App\Models\ContentItem;
 use App\Models\ContentRevision;
+use App\Models\Client;
 use Illuminate\Http\Request;
 
 class ContentRevisionController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+
+        $query = ContentRevision::with(['contentItem.client', 'requestedBy'])
+            ->latest('created_at');
+
+        if (!$user->canSeeAllClients()) {
+            $assignedClientIds = $user->assignedClients()->pluck('clients.id');
+            $query->whereHas('contentItem', fn ($q) => $q->whereIn('client_id', $assignedClientIds));
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('contentItem', fn ($q) => $q->where('client_id', $request->input('client_id')));
+        }
+
+        // Default: tampilkan yang open saja, kecuali diminta lihat semua
+        if ($request->input('status', 'open') !== 'all') {
+            $query->where('status', $request->input('status', 'open'));
+        }
+
+        $revisions = $query->paginate(15)->withQueryString();
+
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
+
+        return view('revision-log.index', [
+            'revisions' => $revisions,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $request->input('client_id'),
+            'selectedStatus' => $request->input('status', 'open'),
+        ]);
+    }
     public function store(Request $request, ContentItem $contentItem)
     {
         $validated = $request->validate([
