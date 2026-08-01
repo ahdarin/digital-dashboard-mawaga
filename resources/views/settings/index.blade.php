@@ -86,20 +86,84 @@
         <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-6">
             <div class="mb-5">
                 <h2 class="text-xl font-extrabold text-[#191c1c]">Import Performance Data</h2>
-                <p class="text-sm text-gray-500 mt-1">Upload file CSV/Excel berisi metrik performa konten manual.</p>
+                <p class="text-sm text-gray-500 mt-1">Upload file CSV berisi metrik performa konten manual.</p>
             </div>
 
-            <div class="border-2 border-dashed border-[#044b46]/20 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#f4f9f7] to-white">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] flex items-center justify-center mb-3 shadow-[0_4px_12px_rgba(4,75,70,0.3)]">
-                    <span class="material-symbols-outlined text-white text-[24px]">upload_file</span>
+            {{-- Flash message hasil import --}}
+            @if (session('import_success'))
+                <div class="mb-4 bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+                    <p class="text-sm font-semibold text-emerald-700 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                        {{ session('import_success') }}
+                    </p>
+                    @if (! empty(session('import_skipped')))
+                        <ul class="mt-2 ml-6 list-disc text-xs text-emerald-700/80 space-y-0.5">
+                            @foreach (session('import_skipped') as $skip)
+                                <li>{{ $skip }}</li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
-                <p class="text-sm font-semibold text-[#191c1c] mb-1">Tarik file ke sini atau klik untuk upload</p>
-                <p class="text-xs text-gray-400 mb-4">Format .csv atau .xlsx, maksimal 5MB</p>
-                <button type="button"
-                        class="bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity duration-150 shadow-[0_4px_10px_rgba(4,75,70,0.25)]">
-                    Pilih File
+            @endif
+
+            @if (session('import_error'))
+                <div class="mb-4 bg-rose-50 border border-rose-100 rounded-xl p-4">
+                    <p class="text-sm font-semibold text-rose-700 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">error</span>
+                        {{ session('import_error') }}
+                    </p>
+                </div>
+            @endif
+
+            <form action="{{ route('settings.import-performance') }}" method="POST" enctype="multipart/form-data"
+                  x-data="{ fileName: null }">
+                @csrf
+
+                <div class="mb-4">
+                    <label class="text-xs font-semibold text-gray-500 uppercase mb-1.5 block">Client</label>
+                    <select name="client_id" required
+                            class="w-full text-sm font-medium border border-gray-200 rounded-xl px-4 py-2.5 bg-white focus:outline-none focus:border-[#044b46]">
+                        <option value="">Pilih client tujuan data ini...</option>
+                        @foreach ($clientOptions as $c)
+                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <label for="csv-file"
+                       class="cursor-pointer border-2 border-dashed border-[#044b46]/20 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-[#f4f9f7] to-white hover:border-[#044b46]/40 transition-colors duration-150 block">
+                    <input id="csv-file" type="file" name="file" accept=".csv,.txt" required class="hidden"
+                           x-on:change="fileName = $event.target.files[0]?.name">
+
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] flex items-center justify-center mb-3 shadow-[0_4px_12px_rgba(4,75,70,0.3)]">
+                        <span class="material-symbols-outlined text-white text-[24px]">upload_file</span>
+                    </div>
+                    <p class="text-sm font-semibold text-[#191c1c] mb-1" x-text="fileName ?? 'Klik untuk pilih file'"></p>
+                    <p class="text-xs text-gray-400">Format .csv, maksimal 5MB</p>
+                </label>
+
+                <details class="mt-3">
+                    <summary class="text-xs font-semibold text-[#044b46] cursor-pointer">Lihat format kolom CSV</summary>
+                    <div class="mt-2 bg-gray-50 rounded-lg p-3 text-xs text-gray-500 font-mono overflow-x-auto space-y-2">
+                        <div>
+                            <span class="text-gray-400 not-italic font-sans">Wajib (semua tipe konten):</span><br>
+                            content_title,platform,metric_date,views,engagement_rate<br>
+                            Post Promo Ramadan,Instagram,2026-07-01,1200,4.5
+                        </div>
+                        <div>
+                            <span class="text-gray-400 not-italic font-sans">Opsional, khusus Reels/TikTok (boleh kosong/tidak ada):</span><br>
+                            watch_time_avg,completion_rate,shares,saves<br>
+                            18,64.5,120,340
+                        </div>
+                    </div>
+                </details>
+                <p class="text-[11px] text-gray-400 mt-1">watch_time_avg = rata-rata detik ditonton, completion_rate = % nonton sampai habis. Kosongkan kolomnya (jangan isi 0) kalau konten Feed/foto yang memang nggak punya metrik ini.</p>
+
+                <button type="submit"
+                        class="mt-4 w-full bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shadow-[0_4px_10px_rgba(4,75,70,0.25)]">
+                    Upload &amp; Import
                 </button>
-            </div>
+            </form>
         </div>
 
         {{-- Notifications --}}
@@ -121,6 +185,29 @@
                     </div>
                 @endforeach
             </div>
+        </div>
+
+        {{-- Anomaly Detection --}}
+        <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-6">
+            <div class="flex items-center gap-3 mb-1">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 flex items-center justify-center shadow-[0_4px_10px_rgba(99,102,241,0.3)]">
+                    <span class="material-symbols-outlined text-white text-[20px]">auto_awesome</span>
+                </div>
+                <h2 class="text-xl font-extrabold text-[#191c1c]">Anomaly Detection</h2>
+            </div>
+            <p class="text-sm text-gray-500 mb-5 ml-[52px]">
+                Otomatis bandingin performa konten hari ini vs rata-rata 30 hari terakhir, kirim notifikasi kalau ada lonjakan/penurunan signifikan.
+                Berjalan otomatis tiap jam. Ini buat trigger manual (misal buat testing).
+            </p>
+
+            <form action="{{ route('settings.detect-anomalies') }}" method="POST">
+                @csrf
+                <button type="submit"
+                        class="bg-gradient-to-r from-indigo-500 to-indigo-400 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity shadow-[0_4px_10px_rgba(99,102,241,0.25)] flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">bolt</span>
+                    Jalankan Sekarang
+                </button>
+            </form>
         </div>
 
     </div>

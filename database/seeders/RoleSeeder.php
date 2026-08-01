@@ -54,5 +54,17 @@ class RoleSeeder extends Seeder
                 'status' => 'active',
             ]
         );
+        $ceoRole = Role::where('name', 'CEO')->first();
+
+        User::firstOrCreate(
+            [
+                'email' => 'surdik2811@gmail.com',
+            ],
+            [
+                'role_id' => $ceoRole->id,
+                'name' => 'Surdik',
+                'status' => 'active',
+            ]
+        );
     }
 }

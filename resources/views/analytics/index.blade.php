@@ -12,6 +12,18 @@
         </div>
 
         <div class="flex items-center gap-3">
+            <a href="{{ route('analytics.table') }}"
+               class="text-sm font-semibold text-gray-500 hover:text-[#044b46] flex items-center gap-1.5 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors duration-150">
+                <span class="material-symbols-outlined text-[18px]">table_rows</span>
+                Table
+            </a>
+
+            <a href="{{ route('audience') }}"
+               class="text-sm font-semibold text-gray-500 hover:text-[#044b46] flex items-center gap-1.5 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors duration-150">
+                <span class="material-symbols-outlined text-[18px]">groups</span>
+                Audience
+            </a>
+
             {{-- Filter periode --}}
             <form method="GET" class="flex items-center gap-3">
                 @if ($selectedClientId)
@@ -36,11 +48,13 @@
                 </select>
             </form>
 
-            <button type="button"
-                    class="flex items-center gap-2 bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shrink-0 shadow-[0_6px_16px_rgba(4,75,70,0.25)]">
-                <span class="material-symbols-outlined text-[18px]">download</span>
-                Export
-            </button>
+            @if ($selectedClientId)
+                <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
+                        class="flex items-center gap-2 bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shrink-0 shadow-[0_6px_16px_rgba(4,75,70,0.25)]">
+                    <span class="material-symbols-outlined text-[18px]">download</span>
+                    Export
+                </a>
+            @endif
         </div>
     </div>
 

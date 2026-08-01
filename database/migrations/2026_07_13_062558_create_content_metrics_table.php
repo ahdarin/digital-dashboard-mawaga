@@ -12,10 +12,20 @@ return new class extends Migration {
             $table->foreignId('platform_id')->constrained('platforms');
             $table->foreignId('sync_log_id')->nullable()->constrained('analytics_sync_logs')->onDelete('set null');
             $table->foreignId('imported_by')->constrained('users');
-            
+
             $table->date('metric_date');
             $table->integer('views')->default(0);
             $table->decimal('engagement_rate', 5, 2)->default(0.00);
+
+            // Metrik tambahan khusus konten video (Reels & TikTok).
+            // Nullable, karena konten Feed/foto/carousel nggak punya nilai
+            // ini - dibedakan dari 0, biar nggak salah baca "0 saves"
+            // padahal aslinya memang konten yang nggak punya metrik itu.
+            $table->integer('watch_time_avg')->nullable(); // rata-rata durasi ditonton, dalam detik
+            $table->decimal('completion_rate', 5, 2)->nullable(); // % penonton yang nonton sampai habis
+            $table->integer('shares')->nullable();
+            $table->integer('saves')->nullable();
+
             $table->timestamps();
 
             // Composite Unique Constraint wajib (Design Notes #2)

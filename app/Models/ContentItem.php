@@ -29,4 +29,8 @@ class ContentItem extends Model
     public function assignments() { return $this->hasMany(ContentItemAssignment::class); }
     public function revisions() { return $this->hasMany(ContentRevision::class); }
     public function publications() { return $this->hasMany(ContentPublication::class); }
+    public function metrics(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ContentMetric::class);
+    }
 }

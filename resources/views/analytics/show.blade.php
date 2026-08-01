@@ -52,6 +52,28 @@
                 </div>
             </div>
 
+            {{-- Metrik video (Reels/TikTok) - cuma muncul kalau kontennya punya data ini --}}
+            @if ($hasVideoMetrics)
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-5">
+                        <p class="text-xs font-semibold text-indigo-400 uppercase mb-2">Avg. Watch Time</p>
+                        <p class="text-xl font-extrabold text-[#191c1c]">{{ $avgWatchTime !== null ? $avgWatchTime.'s' : '-' }}</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-5">
+                        <p class="text-xs font-semibold text-indigo-400 uppercase mb-2">Completion Rate</p>
+                        <p class="text-xl font-extrabold text-[#191c1c]">{{ $avgCompletionRate !== null ? $avgCompletionRate.'%' : '-' }}</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-5">
+                        <p class="text-xs font-semibold text-indigo-400 uppercase mb-2">Shares</p>
+                        <p class="text-xl font-extrabold text-[#191c1c]">{{ $totalShares !== null ? number_format($totalShares) : '-' }}</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 p-5">
+                        <p class="text-xs font-semibold text-indigo-400 uppercase mb-2">Saves</p>
+                        <p class="text-xl font-extrabold text-[#191c1c]">{{ $totalSaves !== null ? number_format($totalSaves) : '-' }}</p>
+                    </div>
+                </div>
+            @endif
+
             {{-- Performance trend chart --}}
             <div class="bg-white rounded-xl shadow-[0_4px_20px_rgba(15,23,42,0.05)] border border-gray-100 p-5">
                 <div class="flex items-center justify-between mb-6">

@@ -18,6 +18,7 @@ use App\Http\Controllers\AiAdvisorController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
+use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Schedule;
 
@@ -67,13 +68,21 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])->name('team-performance.index');
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
+    Route::get('/analytics/table', [AnalyticsController::class, 'table'])->name('analytics.table');
     Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
 
     Route::get('/ai-advisor', [AiAdvisorController::class, 'index'])->name('ai-advisor');
 
+    Route::get('/audience', [AudienceController::class, 'index'])->name('audience');
+    Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
+
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings'); 
     Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
         ->name('notifications.mark-all-read');
+    Route::post('/settings/import-performance', [SettingsController::class, 'importPerformance'])->name('settings.import-performance');
+     Route::post('/settings/detect-anomalies', [SettingsController::class, 'runAnomalyDetection'])
+        ->name('settings.detect-anomalies');
 
     Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile', function () {
@@ -86,6 +95,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/report', [ReportController::class, 'index'])->name('report.index');
     Route::post('/report/generate', [ReportController::class, 'generate'])->name('report.generate');
+    Route::post('/report/generate-performance', [ReportController::class, 'generatePerformance'])
+        ->name('report.generate-performance');
 });
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
