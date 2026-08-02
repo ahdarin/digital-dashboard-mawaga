@@ -179,10 +179,40 @@ class AnalyticsController extends Controller
             ->sortByDesc('created_at')
             ->values();
 
+        // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
+        // Dibatasi 30 hari terakhir biar adil dibandingin (konten yang lebih
+        // lama ditrack otomatis lebih unggul kalau dibandingin all-time).
+        $peerStart = Carbon::now()->subDays(29)->startOfDay();
+        $peerEnd = Carbon::now()->endOfDay();
+
+        $thisContentRecent = $metrics->whereBetween('metric_date', [$peerStart, $peerEnd]);
+        $recentViews = (int) $thisContentRecent->sum('views');
+        $recentEngagement = $thisContentRecent->count() > 0 ? $thisContentRecent->avg('engagement_rate') : null;
+
+        $peerMetrics = ContentMetric::whereHas('contentItem', function ($q) use ($contentItem) {
+                $q->where('client_id', $contentItem->client_id)->where('id', '!=', $contentItem->id);
+            })
+            ->whereBetween('metric_date', [$peerStart, $peerEnd])
+            ->get();
+
+        $peerAvgViews = $peerMetrics->isNotEmpty()
+            ? $peerMetrics->groupBy('content_item_id')->map(fn ($rows) => $rows->sum('views'))->avg()
+            : null;
+        $peerAvgEngagement = $peerMetrics->isNotEmpty() ? $peerMetrics->avg('engagement_rate') : null;
+
+        $viewsVsPeerPct = ($peerAvgViews && $peerAvgViews > 0)
+            ? round((($recentViews - $peerAvgViews) / $peerAvgViews) * 100)
+            : null;
+        $engagementVsPeerPct = ($peerAvgEngagement && $peerAvgEngagement > 0 && $recentEngagement !== null)
+            ? round((($recentEngagement - $peerAvgEngagement) / $peerAvgEngagement) * 100)
+            : null;
+        $hasPeerComparison = $peerMetrics->isNotEmpty() && $thisContentRecent->isNotEmpty();
+
         return view('analytics.show', compact(
             'contentItem', 'metrics', 'totalViews', 'avgEngagement',
             'daysTracked', 'bestDate', 'trend', 'syncLogs',
-            'hasVideoMetrics', 'avgWatchTime', 'avgCompletionRate', 'totalShares', 'totalSaves'
+            'hasVideoMetrics', 'avgWatchTime', 'avgCompletionRate', 'totalShares', 'totalSaves',
+            'hasPeerComparison', 'viewsVsPeerPct', 'engagementVsPeerPct', 'peerAvgViews', 'peerAvgEngagement'
         ));
     }
 

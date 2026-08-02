@@ -31,6 +31,40 @@
         </span>
     </div>
 
+    {{-- Perbandingan vs rata-rata konten lain milik client ini (30 hari terakhir) --}}
+    @if ($hasPeerComparison && $viewsVsPeerPct !== null)
+        <div class="mb-6 rounded-2xl p-5 flex items-center gap-4
+            {{ $viewsVsPeerPct >= 0 ? 'bg-gradient-to-r from-[#044b46]/5 to-emerald-50 border border-[#044b46]/10' : 'bg-gradient-to-r from-rose-50 to-white border border-rose-100' }}">
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0
+                {{ $viewsVsPeerPct >= 0 ? 'bg-[#044b46]/10' : 'bg-rose-100' }}">
+                <span class="material-symbols-outlined text-[22px] {{ $viewsVsPeerPct >= 0 ? 'text-[#044b46]' : 'text-rose-500' }}">
+                    {{ $viewsVsPeerPct >= 0 ? 'trending_up' : 'trending_down' }}
+                </span>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-bold text-[#191c1c]">
+                    @if ($viewsVsPeerPct >= 0)
+                        {{ $viewsVsPeerPct }}% di atas rata-rata konten {{ $contentItem->client->name ?? 'client ini' }}
+                    @else
+                        {{ abs($viewsVsPeerPct) }}% di bawah rata-rata konten {{ $contentItem->client->name ?? 'client ini' }}
+                    @endif
+                </p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Views 30 hari terakhir konten ini vs rata-rata konten lain milik client yang sama pada periode yang sama
+                    ({{ number_format($peerAvgViews) }} views).
+                    @if ($engagementVsPeerPct !== null)
+                        Engagement rate {{ $engagementVsPeerPct >= 0 ? $engagementVsPeerPct.'% di atas' : abs($engagementVsPeerPct).'% di bawah' }} rata-rata juga.
+                    @endif
+                </p>
+            </div>
+        </div>
+    @elseif (! $hasPeerComparison)
+        <div class="mb-6 rounded-2xl p-4 bg-gray-50 border border-gray-100 flex items-center gap-3">
+            <span class="material-symbols-outlined text-gray-300 text-[20px]">info</span>
+            <p class="text-xs text-gray-400">Belum bisa dibandingin sama konten lain - butuh data metrik dari konten lain milik client ini di 30 hari terakhir.</p>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {{-- Kolom Kiri: Performance overview --}}
