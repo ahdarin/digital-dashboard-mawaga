@@ -2,140 +2,118 @@
 @section('title', 'Client Management')
 @section('content')
 
-<div class="p-8">
+<div class="p-8 max-w-[1400px]">
 
-    {{-- Header --}}
-    <div class="flex items-center justify-between mb-8">
-        <h1 class="text-4xl font-extrabold text-[#191c1c]">Client Management</h1>
+    <div class="flex items-center justify-between mb-7">
+        <div>
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Client Management</h1>
+            <p class="text-[#5c6266] text-sm mt-1">Kelola portofolio client dan paket langganan mereka.</p>
+        </div>
 
         <a href="{{ route('client-onboarding.create') }}"
-           class="flex items-center gap-2 bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:opacity-90 transition-opacity duration-150 shrink-0 shadow-[0_6px_16px_rgba(4,75,70,0.25)]">
-            <span class="material-symbols-outlined text-[18px]">person_add</span>
+           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+            <span class="material-symbols-outlined text-[17px]">person_add</span>
             Add Client
         </a>
     </div>
 
     @if (session('status'))
-        <div class="bg-emerald-50 text-[#044b46] text-sm p-3 rounded-xl mb-4">{{ session('status') }}</div>
+        <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-5">{{ session('status') }}</div>
     @endif
 
     {{-- Search & Filter --}}
-    <form method="GET" action="{{ route('client-onboarding.index') }}" class="flex items-center gap-4 mb-6">
+    <form method="GET" action="{{ route('client-onboarding.index') }}" class="card p-4 mb-5 flex items-center gap-3">
         <div class="flex-1 relative">
-            <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-[20px]">
-                search
-            </span>
-            <input
-                type="text"
-                name="search"
-                value="{{ $search }}"
-                placeholder="Search clients, emails, or plans..."
-                class="w-full pl-11 pr-4 py-3 text-sm bg-white rounded-xl shadow-[0_4px_16px_rgba(15,23,42,0.06)] border-0 focus:outline-none focus:ring-2 focus:ring-[#044b46]/30"
-            >
+            <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#c3c7cb] text-[19px]">search</span>
+            <input type="text" name="search" value="{{ $search }}" placeholder="Cari client, email, atau paket..."
+                   class="w-full pl-10 pr-4 py-2.5 text-sm border border-[#eef0f4] rounded-lg focus:outline-none focus:border-[#044b46]/40">
         </div>
 
-        <div class="relative">
-            <select
-                name="status"
-                onchange="this.form.submit()"
-                class="appearance-none bg-white shadow-[0_4px_16px_rgba(15,23,42,0.06)] rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-[#191c1c] focus:outline-none focus:ring-2 focus:ring-[#044b46]/30 cursor-pointer"
-            >
-                <option value="all" {{ $status === 'all' ? 'selected' : '' }}>Status: All</option>
-                <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
-                <option value="past_due" {{ $status === 'past_due' ? 'selected' : '' }}>Past Due</option>
-                <option value="paused" {{ $status === 'paused' ? 'selected' : '' }}>Paused</option>
-            </select>
-            <span class="material-symbols-outlined absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400 text-[18px]">
-                expand_more
-            </span>
-        </div>
+        <select name="status" onchange="this.form.submit()"
+                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2.5 bg-white focus:outline-none focus:border-[#044b46]/40">
+            <option value="all" {{ $status === 'all' ? 'selected' : '' }}>Status: All</option>
+            <option value="active" {{ $status === 'active' ? 'selected' : '' }}>Active</option>
+            <option value="past_due" {{ $status === 'past_due' ? 'selected' : '' }}>Past Due</option>
+            <option value="paused" {{ $status === 'paused' ? 'selected' : '' }}>Paused</option>
+        </select>
     </form>
 
     {{-- Table --}}
-    <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] overflow-hidden">
-<table class="w-full text-sm text-left">
-    <thead>
-        <tr class="border-b border-gray-100">
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide">Client Name</th>
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide">Email</th>
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide">Plan</th>
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide">Status</th>
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide">Owner Status</th>
-            <th class="px-6 py-4 font-semibold text-gray-400 text-xs uppercase tracking-wide text-right">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse ($clients as $client)
-            <tr class="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors duration-150">
-                <td class="px-6 py-4">
-                    <a href="{{ route('client-onboarding.show', $client) }}" class="flex items-center gap-3 group">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-[#044b46] to-[#0a8f76] text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-[0_3px_8px_rgba(4,75,70,0.25)]">
-                            {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
-                        </div>
-                        <div>
-                            <p class="font-semibold text-[#191c1c] group-hover:text-[#044b46] group-hover:underline">{{ $client->brand_name }}</p>
-                            <p class="text-xs text-gray-400">{{ $client->category->name ?? '-' }}</p>
-                        </div>
-                    </a>
-                </td>
-                <td class="px-6 py-4 text-gray-500">{{ $client->owner->email ?? '-' }}</td>
-                <td class="px-6 py-4 text-gray-500">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
-                <td class="px-6 py-4">
-                    <span class="text-xs font-semibold px-3 py-1 rounded-full
-                        {{ $client->status === 'active' ? 'bg-emerald-50 text-emerald-600' : '' }}
-                        {{ $client->status === 'past_due' ? 'bg-rose-50 text-rose-600' : '' }}
-                        {{ $client->status === 'paused' ? 'bg-gray-100 text-gray-500' : '' }}">
-                        {{ $client->status === 'past_due' ? 'Past Due' : ucfirst($client->status) }}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-gray-500">
-                    {{ $client->owner ? ucfirst($client->owner->status) : 'Belum ada owner' }}
-                </td>
-                <td class="px-6 py-4">
-                    <div class="flex items-center justify-end gap-1">
-                        <a href="{{ route('client-onboarding.show', $client) }}"
-                           class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#044b46] transition-colors duration-150"
-                           title="Lihat detail">
-                            <span class="material-symbols-outlined text-[18px]">visibility</span>
-                        </a>
-                        <a href="{{ route('client-onboarding.edit', $client) }}"
-                           class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#044b46] transition-colors duration-150"
-                           title="Edit">
-                            <span class="material-symbols-outlined text-[18px]">edit</span>
-                        </a>
-                        <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST"
-                              onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-colors duration-150"
-                                title="Hapus">
-                                <span class="material-symbols-outlined text-[18px]">delete</span>
-                            </button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-        @empty
-            <tr>
-                <td colspan="6" class="px-6 py-10 text-center text-gray-400">
-                    Tidak ada client yang cocok dengan pencarian.
-                </td>
-            </tr>
-        @endforelse
-    </tbody>
-</table>
+    <div class="card overflow-hidden">
+        <table class="w-full text-sm text-left">
+            <thead>
+                <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Name</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Plan</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Owner Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($clients as $client)
+                    <tr class="border-b border-[#f2f3f6] last:border-0 hover:bg-[#f7f8fc] transition-colors">
+                        <td class="px-6 py-3.5">
+                            <a href="{{ route('client-onboarding.show', $client) }}" class="flex items-center gap-3 group">
+                                <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                                    @if ($client->logo_url)
+                                        <img src="{{ $client->logo_url }}" class="w-full h-full object-cover">
+                                    @else
+                                        {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
+                                    @endif
+                                </div>
+                                <div>
+                                    <p class="font-medium text-[#14181a] group-hover:text-[#044b46] group-hover:underline">{{ $client->brand_name }}</p>
+                                    <p class="text-xs text-[#9aa0a4]">{{ $client->category->name ?? '-' }}</p>
+                                </div>
+                            </a>
+                        </td>
+                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner->email ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
+                        <td class="px-6 py-3.5">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full
+                                {{ $client->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                {{ $client->status === 'past_due' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
+                                {{ $client->status === 'paused' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
+                                {{ $client->status === 'past_due' ? 'Past Due' : ucfirst($client->status) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner ? ucfirst($client->owner->status) : 'Belum ada owner' }}</td>
+                        <td class="px-6 py-3.5">
+                            <div class="flex items-center justify-end gap-1">
+                                <a href="{{ route('client-onboarding.show', $client) }}"
+                                   class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Lihat detail">
+                                    <span class="material-symbols-outlined text-[17px]">visibility</span>
+                                </a>
+                                <a href="{{ route('client-onboarding.edit', $client) }}"
+                                   class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Edit">
+                                    <span class="material-symbols-outlined text-[17px]">edit</span>
+                                </a>
+                                <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST"
+                                      onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Hapus">
+                                        <span class="material-symbols-outlined text-[17px]">delete</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4]">Tidak ada client yang cocok dengan pencarian.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 
-    {{-- Pagination --}}
     @if ($clients->total() > 0)
-        <div class="flex items-center justify-between mt-6">
-            <p class="text-sm text-gray-400">
-                Showing {{ $clients->firstItem() }} to {{ $clients->lastItem() }} of {{ $clients->total() }} clients
-            </p>
-            <div class="flex items-center gap-2">
-                {{ $clients->onEachSide(1)->links() }}
-            </div>
+        <div class="flex items-center justify-between mt-5">
+            <p class="text-sm text-[#9aa0a4]">Showing {{ $clients->firstItem() }} to {{ $clients->lastItem() }} of {{ $clients->total() }} clients</p>
+            <div class="flex items-center gap-2">{{ $clients->onEachSide(1)->links() }}</div>
         </div>
     @endif
 

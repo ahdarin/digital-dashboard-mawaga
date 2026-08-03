@@ -2,60 +2,54 @@
 @section('title', 'Performance Table')
 @section('content')
 
-<div class="p-8">
+<div class="p-8 max-w-[1400px]">
 
-    {{-- Header --}}
     <div class="flex items-start justify-between mb-6">
         <div>
-            <h1 class="text-4xl font-extrabold text-[#191c1c]">Performance Table</h1>
-            <p class="text-gray-500 mt-2">List semua konten & metriknya, bisa difilter dan diurutkan.</p>
-            <a href="{{ route('analytics') }}" class="text-xs font-semibold text-[#044b46] hover:underline inline-flex items-center gap-1 mt-2">
-                <span class="material-symbols-outlined text-[14px]">arrow_back</span>
-                Kembali ke Content Analytics
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Performance Table</h1>
+            <p class="text-[#5c6266] text-sm mt-1">List semua konten &amp; metriknya, bisa difilter dan diurutkan.</p>
+            <a href="{{ route('analytics') }}" class="text-xs font-medium text-[#044b46] hover:underline inline-flex items-center gap-1 mt-2">
+                <span class="material-symbols-outlined text-[13px]">arrow_back</span> Kembali ke Content Analytics
             </a>
         </div>
 
-        <form method="GET" class="flex items-center gap-3">
+        <form method="GET">
             <select name="client_id" onchange="this.form.submit()"
-                    class="text-sm font-medium border border-gray-200 rounded-xl px-4 py-2.5 bg-white focus:outline-none focus:border-[#044b46]">
+                    class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
                 <option value="">Pilih Client...</option>
                 @foreach ($clientOptions as $c)
-                    <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>
-                        {{ $c->name }}
-                    </option>
+                    <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
                 @endforeach
             </select>
         </form>
     </div>
 
     @if (! empty($noClientSelected))
-        <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-16 flex flex-col items-center justify-center text-center">
-            <div class="w-16 h-16 rounded-full bg-[#044b46]/10 flex items-center justify-center mb-5">
-                <span class="material-symbols-outlined text-[#044b46] text-[30px]">table_rows</span>
+        <div class="card p-16 flex flex-col items-center justify-center text-center">
+            <div class="w-14 h-14 rounded-full bg-[#f0f5f4] flex items-center justify-center mb-4">
+                <span class="material-symbols-outlined text-[#044b46] text-[26px]">table_rows</span>
             </div>
-            <h2 class="text-xl font-extrabold text-[#191c1c] mb-2">Pilih client dulu, yuk</h2>
-            <p class="text-sm text-gray-500 max-w-sm">
-                Pilih salah satu client di dropdown atas untuk lihat daftar konten & performanya.
-            </p>
+            <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Pilih client dulu</h2>
+            <p class="text-sm text-[#5c6266] max-w-sm">Pilih salah satu client di dropdown atas untuk lihat daftar konten &amp; performanya.</p>
         </div>
 
     @else
 
         {{-- Filter bar --}}
-        <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] p-4 mb-6">
-            <form method="GET" class="flex items-center gap-3 flex-wrap">
+        <div class="card p-4 mb-5">
+            <form method="GET" class="flex items-center gap-2.5 flex-wrap">
                 <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
                 <input type="hidden" name="sort" value="{{ $sort }}">
                 <input type="hidden" name="dir" value="{{ $dir }}">
 
                 <div class="relative flex-1 min-w-[200px]">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-[18px]">search</span>
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px]">search</span>
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari judul konten..."
-                           class="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-[#044b46]">
+                           class="w-full pl-9 pr-3 py-2 text-sm border border-[#eef0f4] rounded-lg focus:outline-none focus:border-[#044b46]/40">
                 </div>
 
                 <select name="platform_id" onchange="this.form.submit()"
-                        class="text-sm font-medium border border-gray-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:border-[#044b46]">
+                        class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
                     <option value="">Semua Platform</option>
                     @foreach ($platformOptions as $p)
                         <option value="{{ $p->id }}" {{ (string) request('platform_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -63,33 +57,29 @@
                 </select>
 
                 <select name="content_type_id" onchange="this.form.submit()"
-                        class="text-sm font-medium border border-gray-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:border-[#044b46]">
+                        class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
                     <option value="">Semua Tipe</option>
                     @foreach ($contentTypeOptions as $ct)
                         <option value="{{ $ct->id }}" {{ (string) request('content_type_id') === (string) $ct->id ? 'selected' : '' }}>{{ $ct->name }}</option>
                     @endforeach
                 </select>
 
-                <button type="submit" class="bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity shadow-[0_4px_10px_rgba(4,75,70,0.25)]">
+                <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors">
                     Terapkan
                 </button>
 
                 @if (request('search') || request('platform_id') || request('content_type_id'))
-                    <a href="{{ route('analytics.table', ['client_id' => $selectedClientId]) }}" class="text-xs font-semibold text-gray-400 hover:text-gray-600">
-                        Reset filter
-                    </a>
+                    <a href="{{ route('analytics.table', ['client_id' => $selectedClientId]) }}" class="text-xs font-medium text-[#9aa0a4] hover:text-[#5c6266]">Reset filter</a>
                 @endif
             </form>
         </div>
 
         {{-- Table --}}
-        <div class="bg-white rounded-2xl shadow-[0_4px_24px_rgba(15,23,42,0.06)] overflow-hidden">
+        <div class="card overflow-hidden">
             @if ($items->isEmpty())
                 <div class="flex flex-col items-center justify-center py-16 text-center">
-                    <div class="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mb-3">
-                        <span class="material-symbols-outlined text-gray-300 text-[26px]">search_off</span>
-                    </div>
-                    <p class="text-sm text-gray-400">Nggak ada konten yang cocok dengan filter ini.</p>
+                    <span class="material-symbols-outlined text-[#d4d7db] text-[26px] mb-2">search_off</span>
+                    <p class="text-sm text-[#9aa0a4]">Nggak ada konten yang cocok dengan filter ini.</p>
                 </div>
             @else
                 @php
@@ -101,73 +91,67 @@
                 @endphp
 
                 <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-400 text-xs uppercase">
-                        <tr>
-                            <th class="px-6 py-3">
-                                <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 font-semibold hover:text-[#044b46]">
-                                    Konten <span class="material-symbols-outlined text-[14px]">{{ $sortIcon('title') }}</span>
+                    <thead class="bg-[#f7f8fc]">
+                        <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                            <th class="px-6 py-3 font-medium">
+                                <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Konten <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
                                 </a>
                             </th>
-                            <th class="px-4 py-3 font-semibold">Platform</th>
-                            <th class="px-4 py-3 font-semibold">Tipe</th>
-                            <th class="px-4 py-3">
-                                <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 font-semibold hover:text-[#044b46]">
-                                    Views <span class="material-symbols-outlined text-[14px]">{{ $sortIcon('total_views') }}</span>
+                            <th class="px-4 py-3 font-medium">Platform</th>
+                            <th class="px-4 py-3 font-medium">Tipe</th>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
                                 </a>
                             </th>
-                            <th class="px-4 py-3">
-                                <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 font-semibold hover:text-[#044b46]">
-                                    Engagement <span class="material-symbols-outlined text-[14px]">{{ $sortIcon('avg_engagement') }}</span>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Engagement <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('avg_engagement') }}</span>
                                 </a>
                             </th>
-                            <th class="px-4 py-3">
-                                <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 font-semibold hover:text-[#044b46]">
-                                    Deadline <span class="material-symbols-outlined text-[14px]">{{ $sortIcon('deadline_at') }}</span>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Deadline <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('deadline_at') }}</span>
                                 </a>
                             </th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-medium">Status</th>
                             <th class="px-6 py-3"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($items as $item)
-                            <tr class="border-t border-gray-50 hover:bg-gray-50/60 transition-colors">
-                                <td class="px-6 py-3.5 font-medium text-[#191c1c] max-w-[240px] truncate">{{ $item->title }}</td>
-                                <td class="px-4 py-3.5 text-gray-500">{{ $item->platform->name ?? '-' }}</td>
-                                <td class="px-4 py-3.5 text-gray-500">{{ $item->contentType->name ?? '-' }}</td>
-                                <td class="px-4 py-3.5 font-semibold text-[#191c1c]">
-                                    {{ $item->total_views !== null ? number_format($item->total_views) : '-' }}
-                                </td>
+                            <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                                <td class="px-6 py-3.5 font-medium text-[#14181a] max-w-[240px] truncate">{{ $item->title }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->platform->name ?? '-' }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->contentType->name ?? '-' }}</td>
+                                <td class="px-4 py-3.5 font-medium text-[#14181a]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
                                 <td class="px-4 py-3.5">
                                     @if ($item->avg_engagement !== null)
-                                        <span class="text-xs px-2 py-1 rounded-full bg-[#044b46]/10 text-[#044b46]">
-                                            {{ round($item->avg_engagement, 2) }}%
-                                        </span>
+                                        <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">{{ round($item->avg_engagement, 2) }}%</span>
                                     @else
-                                        <span class="text-gray-300">-</span>
+                                        <span class="text-[#c3c7cb]">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3.5 text-gray-500">{{ $item->deadline_at?->format('d M Y') }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->deadline_at?->format('d M Y') }}</td>
                                 <td class="px-4 py-3.5">
                                     @if ($item->is_posted)
-                                        <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-gradient-to-r from-[#044b46] to-[#0a8f76] text-white">Published</span>
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#044b46] text-white">Published</span>
                                     @elseif ($item->workflow?->is_overdue)
-                                        <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-rose-100 text-rose-600">Overdue</span>
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fbe2e0] text-[#b3423e]">Overdue</span>
                                     @else
-                                        <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">On Progress</span>
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf6ec] text-[#b8873a]">On Progress</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-3.5 text-right">
-                                    <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-semibold text-[#044b46] hover:underline">
-                                        Detail
-                                    </a>
+                                    <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[#044b46] hover:underline">Detail</a>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
 
-                <div class="px-6 py-4 border-t border-gray-50">
+                <div class="px-6 py-4 border-t border-[#f2f3f6]">
                     {{ $items->links() }}
                 </div>
             @endif
