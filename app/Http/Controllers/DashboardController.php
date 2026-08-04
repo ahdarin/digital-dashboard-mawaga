@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ContentItem;
+use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -44,6 +45,15 @@ class DashboardController extends Controller
 
         $activeTeam = User::whereNull('client_id')->where('status', 'active')->count();
 
+        // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
+        $viewsThisMonth = (int) ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])->sum('views');
+        $viewsLastMonth = (int) ContentMetric::whereBetween('metric_date', [$startOfLastMonth, $endOfLastMonth])->sum('views');
+        $viewsChange = $this->percentChange($viewsLastMonth, $viewsThisMonth);
+
+        $uploadedThisMonth = ContentWorkflow::where('current_status', 'uploaded')
+            ->whereBetween('updated_at', [$startOfThisMonth, $endOfThisMonth])
+            ->count();
+
         $stats = [
             [
                 'label' => 'Konten Bulan Ini',
@@ -75,6 +85,20 @@ class DashboardController extends Controller
                 'trend' => $overdueCount > 0 ? 'down' : 'up',
                 'icon' => 'schedule',
             ],
+            [
+                'label' => 'Total Views Bulan Ini',
+                'value' => number_format($viewsThisMonth),
+                'change' => $viewsChange['label'],
+                'trend' => $viewsChange['trend'],
+                'icon' => 'visibility',
+            ],
+            [
+                'label' => 'Konten Terupload',
+                'value' => number_format($uploadedThisMonth),
+                'change' => 'Bulan berjalan',
+                'trend' => 'flat',
+                'icon' => 'cloud_done',
+            ],
         ];
 
         $performance = collect(range(6, 0))->map(function ($monthsAgo) {
@@ -87,6 +111,19 @@ class DashboardController extends Controller
             return [
                 'label' => $month->translatedFormat('M'),
                 'value' => $count,
+            ];
+        })->toArray();
+
+        // --- Tambahan: trend views 8 minggu terakhir (domain PIC 3) ---
+        $viewsTrend = collect(range(7, 0))->map(function ($weeksAgo) {
+            $weekStart = Carbon::now()->subWeeks($weeksAgo)->startOfWeek();
+            $weekEnd = $weekStart->copy()->endOfWeek();
+
+            $sum = (int) ContentMetric::whereBetween('metric_date', [$weekStart, $weekEnd])->sum('views');
+
+            return [
+                'label' => $weekStart->translatedFormat('d M'),
+                'value' => $sum,
             ];
         })->toArray();
 
@@ -129,7 +166,7 @@ class DashboardController extends Controller
         );
 
         return view('dashboard.index', compact(
-            'stats', 'performance', 'attentionItems', 'recentItems', 'insights'
+            'stats', 'performance', 'viewsTrend', 'attentionItems', 'recentItems', 'insights'
         ));
     }
 

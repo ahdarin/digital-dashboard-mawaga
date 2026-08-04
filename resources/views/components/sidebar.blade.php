@@ -1,67 +1,112 @@
 @php
-    $menuItems = [
-        ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
-        ['label' => 'Projects', 'route' => 'production-workflow.index', 'icon' => 'folder'],
-        ['label' => 'Publishing Tracker', 'route' => 'publishing-tracker.index', 'icon' => 'campaign'],
-        ['label' => 'Revision Log', 'route' => 'revision-log.index', 'icon' => 'rate_review'],
-        ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'bar_chart'],
-        ['label' => 'AI Advisor', 'route' => 'ai-advisor', 'icon' => 'insights'],
-        ['label' => 'Client', 'route' => 'client-onboarding.index', 'icon' => 'group'],
-        ['label' => 'Team', 'route' => 'team-performance.index', 'icon' => 'groups'],
-        ['label' => 'Report', 'route' => 'report.index', 'icon' => 'description'],
-        ['label' => 'Settings', 'route' => 'settings', 'icon' => 'settings'],
+    $menuGroups = [
+        [
+            'label' => 'Overview',
+            'items' => [
+                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view'],
+                ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring'],
+                ['label' => 'AI Advisor', 'route' => 'ai-advisor', 'icon' => 'auto_awesome'],
+            ],
+        ],
+        [
+            'label' => 'Content',
+            'items' => [
+                ['label' => 'Content Plan', 'route' => 'content-plan.index', 'icon' => 'event_note'],
+                ['label' => 'Production Workflow', 'route' => 'production-workflow.index', 'icon' => 'folder_open'],
+                ['label' => 'Revision Log', 'route' => 'revision-log.index', 'icon' => 'history_edu'],
+                ['label' => 'Publishing Tracker', 'route' => 'publishing-tracker.index', 'icon' => 'publish'],
+            ],
+        ],
+        [
+            'label' => 'Clients',
+            'items' => [
+                ['label' => 'Client Onboarding', 'route' => 'client-onboarding.index', 'icon' => 'apartment'],
+                ['label' => 'Audience', 'route' => 'audience', 'icon' => 'groups'],
+            ],
+        ],
+        [
+            'label' => 'Team',
+            'items' => [
+                ['label' => 'Team Performance', 'route' => 'team-performance.index', 'icon' => 'diversity_3'],
+                ['label' => 'User Management', 'route' => 'user-management.index', 'icon' => 'manage_accounts'],
+            ],
+        ],
+        [
+            'label' => 'Reports',
+            'items' => [
+                ['label' => 'Report', 'route' => 'report.index', 'icon' => 'description'],
+            ],
+        ],
+        [
+            'label' => 'System',
+            'items' => [
+                ['label' => 'Master Data', 'route' => 'master-data.index', 'icon' => 'database'],
+                ['label' => 'Settings', 'route' => 'settings', 'icon' => 'tune'],
+            ],
+        ],
     ];
 @endphp
 
-<aside class="w-[260px] shrink-0 bg-white flex flex-col h-screen sticky top-0 border-r border-gray-100">
+<aside
+    x-data="{ collapsed: (localStorage.getItem('sidebar-collapsed') === 'true') }"
+    x-init="$watch('collapsed', value => localStorage.setItem('sidebar-collapsed', value))"
+    :class="collapsed ? 'w-[76px]' : 'w-60'"
+    class="relative shrink-0 bg-white flex flex-col h-screen sticky top-0 border-r border-[#eef0f4] transition-[width] duration-200 ease-out"
+    style="overflow: visible;"
+>
 
-    {{-- Brand --}}
-    <div class="px-6 py-6 flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#044b46] to-[#0a8f76] flex items-center justify-center shadow-[0_4px_14px_rgba(4,75,70,0.35)]">
-            <span class="material-symbols-outlined text-white text-[18px]">water_drop</span>
+    <button
+        type="button"
+        @click="collapsed = !collapsed"
+        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        class="absolute top-8 -right-3 w-6 h-6 rounded-full bg-white border border-[#eef0f4] shadow-sm flex items-center justify-center text-[#9aa0a4] hover:text-[#044b46] hover:border-[#044b46] transition-colors duration-100"
+        style="z-index: 30;"
+    >
+        <span class="material-symbols-outlined text-[15px] transition-transform duration-200" :class="collapsed && 'rotate-180'">
+            chevron_left
+        </span>
+    </button>
+
+    <div class="px-5 py-6 flex items-center gap-2.5 overflow-hidden" :class="collapsed && 'px-0 justify-center'">
+        <div class="w-8 h-8 rounded-lg bg-[#044b46] flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-white text-[16px]">water_drop</span>
         </div>
-        <span class="text-lg font-extrabold text-[#191c1c]">523 Studio</span>
+        <span class="font-display text-[19px] font-semibold text-[#14181a] whitespace-nowrap" x-show="!collapsed" x-cloak x-transition.opacity>523 Studio</span>
     </div>
 
-    {{-- Menu --}}
-    <nav class="flex-1 px-4 space-y-1 overflow-y-auto">
-        @foreach ($menuItems as $item)
-            @php
-                $isActive = Route::has($item['route']) && request()->routeIs($item['route']);
-            @endphp
-
-            <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
-                class="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-150
-                    {{ $isActive
-                        ? 'bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white shadow-[0_6px_16px_rgba(4,75,70,0.28)]'
-                        : 'text-gray-500 hover:bg-[#f4f9f7] hover:text-[#044b46]' }}"
-            >
-                <span class="material-symbols-outlined text-[20px]">{{ $item['icon'] }}</span>
-                <span>{{ $item['label'] }}</span>
-            </a>
+    <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden">
+        @foreach ($menuGroups as $group)
+            <div>
+                <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#9aa0a4] whitespace-nowrap"
+                   x-show="!collapsed" x-cloak x-transition.opacity>
+                    {{ $group['label'] }}
+                </p>
+                <div class="space-y-0.5">
+                    @foreach ($group['items'] as $item)
+                        @php $isActive = Route::has($item['route']) && request()->routeIs($item['route']); @endphp
+                        <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
+                           :title="collapsed ? '{{ $item['label'] }}' : ''"
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-100
+                               {{ $isActive ? 'bg-[#f0f5f4] text-[#044b46]' : 'text-[#5c6266] hover:bg-[#f7f8fc] hover:text-[#14181a]' }}"
+                           :class="collapsed && 'justify-center px-0'">
+                            <span class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[#044b46]' : 'text-[#9aa0a4]' }}">{{ $item['icon'] }}</span>
+                            <span class="whitespace-nowrap" x-show="!collapsed" x-cloak x-transition.opacity>{{ $item['label'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
         @endforeach
-
-        @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
-            <a href="{{ route('user-management.index') }}"
-                class="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-150
-                    {{ request()->routeIs('user-management.*') || request()->routeIs('user-client-assignment.*')
-                        ? 'bg-gradient-to-r from-[#044b46] to-[#0a6b5c] text-white shadow-[0_6px_16px_rgba(4,75,70,0.28)]'
-                        : 'text-gray-500 hover:bg-[#f4f9f7] hover:text-[#044b46]' }}"
-            >
-                <span class="material-symbols-outlined text-[20px]">manage_accounts</span>
-                <span>User Management</span>
-            </a>
-        @endif
     </nav>
 
-    {{-- Logout --}}
-    <div class="px-4 py-5 border-t border-gray-100">
+    <div class="px-3 py-4 border-t border-[#eef0f4]">
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit"
-                    class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-rose-600 bg-gradient-to-r from-rose-50 to-rose-100/60 hover:from-rose-100 hover:to-rose-100 transition-colors duration-150 shadow-[0_2px_8px_rgba(244,63,94,0.12)]">
-                <span class="material-symbols-outlined text-[20px]">logout</span>
-                Logout
+                    :title="collapsed ? 'Logout' : ''"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium text-[#b3423e] hover:bg-[#fdf2f1] transition-colors duration-100"
+                    :class="collapsed && 'justify-center px-0'">
+                <span class="material-symbols-outlined text-[19px] shrink-0">logout</span>
+                <span class="whitespace-nowrap" x-show="!collapsed" x-cloak x-transition.opacity>Logout</span>
             </button>
         </form>
     </div>

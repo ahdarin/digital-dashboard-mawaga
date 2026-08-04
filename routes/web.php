@@ -18,7 +18,10 @@ use App\Http\Controllers\AiAdvisorController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
+use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ContentPlanController;
+use App\Http\Controllers\MasterDataController;
 use Illuminate\Support\Facades\Schedule;
 
 Route::get('/', function () {
@@ -67,13 +70,36 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])->name('team-performance.index');
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+    Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
+    Route::get('/analytics/table', [AnalyticsController::class, 'table'])->name('analytics.table');
     Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
 
     Route::get('/ai-advisor', [AiAdvisorController::class, 'index'])->name('ai-advisor');
 
+    Route::get('/audience', [AudienceController::class, 'index'])->name('audience');
+    Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
+
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings'); 
     Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
         ->name('notifications.mark-all-read');
+    Route::post('/settings/import-performance', [SettingsController::class, 'importPerformance'])->name('settings.import-performance');
+    Route::get('/settings/import', [SettingsController::class, 'importPage'])->name('settings.import');
+    Route::get('/settings/integrations', [SettingsController::class, 'integrationsPage'])->name('settings.integrations');
+     Route::post('/settings/detect-anomalies', [SettingsController::class, 'runAnomalyDetection'])
+        ->name('settings.detect-anomalies');
+
+    Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');
+    Route::get('/content-plan/create', [ContentPlanController::class, 'create'])->name('content-plan.create');
+    Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
+    Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
+    Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
+    Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');
+    Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])->name('content-plan.items.create');
+    Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])->name('content-plan.items.store');
+ 
+    Route::get('/master-data', [MasterDataController::class, 'index'])->name('master-data.index');
+    Route::post('/master-data/{type}', [MasterDataController::class, 'store'])->name('master-data.store');
+    Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
 
     Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/profile', function () {
@@ -86,6 +112,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/report', [ReportController::class, 'index'])->name('report.index');
     Route::post('/report/generate', [ReportController::class, 'generate'])->name('report.generate');
+    Route::post('/report/generate-performance', [ReportController::class, 'generatePerformance'])
+        ->name('report.generate-performance');
 });
 
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
@@ -115,5 +143,4 @@ Route::middleware(['auth', 'client.user'])->group(function () {
     Route::post('/client/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.approval.request-revision');
 });
 
-//KF203.a : peringatan otomatis ketika tugas berstatus Overdue atau memasuki masa kritis tenggat waktu.
 Schedule::command(UpdateOverdueContentItems::class)->hourly();

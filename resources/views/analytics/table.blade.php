@@ -1,0 +1,163 @@
+@extends('layouts.app')
+@section('title', 'Performance Table')
+@section('content')
+
+<div class="p-8 max-w-[1400px]">
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Performance Table</h1>
+            <p class="text-[#5c6266] text-sm mt-1">List semua konten &amp; metriknya, bisa difilter dan diurutkan.</p>
+            <a href="{{ route('analytics') }}" class="text-xs font-medium text-[#044b46] hover:underline inline-flex items-center gap-1 mt-2">
+                <span class="material-symbols-outlined text-[13px]">arrow_back</span> Kembali ke Content Analytics
+            </a>
+        </div>
+
+        <form method="GET">
+            <select name="client_id" onchange="this.form.submit()"
+                    class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
+                <option value="">Pilih Client...</option>
+                @foreach ($clientOptions as $c)
+                    <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                @endforeach
+            </select>
+        </form>
+    </div>
+
+    @if (! empty($noClientSelected))
+        <div class="card p-16 flex flex-col items-center justify-center text-center">
+            <div class="w-14 h-14 rounded-full bg-[#f0f5f4] flex items-center justify-center mb-4">
+                <span class="material-symbols-outlined text-[#044b46] text-[26px]">table_rows</span>
+            </div>
+            <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Pilih client dulu</h2>
+            <p class="text-sm text-[#5c6266] max-w-sm">Pilih salah satu client di dropdown atas untuk lihat daftar konten &amp; performanya.</p>
+        </div>
+
+    @else
+
+        {{-- Filter bar --}}
+        <div class="card p-4 mb-5">
+            <form method="GET" class="flex items-center gap-2.5 flex-wrap">
+                <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                <input type="hidden" name="sort" value="{{ $sort }}">
+                <input type="hidden" name="dir" value="{{ $dir }}">
+
+                <div class="relative flex-1 min-w-[200px]">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px]">search</span>
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari judul konten..."
+                           class="w-full pl-9 pr-3 py-2 text-sm border border-[#eef0f4] rounded-lg focus:outline-none focus:border-[#044b46]/40">
+                </div>
+
+                <select name="platform_id" onchange="this.form.submit()"
+                        class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
+                    <option value="">Semua Platform</option>
+                    @foreach ($platformOptions as $p)
+                        <option value="{{ $p->id }}" {{ (string) request('platform_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                    @endforeach
+                </select>
+
+                <select name="content_type_id" onchange="this.form.submit()"
+                        class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
+                    <option value="">Semua Tipe</option>
+                    @foreach ($contentTypeOptions as $ct)
+                        <option value="{{ $ct->id }}" {{ (string) request('content_type_id') === (string) $ct->id ? 'selected' : '' }}>{{ $ct->name }}</option>
+                    @endforeach
+                </select>
+
+                <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors">
+                    Terapkan
+                </button>
+
+                @if (request('search') || request('platform_id') || request('content_type_id'))
+                    <a href="{{ route('analytics.table', ['client_id' => $selectedClientId]) }}" class="text-xs font-medium text-[#9aa0a4] hover:text-[#5c6266]">Reset filter</a>
+                @endif
+            </form>
+        </div>
+
+        {{-- Table --}}
+        <div class="card overflow-hidden">
+            @if ($items->isEmpty())
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <span class="material-symbols-outlined text-[#d4d7db] text-[26px] mb-2">search_off</span>
+                    <p class="text-sm text-[#9aa0a4]">Nggak ada konten yang cocok dengan filter ini.</p>
+                </div>
+            @else
+                @php
+                    $sortLink = fn ($col) => route('analytics.table', array_merge(request()->except(['sort', 'dir']), [
+                        'sort' => $col,
+                        'dir' => $sort === $col && $dir === 'desc' ? 'asc' : 'desc',
+                    ]));
+                    $sortIcon = fn ($col) => $sort === $col ? ($dir === 'desc' ? 'arrow_downward' : 'arrow_upward') : 'unfold_more';
+                @endphp
+
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-[#f7f8fc]">
+                        <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                            <th class="px-6 py-3 font-medium">
+                                <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Konten <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
+                                </a>
+                            </th>
+                            <th class="px-4 py-3 font-medium">Platform</th>
+                            <th class="px-4 py-3 font-medium">Tipe</th>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
+                                </a>
+                            </th>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Engagement <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('avg_engagement') }}</span>
+                                </a>
+                            </th>
+                            <th class="px-4 py-3 font-medium">
+                                <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 hover:text-[#044b46]">
+                                    Deadline <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('deadline_at') }}</span>
+                                </a>
+                            </th>
+                            <th class="px-4 py-3 font-medium">Status</th>
+                            <th class="px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($items as $item)
+                            <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                                <td class="px-6 py-3.5 font-medium text-[#14181a] max-w-[240px] truncate">{{ $item->title }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->platform->name ?? '-' }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->contentType->name ?? '-' }}</td>
+                                <td class="px-4 py-3.5 font-medium text-[#14181a]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
+                                <td class="px-4 py-3.5">
+                                    @if ($item->avg_engagement !== null)
+                                        <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">{{ round($item->avg_engagement, 2) }}%</span>
+                                    @else
+                                        <span class="text-[#c3c7cb]">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->deadline_at?->format('d M Y') }}</td>
+                                <td class="px-4 py-3.5">
+                                    @if ($item->is_posted)
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#044b46] text-white">Published</span>
+                                    @elseif ($item->workflow?->is_overdue)
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fbe2e0] text-[#b3423e]">Overdue</span>
+                                    @else
+                                        <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf6ec] text-[#b8873a]">On Progress</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-3.5 text-right">
+                                    <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[#044b46] hover:underline">Detail</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                <div class="px-6 py-4 border-t border-[#f2f3f6]">
+                    {{ $items->links() }}
+                </div>
+            @endif
+        </div>
+
+    @endif
+</div>
+
+@endsection

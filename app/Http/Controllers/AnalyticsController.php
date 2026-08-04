@@ -157,6 +157,14 @@ class AnalyticsController extends Controller
         $daysTracked = $metrics->pluck('metric_date')->unique()->count();
         $bestDate = $metrics->sortByDesc('views')->first();
 
+        // Metrik video (Reels/TikTok) - null semua kalau konten ini nggak
+        // pernah punya data ini sama sekali (misal konten Feed/foto)
+        $hasVideoMetrics = $metrics->contains(fn ($m) => $m->watch_time_avg !== null || $m->completion_rate !== null || $m->shares !== null || $m->saves !== null);
+        $avgWatchTime = $hasVideoMetrics ? round($metrics->whereNotNull('watch_time_avg')->avg('watch_time_avg')) : null;
+        $avgCompletionRate = $hasVideoMetrics ? round($metrics->whereNotNull('completion_rate')->avg('completion_rate'), 2) : null;
+        $totalShares = $hasVideoMetrics ? (int) $metrics->sum('shares') : null;
+        $totalSaves = $hasVideoMetrics ? (int) $metrics->sum('saves') : null;
+
         // Data untuk grafik tren (urut tanggal naik)
         $chronological = $metrics->sortBy('metric_date')->values();
         $trend = $chronological->map(fn ($m) => [
@@ -171,12 +179,158 @@ class AnalyticsController extends Controller
             ->sortByDesc('created_at')
             ->values();
 
+        // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
+        // Dibatasi 30 hari terakhir biar adil dibandingin (konten yang lebih
+        // lama ditrack otomatis lebih unggul kalau dibandingin all-time).
+        $peerStart = Carbon::now()->subDays(29)->startOfDay();
+        $peerEnd = Carbon::now()->endOfDay();
+
+        $thisContentRecent = $metrics->whereBetween('metric_date', [$peerStart, $peerEnd]);
+        $recentViews = (int) $thisContentRecent->sum('views');
+        $recentEngagement = $thisContentRecent->count() > 0 ? $thisContentRecent->avg('engagement_rate') : null;
+
+        $peerMetrics = ContentMetric::whereHas('contentItem', function ($q) use ($contentItem) {
+                $q->where('client_id', $contentItem->client_id)->where('id', '!=', $contentItem->id);
+            })
+            ->whereBetween('metric_date', [$peerStart, $peerEnd])
+            ->get();
+
+        $peerAvgViews = $peerMetrics->isNotEmpty()
+            ? $peerMetrics->groupBy('content_item_id')->map(fn ($rows) => $rows->sum('views'))->avg()
+            : null;
+        $peerAvgEngagement = $peerMetrics->isNotEmpty() ? $peerMetrics->avg('engagement_rate') : null;
+
+        $viewsVsPeerPct = ($peerAvgViews && $peerAvgViews > 0)
+            ? round((($recentViews - $peerAvgViews) / $peerAvgViews) * 100)
+            : null;
+        $engagementVsPeerPct = ($peerAvgEngagement && $peerAvgEngagement > 0 && $recentEngagement !== null)
+            ? round((($recentEngagement - $peerAvgEngagement) / $peerAvgEngagement) * 100)
+            : null;
+        $hasPeerComparison = $peerMetrics->isNotEmpty() && $thisContentRecent->isNotEmpty();
+
         return view('analytics.show', compact(
             'contentItem', 'metrics', 'totalViews', 'avgEngagement',
-            'daysTracked', 'bestDate', 'trend', 'syncLogs'
+            'daysTracked', 'bestDate', 'trend', 'syncLogs',
+            'hasVideoMetrics', 'avgWatchTime', 'avgCompletionRate', 'totalShares', 'totalSaves',
+            'hasPeerComparison', 'viewsVsPeerPct', 'engagementVsPeerPct', 'peerAvgViews', 'peerAvgEngagement'
         ));
     }
 
+
+    /**
+     * KF3xx — Export Performance Data
+     * Download CSV performa konten client terpilih pada periode terpilih.
+     * Sengaja pakai format kolom yang SAMA persis dengan Import CSV
+     * (content_title,platform,metric_date,views,engagement_rate) - biar
+     * hasil export bisa langsung di-import ulang (misal buat backup, atau
+     * dipindah ke client lain).
+     */
+    public function export(Request $request)
+    {
+        $selectedClientId = $request->input('client_id');
+
+        if (! $selectedClientId) {
+            return back()->with('export_error', 'Pilih client dulu sebelum export.');
+        }
+
+        $client = Client::findOrFail($selectedClientId);
+
+        $period = (int) $request->input('period', 30);
+        $period = in_array($period, [7, 30, 90]) ? $period : 30;
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $end = Carbon::now()->endOfDay();
+
+        $metrics = ContentMetric::with(['contentItem', 'platform'])
+            ->whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
+            ->whereBetween('metric_date', [$start, $end])
+            ->orderBy('metric_date')
+            ->get();
+
+        $filename = 'performance-'.str($client->name)->slug().'-'.now()->format('Ymd-His').'.csv';
+
+        $callback = function () use ($metrics) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['content_title', 'platform', 'metric_date', 'views', 'engagement_rate']);
+
+            foreach ($metrics as $m) {
+                fputcsv($handle, [
+                    $m->contentItem->title ?? '-',
+                    $m->platform->name ?? '-',
+                    Carbon::parse($m->metric_date)->toDateString(),
+                    $m->views,
+                    $m->engagement_rate,
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * KF3xx — Performance Table
+     * List semua content item milik 1 client, lengkap dengan agregat
+     * metrik-nya (total views, avg engagement) - sortable & filterable.
+     */
+    public function table(Request $request)
+    {
+        $clientOptions = Client::where('status', 'active')->get();
+        $selectedClientId = $request->input('client_id');
+
+        if (! $selectedClientId) {
+            return view('analytics.table', [
+                'noClientSelected' => true,
+                'clientOptions' => $clientOptions,
+                'selectedClientId' => null,
+            ]);
+        }
+
+        $client = Client::findOrFail($selectedClientId);
+
+        $sort = $request->input('sort', 'total_views');
+        $dir = $request->input('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $allowedSorts = ['total_views', 'avg_engagement', 'deadline_at', 'title'];
+        if (! in_array($sort, $allowedSorts)) {
+            $sort = 'total_views';
+        }
+
+        $query = ContentItem::with(['platform', 'contentType', 'workflow'])
+            ->where('client_id', $client->id)
+            ->withSum('metrics as total_views', 'views')
+            ->withAvg('metrics as avg_engagement', 'engagement_rate');
+
+        if ($request->filled('platform_id')) {
+            $query->where('platform_id', $request->input('platform_id'));
+        }
+
+        if ($request->filled('content_type_id')) {
+            $query->where('content_type_id', $request->input('content_type_id'));
+        }
+
+        if ($request->filled('search')) {
+            $query->where('title', 'like', '%'.$request->input('search').'%');
+        }
+
+        if (in_array($sort, ['total_views', 'avg_engagement'])) {
+            $query->orderByRaw("{$sort} IS NULL, {$sort} {$dir}");
+        } else {
+            $query->orderBy($sort, $dir);
+        }
+
+        $items = $query->paginate(15)->withQueryString();
+
+        $platformOptions = Platform::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
+        $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
+
+        return view('analytics.table', compact(
+            'client', 'clientOptions', 'selectedClientId', 'items',
+            'platformOptions', 'contentTypeOptions', 'sort', 'dir'
+        ));
+    }
 
     private function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
     {

@@ -11,6 +11,7 @@ return new class extends Migration {
             $table->foreignId('client_category_id')->constrained('client_categories');
             $table->string('name');
             $table->string('brand_name');
+            $table->string('logo_path')->nullable(); // logo brand client, disimpan di storage/app/public/client-logos
             $table->string('status')->default('active'); // active, inactive
             $table->timestamps();
         });

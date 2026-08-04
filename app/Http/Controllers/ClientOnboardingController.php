@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\PhoneNumberNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ClientOnboardingController extends Controller
@@ -54,16 +55,22 @@ class ClientOnboardingController extends Controller
             'name' => 'required|string|max:255',
             'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
+            'logo' => 'nullable|image|max:2048', // max 2MB
             'owner_name' => 'required|string|max:255',
             'owner_email' => 'required|email|unique:users,email',
             'owner_phone' => 'required|string',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $request) {
+            $logoPath = $request->hasFile('logo')
+                ? $request->file('logo')->store('client-logos', 'public')
+                : null;
+
             $client = Client::create([
                 'name' => $validated['name'],
                 'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
+                'logo_path' => $logoPath,
                 'status' => 'active',
             ]);
 
@@ -122,6 +129,8 @@ class ClientOnboardingController extends Controller
             'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'status' => 'required|in:active,past_due,paused',
+            'logo' => 'nullable|image|max:2048',
+            'remove_logo' => 'nullable|boolean',
             'owner_name' => 'nullable|string|max:255',
             'owner_email' => [
                 'nullable', 'email',
@@ -130,12 +139,25 @@ class ClientOnboardingController extends Controller
             'owner_phone' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($validated, $client) {
+        DB::transaction(function () use ($validated, $client, $request) {
+            $logoPath = $client->logo_path;
+
+            if ($request->hasFile('logo')) {
+                if ($client->logo_path) {
+                    Storage::disk('public')->delete($client->logo_path);
+                }
+                $logoPath = $request->file('logo')->store('client-logos', 'public');
+            } elseif ($request->boolean('remove_logo') && $client->logo_path) {
+                Storage::disk('public')->delete($client->logo_path);
+                $logoPath = null;
+            }
+
             $client->update([
                 'name' => $validated['name'],
                 'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
                 'status' => $validated['status'],
+                'logo_path' => $logoPath,
             ]);
 
             if ($client->owner && filled($validated['owner_name'] ?? null)) {
@@ -159,8 +181,6 @@ class ClientOnboardingController extends Controller
 
         $hasHistory = $client->contentItems()->exists() || $client->contentPlans()->exists();
 
-        // Client dengan riwayat konten tidak dihapus permanen (jaga integritas data produksi)
-        // — cukup dinonaktifkan, konsisten dengan pola "Nonaktifkan" di User Management.
         if ($hasHistory) {
             $client->update(['status' => 'paused']);
 
@@ -169,6 +189,9 @@ class ClientOnboardingController extends Controller
         }
 
         DB::transaction(function () use ($client) {
+            if ($client->logo_path) {
+                Storage::disk('public')->delete($client->logo_path);
+            }
             $client->owner?->delete();
             $client->packages()->delete();
             $client->delete();
