@@ -66,9 +66,7 @@
     <div class="flex min-h-screen">
 
         @auth
-            <aside class="w-60 sticky top-0 h-screen shrink-0">
-                <x-sidebar />
-            </aside>
+            <x-sidebar />
         @endauth
 
         <div class="flex-1 flex flex-col min-w-0">
