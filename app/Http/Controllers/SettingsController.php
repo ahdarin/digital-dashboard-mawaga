@@ -198,4 +198,50 @@ class SettingsController extends Controller
 
         return back()->with('import_success', 'Deteksi anomali selesai dijalankan. '.$output);
     }
+
+    /**
+     * PRD 7.3.4 — "Import Performance" sebagai halaman tersendiri
+     * (bukan cuma section kecil di Settings). Form submit-nya tetap ke
+     * importPerformance() yang sudah ada, cuma tampilannya dipisah.
+     */
+    public function importPage()
+    {
+        $clientOptions = Client::where('status', 'active')->get();
+
+        return view('settings.import', compact('clientOptions'));
+    }
+
+    /**
+     * PRD 7.3.4 — "Analytics Integration Settings" + "Sync Log" sebagai
+     * halaman tersendiri: status koneksi API per platform, dan riwayat
+     * lengkap semua proses import/sync (bukan cuma yang nyangkut di 1
+     * konten kayak di halaman Content Detail).
+     */
+    public function integrationsPage(Request $request)
+    {
+        $platforms = Platform::all();
+
+        $integrations = $platforms->map(function ($platform) {
+            $integration = ApiIntegration::where('platform_id', $platform->id)
+                ->where('status', 'active')
+                ->latest()
+                ->first();
+
+            return [
+                'platform' => $platform->name,
+                'connected' => (bool) $integration,
+                'integration_name' => $integration->integration_name ?? null,
+                'updated_at' => $integration->updated_at ?? null,
+            ];
+        });
+
+        $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
+            ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('settings.integrations', compact('integrations', 'syncLogs'));
+    }
 }
