@@ -2,146 +2,67 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\ContentType;
 use App\Models\Platform;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
+/**
+ * KF3xx — Content Analytics (disatukan)
+ *
+ * PENYEDERHANAAN (atas permintaan pemilik agensi): Overview, Performance
+ * Table, dan Audience Dashboard sebelumnya 3 halaman terpisah yang
+ * masing-masing minta pilih client sendiri-sendiri. Sekarang digabung jadi
+ * 1 route (/analytics) dengan tab, client cuma dipilih SEKALI di atas,
+ * berlaku ke semua tab.
+ *
+ * Content/Client Performance Detail (show()) SENGAJA TETAP TERPISAH,
+ * karena itu halaman drill-down per-konten (dinavigasi dari daftar),
+ * bukan halaman level-client yang butuh dropdown client di atas.
+ */
 class AnalyticsController extends Controller
 {
-    /**
-     * KF3xx — Content Analytics Dashboard
-     * Ringkasan performa konten terpublikasi (views & engagement rate)
-     * lintas client/platform untuk periode yang dipilih.
-     */
+    private const VALID_TABS = ['overview', 'table', 'audience'];
+
     public function index(Request $request)
     {
-        $period = (int) $request->input('period', 30); // 7 / 30 / 90 hari
-        $period = in_array($period, [7, 30, 90]) ? $period : 30;
+        $tab = in_array($request->input('tab'), self::VALID_TABS) ? $request->input('tab') : 'overview';
 
-        $selectedClientId = $request->input('client_id');
         $clientOptions = Client::where('status', 'active')->get();
+        $selectedClientId = $request->input('client_id');
 
-        // Sengaja: kalau belum pilih client, JANGAN agregat semua client
-        // sekaligus (biar nggak "ramai" dan lambat) - tampilkan empty
-        // state, minta pilih client dulu di dropdown.
         if (! $selectedClientId) {
             return view('analytics.index', [
+                'tab' => $tab,
                 'noClientSelected' => true,
                 'clientOptions' => $clientOptions,
                 'selectedClientId' => null,
-                'period' => $period,
+                'period' => (int) $request->input('period', 30),
             ]);
         }
 
-        $end = Carbon::now()->endOfDay();
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
-        $prevEnd = $start->copy()->subDay()->endOfDay();
-        $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
+        $client = Client::findOrFail($selectedClientId);
 
-        $baseQuery = ContentMetric::query()
-            ->when($selectedClientId, fn ($q) => $q->whereHas(
-                'contentItem',
-                fn ($qq) => $qq->where('client_id', $selectedClientId)
-            ));
+        $data = match ($tab) {
+            'table' => $this->buildTableData($request, $client),
+            'audience' => $this->buildAudienceData($request, $client),
+            default => $this->buildOverviewData($request, $client),
+        };
 
-        $currentMetrics = (clone $baseQuery)->whereBetween('metric_date', [$start, $end])->get();
-        $previousMetrics = (clone $baseQuery)->whereBetween('metric_date', [$prevStart, $prevEnd])->get();
-
-        $totalViews = (int) $currentMetrics->sum('views');
-        $avgEngagement = $currentMetrics->count() > 0
-            ? round($currentMetrics->avg('engagement_rate'), 2)
-            : 0;
-        $contentPublished = $currentMetrics->pluck('content_item_id')->unique()->count();
-        $platformsTracked = $currentMetrics->pluck('platform_id')->unique()->count();
-
-        $prevTotalViews = (int) $previousMetrics->sum('views');
-        $prevAvgEngagement = $previousMetrics->count() > 0
-            ? round($previousMetrics->avg('engagement_rate'), 2)
-            : 0;
-        $prevContentPublished = $previousMetrics->pluck('content_item_id')->unique()->count();
-        $prevPlatformsTracked = $previousMetrics->pluck('platform_id')->unique()->count();
-
-        $stats = [
-            [
-                'label' => 'Total Views',
-                'value' => number_format($totalViews),
-                'icon' => 'visibility',
-                ...$this->percentChange($prevTotalViews, $totalViews),
-            ],
-            [
-                'label' => 'Avg. Engagement Rate',
-                'value' => number_format($avgEngagement, 2) . '%',
-                'icon' => 'favorite',
-                ...$this->percentChange($prevAvgEngagement, $avgEngagement),
-            ],
-            [
-                'label' => 'Content Published',
-                'value' => number_format($contentPublished),
-                'icon' => 'grid_view',
-                ...$this->percentChange($prevContentPublished, $contentPublished),
-            ],
-            [
-                'label' => 'Platforms Tracked',
-                'value' => number_format($platformsTracked),
-                'icon' => 'hub',
-                ...$this->percentChange($prevPlatformsTracked, $platformsTracked),
-            ],
-        ];
-
-        // Grafik tren views: harian utk 7/30 hari, mingguan utk 90 hari
-        $trend = $this->buildTrend($currentMetrics, $start, $end, $period);
-
-        // Breakdown per platform
-        $platformBreakdown = $currentMetrics
-            ->groupBy('platform_id')
-            ->map(function ($rows, $platformId) {
-                $platform = Platform::find($platformId);
-                return [
-                    'label' => $platform->name ?? '-',
-                    'value' => (int) $rows->sum('views'),
-                ];
-            })
-            ->sortByDesc('value')
-            ->values();
-
-        // Top performing content
-        $topContent = $currentMetrics
-            ->groupBy('content_item_id')
-            ->map(function ($rows, $contentItemId) {
-                $item = ContentItem::with(['client', 'contentType', 'platform'])->find($contentItemId);
-                if (! $item) {
-                    return null;
-                }
-
-                return [
-                    'id' => $item->id,
-                    'title' => $item->title,
-                    'client' => $item->client->name ?? '-',
-                    'type' => $item->contentType->name ?? '-',
-                    'platform' => $item->platform->name ?? '-',
-                    'views' => (int) $rows->sum('views'),
-                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
-                    'last_metric_date' => $rows->max('metric_date'),
-                ];
-            })
-            ->filter()
-            ->sortByDesc('views')
-            ->take(5)
-            ->values();
-
-        return view('analytics.index', compact(
-            'stats', 'trend', 'platformBreakdown', 'topContent',
-            'clientOptions', 'selectedClientId', 'period'
-        ));
+        return view('analytics.index', array_merge($data, [
+            'tab' => $tab,
+            'client' => $client,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $selectedClientId,
+        ]));
     }
 
     /**
-     * KF3xx — Content / Client Performance Detail
-     * Detail performa satu content item: histori metrik harian per platform
-     * beserta log sinkronisasi/import datanya.
+     * KF3xx — Content / Client Performance Detail (tetap halaman terpisah)
      */
     public function show(ContentItem $contentItem)
     {
@@ -157,31 +78,20 @@ class AnalyticsController extends Controller
         $daysTracked = $metrics->pluck('metric_date')->unique()->count();
         $bestDate = $metrics->sortByDesc('views')->first();
 
-        // Metrik video (Reels/TikTok) - null semua kalau konten ini nggak
-        // pernah punya data ini sama sekali (misal konten Feed/foto)
         $hasVideoMetrics = $metrics->contains(fn ($m) => $m->watch_time_avg !== null || $m->completion_rate !== null || $m->shares !== null || $m->saves !== null);
         $avgWatchTime = $hasVideoMetrics ? round($metrics->whereNotNull('watch_time_avg')->avg('watch_time_avg')) : null;
         $avgCompletionRate = $hasVideoMetrics ? round($metrics->whereNotNull('completion_rate')->avg('completion_rate'), 2) : null;
         $totalShares = $hasVideoMetrics ? (int) $metrics->sum('shares') : null;
         $totalSaves = $hasVideoMetrics ? (int) $metrics->sum('saves') : null;
 
-        // Data untuk grafik tren (urut tanggal naik)
         $chronological = $metrics->sortBy('metric_date')->values();
         $trend = $chronological->map(fn ($m) => [
             'label' => Carbon::parse($m->metric_date)->translatedFormat('d M'),
             'value' => (int) $m->views,
         ])->values();
 
-        $syncLogs = $metrics
-            ->pluck('syncLog')
-            ->filter()
-            ->unique('id')
-            ->sortByDesc('created_at')
-            ->values();
+        $syncLogs = $metrics->pluck('syncLog')->filter()->unique('id')->sortByDesc('created_at')->values();
 
-        // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
-        // Dibatasi 30 hari terakhir biar adil dibandingin (konten yang lebih
-        // lama ditrack otomatis lebih unggul kalau dibandingin all-time).
         $peerStart = Carbon::now()->subDays(29)->startOfDay();
         $peerEnd = Carbon::now()->endOfDay();
 
@@ -216,15 +126,6 @@ class AnalyticsController extends Controller
         ));
     }
 
-
-    /**
-     * KF3xx — Export Performance Data
-     * Download CSV performa konten client terpilih pada periode terpilih.
-     * Sengaja pakai format kolom yang SAMA persis dengan Import CSV
-     * (content_title,platform,metric_date,views,engagement_rate) - biar
-     * hasil export bisa langsung di-import ulang (misal buat backup, atau
-     * dipindah ke client lain).
-     */
     public function export(Request $request)
     {
         $selectedClientId = $request->input('client_id');
@@ -271,26 +172,81 @@ class AnalyticsController extends Controller
         ]);
     }
 
-    /**
-     * KF3xx — Performance Table
-     * List semua content item milik 1 client, lengkap dengan agregat
-     * metrik-nya (total views, avg engagement) - sortable & filterable.
-     */
-    public function table(Request $request)
+    // ================================================================
+    // Tab: Overview (dulu index())
+    // ================================================================
+    private function buildOverviewData(Request $request, Client $client): array
     {
-        $clientOptions = Client::where('status', 'active')->get();
-        $selectedClientId = $request->input('client_id');
+        $period = (int) $request->input('period', 30);
+        $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
-        if (! $selectedClientId) {
-            return view('analytics.table', [
-                'noClientSelected' => true,
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => null,
-            ]);
-        }
+        $end = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $prevEnd = $start->copy()->subDay()->endOfDay();
+        $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
 
-        $client = Client::findOrFail($selectedClientId);
+        $baseQuery = ContentMetric::whereHas('contentItem', fn ($qq) => $qq->where('client_id', $client->id));
 
+        $currentMetrics = (clone $baseQuery)->whereBetween('metric_date', [$start, $end])->get();
+        $previousMetrics = (clone $baseQuery)->whereBetween('metric_date', [$prevStart, $prevEnd])->get();
+
+        $totalViews = (int) $currentMetrics->sum('views');
+        $avgEngagement = $currentMetrics->count() > 0 ? round($currentMetrics->avg('engagement_rate'), 2) : 0;
+        $contentPublished = $currentMetrics->pluck('content_item_id')->unique()->count();
+        $platformsTracked = $currentMetrics->pluck('platform_id')->unique()->count();
+
+        $prevTotalViews = (int) $previousMetrics->sum('views');
+        $prevAvgEngagement = $previousMetrics->count() > 0 ? round($previousMetrics->avg('engagement_rate'), 2) : 0;
+        $prevContentPublished = $previousMetrics->pluck('content_item_id')->unique()->count();
+        $prevPlatformsTracked = $previousMetrics->pluck('platform_id')->unique()->count();
+
+        $stats = [
+            ['label' => 'Total Views', 'value' => number_format($totalViews), 'icon' => 'visibility', ...$this->percentChange($prevTotalViews, $totalViews)],
+            ['label' => 'Avg. Engagement Rate', 'value' => number_format($avgEngagement, 2).'%', 'icon' => 'favorite', ...$this->percentChange($prevAvgEngagement, $avgEngagement)],
+            ['label' => 'Content Published', 'value' => number_format($contentPublished), 'icon' => 'grid_view', ...$this->percentChange($prevContentPublished, $contentPublished)],
+            ['label' => 'Platforms Tracked', 'value' => number_format($platformsTracked), 'icon' => 'hub', ...$this->percentChange($prevPlatformsTracked, $platformsTracked)],
+        ];
+
+        $trend = $this->buildTrend($currentMetrics, $start, $end, $period);
+
+        $platformBreakdown = $currentMetrics
+            ->groupBy('platform_id')
+            ->map(fn ($rows, $platformId) => [
+                'label' => Platform::find($platformId)->name ?? '-',
+                'value' => (int) $rows->sum('views'),
+            ])
+            ->sortByDesc('value')
+            ->values();
+
+        $topContent = $currentMetrics
+            ->groupBy('content_item_id')
+            ->map(function ($rows, $contentItemId) {
+                $item = ContentItem::with(['client', 'contentType', 'platform'])->find($contentItemId);
+                if (! $item) return null;
+
+                return [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'client' => $item->client->name ?? '-',
+                    'type' => $item->contentType->name ?? '-',
+                    'platform' => $item->platform->name ?? '-',
+                    'views' => (int) $rows->sum('views'),
+                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('views')
+            ->take(5)
+            ->values();
+
+        return compact('stats', 'trend', 'platformBreakdown', 'topContent', 'period');
+    }
+
+    // ================================================================
+    // Tab: Table (dulu table())
+    // ================================================================
+    private function buildTableData(Request $request, Client $client): array
+    {
         $sort = $request->input('sort', 'total_views');
         $dir = $request->input('dir', 'desc') === 'asc' ? 'asc' : 'desc';
         $allowedSorts = ['total_views', 'avg_engagement', 'deadline_at', 'title'];
@@ -306,11 +262,9 @@ class AnalyticsController extends Controller
         if ($request->filled('platform_id')) {
             $query->where('platform_id', $request->input('platform_id'));
         }
-
         if ($request->filled('content_type_id')) {
             $query->where('content_type_id', $request->input('content_type_id'));
         }
-
         if ($request->filled('search')) {
             $query->where('title', 'like', '%'.$request->input('search').'%');
         }
@@ -324,12 +278,65 @@ class AnalyticsController extends Controller
         $items = $query->paginate(15)->withQueryString();
 
         $platformOptions = Platform::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
-        $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
+        $contentTypeOptions = ContentType::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
 
-        return view('analytics.table', compact(
-            'client', 'clientOptions', 'selectedClientId', 'items',
-            'platformOptions', 'contentTypeOptions', 'sort', 'dir'
-        ));
+        return compact('items', 'platformOptions', 'contentTypeOptions', 'sort', 'dir');
+    }
+
+    // ================================================================
+    // Tab: Audience (dulu AudienceController@index)
+    // ================================================================
+    private function buildAudienceData(Request $request, Client $client): array
+    {
+        $platforms = Platform::whereHas('audienceInsights', fn ($q) => $q->where('client_id', $client->id))->get();
+
+        if ($platforms->isEmpty()) {
+            return ['noInsightData' => true];
+        }
+
+        $selectedPlatformId = $request->input('platform_id', $platforms->first()->id);
+        $platform = $platforms->firstWhere('id', (int) $selectedPlatformId) ?? $platforms->first();
+
+        $period = (int) $request->input('period', 30);
+        $period = in_array($period, [7, 30, 90]) ? $period : 30;
+
+        $latestSnapshot = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->latest('snapshot_date')
+            ->first();
+
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $history = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->where('snapshot_date', '>=', $start)
+            ->orderBy('snapshot_date')
+            ->get();
+
+        $followerTrend = $history->map(fn ($row) => [
+            'label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'),
+            'value' => (int) $row->follower_count,
+        ])->values();
+
+        $firstCount = $history->first()->follower_count ?? 0;
+        $lastCount = $history->last()->follower_count ?? ($latestSnapshot->follower_count ?? 0);
+        $growth = $firstCount > 0 ? round((($lastCount - $firstCount) / $firstCount) * 100, 1) : null;
+
+        $genderBreakdown = $latestSnapshot->gender_breakdown ?? [];
+        $ageBreakdown = $latestSnapshot->age_breakdown ?? [];
+        $topLocations = collect($latestSnapshot->top_locations ?? [])->sortByDesc('percentage')->values();
+
+        $activeHoursRaw = $latestSnapshot->active_hours ?? [];
+        $activeHours = collect(range(0, 23))->map(fn ($hour) => [
+            'label' => str_pad($hour, 2, '0', STR_PAD_LEFT).':00',
+            'value' => (int) ($activeHoursRaw[$hour] ?? $activeHoursRaw[(string) $hour] ?? 0),
+        ]);
+        $peakHour = $activeHours->sortByDesc('value')->first();
+
+        return compact(
+            'platforms', 'platform', 'selectedPlatformId', 'period',
+            'latestSnapshot', 'followerTrend', 'growth', 'lastCount',
+            'genderBreakdown', 'ageBreakdown', 'topLocations', 'activeHours', 'peakHour'
+        );
     }
 
     private function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
@@ -351,7 +358,6 @@ class AnalyticsController extends Controller
             return $points->toArray();
         }
 
-        // 90 hari -> kelompokkan per minggu
         $byWeek = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->startOfWeek()->format('Y-m-d'));
 
         $points = collect();
@@ -378,13 +384,8 @@ class AnalyticsController extends Controller
 
         $percent = round((($current - $previous) / $previous) * 100, 1);
 
-        if ($percent > 0) {
-            return ['change' => "+{$percent}% dari periode sebelumnya", 'trend' => 'up'];
-        }
-
-        if ($percent < 0) {
-            return ['change' => "{$percent}% dari periode sebelumnya", 'trend' => 'down'];
-        }
+        if ($percent > 0) return ['change' => "+{$percent}% dari periode sebelumnya", 'trend' => 'up'];
+        if ($percent < 0) return ['change' => "{$percent}% dari periode sebelumnya", 'trend' => 'down'];
 
         return ['change' => 'Sama seperti periode sebelumnya', 'trend' => 'flat'];
     }
