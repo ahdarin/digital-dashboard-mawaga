@@ -5,7 +5,6 @@
             'items' => [
                 ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view'],
                 ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring'],
-                ['label' => 'AI Advisor', 'route' => 'ai-advisor', 'icon' => 'auto_awesome'],
             ],
         ],
         [

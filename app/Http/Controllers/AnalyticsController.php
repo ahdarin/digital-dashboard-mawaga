@@ -6,6 +6,8 @@ use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\Platform;
+use App\Models\AiStrategyInsight;
+use App\Services\AiStrategyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -132,9 +134,13 @@ class AnalyticsController extends Controller
             ->take(5)
             ->values();
 
+        $latestAiInsight = AiStrategyInsight::where('client_id', $selectedClientId)
+            ->latest()
+            ->first();
+
         return view('analytics.index', compact(
             'stats', 'trend', 'platformBreakdown', 'topContent',
-            'clientOptions', 'selectedClientId', 'period'
+            'clientOptions', 'selectedClientId', 'period', 'latestAiInsight'
         ));
     }
 
@@ -387,5 +393,284 @@ class AnalyticsController extends Controller
         }
 
         return ['change' => 'Sama seperti periode sebelumnya', 'trend' => 'flat'];
+    }
+
+    /**
+     * KF3xx — AI Strategy Analysis (beneran manggil Gemini API, bukan
+     * teks statis). Trigger manual lewat tombol di halaman Analytics.
+     */
+    public function generateAiStrategy(Request $request, AiStrategyService $aiStrategyService)
+    {
+        $validated = $request->validate([
+            'client_id' => 'required|exists:clients,id',
+        ]);
+
+        $client = Client::findOrFail($validated['client_id']);
+
+        $periodStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+        $periodEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth();
+
+        try {
+            $summary = $aiStrategyService->buildPerformanceSummary($client);
+
+            if ($summary['content_published_count'] === 0) {
+                return back()->with('ai_error', 'Belum ada data performa konten bulan '.$periodStart->translatedFormat('F Y').' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
+            }
+
+            $result = $aiStrategyService->generateStrategy($summary);
+
+            $dataCompleteness = min(100, round(($summary['tracked_days'] / $summary['period_days']) * 100));
+
+            AiStrategyInsight::create([
+                'client_id' => $client->id,
+                'generated_by' => auth()->id(),
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'performance_data' => $summary,
+                'summary' => $result['summary'],
+                'action_items' => $result['action_items'],
+                'suggested_split' => $result['suggested_split'],
+                'top_pillars' => $result['top_pillars'],
+                'content_ideas' => $result['content_ideas'],
+                'data_completeness_percent' => $dataCompleteness,
+                'status' => 'completed',
+            ]);
+
+            return back()->with('ai_success', 'Analisis AI berhasil digenerate.');
+        } catch (\Throwable $e) {
+            AiStrategyInsight::create([
+                'client_id' => $client->id,
+                'generated_by' => auth()->id(),
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'summary' => '-',
+                'action_items' => [],
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return back()->with('ai_error', 'Gagal generate analisis AI: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * KF3xx — Terapkan hasil AI Strategy ke Content Plan.
+     *
+     * BENERAN ngefek ke sistem (bukan tombol dekoratif): generate draft
+     * ContentItem buat bulan berjalan, jumlah & distribusinya ngikutin
+     * suggested_split dari AI. User tetap wajib isi judul/brief detail -
+     * ini cuma bikinin "kerangka" plan-nya biar nggak mulai dari kosong.
+     */
+    public function applyAiStrategy(AiStrategyInsight $aiStrategyInsight)
+    {
+        abort_if($aiStrategyInsight->status !== 'completed', 422, 'Cuma analisis yang berhasil yang bisa diterapkan.');
+        abort_if($aiStrategyInsight->applied_at !== null, 422, 'Analisis ini sudah pernah diterapkan sebelumnya.');
+
+        $client = $aiStrategyInsight->client;
+        $activePackage = $client->activePackage;
+
+        abort_unless($activePackage, 422, 'Client ini belum punya paket aktif, tidak bisa dibuatkan content plan.');
+
+        $now = Carbon::now();
+
+        $plan = \App\Models\ContentPlan::firstOrCreate(
+            ['client_id' => $client->id, 'month' => $now->month, 'year' => $now->year],
+            [
+                'client_package_id' => $activePackage->id,
+                'created_by' => auth()->id(),
+                'status' => 'draft',
+            ]
+        );
+
+        $totalItems = min($activePackage->monthly_content_quota ?: 10, 10);
+        $split = collect($aiStrategyInsight->suggested_split);
+        $splitSum = $split->sum('value') ?: 100;
+        $daysRemaining = max($now->daysInMonth - $now->day, 1);
+        $ideasByPillar = collect($aiStrategyInsight->content_ideas)->groupBy('pillar');
+
+        $created = 0;
+        foreach ($split as $row) {
+            $count = (int) round(($row['value'] / $splitSum) * $totalItems);
+            if ($count < 1) {
+                continue;
+            }
+
+            $pillar = \App\Models\ContentPillar::firstOrCreate(['name' => $row['label']]);
+            $reasoning = collect($aiStrategyInsight->top_pillars)->firstWhere('name', $row['label'])['reasoning'] ?? null;
+            $ideasForPillar = $ideasByPillar->get($row['label'], collect());
+
+            for ($i = 0; $i < $count; $i++) {
+                $deadline = $now->copy()->addDays(rand(1, $daysRemaining));
+                $idea = $ideasForPillar->get($i);
+
+                $item = \App\Models\ContentItem::create([
+                    'content_plan_id' => $plan->id,
+                    'client_id' => $client->id,
+                    'content_pillar_id' => $pillar->id,
+                    'ai_strategy_insight_id' => $aiStrategyInsight->id,
+                    'title' => $idea['title'] ?? "[Draft AI] {$row['label']} #".($i + 1),
+                    'brief' => $idea['brief'] ?? ($reasoning ? "Rekomendasi AI: {$reasoning}" : "Digenerate dari AI Strategy Analysis ({$row['value']}% dari komposisi yang disarankan)."),
+                    'deadline_at' => $deadline,
+                ]);
+
+                \App\Models\ContentWorkflow::create([
+                    'content_item_id' => $item->id,
+                    'current_status' => 'planned',
+                    'is_overdue' => false,
+                ]);
+
+                $created++;
+            }
+        }
+
+        $aiStrategyInsight->update(['applied_at' => $now, 'applied_by' => auth()->id()]);
+
+        return redirect()->route('content-plan.show', $plan)
+            ->with('status', "{$created} draft content item dibuat berdasarkan rekomendasi AI. Judul & brief masih perlu dilengkapi manual.");
+    }
+
+    /**
+     * KF3xx — Revert (tarik kembali) hasil AI Strategy yang udah diterapkan.
+     *
+     * Hapus SEMUA content item yang dibuat dari insight ini (ditandai lewat
+     * ai_strategy_insight_id), asal belum ada progress beneran di item
+     * itu (belum posting, belum ada revisi/metrik) - biar nggak ngilangin
+     * kerjaan tim yang udah kadung jalan.
+     */
+    public function revertAiStrategy(AiStrategyInsight $aiStrategyInsight)
+    {
+        abort_if($aiStrategyInsight->applied_at === null, 422, 'Analisis ini belum pernah diterapkan.');
+
+        $generatedItems = \App\Models\ContentItem::where('ai_strategy_insight_id', $aiStrategyInsight->id)
+            ->with(['workflow', 'revisions', 'metrics'])
+            ->get();
+
+        $hasProgress = $generatedItems->contains(function ($item) {
+            return $item->is_posted
+                || $item->revisions->isNotEmpty()
+                || $item->metrics->isNotEmpty()
+                || ($item->workflow && ! in_array($item->workflow->current_status, ['planned', 'brief_ready']));
+        });
+
+        if ($hasProgress) {
+            return back()->with('ai_error', 'Nggak bisa di-revert - sebagian draft dari analisis ini udah ada progress (revisi/posting/metrik). Hapus manual satu-satu kalau tetap mau dibatalkan.');
+        }
+
+        $deletedCount = $generatedItems->count();
+
+        foreach ($generatedItems as $item) {
+            $item->workflow?->delete();
+            $item->delete();
+        }
+
+        $aiStrategyInsight->update(['applied_at' => null, 'applied_by' => null]);
+
+        return back()->with('ai_success', "{$deletedCount} draft content item berhasil ditarik kembali. Analisis ini bisa diterapkan ulang kalau perlu.");
+    }
+
+    /**
+     * KF3xx — Kirim pesan diskusi ke AI soal 1 hasil analisis.
+     * Dipanggil via fetch/AJAX (bukan reload halaman), makanya balikin
+     * JSON, bukan redirect.
+     */
+    public function sendChatMessage(Request $request, AiStrategyInsight $aiStrategyInsight, AiStrategyService $aiStrategyService)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+        ]);
+
+        if (empty($aiStrategyInsight->performance_data)) {
+            return response()->json(['error' => 'Analisis ini dibuat sebelum fitur diskusi ada, jadi nggak punya data mentah buat dirujuk. Generate ulang analisisnya dulu.'], 422);
+        }
+
+        \App\Models\AiStrategyMessage::create([
+            'ai_strategy_insight_id' => $aiStrategyInsight->id,
+            'user_id' => auth()->id(),
+            'role' => 'user',
+            'message' => $validated['message'],
+        ]);
+
+        try {
+            $history = $aiStrategyInsight->messages()
+                ->get()
+                ->map(fn ($m) => ['role' => $m->role, 'message' => $m->message])
+                ->all();
+
+            $previousResult = [
+                'summary' => $aiStrategyInsight->summary,
+                'action_items' => $aiStrategyInsight->action_items,
+                'suggested_split' => $aiStrategyInsight->suggested_split,
+            ];
+
+            $reply = $aiStrategyService->chat(
+                $aiStrategyInsight->performance_data,
+                $previousResult,
+                $history,
+                $validated['message']
+            );
+
+            $assistantMessage = \App\Models\AiStrategyMessage::create([
+                'ai_strategy_insight_id' => $aiStrategyInsight->id,
+                'user_id' => null,
+                'role' => 'assistant',
+                'message' => $reply,
+            ]);
+
+            return response()->json([
+                'message' => $assistantMessage->message,
+                'created_at' => $assistantMessage->created_at->format('H:i'),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Gagal dapetin balesan AI: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * KF3xx — Perbarui analisis terstruktur berdasarkan seluruh diskusi
+     * yang udah terjadi. Nge-update insight yang SAMA (bukan bikin baru),
+     * biar histori chat-nya tetep nyambung ke 1 insight yang sama.
+     */
+    public function refineFromDiscussion(AiStrategyInsight $aiStrategyInsight, AiStrategyService $aiStrategyService)
+    {
+        abort_if(empty($aiStrategyInsight->performance_data), 422, 'Analisis ini nggak punya data mentah, generate ulang dulu.');
+        abort_if($aiStrategyInsight->messages->isEmpty(), 422, 'Belum ada diskusi buat dijadiin dasar pembaruan.');
+
+        try {
+            $history = $aiStrategyInsight->messages()
+                ->get()
+                ->map(fn ($m) => ['role' => $m->role, 'message' => $m->message])
+                ->all();
+
+            $previousResult = [
+                'summary' => $aiStrategyInsight->summary,
+                'action_items' => $aiStrategyInsight->action_items,
+                'suggested_split' => $aiStrategyInsight->suggested_split,
+            ];
+
+            $result = $aiStrategyService->refineFromDiscussion(
+                $aiStrategyInsight->performance_data,
+                $previousResult,
+                $history
+            );
+
+            $aiStrategyInsight->update([
+                'summary' => $result['summary'],
+                'action_items' => $result['action_items'],
+                'suggested_split' => $result['suggested_split'],
+                'top_pillars' => $result['top_pillars'],
+                'content_ideas' => $result['content_ideas'],
+            ]);
+
+            \App\Models\AiStrategyMessage::create([
+                'ai_strategy_insight_id' => $aiStrategyInsight->id,
+                'user_id' => null,
+                'role' => 'system',
+                'message' => 'Analisis diperbarui berdasarkan diskusi di atas oleh '.(auth()->user()->name ?? 'user').'.',
+            ]);
+
+            return back()->with('ai_success', 'Analisis berhasil diperbarui berdasarkan diskusi.');
+        } catch (\Throwable $e) {
+            return back()->with('ai_error', 'Gagal memperbarui analisis: '.$e->getMessage());
+        }
     }
 }

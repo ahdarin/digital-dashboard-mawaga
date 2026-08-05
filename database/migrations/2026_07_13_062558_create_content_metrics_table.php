@@ -17,10 +17,8 @@ return new class extends Migration {
             $table->integer('views')->default(0);
             $table->decimal('engagement_rate', 5, 2)->default(0.00);
 
-            // Metrik tambahan khusus konten video (Reels & TikTok).
-            // Nullable, karena konten Feed/foto/carousel nggak punya nilai
-            // ini - dibedakan dari 0, biar nggak salah baca "0 saves"
-            // padahal aslinya memang konten yang nggak punya metrik itu.
+            // Metrik tambahan khusus konten video (Reels & TikTok). Nullable,
+            // karena konten Feed/foto nggak punya nilai ini.
             $table->integer('watch_time_avg')->nullable(); // rata-rata durasi ditonton, dalam detik
             $table->decimal('completion_rate', 5, 2)->nullable(); // % penonton yang nonton sampai habis
             $table->integer('shares')->nullable();
@@ -28,7 +26,6 @@ return new class extends Migration {
 
             $table->timestamps();
 
-            // Composite Unique Constraint wajib (Design Notes #2)
             $table->unique(['content_item_id', 'platform_id', 'metric_date'], 'content_metrics_composite_unique');
         });
     }

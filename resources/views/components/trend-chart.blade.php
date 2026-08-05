@@ -6,8 +6,10 @@
     $peakIndex = $trendItems->sortByDesc('value')->keys()->first();
     $count = $trendItems->count();
 
-    $barWidth = $count > 40 ? 20 : ($count > 15 ? 26 : 40);
-    $labelStep = $count <= 14 ? 1 : max((int) ceil($count / 12), 1);
+    // Lebar bar dibikin cukup lebar buat nampung label tanggal (~"07/07")
+    // tanpa numpuk - SEMUA tanggal ditampilin, kalau kepanjangan tinggal
+    // di-scroll (bukan disembunyiin kayak sebelumnya).
+    $barWidth = $count > 60 ? 30 : 38;
 
     $compact = function ($n) {
         if ($n >= 1000000) return number_format($n / 1000000, 1).'M';
@@ -68,7 +70,7 @@
                         @foreach ($trendItems as $i => $point)
                             <div class="shrink-0 text-center" style="width: {{ $barWidth }}px">
                                 <span class="text-[10px] text-[#9aa0a4] whitespace-nowrap">
-                                    {{ $i % $labelStep === 0 || $i === $count - 1 ? $point['label'] : '' }}
+                                    {{ $point['label'] }}
                                 </span>
                             </div>
                         @endforeach

@@ -80,19 +80,329 @@
             @endforeach
         </div>
 
-        <div class="flex gap-5 items-start">
-            <div class="flex-1 min-w-0 space-y-5">
+        <div class="space-y-5">
+
+                {{-- AI Strategy Analysis - beneran manggil Gemini API --}}
+                <div class="rounded-2xl overflow-hidden border border-[#e4e9ec]" x-data="{ loading: false }">
+
+                    {{-- Header dengan gradient, biar section ini keliatan beda dari card biasa --}}
+                    <div class="bg-gradient-to-br from-[#044b46] to-[#0a6b5c] px-6 py-5 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-white text-[19px]">auto_awesome</span>
+                            </div>
+                            <div>
+                                <h2 class="font-display text-lg font-semibold text-white leading-tight">AI Strategy Analysis</h2>
+                                <p class="text-xs text-white/70 mt-0.5">Analisis 30 hari terakhir, dibangkitkan Gemini AI dari data asli client ini</p>
+                            </div>
+                        </div>
+
+                        <form action="{{ route('analytics.ai-strategy') }}" method="POST" x-on:submit="loading = true" class="shrink-0">
+                            @csrf
+                            <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                            <button type="submit" :disabled="loading"
+                                    class="text-sm font-medium bg-white text-[#044b46] px-4 py-2.5 rounded-lg hover:bg-white/90 transition-colors disabled:opacity-60 flex items-center gap-2 shadow-sm">
+                                <span x-show="!loading" class="flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[16px]">{{ $latestAiInsight ? 'refresh' : 'bolt' }}</span>
+                                    {{ $latestAiInsight ? 'Generate Ulang' : 'Generate Analisis' }}
+                                </span>
+                                <span x-show="loading" x-cloak class="flex items-center gap-1.5">
+                                    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                                    Menganalisis...
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6">
+
+                    @if (session('ai_error'))
+                        <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-lg p-4 text-sm text-[#b3423e] flex items-start gap-2.5">
+                            <span class="material-symbols-outlined text-[17px] shrink-0">error</span>
+                            {{ session('ai_error') }}
+                        </div>
+                    @elseif (! $latestAiInsight)
+                        <div class="flex flex-col items-center justify-center text-center py-10">
+                            <div class="w-12 h-12 rounded-full bg-[#f0f5f4] flex items-center justify-center mb-3">
+                                <span class="material-symbols-outlined text-[#044b46] text-[22px]">insights</span>
+                            </div>
+                            <p class="text-sm font-medium text-[#14181a] mb-1">Belum ada analisis buat client ini</p>
+                            <p class="text-xs text-[#9aa0a4] max-w-xs">Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.</p>
+                        </div>
+                    @elseif ($latestAiInsight->status === 'failed')
+                        <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-lg p-4 text-sm text-[#b3423e] flex items-start gap-2.5">
+                            <span class="material-symbols-outlined text-[17px] shrink-0">error</span>
+                            Analisis terakhir gagal: {{ $latestAiInsight->error_message }}
+                        </div>
+                    @else
+                        {{-- Summary banner --}}
+                        <div class="bg-gradient-to-r from-[#f0f5f4] to-[#f7f8fc] rounded-xl p-4 mb-5">
+                            <p class="text-sm text-[#14181a] leading-relaxed">{{ $latestAiInsight->summary }}</p>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-6">
+
+                            {{-- Kolom kiri (2/3): Top Pillars + Action Items --}}
+                            <div class="col-span-2 space-y-5">
+
+                                @if (! empty($latestAiInsight->top_pillars))
+                                    <div>
+                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Top Content Pillars</p>
+                                        <div class="space-y-2">
+                                            @php $rankStyles = ['bg-gradient-to-br from-[#f5b942] to-[#e0932a]', 'bg-gradient-to-br from-[#b8c2c9] to-[#8f9aa3]', 'bg-gradient-to-br from-[#c98a53] to-[#a86a3a]']; @endphp
+                                            @foreach ($latestAiInsight->top_pillars as $i => $pillar)
+                                                <div class="flex items-start gap-3 border border-[#eef0f4] rounded-xl p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors">
+                                                    <span class="w-6 h-6 rounded-full {{ $rankStyles[$i] ?? 'bg-[#044b46]' }} text-white text-[11px] font-bold flex items-center justify-center shrink-0 shadow-sm">{{ $i + 1 }}</span>
+                                                    <div class="min-w-0">
+                                                        <p class="text-sm font-semibold text-[#14181a]">{{ $pillar['name'] }}</p>
+                                                        <p class="text-xs text-[#5c6266] mt-0.5 leading-relaxed">{{ $pillar['reasoning'] }}</p>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if (! empty($latestAiInsight->action_items))
+                                    <div>
+                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Action Items</p>
+                                        <ul class="space-y-2.5">
+                                            @foreach ($latestAiInsight->action_items as $item)
+                                                <li class="flex items-start gap-2.5 text-sm text-[#14181a]">
+                                                    <span class="w-5 h-5 rounded-full bg-[#eaf5f0] flex items-center justify-center shrink-0 mt-0.5">
+                                                        <span class="material-symbols-outlined text-[#0f7a5f] text-[13px]">check</span>
+                                                    </span>
+                                                    <span class="leading-relaxed">{{ $item }}</span>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                                @if (! empty($latestAiInsight->content_ideas))
+                                    <div x-data="{ open: false }">
+                                        <button type="button" x-on:click="open = !open" class="flex items-center justify-between w-full text-left">
+                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide">Ide Konten Siap Pakai ({{ count($latestAiInsight->content_ideas) }})</p>
+                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                                        </button>
+                                        <div x-show="open" x-cloak class="space-y-2 mt-3">
+                                            @foreach ($latestAiInsight->content_ideas as $idea)
+                                                <div class="border border-[#eef0f4] rounded-lg p-3">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]">{{ $idea['pillar'] ?? '-' }}</span>
+                                                    </div>
+                                                    <p class="text-sm font-semibold text-[#14181a]">{{ $idea['title'] ?? '-' }}</p>
+                                                    <p class="text-xs text-[#5c6266] mt-1 leading-relaxed">{{ $idea['brief'] ?? '-' }}</p>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- Kolom kanan (1/3): Suggested Split + kelengkapan data, jadi "sidebar" ringkasan --}}
+                            <div class="space-y-5">
+                                @if (! empty($latestAiInsight->suggested_split))
+                                    <div class="bg-[#f7f8fc] rounded-xl p-4">
+                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Suggested Split</p>
+                                        @php $splitColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf']; @endphp
+                                        <div class="space-y-3">
+                                            @foreach ($latestAiInsight->suggested_split as $i => $row)
+                                                <div>
+                                                    <div class="flex items-center justify-between text-xs mb-1">
+                                                        <span class="text-[#5c6266] flex items-center gap-1.5">
+                                                            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {{ $splitColors[$i % 5] }}"></span>
+                                                            {{ $row['label'] }}
+                                                        </span>
+                                                        <span class="font-semibold text-[#14181a]">{{ $row['value'] }}%</span>
+                                                    </div>
+                                                    <div class="w-full h-1.5 rounded-full bg-white overflow-hidden">
+                                                        <div class="h-full rounded-full" style="width: {{ $row['value'] }}%; background-color: {{ $splitColors[$i % 5] }}"></div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if ($latestAiInsight->data_completeness_percent !== null)
+                                    <div class="border border-[#eef0f4] rounded-xl p-4">
+                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Kelengkapan Data</p>
+                                        <div class="flex items-end gap-2 mb-2">
+                                            <span class="font-display text-2xl font-semibold text-[#14181a] leading-none">{{ $latestAiInsight->data_completeness_percent }}%</span>
+                                            @if ($latestAiInsight->data_completeness_percent < 60)
+                                                <span class="text-[10px] text-[#b8873a] font-medium mb-0.5">Data agak tipis</span>
+                                            @endif
+                                        </div>
+                                        <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
+                                            <div class="h-full rounded-full {{ $latestAiInsight->data_completeness_percent >= 60 ? 'bg-[#0f7a5f]' : 'bg-[#b8873a]' }}"
+                                                 style="width: {{ $latestAiInsight->data_completeness_percent }}%"></div>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
+                                    <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-3 rounded-xl hover:bg-[#033b37] transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                            <span class="material-symbols-outlined text-[16px]">bolt</span>
+                                            Terapkan ke Content Plan
+                                        </button>
+                                    </form>
+                                @elseif ($latestAiInsight->applied_at)
+                                    <div class="border border-[#eaf5f0] bg-[#f7fbf9] rounded-xl p-3.5">
+                                        <div class="flex items-center gap-1.5 text-sm font-medium text-[#0f7a5f] mb-2">
+                                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                            Sudah diterapkan
+                                        </div>
+                                        <p class="text-xs text-[#5c6266] mb-3">Draft content item udah dibuat di Content Plan bulan ini.</p>
+                                        <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
+                                              onsubmit="return confirm('Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).')">
+                                            @csrf
+                                            <button type="submit" class="w-full text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] transition-colors flex items-center justify-center gap-1.5">
+                                                <span class="material-symbols-outlined text-[14px]">undo</span>
+                                                Tarik Kembali
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-[#c3c7cb] mt-5 pt-4 border-t border-[#f2f3f6]">
+                            Digenerate {{ $latestAiInsight->created_at->diffForHumans() }} oleh {{ $latestAiInsight->generatedBy->name ?? '-' }}
+                            @if ($latestAiInsight->applied_at)
+                                &middot; Diterapkan {{ $latestAiInsight->applied_at->diffForHumans() }}
+                            @endif
+                        </p>
+
+                        {{-- Diskusi dengan AI --}}
+                        <div class="mt-5 pt-5 border-t border-[#f2f3f6]"
+                             x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }})">
+
+                            <button type="button" x-on:click="open = !open"
+                                    class="flex items-center justify-between w-full text-left mb-3">
+                                <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px]">forum</span>
+                                    Diskusi dengan AI ({{ $latestAiInsight->messages->where('role', '!=', 'system')->count() }})
+                                </p>
+                                <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                            </button>
+
+                            <div x-show="open" x-cloak>
+                                <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli.</p>
+
+                                {{-- Daftar pesan --}}
+                                <div class="space-y-3 mb-3 max-h-80 overflow-y-auto" x-ref="messageList">
+                                    <template x-for="msg in messages" :key="msg.id ?? msg.message + msg.time">
+                                        <template x-if="msg.role === 'system'">
+                                            <p class="text-center text-[11px] text-[#9aa0a4] italic" x-text="msg.message"></p>
+                                        </template>
+                                        <template x-if="msg.role !== 'system'">
+                                            <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                                                <div class="max-w-[85%] rounded-xl px-3.5 py-2.5"
+                                                     :class="msg.role === 'user' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#14181a]'">
+                                                    <p class="text-sm leading-relaxed" x-text="msg.message"></p>
+                                                    <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[#9aa0a4]'" x-text="msg.time"></p>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </template>
+
+                                    <div x-show="sending" x-cloak class="flex justify-start">
+                                        <div class="bg-[#f7f8fc] rounded-xl px-3.5 py-2.5">
+                                            <div class="flex gap-1">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:0ms"></span>
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:150ms"></span>
+                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:300ms"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p x-show="errorMsg" x-cloak class="text-xs text-[#b3423e] mb-2" x-text="errorMsg"></p>
+
+                                {{-- Input --}}
+                                <form x-on:submit.prevent="send()" class="flex items-center gap-2 mb-3">
+                                    <input type="text" x-model="draft" placeholder="Tulis masukan atau pertanyaan..."
+                                           :disabled="sending"
+                                           class="flex-1 border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40 disabled:opacity-60">
+                                    <button type="submit" :disabled="sending || !draft.trim()"
+                                            class="w-10 h-10 shrink-0 rounded-lg bg-[#044b46] text-white flex items-center justify-center hover:bg-[#033b37] disabled:opacity-40 transition-colors">
+                                        <span class="material-symbols-outlined text-[18px]">send</span>
+                                    </button>
+                                </form>
+
+                                @if ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
+                                    <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
+                                          onsubmit="return confirm('Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
+                                        @csrf
+                                        <button type="submit" class="w-full text-xs font-medium bg-[#eef2fb] text-[#3452a8] px-3.5 py-2.5 rounded-lg hover:bg-[#e2e8f8] transition-colors flex items-center justify-center gap-1.5">
+                                            <span class="material-symbols-outlined text-[15px]">sync</span>
+                                            Perbarui Analisis dari Diskusi Ini
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    </div>
+                </div>
+
+                {{-- Divider zona: dari "AI insight" pindah ke "raw metrics" --}}
+                <div class="flex items-center gap-3 pt-2">
+                    <span class="text-[11px] font-semibold text-[#9aa0a4] uppercase tracking-wider whitespace-nowrap">Performance Details</span>
+                    <div class="flex-1 h-px bg-[#eef0f4]"></div>
+                </div>
 
                 {{-- Trend chart --}}
                 <div class="card p-6">
-                    <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Views Over Time</h2>
-                    <p class="text-xs text-[#9aa0a4] mb-5">Total views seluruh konten pada periode terpilih.</p>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">show_chart</span>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Views Over Time</h2>
+                    </div>
+                    <p class="text-xs text-[#9aa0a4] mb-5 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
                     <x-trend-chart :trend="$trend" />
+                </div>
+
+                {{-- Traffic per Platform - sekarang full width, bukan sidebar sempit --}}
+                <div class="card p-6">
+                    <div class="flex items-center gap-2 mb-5">
+                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">hub</span>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Traffic per Platform</h2>
+                    </div>
+
+                    @if ($platformBreakdown->isEmpty())
+                        <p class="text-sm text-[#9aa0a4] text-center py-6">Belum ada data.</p>
+                    @else
+                        @php
+                            $maxPlatform = max($platformBreakdown->max('value'), 1);
+                            $platformColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf'];
+                        @endphp
+                        <div class="grid grid-cols-4 gap-4">
+                            @foreach ($platformBreakdown as $i => $row)
+                                <div class="border border-[#eef0f4] rounded-xl p-4">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ $platformColors[$i % 5] }}"></span>
+                                        <span class="text-sm text-[#5c6266]">{{ $row['label'] }}</span>
+                                    </div>
+                                    <p class="font-display text-xl font-semibold text-[#14181a] mb-2">{{ number_format($row['value']) }}</p>
+                                    <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
+                                        <div class="h-full rounded-full" style="width: {{ max(($row['value'] / $maxPlatform) * 100, 3) }}%; background-color: {{ $platformColors[$i % 5] }}"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Top performing content --}}
                 <div class="card p-6">
-                    <h2 class="font-display text-lg font-semibold text-[#14181a] mb-4">Top Performing Content</h2>
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">military_tech</span>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Top Performing Content</h2>
+                    </div>
 
                     @if ($topContent->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten dengan data performa.</p>
@@ -130,35 +440,56 @@
                         </table>
                     @endif
                 </div>
-            </div>
-
-            {{-- Right column --}}
-            <div class="w-[300px] shrink-0">
-                <div class="card p-6">
-                    <h2 class="font-display text-lg font-semibold text-[#14181a] mb-5">Traffic per Platform</h2>
-
-                    @if ($platformBreakdown->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] text-center py-6">Belum ada data.</p>
-                    @else
-                        @php $maxPlatform = max($platformBreakdown->max('value'), 1); @endphp
-                        <div class="space-y-4">
-                            @foreach ($platformBreakdown as $row)
-                                <div>
-                                    <div class="flex items-center justify-between mb-1.5 text-sm">
-                                        <span class="text-[#5c6266]">{{ $row['label'] }}</span>
-                                        <span class="font-medium text-[#14181a]">{{ number_format($row['value']) }}</span>
-                                    </div>
-                                    <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
-                                        <div class="h-full bg-[#044b46] rounded-full" style="width: {{ max(($row['value'] / $maxPlatform) * 100, 3) }}%"></div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
         </div>
     @endif
 </div>
+
+@if (! empty($selectedClientId))
+<script>
+function aiChat(insightId, initialMessages) {
+    return {
+        open: initialMessages.filter(m => m.role !== 'system').length > 0,
+        messages: initialMessages,
+        draft: '',
+        sending: false,
+        errorMsg: '',
+        send() {
+            if (!this.draft.trim() || this.sending) return;
+
+            const userMsg = this.draft.trim();
+            this.messages.push({ role: 'user', message: userMsg, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) });
+            this.draft = '';
+            this.sending = true;
+            this.errorMsg = '';
+            this.$nextTick(() => this.$refs.messageList.scrollTop = this.$refs.messageList.scrollHeight);
+
+            fetch(`/analytics/ai-strategy/${insightId}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ message: userMsg }),
+            })
+            .then(async (res) => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Gagal kirim pesan');
+                return data;
+            })
+            .then((data) => {
+                this.messages.push({ role: 'assistant', message: data.message, time: data.created_at });
+                this.$nextTick(() => this.$refs.messageList.scrollTop = this.$refs.messageList.scrollHeight);
+            })
+            .catch((err) => {
+                this.errorMsg = err.message;
+                this.messages.pop(); // balikin state kalau gagal, biar user bisa coba lagi
+            })
+            .finally(() => this.sending = false);
+        },
+    }
+}
+</script>
+@endif
 
 @endsection

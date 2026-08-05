@@ -14,6 +14,7 @@ class ContentItem extends Model
         'content_plan_id', 'client_id', 'content_pillar_id',
         'content_type_id', 'platform_id', 'title', 'brief',
         'caption_draft', 'deadline_at', 'is_posted',
+        'ai_strategy_insight_id',
     ];
 
     protected $casts = [
@@ -32,4 +33,5 @@ class ContentItem extends Model
     public function publications() { return $this->hasMany(ContentPublication::class); }
     public function metrics() { return $this->hasMany(ContentMetric::class); }
     public function contentPlan() { return $this->belongsTo(ContentPlan::class); }
+    public function aiStrategyInsight() { return $this->belongsTo(AiStrategyInsight::class); }
 }

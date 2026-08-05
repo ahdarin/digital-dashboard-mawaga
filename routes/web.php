@@ -14,7 +14,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserClientAssignmentController;
 use App\Console\Commands\UpdateOverdueContentItems;
 use App\Http\Controllers\AnalyticsController;
-use App\Http\Controllers\AiAdvisorController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
@@ -23,6 +22,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
 use App\Http\Controllers\MasterDataController;
 use Illuminate\Support\Facades\Schedule;
+use App\Services\AiStrategyService;
 
 Route::get('/', function () {
     return view('welcome');
@@ -73,8 +73,15 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
     Route::get('/analytics/table', [AnalyticsController::class, 'table'])->name('analytics.table');
     Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
-
-    Route::get('/ai-advisor', [AiAdvisorController::class, 'index'])->name('ai-advisor');
+    Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
+    Route::post('/analytics/ai-strategy/{aiStrategyInsight}/apply', [AnalyticsController::class, 'applyAiStrategy'])
+        ->name('analytics.ai-strategy.apply');
+    Route::post('/analytics/ai-strategy/{aiStrategyInsight}/revert', [AnalyticsController::class, 'revertAiStrategy'])
+        ->name('analytics.ai-strategy.revert');
+    Route::post('/analytics/ai-strategy/{aiStrategyInsight}/chat', [AnalyticsController::class, 'sendChatMessage'])
+        ->name('analytics.ai-strategy.chat');
+    Route::post('/analytics/ai-strategy/{aiStrategyInsight}/refine', [AnalyticsController::class, 'refineFromDiscussion'])
+        ->name('analytics.ai-strategy.refine');
 
     Route::get('/audience', [AudienceController::class, 'index'])->name('audience');
     Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
