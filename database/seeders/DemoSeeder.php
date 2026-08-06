@@ -15,6 +15,8 @@ use App\Models\ContentItemAssignment;
 use App\Models\ContentMetric;
 use App\Models\ContentPillar;
 use App\Models\ContentPlan;
+use App\Models\ContentRevision;
+use App\Models\ContentStatusLog;
 use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Notification;
@@ -80,7 +82,10 @@ class DemoSeeder extends Seeder
         $lastMonthEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
         // ===== Master data =====
-        $pillars = collect(['Edukasi', 'Storytelling', 'Branding', 'Hard Selling', 'Engagement'])
+        // Nama pillar HARUS persis sama kayak label yang dipakai buat
+        // latih model Delay Risk (lihat storage/ai/delay_risk) - kalau beda
+        // nama, encoder di model nggak kenal dan hasil skornya nggak akurat.
+        $pillars = collect(['Education', 'Entertainment', 'Soft Selling', 'Hard Selling', 'Product Highlight', 'Information'])
             ->map(fn ($name) => ContentPillar::firstOrCreate(['name' => $name]));
 
         $contentTypes = collect(['Design', 'Video', 'Copywriting', 'Carousel'])
@@ -92,10 +97,55 @@ class DemoSeeder extends Seeder
         $videoType = $contentTypes->firstWhere('name', 'Video');
         $videoPlatforms = $platforms->whereIn('name', ['Instagram', 'TikTok']);
 
-        $category = ClientCategory::firstOrCreate(['name' => 'UMKM']);
+        // Beberapa kategori client (dulu cuma 'UMKM' buat semua client) -
+        // 'client_category' salah satu feature model Delay Risk, jadi kalau
+        // semua client sama kategorinya, feature ini nggak ada variasi sama
+        // sekali buat testing.
+        $categories = collect(['UMKM', 'Startup', 'Korporat', 'Retail'])
+            ->map(fn ($name) => ClientCategory::firstOrCreate(['name' => $name]));
+        $category = $categories->first(); // dipakai fallback lama di bawah kalau perlu
 
         $picUser = User::where('email', 'ahdaalamin2506@gmail.com')->first() ?? User::first();
         $clientOwnerRole = Role::firstOrCreate(['name' => 'Client Owner']);
+
+        // ===== Staff pool (buat variasi PIC & workload) =====
+        // Sebelumnya SEMUA content item (current_pic_id + assignment) selalu
+        // ke $picUser (akun CEO yang dipakai jalanin seeder) - artinya
+        // feature "workload_pic_same_week" di Delay Risk nggak pernah
+        // bervariasi (cuma 1 orang, dihitung dari ContentItemAssignment yang
+        // bahkan sebelumnya cuma dibikin buat 5 item board doang). Sekarang
+        // dibikin pool staff produksi asli (role Content Creator/Graphic
+        // Designer/MSO) biar tiap content item di-assign ke orang yang
+        // beda-beda dan beban kerja antar PIC kelihatan bervariasi.
+        $staffRoleNames = ['Content Creator', 'Graphic Designer', 'MSO'];
+        $staffRoles = collect($staffRoleNames)->mapWithKeys(fn ($name) => [$name => Role::firstOrCreate(['name' => $name])]);
+
+        $staffDefs = [
+            ['name' => 'Dinda Pratiwi', 'email' => 'dinda.pratiwi@523studio.test', 'role' => 'Content Creator'],
+            ['name' => 'Raka Wijaya', 'email' => 'raka.wijaya@523studio.test', 'role' => 'Content Creator'],
+            ['name' => 'Sari Amelia', 'email' => 'sari.amelia@523studio.test', 'role' => 'Graphic Designer'],
+            ['name' => 'Fajar Nugroho', 'email' => 'fajar.nugroho@523studio.test', 'role' => 'Graphic Designer'],
+            ['name' => 'Made Wirawan', 'email' => 'made.wirawan@523studio.test', 'role' => 'MSO'],
+        ];
+
+        // Setiap entry: ['user' => User, 'assignment_role' => '...'] - dipakai
+        // bareng pas bikin ContentItemAssignment biar assignment_role-nya
+        // konsisten sama role asli staff itu (bukan asal random string).
+        $staffPool = collect($staffDefs)->map(fn ($def) => [
+            'user' => User::firstOrCreate(
+                ['email' => $def['email']],
+                [
+                    'role_id' => $staffRoles[$def['role']]->id,
+                    'name' => $def['name'],
+                    'status' => 'active',
+                ]
+            ),
+            'assignment_role' => match ($def['role']) {
+                'Content Creator' => 'content_creator',
+                'Graphic Designer' => 'designer',
+                'MSO' => 'mso',
+            },
+        ]);
 
         // ===== Clients =====
         // 'login' opsional - kalau diisi, dibikinin 1 User (role Client
@@ -113,24 +163,29 @@ class DemoSeeder extends Seeder
                 'name' => 'TechNova Inc.',
                 'login' => ['name' => 'Client Demo', 'email' => 'client-demo@technova.test', 'phone' => '6281275471093'],
                 'package' => ['name' => 'Paket Growth', 'content_quota' => 9, 'design_quota' => 9],
+                'category' => 'Startup',
             ],
             [
                 'name' => 'Kopi Senja',
                 'login' => null,
                 'package' => ['name' => 'Paket Konten', 'content_quota' => 12, 'design_quota' => 0],
+                'category' => 'UMKM',
             ],
             [
                 'name' => 'FreshBite Indonesia',
                 'login' => ['name' => 'Budi Santoso', 'email' => 'budi@freshbite.test', 'phone' => '6282288706114'],
                 'package' => ['name' => 'Paket Starter', 'content_quota' => 6, 'design_quota' => 6],
+                'category' => 'Retail',
             ],
         ];
 
-        $clients = collect($clientDefs)->map(function ($def) use ($category, $clientOwnerRole) {
+        $clients = collect($clientDefs)->map(function ($def) use ($categories, $clientOwnerRole) {
+            $clientCategory = $categories->firstWhere('name', $def['category']) ?? $categories->first();
+
             $client = Client::firstOrCreate(
                 ['name' => $def['name']],
                 [
-                    'client_category_id' => $category->id,
+                    'client_category_id' => $clientCategory->id,
                     'brand_name' => str($def['name'])->before(' ')->toString(),
                     'status' => 'active',
                 ]
@@ -185,14 +240,36 @@ class DemoSeeder extends Seeder
             $currentPlan = $contentPlans->last();
 
             // ===== Content Items =====
+            // Status non-posted sekarang divariasikan lintas seluruh siklus
+            // workflow (dulu cuma 'in_progress'/'revision') - biar feature
+            // "current_status" di Delay Risk (dan board Production Workflow)
+            // nggak monoton, dan biar ada contoh item di status
+            // 'brief_ready' yang otomatis kepancing ContentWorkflowObserver
+            // buat generate skor Delay Risk beneran pas seeder jalan.
+            //
+            // Cycle di-shuffle SEKALI per client lalu dikonsumsi berurutan
+            // (bukan collect(...)->random() tiap item) - kalau random murni,
+            // ada peluang nyata 1 run seeder sama sekali nggak ngasilin
+            // status tertentu (misal 'revision'/'scheduled') padahal itu
+            // penting buat nyoba variasi input Delay Risk. Cycle jamin semua
+            // status kepakai minimal sekali per client (asal item non-posted
+            // >= jumlah status-nya).
+            $activeStatuses = ['brief_ready', 'in_progress', 'waiting_review', 'revision', 'approved', 'scheduled'];
+            $activeStatusCycle = collect($activeStatuses)->shuffle()->values();
+            $activeStatusCursor = 0;
+
+            $itemsPerClient = 16;
             $createdItems = collect();
-            for ($i = 0; $i < 10; $i++) {
+            for ($i = 0; $i < $itemsPerClient; $i++) {
                 $daysAgo = rand(0, 89);
                 $deadline = $now->copy()->subDays($daysAgo);
                 $plan = $contentPlans->first(fn ($p) => $p->month === $deadline->month && $p->year === $deadline->year)
                     ?? $contentPlans->last();
 
-                $isPosted = $daysAgo >= 3 ? (rand(1, 100) <= 85) : false;
+                // Diturunin dari 85% ke 55% - dulu kebanyakan item jadi
+                // 'uploaded' (status "selesai", di luar cakupan Delay Risk
+                // sama sekali), jadi pool item aktif buat testing kekecilan.
+                $isPosted = $daysAgo >= 3 ? (rand(1, 100) <= 55) : false;
                 $contentType = $contentTypes->random();
                 if (rand(1, 100) <= 40) {
                     $contentType = $videoType;
@@ -200,6 +277,30 @@ class DemoSeeder extends Seeder
                 $platform = $contentType->id === $videoType->id
                     ? $videoPlatforms->random()
                     : $platforms->random();
+
+                $isVideoContent = $contentType->id === $videoType->id;
+                // Estimasi durasi/slide - dulu selalu kosong (nggak pernah
+                // di-set sama sekali di seeder), padahal ini yang nentuin
+                // "content_complexity" buat Delay Risk. Rentangnya sengaja
+                // nyebar lintas 3 tier ContentComplexityCalculator (video:
+                // <=30/<=40/>40 detik, non-video: <=1/<=4/>4 slide).
+                $estimatedDuration = $isVideoContent ? rand(10, 65) : null;
+                $estimatedSlides = ! $isVideoContent ? rand(1, 8) : null;
+
+                if ($isPosted) {
+                    $status = 'uploaded';
+                } elseif (rand(1, 100) <= 4) {
+                    $status = 'cancelled';
+                } else {
+                    $status = $activeStatusCycle[$activeStatusCursor % $activeStatusCycle->count()];
+                    $activeStatusCursor++;
+                }
+
+                $isOverdue = ! in_array($status, ['uploaded', 'cancelled'])
+                    && $deadline->isPast() && $daysAgo > 2 && rand(1, 100) <= 45;
+
+                $assignedStaff = $staffPool->random();
+                $assignedPic = $assignedStaff['user'];
 
                 $item = ContentItem::create([
                     'content_plan_id' => $plan->id,
@@ -211,23 +312,66 @@ class DemoSeeder extends Seeder
                     'brief' => 'Dummy brief untuk seeding data demo.',
                     'deadline_at' => $deadline,
                     'is_posted' => $isPosted,
+                    'estimated_duration_seconds' => $estimatedDuration,
+                    'estimated_slide_count' => $estimatedSlides,
                 ]);
 
                 $createdItems->push($item);
 
-                $isOverdue = ! $isPosted && $deadline->isPast() && $daysAgo > 2;
+                // "days_in_current_status" (feature Delay Risk lainnya) -
+                // dulu selalu ~0 karena ContentWorkflow selalu dibuat dengan
+                // created_at = sekarang (waktu seeder jalan). Di-backdate
+                // biar ada variasi item yang "udah lama nyangkut" di status
+                // sekarang - overdue item sengaja dibuat lebih lama nyangkut
+                // biar realistis (itu salah satu ciri khas item beresiko).
+                $daysInStatus = $isOverdue ? rand(5, 20) : rand(0, 10);
+                $statusChangedAt = $now->copy()->subDays($daysInStatus);
 
-                ContentWorkflow::create([
+                $workflow = ContentWorkflow::create([
                     'content_item_id' => $item->id,
-                    'current_pic_id' => $picUser->id,
-                    'current_status' => $isPosted ? 'uploaded' : ($isOverdue ? 'revision' : 'in_progress'),
+                    'current_pic_id' => $assignedPic->id,
+                    'current_status' => $status,
                     'is_overdue' => $isOverdue,
                 ]);
+                $workflow->forceFill(['created_at' => $statusChangedAt])->save();
+
+                ContentItemAssignment::create([
+                    'content_item_id' => $item->id,
+                    'user_id' => $assignedPic->id,
+                    'assignment_role' => $assignedStaff['assignment_role'],
+                ]);
+
+                $statusLog = ContentStatusLog::create([
+                    'content_item_id' => $item->id,
+                    'changed_by' => $assignedPic->id,
+                    'from_status' => null,
+                    'to_status' => $status,
+                    'changed_at' => $statusChangedAt,
+                ]);
+                $statusLog->forceFill(['created_at' => $statusChangedAt])->save();
+
+                // "revision_count" (feature Delay Risk lainnya) - dulu
+                // selalu 0 karena nggak pernah ada ContentRevision di-seed
+                // sama sekali. Item yang statusnya 'revision'/'waiting_review'
+                // pasti dikasih riwayat revisi, sisanya random kadang ada.
+                $shouldHaveRevisions = in_array($status, ['revision', 'waiting_review']) || rand(1, 100) <= 20;
+                if ($shouldHaveRevisions) {
+                    $revisionRounds = rand(1, 3);
+                    for ($r = 1; $r <= $revisionRounds; $r++) {
+                        $isLastRound = $r === $revisionRounds;
+                        ContentRevision::create([
+                            'content_item_id' => $item->id,
+                            'requested_by' => $picUser->id,
+                            'revision_round' => $r,
+                            'revision_note' => 'Revisi ke-'.$r.' - contoh catatan revisi dari seeder demo.',
+                            'status' => ($isLastRound && $status === 'revision') ? 'open' : 'resolved',
+                        ]);
+                    }
+                }
 
                 if ($isPosted) {
                     $trackDays = min($daysAgo, rand(5, 21));
                     $baseViews = rand(400, 6000);
-                    $isVideoContent = $contentType->id === $videoType->id;
 
                     for ($d = 0; $d < $trackDays; $d++) {
                         ContentMetric::create([
@@ -254,34 +398,53 @@ class DemoSeeder extends Seeder
                 $designType = $contentTypes->firstWhere('name', 'Design');
                 $igPlatform = $platforms->firstWhere('name', 'Instagram');
                 $boardStatuses = ['brief_ready', 'brief_ready', 'in_progress', 'waiting_review', 'approved'];
+                // Makin ke kanan board-nya, makin lama udah nyangkut -
+                // simulasi progres natural (bukan semua item baru dibuat
+                // "hari ini", biar "days_in_current_status" ada variasinya).
+                $boardDaysInStatus = [0, 1, 3, 5, 7];
 
                 foreach ($boardStatuses as $i => $status) {
+                    $creatorStaff = $staffPool->firstWhere('assignment_role', 'content_creator') ?? $staffPool->random();
+                    $designerStaff = $staffPool->firstWhere('assignment_role', 'designer') ?? $staffPool->random();
+                    $statusChangedAt = $now->copy()->subDays($boardDaysInStatus[$i]);
+
                     $item = ContentItem::create([
                         'content_plan_id' => $currentPlan->id,
                         'client_id' => $client->id,
+                        'content_pillar_id' => $pillars->random()->id,
                         'content_type_id' => $designType->id,
                         'platform_id' => $igPlatform->id,
                         'title' => 'Demo Content Item #'.($i + 1),
                         'brief' => 'Contoh brief untuk testing board.',
                         'deadline_at' => $now->copy()->subDay()->addDays($i),
+                        'estimated_slide_count' => rand(1, 8),
                     ]);
 
-                    ContentWorkflow::create([
+                    $workflow = ContentWorkflow::create([
                         'content_item_id' => $item->id,
-                        'current_pic_id' => $picUser->id,
+                        'current_pic_id' => $creatorStaff['user']->id,
                         'current_status' => $status,
                     ]);
+                    $workflow->forceFill(['created_at' => $statusChangedAt])->save();
+
+                    ContentStatusLog::create([
+                        'content_item_id' => $item->id,
+                        'changed_by' => $creatorStaff['user']->id,
+                        'from_status' => null,
+                        'to_status' => $status,
+                        'changed_at' => $statusChangedAt,
+                    ])->forceFill(['created_at' => $statusChangedAt])->save();
 
                     ContentItemAssignment::create([
                         'content_item_id' => $item->id,
-                        'user_id' => $picUser->id,
+                        'user_id' => $creatorStaff['user']->id,
                         'assignment_role' => 'content_creator',
                     ]);
 
                     if ($i === 0) {
                         ContentItemAssignment::create([
                             'content_item_id' => $item->id,
-                            'user_id' => $picUser->id,
+                            'user_id' => $designerStaff['user']->id,
                             'assignment_role' => 'designer',
                         ]);
                     }

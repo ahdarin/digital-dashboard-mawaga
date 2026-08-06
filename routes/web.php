@@ -25,6 +25,10 @@ use Illuminate\Support\Facades\Schedule;
 use App\Services\AiStrategyService;
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route(auth()->user()->client_id ? 'client.dashboard' : 'dashboard');
+    }
+
     return view('welcome');
 });
 

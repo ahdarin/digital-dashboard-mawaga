@@ -62,6 +62,14 @@
             </form>
         </div>
 
+        @php
+            $sourceTypeLabels = [
+                'performance_csv_import' => 'Performance CSV Import',
+                'audience_csv_import' => 'Audience CSV Import',
+                'api_sync' => 'API Sync',
+            ];
+        @endphp
+
         @if ($syncLogs->isEmpty())
             <div class="px-6 py-12 text-center">
                 <span class="material-symbols-outlined text-[#d4d7db] text-[26px] mb-2 block">history</span>
@@ -85,7 +93,7 @@
                             <td class="px-6 py-3.5 text-[#5c6266]">{{ $log->created_at->format('d M Y, H:i') }}</td>
                             <td class="px-4 py-3.5 font-medium text-[#14181a]">{{ $log->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266]">{{ $log->platform->name ?? 'Campuran' }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ \Illuminate\Support\Str::headline($log->source_type) }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $sourceTypeLabels[$log->source_type] ?? \Illuminate\Support\Str::headline($log->source_type) }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266]">{{ $log->importedBy->name ?? '-' }}</td>
                             <td class="px-6 py-3.5">
                                 <span class="text-xs font-medium px-2.5 py-1 rounded-full

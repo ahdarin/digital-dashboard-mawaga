@@ -20,7 +20,6 @@
             'label' => 'Clients',
             'items' => [
                 ['label' => 'Client Onboarding', 'route' => 'client-onboarding.index', 'icon' => 'apartment'],
-                ['label' => 'Audience', 'route' => 'audience', 'icon' => 'groups'],
             ],
         ],
         [
@@ -66,11 +65,9 @@
         </span>
     </button>
 
-    <div class="px-5 py-6 flex items-center gap-2.5 overflow-hidden" :class="collapsed && 'px-0 justify-center'">
-        <div class="w-8 h-8 rounded-lg bg-[#044b46] flex items-center justify-center shrink-0">
-            <span class="material-symbols-outlined text-white text-[16px]">water_drop</span>
-        </div>
-        <span class="font-display text-[19px] font-semibold text-[#14181a] whitespace-nowrap" x-show="!collapsed" x-cloak x-transition.opacity>523 Studio</span>
+    <div class="px-5 py-6 flex items-center overflow-hidden" :class="collapsed && 'px-0 justify-center'">
+        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto shrink-0" x-show="!collapsed" x-cloak x-transition.opacity>
+        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-5 w-auto shrink-0" x-show="collapsed" x-cloak x-transition.opacity>
     </div>
 
     <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden">

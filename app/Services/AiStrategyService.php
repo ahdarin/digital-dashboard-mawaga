@@ -287,6 +287,9 @@ PROMPT;
             ->map(fn ($m) => ($m['role'] === 'user' ? 'User' : 'AI').': '.$m['message'])
             ->implode("\n");
 
+        $previousPillars = collect($previousResult['suggested_split'] ?? [])->pluck('label')->filter()->implode(', ');
+        $dataPillars = collect($performanceData['performance_by_pillar'] ?? [])->keys()->implode(', ');
+
         $prompt = <<<PROMPT
 Kamu sebelumnya udah bikin analisis strategi konten berikut, berdasarkan
 data performa ini:
@@ -296,6 +299,9 @@ DATA PERFORMA ASLI:
 
 ANALISIS SEBELUMNYA:
 {$resultJson}
+
+Pillar yang ada di ANALISIS SEBELUMNYA (suggested_split): {$previousPillars}
+Pillar yang beneran ada datanya di performance_by_pillar: {$dataPillars}
 
 Tim udah ngasih diskusi/masukan tambahan soal analisis ini:
 {$historyText}
@@ -314,8 +320,26 @@ sama kayak sebelumnya:
   "action_items": ["action item 1", "action item 2", "action item 3"],
   "suggested_split": [{"label": "nama pillar", "value": persentase_angka}],
   "top_pillars": [{"name": "...", "reasoning": "..."}],
-  "content_ideas": [{"pillar": "...", "title": "...", "brief": "...", "type": "salah satu dari: {$this->contentTypeOptions()}", "platform": "salah satu dari: {$platformOptions}"}]
+  "content_ideas": [{"pillar": "nama pillar (harus match salah satu label di suggested_split)", "title": "...", "brief": "...", "type": "salah satu dari: {$this->contentTypeOptions()}", "platform": "salah satu dari: {$platformOptions}"}]
 }
+
+Aturan tambahan soal pillar di suggested_split (PENTING, sering salah kalau
+dilanggar):
+- Default-nya PERTAHANKAN semua pillar yang ada di ANALISIS SEBELUMNYA
+  ({$previousPillars}), cuma GESER persentase (value) antar pillar sesuai
+  diskusi. JANGAN hapus sebuah pillar sampai persentasenya 0/hilang dari
+  daftar kecuali diskusi di atas eksplisit minta pillar itu DIHAPUS/DIGANTI
+  TOTAL - kalau diskusinya cuma minta "sebagian"/"beberapa" konten
+  dipindah/divariasikan ke pillar lain, pillar asalnya WAJIB tetap muncul
+  di suggested_split dengan persentase yang dikurangi (bukan hilang sama
+  sekali)
+- Pillar baru cuma boleh ditambahkan ke suggested_split kalau namanya
+  eksplisit disebut di diskusi di atas (User atau AI). JANGAN nambahin
+  pillar lain yang nggak ada di ANALISIS SEBELUMNYA, nggak ada di
+  performance_by_pillar, DAN nggak disebut di diskusi - misal jangan
+  tiba-tiba nambahin "Product Highlight"/"Entertainment"/"Education" kalau
+  itu nggak pernah dibahas
+- suggested_split tetap harus total 100
 
 content_ideas WAJIB tetap {$targetCount} ide total (sama kayak sebelumnya,
 ngikutin target_content_count), kecuali diskusi di atas eksplisit minta
@@ -375,10 +399,22 @@ udah ada di atas (jangan mirip judul maupun sudut pandangnya), dan
 perhatikan sebaran type/platform yang udah ada supaya nggak numpuk beban
 ke 1 role produksi doang.
 
+PENTING soal karakter pillar "{$pillar}": judul & brief WAJIB beneran
+mencerminkan pendekatan/nada pillar itu, bukan cuma nempelin nama pillar
+ke field "pillar" doang. Contoh: kalau pillar-nya "Hard Selling", boleh
+langsung dorong jualan/CTA beli/promo eksplisit. Kalau pillar-nya "Soft
+Selling", JANGAN pakai hook/CTA jualan yang keras/langsung - pendekatannya
+harus lebih santai (storytelling, relatable, edukatif, atau problem-solving
+ringan) yang cuma nyerempet ke produk/jasa secara halus. Kalau ide lain di
+atas (IDE KONTEN LAIN YANG UDAH ADA DI DAFTAR INI) ada yang beda pillar
+dari "{$pillar}", JANGAN niru nada/sudut pandang ide-ide itu - sesuaikan
+sepenuhnya ke karakter pillar "{$pillar}" yang diminta sekarang.
+
 Balas HANYA dalam format JSON valid, tanpa teks lain, tanpa markdown code
 block, struktur PERSIS seperti ini:
 
 {
+  "pillar": "harus PERSIS \"{$pillar}\", jangan diubah/dipilih pillar lain",
   "title": "judul konten yang siap pakai, spesifik, bukan generik, dan BEDA dari ide yang udah ada",
   "brief": "2-3 kalimat brief: sudut pandang/hook/poin utama yang harus disampaikan",
   "type": "salah satu dari: {$this->contentTypeOptions()}",
@@ -391,6 +427,28 @@ PROMPT;
 
         if (! $parsed || ! isset($parsed['title'], $parsed['brief'])) {
             throw new \RuntimeException('Gagal parsing hasil regenerate ide.');
+        }
+
+        // Guard: AI diminta echo balik pillar yang dia pakai - kalau beda
+        // dari yang diminta, berarti dia nyasar/salah paham pillar lain
+        // (misal kepengaruh nada ide-ide lain di daftar). Mending gagal
+        // eksplisit di sini daripada diam-diam nyimpen ide yang pillar-nya
+        // ketuker.
+        if (isset($parsed['pillar']) && mb_strtolower(trim((string) $parsed['pillar'])) !== mb_strtolower(trim($pillar))) {
+            throw new \RuntimeException("AI ngasih hasil buat pillar \"{$parsed['pillar']}\" alih-alih \"{$pillar}\" yang diminta - coba regenerate ulang.");
+        }
+
+        // Guard: type & platform juga harus dari daftar yang valid, bukan
+        // hasil ngarang Gemini - biar nggak lolos ke ContentItem dengan
+        // format/platform yang nggak dikenal sistem.
+        $validTypes = collect(explode(',', $this->contentTypeOptions()))->map(fn ($t) => trim($t));
+        if (isset($parsed['type']) && ! $validTypes->contains(fn ($t) => mb_strtolower($t) === mb_strtolower(trim((string) $parsed['type'])))) {
+            throw new \RuntimeException("AI ngasih format \"{$parsed['type']}\" yang nggak dikenal sistem - coba regenerate ulang.");
+        }
+
+        $validPlatforms = $platformNames->isNotEmpty() ? $platformNames : collect(['Instagram', 'TikTok']);
+        if (isset($parsed['platform']) && ! $validPlatforms->contains(fn ($p) => mb_strtolower($p) === mb_strtolower(trim((string) $parsed['platform'])))) {
+            throw new \RuntimeException("AI ngasih platform \"{$parsed['platform']}\" yang nggak dikenal sistem - coba regenerate ulang.");
         }
 
         return [

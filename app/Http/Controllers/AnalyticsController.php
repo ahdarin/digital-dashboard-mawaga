@@ -23,19 +23,51 @@ class AnalyticsController extends Controller
         $period = (int) $request->input('period', 30); // 7 / 30 / 90 hari
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
+        // Analytics, Performance Table, dan Audience sekarang 1 halaman
+        // yang sama (tab switch, full reload) - biar client & period yang
+        // lagi dipilih nggak ke-reset tiap pindah, dan nggak kerasa
+        // "muter-muter" ke halaman lain yang tampilannya beda.
+        $activeTab = $request->input('tab', 'overview');
+        if (!in_array($activeTab, ['overview', 'table', 'audience'])) {
+            $activeTab = 'overview';
+        }
+
         $selectedClientId = $request->input('client_id');
         $clientOptions = Client::where('status', 'active')->get();
 
         // Sengaja: kalau belum pilih client, JANGAN agregat semua client
         // sekaligus (biar nggak "ramai" dan lambat) - tampilkan empty
         // state, minta pilih client dulu di dropdown.
-        if (! $selectedClientId) {
+        if (!$selectedClientId) {
             return view('analytics.index', [
                 'noClientSelected' => true,
                 'clientOptions' => $clientOptions,
                 'selectedClientId' => null,
                 'period' => $period,
+                'activeTab' => $activeTab,
             ]);
+        }
+
+        // Tab Performance Table & Audience punya data & query sendiri-
+        // sendiri (nggak nyambung ke stats/trend overview) - dihitung
+        // terpisah biar tab yang lagi nggak aktif nggak ikut query
+        // percuma tiap request.
+        if ($activeTab === 'table') {
+            return view('analytics.index', array_merge([
+                'clientOptions' => $clientOptions,
+                'selectedClientId' => $selectedClientId,
+                'period' => $period,
+                'activeTab' => $activeTab,
+            ], $this->buildTableTabData($selectedClientId, $request)));
+        }
+
+        if ($activeTab === 'audience') {
+            return view('analytics.index', array_merge([
+                'clientOptions' => $clientOptions,
+                'selectedClientId' => $selectedClientId,
+                'period' => $period,
+                'activeTab' => $activeTab,
+            ], $this->buildAudienceTabData($selectedClientId, $request, $period)));
         }
 
         $end = Carbon::now()->endOfDay();
@@ -44,9 +76,9 @@ class AnalyticsController extends Controller
         $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
 
         $baseQuery = ContentMetric::query()
-            ->when($selectedClientId, fn ($q) => $q->whereHas(
+            ->when($selectedClientId, fn($q) => $q->whereHas(
                 'contentItem',
-                fn ($qq) => $qq->where('client_id', $selectedClientId)
+                fn($qq) => $qq->where('client_id', $selectedClientId)
             ));
 
         $currentMetrics = (clone $baseQuery)->whereBetween('metric_date', [$start, $end])->get();
@@ -114,7 +146,7 @@ class AnalyticsController extends Controller
             ->groupBy('content_item_id')
             ->map(function ($rows, $contentItemId) {
                 $item = ContentItem::with(['client', 'contentType', 'platform'])->find($contentItemId);
-                if (! $item) {
+                if (!$item) {
                     return null;
                 }
 
@@ -141,8 +173,16 @@ class AnalyticsController extends Controller
         $aiAnalysisMonth = $aiStrategyService->analysisPeriod()['start']->translatedFormat('F Y');
 
         return view('analytics.index', compact(
-            'stats', 'trend', 'platformBreakdown', 'topContent',
-            'clientOptions', 'selectedClientId', 'period', 'latestAiInsight', 'aiAnalysisMonth'
+            'stats',
+            'trend',
+            'platformBreakdown',
+            'topContent',
+            'clientOptions',
+            'selectedClientId',
+            'period',
+            'latestAiInsight',
+            'aiAnalysisMonth',
+            'activeTab'
         ));
     }
 
@@ -167,7 +207,7 @@ class AnalyticsController extends Controller
 
         // Metrik video (Reels/TikTok) - null semua kalau konten ini nggak
         // pernah punya data ini sama sekali (misal konten Feed/foto)
-        $hasVideoMetrics = $metrics->contains(fn ($m) => $m->watch_time_avg !== null || $m->completion_rate !== null || $m->shares !== null || $m->saves !== null);
+        $hasVideoMetrics = $metrics->contains(fn($m) => $m->watch_time_avg !== null || $m->completion_rate !== null || $m->shares !== null || $m->saves !== null);
         $avgWatchTime = $hasVideoMetrics ? round($metrics->whereNotNull('watch_time_avg')->avg('watch_time_avg')) : null;
         $avgCompletionRate = $hasVideoMetrics ? round($metrics->whereNotNull('completion_rate')->avg('completion_rate'), 2) : null;
         $totalShares = $hasVideoMetrics ? (int) $metrics->sum('shares') : null;
@@ -175,7 +215,7 @@ class AnalyticsController extends Controller
 
         // Data untuk grafik tren (urut tanggal naik)
         $chronological = $metrics->sortBy('metric_date')->values();
-        $trend = $chronological->map(fn ($m) => [
+        $trend = $chronological->map(fn($m) => [
             'label' => Carbon::parse($m->metric_date)->translatedFormat('d M'),
             'value' => (int) $m->views,
         ])->values();
@@ -198,13 +238,13 @@ class AnalyticsController extends Controller
         $recentEngagement = $thisContentRecent->count() > 0 ? $thisContentRecent->avg('engagement_rate') : null;
 
         $peerMetrics = ContentMetric::whereHas('contentItem', function ($q) use ($contentItem) {
-                $q->where('client_id', $contentItem->client_id)->where('id', '!=', $contentItem->id);
-            })
+            $q->where('client_id', $contentItem->client_id)->where('id', '!=', $contentItem->id);
+        })
             ->whereBetween('metric_date', [$peerStart, $peerEnd])
             ->get();
 
         $peerAvgViews = $peerMetrics->isNotEmpty()
-            ? $peerMetrics->groupBy('content_item_id')->map(fn ($rows) => $rows->sum('views'))->avg()
+            ? $peerMetrics->groupBy('content_item_id')->map(fn($rows) => $rows->sum('views'))->avg()
             : null;
         $peerAvgEngagement = $peerMetrics->isNotEmpty() ? $peerMetrics->avg('engagement_rate') : null;
 
@@ -217,10 +257,24 @@ class AnalyticsController extends Controller
         $hasPeerComparison = $peerMetrics->isNotEmpty() && $thisContentRecent->isNotEmpty();
 
         return view('analytics.show', compact(
-            'contentItem', 'metrics', 'totalViews', 'avgEngagement',
-            'daysTracked', 'bestDate', 'trend', 'syncLogs',
-            'hasVideoMetrics', 'avgWatchTime', 'avgCompletionRate', 'totalShares', 'totalSaves',
-            'hasPeerComparison', 'viewsVsPeerPct', 'engagementVsPeerPct', 'peerAvgViews', 'peerAvgEngagement'
+            'contentItem',
+            'metrics',
+            'totalViews',
+            'avgEngagement',
+            'daysTracked',
+            'bestDate',
+            'trend',
+            'syncLogs',
+            'hasVideoMetrics',
+            'avgWatchTime',
+            'avgCompletionRate',
+            'totalShares',
+            'totalSaves',
+            'hasPeerComparison',
+            'viewsVsPeerPct',
+            'engagementVsPeerPct',
+            'peerAvgViews',
+            'peerAvgEngagement'
         ));
     }
 
@@ -237,7 +291,7 @@ class AnalyticsController extends Controller
     {
         $selectedClientId = $request->input('client_id');
 
-        if (! $selectedClientId) {
+        if (!$selectedClientId) {
             return back()->with('export_error', 'Pilih client dulu sebelum export.');
         }
 
@@ -249,12 +303,12 @@ class AnalyticsController extends Controller
         $end = Carbon::now()->endOfDay();
 
         $metrics = ContentMetric::with(['contentItem', 'platform'])
-            ->whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
+            ->whereHas('contentItem', fn($q) => $q->where('client_id', $client->id))
             ->whereBetween('metric_date', [$start, $end])
             ->orderBy('metric_date')
             ->get();
 
-        $filename = 'performance-'.str($client->name)->slug().'-'.now()->format('Ymd-His').'.csv';
+        $filename = 'performance-' . str($client->name)->slug() . '-' . now()->format('Ymd-His') . '.csv';
 
         $callback = function () use ($metrics) {
             $handle = fopen('php://output', 'w');
@@ -281,28 +335,29 @@ class AnalyticsController extends Controller
 
     /**
      * KF3xx — Performance Table
-     * List semua content item milik 1 client, lengkap dengan agregat
-     * metrik-nya (total views, avg engagement) - sortable & filterable.
+     * URL lama /analytics/table - sekarang cuma alias, kontennya udah
+     * gabung jadi tab di halaman Analytics utama (lihat index() +
+     * buildTableTabData()) biar client & filter yang lagi dipilih nggak
+     * ke-reset pas pindah dari Analytics ke sini.
      */
     public function table(Request $request)
     {
-        $clientOptions = Client::where('status', 'active')->get();
-        $selectedClientId = $request->input('client_id');
+        return redirect()->route('analytics', array_merge(['tab' => 'table'], $request->query()));
+    }
 
-        if (! $selectedClientId) {
-            return view('analytics.table', [
-                'noClientSelected' => true,
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => null,
-            ]);
-        }
-
+    /**
+     * Data buat tab "Performance Table" di halaman Analytics - list semua
+     * content item milik 1 client, lengkap dengan agregat metrik-nya
+     * (total views, avg engagement), sortable & filterable.
+     */
+    private function buildTableTabData(int|string $selectedClientId, Request $request): array
+    {
         $client = Client::findOrFail($selectedClientId);
 
         $sort = $request->input('sort', 'total_views');
         $dir = $request->input('dir', 'desc') === 'asc' ? 'asc' : 'desc';
         $allowedSorts = ['total_views', 'avg_engagement', 'deadline_at', 'title'];
-        if (! in_array($sort, $allowedSorts)) {
+        if (!in_array($sort, $allowedSorts)) {
             $sort = 'total_views';
         }
 
@@ -320,7 +375,7 @@ class AnalyticsController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%'.$request->input('search').'%');
+            $query->where('title', 'like', '%' . $request->input('search') . '%');
         }
 
         if (in_array($sort, ['total_views', 'avg_engagement'])) {
@@ -331,19 +386,85 @@ class AnalyticsController extends Controller
 
         $items = $query->paginate(15)->withQueryString();
 
-        $platformOptions = Platform::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
-        $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn ($q) => $q->where('client_id', $client->id))->get();
+        $platformOptions = Platform::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
+        $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
 
-        return view('analytics.table', compact(
-            'client', 'clientOptions', 'selectedClientId', 'items',
-            'platformOptions', 'contentTypeOptions', 'sort', 'dir'
-        ));
+        return compact('client', 'items', 'platformOptions', 'contentTypeOptions', 'sort', 'dir');
+    }
+
+    /**
+     * Data buat tab "Audience" di halaman Analytics - dipindah dari
+     * AudienceController::index() (sekarang jadi redirect ke sini) biar
+     * 1 halaman yang sama kayak Performance Table.
+     */
+    private function buildAudienceTabData(int|string $selectedClientId, Request $request, int $period): array
+    {
+        $client = Client::findOrFail($selectedClientId);
+
+        $platforms = Platform::whereHas('audienceInsights', fn($q) => $q->where('client_id', $client->id))->get();
+
+        if ($platforms->isEmpty()) {
+            return ['noInsightData' => true, 'client' => $client, 'platforms' => $platforms];
+        }
+
+        $selectedPlatformId = $request->input('platform_id', $platforms->first()->id);
+        $platform = $platforms->firstWhere('id', (int) $selectedPlatformId) ?? $platforms->first();
+
+        $latestSnapshot = \App\Models\AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->latest('snapshot_date')
+            ->first();
+
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $history = \App\Models\AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->where('snapshot_date', '>=', $start)
+            ->orderBy('snapshot_date')
+            ->get();
+
+        $followerTrend = $history->map(fn($row) => [
+            'label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'),
+            'value' => (int) $row->follower_count,
+        ])->values();
+
+        $firstCount = $history->first()->follower_count ?? 0;
+        $lastCount = $history->last()->follower_count ?? ($latestSnapshot->follower_count ?? 0);
+        $growth = $firstCount > 0 ? round((($lastCount - $firstCount) / $firstCount) * 100, 1) : null;
+
+        $genderBreakdown = $latestSnapshot->gender_breakdown ?? [];
+        $ageBreakdown = $latestSnapshot->age_breakdown ?? [];
+        $topLocations = collect($latestSnapshot->top_locations ?? [])->sortByDesc('percentage')->values();
+
+        $activeHoursRaw = $latestSnapshot->active_hours ?? [];
+        $activeHours = collect(range(0, 23))->map(function ($hour) use ($activeHoursRaw) {
+            return [
+                'label' => str_pad($hour, 2, '0', STR_PAD_LEFT) . ':00',
+                'value' => (int) ($activeHoursRaw[$hour] ?? $activeHoursRaw[(string) $hour] ?? 0),
+            ];
+        });
+        $peakHour = $activeHours->sortByDesc('value')->first();
+
+        return compact(
+            'client',
+            'platforms',
+            'platform',
+            'selectedPlatformId',
+            'latestSnapshot',
+            'followerTrend',
+            'growth',
+            'lastCount',
+            'genderBreakdown',
+            'ageBreakdown',
+            'topLocations',
+            'activeHours',
+            'peakHour'
+        );
     }
 
     private function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
     {
         if ($period <= 30) {
-            $byDate = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->format('Y-m-d'));
+            $byDate = $metrics->groupBy(fn($m) => Carbon::parse($m->metric_date)->format('Y-m-d'));
 
             $points = collect();
             $cursor = $start->copy();
@@ -360,7 +481,7 @@ class AnalyticsController extends Controller
         }
 
         // 90 hari -> kelompokkan per minggu
-        $byWeek = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->startOfWeek()->format('Y-m-d'));
+        $byWeek = $metrics->groupBy(fn($m) => Carbon::parse($m->metric_date)->startOfWeek()->format('Y-m-d'));
 
         $points = collect();
         $cursor = $start->copy()->startOfWeek();
@@ -445,7 +566,7 @@ class AnalyticsController extends Controller
 
             if ($summary['content_published_count'] === 0) {
                 return redirect()->route('analytics', ['client_id' => $client->id])
-                    ->with('ai_error', 'Belum ada data performa konten bulan '.$periodStart->translatedFormat('F Y').' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
+                    ->with('ai_error', 'Belum ada data performa konten bulan ' . $periodStart->translatedFormat('F Y') . ' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
             }
 
             $result = $aiStrategyService->generateStrategy($summary);
@@ -482,7 +603,7 @@ class AnalyticsController extends Controller
             ]);
 
             return redirect()->route('analytics', ['client_id' => $client->id])
-                ->with('ai_error', 'Gagal generate analisis AI: '.$e->getMessage());
+                ->with('ai_error', 'Gagal generate analisis AI: ' . $e->getMessage());
         }
     }
 
@@ -550,7 +671,7 @@ class AnalyticsController extends Controller
                 $deadline = $now->copy()->addDays(rand(1, $daysRemaining));
                 $idea = $ideasForPillar->get($i);
 
-                if (! $idea) {
+                if (!$idea) {
                     $fallbackCount++;
                 }
 
@@ -583,14 +704,14 @@ class AnalyticsController extends Controller
                     'content_type_id' => $contentTypeId,
                     'platform_id' => $platformId,
                     'ai_strategy_insight_id' => $aiStrategyInsight->id,
-                    'title' => $idea['title'] ?? "[Draft AI] {$row['label']} #".($i + 1),
+                    'title' => $idea['title'] ?? "[Draft AI] {$row['label']} #" . ($i + 1),
                     'brief' => $idea['brief'] ?? ($reasoning ? "Rekomendasi AI: {$reasoning}" : "Digenerate dari AI Strategy Analysis ({$row['value']}% dari komposisi yang disarankan)."),
                     'deadline_at' => $deadline,
                 ]);
 
                 \App\Models\ContentWorkflow::create([
                     'content_item_id' => $item->id,
-                    'current_status' => 'planned',
+                    'current_status' => 'brief_ready',
                     'is_overdue' => false,
                 ]);
 
@@ -629,7 +750,7 @@ class AnalyticsController extends Controller
             return $item->is_posted
                 || $item->revisions->isNotEmpty()
                 || $item->metrics->isNotEmpty()
-                || ($item->workflow && ! in_array($item->workflow->current_status, ['planned', 'brief_ready']));
+                || ($item->workflow && !in_array($item->workflow->current_status, ['planned', 'brief_ready']));
         });
 
         if ($hasProgress) {
@@ -670,7 +791,7 @@ class AnalyticsController extends Controller
 
         $ideas = $aiStrategyInsight->content_ideas ?? [];
 
-        if (! array_key_exists($index, $ideas)) {
+        if (!array_key_exists($index, $ideas)) {
             return response()->json(['error' => 'Ide konten nggak ketemu.'], 404);
         }
 
@@ -697,7 +818,7 @@ class AnalyticsController extends Controller
 
             return response()->json(['idea' => $newIdea]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Gagal regenerate ide: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Gagal regenerate ide: ' . $e->getMessage()], 500);
         }
     }
 
@@ -726,7 +847,7 @@ class AnalyticsController extends Controller
         try {
             $history = $aiStrategyInsight->messages()
                 ->get()
-                ->map(fn ($m) => ['role' => $m->role, 'message' => $m->message])
+                ->map(fn($m) => ['role' => $m->role, 'message' => $m->message])
                 ->all();
 
             $previousResult = [
@@ -754,7 +875,7 @@ class AnalyticsController extends Controller
                 'created_at' => $assistantMessage->created_at->format('H:i'),
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['error' => 'Gagal dapetin balesan AI: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Gagal dapetin balesan AI: ' . $e->getMessage()], 500);
         }
     }
 
@@ -772,7 +893,7 @@ class AnalyticsController extends Controller
         try {
             $history = $aiStrategyInsight->messages()
                 ->get()
-                ->map(fn ($m) => ['role' => $m->role, 'message' => $m->message])
+                ->map(fn($m) => ['role' => $m->role, 'message' => $m->message])
                 ->all();
 
             $previousResult = [
@@ -799,14 +920,14 @@ class AnalyticsController extends Controller
                 'ai_strategy_insight_id' => $aiStrategyInsight->id,
                 'user_id' => null,
                 'role' => 'system',
-                'message' => 'Analisis diperbarui berdasarkan diskusi di atas oleh '.(auth()->user()->name ?? 'user').'.',
+                'message' => 'Analisis diperbarui berdasarkan diskusi di atas oleh ' . (auth()->user()->name ?? 'user') . '.',
             ]);
 
             return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
                 ->with('ai_success', 'Analisis berhasil diperbarui berdasarkan diskusi.');
         } catch (\Throwable $e) {
             return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
-                ->with('ai_error', 'Gagal memperbarui analisis: '.$e->getMessage());
+                ->with('ai_error', 'Gagal memperbarui analisis: ' . $e->getMessage());
         }
     }
 }

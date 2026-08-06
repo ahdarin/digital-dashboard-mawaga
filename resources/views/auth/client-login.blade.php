@@ -4,64 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>523 Studio | Client Login</title>
+
+    <link rel="icon" href="{{ asset('images/logo.png') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #f7f8fc; color: #14181a; }
+        .font-display { font-family: 'Fraunces', serif; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center px-4">
+<body class="min-h-screen antialiased">
 
-    <div class="w-full max-w-sm">
+    <div class="relative min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-[#f0f5f4]"></div>
+        <div class="absolute -bottom-28 -left-16 w-96 h-96 rounded-full bg-white"></div>
 
-        <div class="text-center mb-8">
-            <div class="w-14 h-14 bg-[#0d8276] rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span class="text-white font-bold text-xl">5</span>
+        <div class="relative w-full max-w-md">
+
+            <div class="bg-white border border-[#eef0f4] rounded-3xl shadow-[0_1px_2px_rgba(20,24,26,0.03),0_20px_50px_-20px_rgba(20,24,26,0.12)] p-8 md:p-10">
+
+                <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-8 w-auto mb-8">
+
+                <h1 class="font-display text-3xl font-semibold text-[#14181a] mb-1.5">Portal Client</h1>
+                <p class="text-[#5c6266] text-sm mb-8">Kami akan kirim link login ke WhatsApp kamu.</p>
+
+                @if (session('status'))
+                    <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3.5 rounded-xl mb-6 font-medium">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                @if ($errors->any())
+                    <div class="bg-[#fdf2f1] border border-[#f5d9d7] text-[#b3423e] p-3.5 rounded-xl mb-6 text-sm font-medium">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
+                <form action="{{ route('client.login.request') }}" method="POST" class="space-y-5">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Nomor WhatsApp</label>
+                        <input type="tel" name="phone_number" required
+                               placeholder="08xxxxxxxxxx"
+                               value="{{ old('phone_number') }}"
+                               class="w-full bg-[#f7f8fc] border border-[#eef0f4] text-[#14181a] rounded-xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-[#044b46]/10 focus:border-[#044b46]/40 transition-all">
+                    </div>
+
+                    <button type="submit"
+                            class="group w-full bg-[#044b46] hover:bg-[#033b37] active:scale-[0.98] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all duration-200">
+                        Kirim Link Login
+                        <svg class="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </button>
+                </form>
             </div>
-            <h1 class="text-2xl font-bold text-gray-900">523 Studio</h1>
-            <p class="text-gray-500 text-sm mt-1">Portal Klien</p>
+
+            <p class="text-center text-xs text-[#9aa0a4] mt-8">&copy; {{ date('Y') }} 523 Studio</p>
         </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-
-            @if (session('status'))
-                <div class="bg-teal-50 text-[#0d8276] text-sm p-3 rounded-xl mb-4 text-center font-medium">
-                    {{ session('status') }}
-                </div>
-            @endif
-
-            @if ($errors->any())
-                <div class="bg-red-50 text-red-600 text-sm p-3 rounded-xl mb-4 text-center font-medium">
-                    {{ $errors->first() }}
-                </div>
-            @endif
-
-            <h2 class="text-lg font-bold text-gray-900 mb-1">Masuk ke Dashboard</h2>
-            <p class="text-sm text-gray-500 mb-6">Kami akan kirim link login ke WhatsApp Anda.</p>
-
-            <form action="{{ route('client.login.request') }}" method="POST" class="space-y-4">
-                @csrf
-                <div>
-                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nomor WhatsApp</label>
-                    <input type="tel" name="phone_number" required
-                           placeholder="08xxxxxxxxxx"
-                           value="{{ old('phone_number') }}"
-                           class="w-full bg-gray-50 border border-gray-200 text-gray-900 rounded-xl py-3.5 px-4 focus:outline-none focus:ring-2 focus:ring-[#0d8276]/20 focus:border-[#0d8276] transition-all">
-                </div>
-
-                <button type="submit"
-                        class="w-full bg-[#0d8276] hover:bg-[#0a6b61] text-white font-semibold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all">
-                    Kirim Link Login
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-
-        <p class="text-xs text-gray-400 mt-6 text-center">
-            Tim internal 523 Studio? <a href="{{ route('login') }}" class="text-[#0d8276] underline font-semibold">Login di sini</a>
-        </p>
     </div>
 
 </body>

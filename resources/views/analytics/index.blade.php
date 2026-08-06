@@ -12,16 +12,7 @@
         </div>
 
         <div class="flex items-center gap-1">
-            <a href="{{ route('analytics.table') }}"
-               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
-                <span class="material-symbols-outlined text-[17px]">table_rows</span> Table
-            </a>
-            <a href="{{ route('audience') }}"
-               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
-                <span class="material-symbols-outlined text-[17px]">groups</span> Audience
-            </a>
-
-            @if ($selectedClientId)
+            @if ($selectedClientId && $activeTab === 'overview')
                 <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
                    class="text-sm font-medium text-white bg-[#044b46] hover:bg-[#033b37] active:scale-[0.98] flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all ml-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                     <span class="material-symbols-outlined text-[17px]">download</span> Export
@@ -30,8 +21,31 @@
         </div>
     </div>
 
-    {{-- Filter bar --}}
+    {{-- Tab switcher - Analytics / Performance Table / Audience sekarang 1
+         halaman yang sama, tab ganti konten di bawah, client & filter yang
+         lagi dipilih ikut kebawa (reload halaman, bukan AJAX). --}}
+    @php
+        $tabHref = fn (string $tab) => route('analytics', array_filter(['tab' => $tab, 'client_id' => $selectedClientId]));
+        $tabs = [
+            ['key' => 'overview', 'label' => 'Analytics', 'icon' => 'monitoring'],
+            ['key' => 'table', 'label' => 'Performance Table', 'icon' => 'table_rows'],
+            ['key' => 'audience', 'label' => 'Audience', 'icon' => 'groups'],
+        ];
+    @endphp
+    <div class="flex items-center gap-1 mb-6 border-b border-[#eef0f4]">
+        @foreach ($tabs as $t)
+            <a href="{{ $tabHref($t['key']) }}"
+               class="text-sm font-medium px-4 py-2.5 border-b-2 -mb-px flex items-center gap-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
+                   {{ $activeTab === $t['key'] ? 'border-[#044b46] text-[#044b46]' : 'border-transparent text-[#5c6266] hover:text-[#14181a]' }}">
+                <span class="material-symbols-outlined text-[17px]">{{ $t['icon'] }}</span> {{ $t['label'] }}
+            </a>
+        @endforeach
+    </div>
+
+    {{-- Filter bar - dipakai bareng ketiga tab --}}
     <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap">
+        <input type="hidden" name="tab" value="{{ $activeTab }}">
+
         <select name="client_id" onchange="this.form.submit()"
                 class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
             <option value="">Pilih Client...</option>
@@ -40,12 +54,23 @@
             @endforeach
         </select>
 
-        <select name="period" onchange="this.form.submit()"
-                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="7" {{ $period === 7 ? 'selected' : '' }}>Last 7 Days</option>
-            <option value="30" {{ $period === 30 ? 'selected' : '' }}>Last 30 Days</option>
-            <option value="90" {{ $period === 90 ? 'selected' : '' }}>Last 90 Days</option>
-        </select>
+        @if ($activeTab !== 'table')
+            <select name="period" onchange="this.form.submit()"
+                    class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+                <option value="7" {{ $period === 7 ? 'selected' : '' }}>Last 7 Days</option>
+                <option value="30" {{ $period === 30 ? 'selected' : '' }}>Last 30 Days</option>
+                <option value="90" {{ $period === 90 ? 'selected' : '' }}>Last 90 Days</option>
+            </select>
+        @endif
+
+        @if ($activeTab === 'audience' && ! empty($platforms) && $platforms->count() > 1)
+            <select name="platform_id" onchange="this.form.submit()"
+                    class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+                @foreach ($platforms as $p)
+                    <option value="{{ $p->id }}" {{ (string) $selectedPlatformId === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+                @endforeach
+            </select>
+        @endif
     </form>
 
     @if (! empty($noClientSelected))
@@ -56,6 +81,12 @@
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Pilih client dulu</h2>
             <p class="text-sm text-[#5c6266] max-w-sm">Performa konten ditampilkan per client. Pilih salah satu di dropdown atas untuk mulai.</p>
         </div>
+    @else
+
+    @if ($activeTab === 'table')
+        @include('analytics._table-section')
+    @elseif ($activeTab === 'audience')
+        @include('analytics._audience-section')
     @else
 
         @php
@@ -554,6 +585,7 @@
                     @endif
                 </div>
         </div>
+    @endif
     @endif
 </div>
 
