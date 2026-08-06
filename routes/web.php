@@ -83,6 +83,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('analytics.ai-strategy.chat');
     Route::post('/analytics/ai-strategy/{aiStrategyInsight}/refine', [AnalyticsController::class, 'refineFromDiscussion'])
         ->name('analytics.ai-strategy.refine');
+    Route::post('/analytics/ai-strategy/{aiStrategyInsight}/ideas/{index}/regenerate', [AnalyticsController::class, 'regenerateContentIdea'])
+        ->name('analytics.ai-strategy.ideas.regenerate');
 
     Route::get('/audience', [AudienceController::class, 'index'])->name('audience');
     Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');

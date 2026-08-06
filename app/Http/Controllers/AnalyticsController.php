@@ -651,6 +651,57 @@ class AnalyticsController extends Controller
     }
 
     /**
+     * KF3xx — Regenerate SATU ide konten spesifik (dari modal detail ide),
+     * opsional sekalian ganti pillar-nya. Dipanggil via fetch/AJAX (bukan
+     * reload halaman), makanya balikin JSON, bukan redirect.
+     *
+     * $index itu posisi array di content_ideas (bukan ID kolom terpisah -
+     * content_ideas emang cuma JSON array, nggak ada tabel sendiri).
+     */
+    public function regenerateContentIdea(Request $request, AiStrategyInsight $aiStrategyInsight, int $index, AiStrategyService $aiStrategyService)
+    {
+        if ($aiStrategyInsight->applied_at !== null) {
+            return response()->json(['error' => 'Analisis ini udah diterapkan ke Content Plan - regenerate ide di sini bakal bikin draft yang udah dibuat nggak nyambung lagi. Tarik kembali dulu kalau mau ubah ide.'], 422);
+        }
+
+        if (empty($aiStrategyInsight->performance_data)) {
+            return response()->json(['error' => 'Analisis ini nggak punya data mentah, generate ulang dulu.'], 422);
+        }
+
+        $ideas = $aiStrategyInsight->content_ideas ?? [];
+
+        if (! array_key_exists($index, $ideas)) {
+            return response()->json(['error' => 'Ide konten nggak ketemu.'], 404);
+        }
+
+        $pillarOptions = collect($aiStrategyInsight->suggested_split)->pluck('label')->all();
+        if (empty($pillarOptions)) {
+            $pillarOptions = collect($ideas)->pluck('pillar')->filter()->unique()->values()->all();
+        }
+
+        $validated = $request->validate([
+            'pillar' => ['required', 'string', \Illuminate\Validation\Rule::in($pillarOptions)],
+        ]);
+
+        try {
+            $otherIdeas = collect($ideas)->except($index)->values()->all();
+
+            $newIdea = $aiStrategyService->regenerateIdea(
+                $aiStrategyInsight->performance_data,
+                $otherIdeas,
+                $validated['pillar']
+            );
+
+            $ideas[$index] = $newIdea;
+            $aiStrategyInsight->update(['content_ideas' => array_values($ideas)]);
+
+            return response()->json(['idea' => $newIdea]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Gagal regenerate ide: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
      * KF3xx — Kirim pesan diskusi ke AI soal 1 hasil analisis.
      * Dipanggil via fetch/AJAX (bukan reload halaman), makanya balikin
      * JSON, bukan redirect.

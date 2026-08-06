@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentMetric;
 use App\Models\ContentType;
+use App\Models\Platform;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -106,6 +108,51 @@ class AiStrategyService
             ->take(5)
             ->values();
 
+        // Data audience (demografi, top lokasi, jam aktif, tren follower) -
+        // dibatasin ke platform yang beneran ada performance_by_platform-nya
+        // periode ini, biar AI bisa korelasiin "performa di platform X" sama
+        // "audience di platform X itu siapa". Kalau client belum pernah
+        // import Audience Data sama sekali, ini otomatis kosong dan AI cuma
+        // pakai data performa konten aja (nggak wajib ada).
+        $audienceByPlatform = [];
+        $platformsWithMetrics = Platform::whereIn('name', $byPlatform->keys()->reject(fn ($name) => $name === '-'))->get();
+
+        foreach ($platformsWithMetrics as $platformModel) {
+            $latestSnapshot = AudienceInsight::where('client_id', $client->id)
+                ->where('platform_id', $platformModel->id)
+                ->latest('snapshot_date')
+                ->first();
+
+            if (! $latestSnapshot) {
+                continue;
+            }
+
+            $snapshotAtPeriodStart = AudienceInsight::where('client_id', $client->id)
+                ->where('platform_id', $platformModel->id)
+                ->where('snapshot_date', '<=', $start)
+                ->latest('snapshot_date')
+                ->first();
+
+            $growthPercent = ($snapshotAtPeriodStart && $snapshotAtPeriodStart->follower_count > 0)
+                ? round((($latestSnapshot->follower_count - $snapshotAtPeriodStart->follower_count) / $snapshotAtPeriodStart->follower_count) * 100, 1)
+                : null;
+
+            $peakHour = null;
+            if (! empty($latestSnapshot->active_hours)) {
+                $peakHourKey = collect($latestSnapshot->active_hours)->sortDesc()->keys()->first();
+                $peakHour = str_pad((string) $peakHourKey, 2, '0', STR_PAD_LEFT).':00';
+            }
+
+            $audienceByPlatform[$platformModel->name] = [
+                'follower_count' => $latestSnapshot->follower_count,
+                'follower_growth_percent_this_period' => $growthPercent,
+                'gender_breakdown' => $latestSnapshot->gender_breakdown,
+                'age_breakdown' => $latestSnapshot->age_breakdown,
+                'top_locations' => $latestSnapshot->top_locations,
+                'peak_active_hour' => $peakHour,
+            ];
+        }
+
         // Berapa banyak ide konten yang AI harus generate - ngikutin kuota
         // bulanan paket client (content + design), bukan angka tetap. Ini
         // dipakai applyAiStrategy() buat nentuin jumlah draft ContentItem,
@@ -127,6 +174,7 @@ class AiStrategyService
             'performance_by_pillar' => $byPillar,
             'performance_by_platform' => $byPlatform,
             'top_5_content' => $topContent,
+            'audience_by_platform' => $audienceByPlatform,
             'target_content_count' => $targetItemCount,
         ];
     }
@@ -198,6 +246,17 @@ terus jelasin gimana itu bisa ngubah interpretasi analisisnya. Kalau
 user nanya sesuatu yang datanya nggak ada di DATA PERFORMA ASLI di atas,
 bilang terus terang datanya nggak tersedia, jangan ngarang angka. JANGAN
 balas dalam format JSON, cukup teks biasa.
+
+PENTING - batasan chat ini: kamu CUMA bisa NGOBROL di sini, balesan kamu
+TIDAK PERNAH otomatis mengubah suggested_split/content_ideas/summary yang
+tersimpan. Kalau user setuju/minta suatu perubahan (misal "boleh
+sesuaikan", "oke ganti aja", "iya lanjutkan"), JANGAN pernah jawab seolah
+perubahan itu udah/lagi kamu terapkan (contoh yang SALAH: "oke, udah saya
+sesuaikan", "baik, saya update sekarang"). Sebagai gantinya, akui idenya
+masuk akal (kalau memang masuk akal) lalu WAJIB arahkan user buat klik
+tombol "Perbarui Analisis dari Diskusi Ini" di bawah kolom chat ini biar
+perubahannya beneran ke-generate ulang - itu satu-satunya cara analisis
+ini ke-update, chat doang nggak cukup.
 PROMPT;
 
         $text = $this->callGemini($prompt, 512);
@@ -281,6 +340,69 @@ PROMPT;
     }
 
     /**
+     * Generate SATU ide konten alternatif buat 1 pillar tertentu - dipakai
+     * pas user klik "Regenerate" di modal detail ide (bisa buat cari
+     * alternatif di pillar yang sama, atau setelah user ganti kategori
+     * pillar-nya). AI dikasih SEMUA ide lain yang udah ada (bukan cuma
+     * pillar yang sama) biar hasilnya nggak duplikat/mirip dan tetap
+     * mempertimbangkan komposisi type/platform keseluruhan.
+     *
+     * @param array $performanceData performance_data mentah dari insight
+     * @param array $otherIdeas seluruh content_ideas SELAIN yang lagi diganti
+     * @throws \RuntimeException kalau API call/parsing gagal
+     */
+    public function regenerateIdea(array $performanceData, array $otherIdeas, string $pillar): array
+    {
+        $dataJson = json_encode($performanceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $otherIdeasJson = json_encode(array_values($otherIdeas), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $platformNames = collect($performanceData['performance_by_platform'] ?? [])->keys();
+        $platformOptions = $platformNames->isNotEmpty() ? $platformNames->implode(', ') : 'Instagram, TikTok';
+
+        $prompt = <<<PROMPT
+Kamu sebelumnya udah bikin daftar ide konten berikut buat 1 client,
+berdasarkan data performa ini:
+
+DATA PERFORMA ASLI:
+{$dataJson}
+
+IDE KONTEN LAIN YANG UDAH ADA DI DAFTAR INI (jangan diulang - lihat juga
+sebaran type/platform-nya biar beban kerja tim produksi tetap seimbang):
+{$otherIdeasJson}
+
+Tim mau GANTI salah satu ide di daftar itu dengan alternatif baru buat
+pillar "{$pillar}". Buatkan SATU ide konten baru, beda dari semua ide yang
+udah ada di atas (jangan mirip judul maupun sudut pandangnya), dan
+perhatikan sebaran type/platform yang udah ada supaya nggak numpuk beban
+ke 1 role produksi doang.
+
+Balas HANYA dalam format JSON valid, tanpa teks lain, tanpa markdown code
+block, struktur PERSIS seperti ini:
+
+{
+  "title": "judul konten yang siap pakai, spesifik, bukan generik, dan BEDA dari ide yang udah ada",
+  "brief": "2-3 kalimat brief: sudut pandang/hook/poin utama yang harus disampaikan",
+  "type": "salah satu dari: {$this->contentTypeOptions()}",
+  "platform": "salah satu dari: {$platformOptions}"
+}
+PROMPT;
+
+        $text = $this->callGemini($prompt, 512);
+        $parsed = $this->extractJson($text);
+
+        if (! $parsed || ! isset($parsed['title'], $parsed['brief'])) {
+            throw new \RuntimeException('Gagal parsing hasil regenerate ide.');
+        }
+
+        return [
+            'pillar' => $pillar,
+            'title' => $parsed['title'],
+            'brief' => $parsed['brief'],
+            'type' => $parsed['type'] ?? null,
+            'platform' => $parsed['platform'] ?? null,
+        ];
+    }
+
+    /**
      * Helper mentah - kirim prompt ke Gemini, balikin teks jawabannya.
      * Dipakai bareng sama generateStrategy(), chat(), dan refineFromDiscussion()
      * biar nggak duplikasi kode manggil API.
@@ -343,8 +465,14 @@ Analisis data ini dan berikan rekomendasi strategi konten untuk periode
 berikutnya. Dasarkan rekomendasi HANYA pada angka yang diberikan (pillar
 mana yang performanya terbaik, platform mana yang paling efektif, tren
 naik/turun) - jangan mengarang data yang tidak ada di JSON di atas. Kalau
-data yang tersedia terlalu sedikit untuk suatu kesimpulan, katakan itu
-secara eksplisit di summary, jangan dipaksakan.
+ada field "audience_by_platform", pertimbangkan juga demografi (usia/gender
+dominan), top lokasi, dan peak_active_hour di sana buat mempertajam
+rekomendasi (sudut pandang konten yang relevan buat demografi itu, dan jam
+posting yang disaranin) - tapi kalau audience_by_platform kosong atau nggak
+ada buat suatu platform, JANGAN ngarang asumsi audience-nya, cukup dasarkan
+rekomendasi ke data performa konten aja. Kalau data yang tersedia terlalu
+sedikit untuk suatu kesimpulan, katakan itu secara eksplisit di summary,
+jangan dipaksakan.
 
 Balas HANYA dalam format JSON valid, tanpa teks lain di luar JSON, tanpa
 markdown code block, dengan struktur persis seperti ini:
@@ -388,6 +516,10 @@ Aturan tambahan:
 - field "platform" di tiap content_ideas WAJIB diisi salah satu dari
   daftar ini, PERSIS namanya: {$platformOptions} - pilih platform yang
   paling relevan buat ide itu berdasarkan performance_by_platform di data
+- kalau audience_by_platform ada datanya buat platform tertentu, manfaatin
+  demografi & peak_active_hour-nya di brief ide (mis. sudut pandang yang
+  relevan buat usia/gender dominan, atau saran jam upload) - tapi JANGAN
+  dipaksakan nyebut audience kalau datanya emang nggak ada
 PROMPT;
     }
 

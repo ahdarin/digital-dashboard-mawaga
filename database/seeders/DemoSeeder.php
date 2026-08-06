@@ -103,18 +103,26 @@ class DemoSeeder extends Seeder
         // dashboard). Client pertama (index 0) otomatis jadi "full demo
         // client": kebagian board Production Workflow dengan status
         // lengkap di bawah, bukan cuma item random.
+        //
+        // 'package' divariasikan biar ngerepresentasiin jenis paket yang
+        // beneran ada di agensi (bukan 20+20 rata semua kayak sebelumnya,
+        // itu bikin AI Strategy Analysis nyaranin sampe 40 ide konten/bulan
+        // - kejauhan dari paket riil yang kebanyakan 9-12 konten/bulan).
         $clientDefs = [
             [
                 'name' => 'TechNova Inc.',
                 'login' => ['name' => 'Client Demo', 'email' => 'client-demo@technova.test', 'phone' => '6281275471093'],
+                'package' => ['name' => 'Paket Growth', 'content_quota' => 9, 'design_quota' => 9],
             ],
             [
                 'name' => 'Kopi Senja',
                 'login' => null,
+                'package' => ['name' => 'Paket Konten', 'content_quota' => 12, 'design_quota' => 0],
             ],
             [
                 'name' => 'FreshBite Indonesia',
                 'login' => ['name' => 'Budi Santoso', 'email' => 'budi@freshbite.test', 'phone' => '6282288706114'],
+                'package' => ['name' => 'Paket Starter', 'content_quota' => 6, 'design_quota' => 6],
             ],
         ];
 
@@ -145,12 +153,14 @@ class DemoSeeder extends Seeder
         });
 
         foreach ($clients as $clientIndex => $client) {
+            $packageDef = $clientDefs[$clientIndex]['package'];
+
             $clientPackage = ClientPackage::firstOrCreate(
                 ['client_id' => $client->id],
                 [
-                    'package_name_snapshot' => 'Paket Growth',
-                    'monthly_content_quota' => 20,
-                    'monthly_design_quota' => 20,
+                    'package_name_snapshot' => $packageDef['name'],
+                    'monthly_content_quota' => $packageDef['content_quota'],
+                    'monthly_design_quota' => $packageDef['design_quota'],
                     'start_date' => $now->copy()->subMonths(3)->startOfMonth(),
                     'status' => 'active',
                 ]

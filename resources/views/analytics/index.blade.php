@@ -150,7 +150,17 @@
                             Analisis terakhir gagal: {{ $latestAiInsight->error_message }}
                         </div>
                     @else
-                        <div x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }})">
+                        @php
+                            // Pilihan pillar buat dropdown "Ganti Kategori" di modal
+                            // regenerate ide - ambil dari suggested_split, fallback
+                            // ke pillar yang beneran dipakai di content_ideas kalau
+                            // suggested_split-nya kosong (insight lama).
+                            $pillarOptionsForRegenerate = collect($latestAiInsight->suggested_split)->pluck('label')->values();
+                            if ($pillarOptionsForRegenerate->isEmpty()) {
+                                $pillarOptionsForRegenerate = collect($latestAiInsight->content_ideas)->pluck('pillar')->filter()->unique()->values();
+                            }
+                        @endphp
+                        <div x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }}, {{ Js::from($latestAiInsight->content_ideas ?? []) }}, {{ Js::from($pillarOptionsForRegenerate) }}, {{ $latestAiInsight->applied_at ? 'true' : 'false' }})">
 
                         {{-- Tab nav --}}
                         <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 w-fit">
@@ -294,24 +304,28 @@
                                 </div>
                             @endif
 
-                            @if (empty($latestAiInsight->content_ideas))
-                                <p class="text-sm text-[#9aa0a4] text-center py-10">Belum ada ide konten buat analisis ini.</p>
-                            @else
-                                <div class="grid grid-cols-2 gap-3">
-                                    @foreach ($latestAiInsight->content_ideas as $idea)
-                                        <div class="border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 transition-colors">
-                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block mb-1.5">{{ $idea['pillar'] ?? '-' }}</span>
-                                            <p class="text-sm font-semibold text-[#14181a]">{{ $idea['title'] ?? '-' }}</p>
-                                            <p class="text-xs text-[#5c6266] mt-1 leading-relaxed">{{ $idea['brief'] ?? '-' }}</p>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
+                            <p x-show="ideas.length === 0" class="text-sm text-[#9aa0a4] text-center py-10">Belum ada ide konten buat analisis ini.</p>
+
+                            <div x-show="ideas.length > 0" class="grid grid-cols-2 gap-3">
+                                <template x-for="(idea, index) in ideas" :key="index">
+                                    <button type="button" x-on:click="openIdea(index)"
+                                            class="text-left border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block mb-1.5" x-text="idea.pillar ?? '-'"></span>
+                                        <p class="text-sm font-semibold text-[#14181a]" x-text="idea.title ?? '-'"></p>
+                                        <p class="text-xs text-[#5c6266] mt-1 leading-relaxed" x-text="idea.brief ?? '-'"></p>
+                                        <p class="text-[10px] text-[#9aa0a4] mt-2 flex items-center gap-2">
+                                            <span x-show="idea.type" x-text="idea.type"></span>
+                                            <span x-show="idea.type && idea.platform">&middot;</span>
+                                            <span x-show="idea.platform" x-text="idea.platform"></span>
+                                        </p>
+                                    </button>
+                                </template>
+                            </div>
                         </div>
 
                         {{-- ===== TAB: DISKUSI ===== --}}
                         <div x-show="tab === 'diskusi'" x-cloak>
-                            <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli.</p>
+                            <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli. Ngobrol di sini belum ngubah apapun; kalau AI setuju sama masukan lo, klik "Perbarui Analisis dari Diskusi Ini" di bawah biar beneran diterapkan.</p>
 
                             <div class="space-y-3 mb-3 max-h-96 overflow-y-auto" x-ref="messageList">
                                 <template x-for="msg in messages" :key="msg.id ?? msg.message + msg.time">
@@ -371,6 +385,77 @@
                                     </button>
                                 </form>
                             @endif
+                        </div>
+
+                        {{-- ===== MODAL: DETAIL & REGENERATE IDE ===== --}}
+                        <div x-show="selectedIndex !== null" x-cloak
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                             x-on:keydown.escape.window="closeIdea()">
+                            <div class="absolute inset-0 bg-[#14181a]/40" x-on:click="closeIdea()"></div>
+
+                            <div x-show="selectedIndex !== null" x-cloak
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 class="relative bg-white rounded-2xl border border-[#eef0f4] shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+
+                                <template x-if="selectedIdea">
+                                    <div class="p-6">
+                                        <div class="flex items-start justify-between gap-3 mb-4">
+                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]" x-text="selectedIdea.pillar ?? '-'"></span>
+                                            <button type="button" x-on:click="closeIdea()"
+                                                    class="text-[#9aa0a4] hover:text-[#14181a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
+                                                <span class="material-symbols-outlined text-[20px]">close</span>
+                                            </button>
+                                        </div>
+
+                                        <p class="font-display text-lg font-semibold text-[#14181a] leading-snug mb-2" x-text="selectedIdea.title ?? '-'"></p>
+                                        <p class="text-sm text-[#5c6266] leading-relaxed mb-4" x-text="selectedIdea.brief ?? '-'"></p>
+
+                                        <div class="flex items-center gap-2 mb-5">
+                                            <span x-show="selectedIdea.type" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266] flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-[13px]">design_services</span>
+                                                <span x-text="selectedIdea.type"></span>
+                                            </span>
+                                            <span x-show="selectedIdea.platform" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266] flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-[13px]">hub</span>
+                                                <span x-text="selectedIdea.platform"></span>
+                                            </span>
+                                        </div>
+
+                                        @if ($latestAiInsight->applied_at)
+                                            <p class="text-xs text-[#9aa0a4] bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
+                                                Analisis ini udah diterapkan ke Content Plan, jadi ide di sini nggak bisa di-regenerate lagi (draft yang udah dibuat bisa nggak nyambung lagi). Tarik kembali dulu kalau mau ubah ide.
+                                            </p>
+                                        @else
+                                            <div class="border-t border-[#f2f3f6] pt-4">
+                                                <label class="block text-[11px] font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Ganti Kategori (opsional)</label>
+                                                <select x-model="editPillar" :disabled="regenerating"
+                                                        class="w-full text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white mb-3 focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60 transition-shadow">
+                                                    <template x-for="pillar in pillarOptions" :key="pillar">
+                                                        <option :value="pillar" x-text="pillar"></option>
+                                                    </template>
+                                                </select>
+
+                                                <p x-show="regenError" x-cloak class="text-xs text-[#b3423e] mb-2" x-text="regenError"></p>
+
+                                                <button type="button" x-on:click="regenerateIdea()" :disabled="regenerating"
+                                                        class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-2.5 rounded-lg hover:bg-[#033b37] active:scale-[0.98] disabled:opacity-60 transition-all flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                                    <span x-show="!regenerating" class="flex items-center gap-1.5">
+                                                        <span class="material-symbols-outlined text-[16px]">refresh</span>
+                                                        <span x-text="editPillar === selectedIdea.pillar ? 'Cari Alternatif Lain' : 'Regenerate dengan Kategori Baru'"></span>
+                                                    </span>
+                                                    <span x-show="regenerating" x-cloak class="flex items-center gap-1.5">
+                                                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+                                                        Nyari alternatif...
+                                                    </span>
+                                                </button>
+                                                <p class="text-[11px] text-[#9aa0a4] mt-2 leading-relaxed">AI bakal bikin ide baru buat kategori ini, mempertimbangkan semua ide lain yang udah ada biar nggak duplikat &amp; beban kerja tim tetap seimbang.</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         </div>
@@ -474,7 +559,7 @@
 
 @if (! empty($selectedClientId))
 <script>
-function aiChat(insightId, initialMessages) {
+function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isApplied) {
     return {
         tab: 'ringkasan',
         open: initialMessages.filter(m => m.role !== 'system').length > 0,
@@ -482,6 +567,56 @@ function aiChat(insightId, initialMessages) {
         draft: '',
         sending: false,
         errorMsg: '',
+
+        // ===== Modal detail & regenerate ide =====
+        ideas: initialIdeas,
+        pillarOptions: pillarOptions,
+        selectedIndex: null,
+        editPillar: '',
+        regenerating: false,
+        regenError: '',
+        get selectedIdea() {
+            return this.selectedIndex !== null ? this.ideas[this.selectedIndex] : null;
+        },
+        openIdea(index) {
+            this.selectedIndex = index;
+            this.editPillar = this.ideas[index].pillar ?? (this.pillarOptions[0] ?? '');
+            this.regenError = '';
+        },
+        closeIdea() {
+            if (this.regenerating) return;
+            this.selectedIndex = null;
+        },
+        regenerateIdea() {
+            if (this.regenerating || this.selectedIndex === null || isApplied) return;
+
+            const index = this.selectedIndex;
+            this.regenerating = true;
+            this.regenError = '';
+
+            fetch(`/analytics/ai-strategy/${insightId}/ideas/${index}/regenerate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ pillar: this.editPillar }),
+            })
+            .then(async (res) => {
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Gagal regenerate ide');
+                return data;
+            })
+            .then((data) => {
+                this.ideas[index] = data.idea;
+            })
+            .catch((err) => {
+                this.regenError = err.message;
+            })
+            .finally(() => this.regenerating = false);
+        },
+
         send() {
             if (!this.draft.trim() || this.sending) return;
 
