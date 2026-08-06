@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\ClientCategory;
 use App\Models\ClientPackage;
 use App\Models\ContentItem;
+use App\Models\ContentItemAssignment;
 use App\Models\ContentMetric;
 use App\Models\ContentPillar;
 use App\Models\ContentPlan;
@@ -18,33 +19,50 @@ use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Notification;
 use App\Models\Platform;
+use App\Models\Role;
 use App\Models\User;
+use App\Models\UserClientAssignment;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
 /**
- * DemoSeeder v4 -- GANTIKAN DemoSeeder versi lama (v3 ke bawah).
+ * DemoSeeder v5 -- satu-satunya seeder demo data, gantikan v4 ke bawah.
  *
- * Update dari v3:
+ * Update dari v4:
+ * - Digabung dari ClientUserDemoSeeder.php + ProductionWorkflowDemoSeeder.php
+ *   (dulu 3 file terpisah tapi saling tumpang tindih bikin client & data
+ *   yang sama - misal ClientPackage/ContentPlan TechNova sempat dibikin
+ *   duluan sama ProductionWorkflowDemoSeeder dengan payload beda, bikin
+ *   firstOrCreate() di sini jadi no-op diam-diam). Sekarang 1 sumber
+ *   kebenaran per client: login user (kalau ada) + paket + content
+ *   plan/item + metrik + audience + sync log + (buat 2 client pertama)
+ *   AI Strategy Insight, semua di loop yang sama.
+ * - Jumlah client demo dikurangi dari 6 jadi 3 (TechNova Inc., Kopi Senja,
+ *   FreshBite Indonesia) biar data seeder nggak kebanyakan.
  * - AiStrategyInsight sekarang diisi performance_data (dihitung beneran
  *   dari content_metrics yang digenerate di seeder ini, bukan kosong) -
  *   ini yang bikin fitur "Diskusi dengan AI" bisa langsung dicoba tanpa
- *   generate ulang dulu
+ *   generate ulang dulu. content_ideas-nya juga udah include field
+ *   "type"/"platform" dan jumlahnya ngikutin target_content_count
+ *   (kuota content+design client), samain sama AiStrategyService beneran.
  * - Nambah AiStrategyMessage: contoh percakapan pendek (4 bubble chat)
  *   di insight yang statusnya "sudah diterapkan", biar UI chat-nya nggak
- *   kosong pas pertama kali dicoba
+ *   kosong pas pertama kali dicoba.
  *
  * Nyakup semua fitur PIC 3 sampai sekarang:
  * - Content Plan (status bervariasi: approved/pending/draft)
  * - Content Item + Content Workflow + metrik video (watch_time_avg dkk)
  * - Audience Insights, Analytics Sync Log, API Integration, Notifications
  * - AI Strategy Insights + AI Strategy Messages (diskusi)
+ * - Login user client portal (Client Owner) buat client yang didefinisiin
+ *   punya 'login' di $clientDefs
+ * - Board Production Workflow dengan status lengkap (brief_ready s/d
+ *   approved) buat TechNova, biar ada 1 client yang bisa langsung dipakai
+ *   testing kanban tanpa perlu klik-klik ubah status manual dulu
  *
  * Cara pakai, di DatabaseSeeder.php:
  *   $this->call([
  *       RoleSeeder::class,
- *       ClientUserDemoSeeder::class,
- *       ProductionWorkflowDemoSeeder::class,
  *       PermissionSeeder::class,
  *       DemoSeeder::class,
  *   ]);
@@ -77,19 +95,53 @@ class DemoSeeder extends Seeder
         $category = ClientCategory::firstOrCreate(['name' => 'UMKM']);
 
         $picUser = User::where('email', 'ahdaalamin2506@gmail.com')->first() ?? User::first();
+        $clientOwnerRole = Role::firstOrCreate(['name' => 'Client Owner']);
 
         // ===== Clients =====
-        $clientNames = ['TechNova Inc.', 'Kopi Senja', 'Rumah Herbal', 'Bengkel Kreatif'];
+        // 'login' opsional - kalau diisi, dibikinin 1 User (role Client
+        // Owner) buat testing login client portal (magic link/approval
+        // dashboard). Client pertama (index 0) otomatis jadi "full demo
+        // client": kebagian board Production Workflow dengan status
+        // lengkap di bawah, bukan cuma item random.
+        $clientDefs = [
+            [
+                'name' => 'TechNova Inc.',
+                'login' => ['name' => 'Client Demo', 'email' => 'client-demo@technova.test', 'phone' => '6281275471093'],
+            ],
+            [
+                'name' => 'Kopi Senja',
+                'login' => null,
+            ],
+            [
+                'name' => 'FreshBite Indonesia',
+                'login' => ['name' => 'Budi Santoso', 'email' => 'budi@freshbite.test', 'phone' => '6282288706114'],
+            ],
+        ];
 
-        $clients = collect($clientNames)->map(function ($name) use ($category) {
-            return Client::firstOrCreate(
-                ['name' => $name],
+        $clients = collect($clientDefs)->map(function ($def) use ($category, $clientOwnerRole) {
+            $client = Client::firstOrCreate(
+                ['name' => $def['name']],
                 [
                     'client_category_id' => $category->id,
-                    'brand_name' => str($name)->before(' ')->toString(),
+                    'brand_name' => str($def['name'])->before(' ')->toString(),
                     'status' => 'active',
                 ]
             );
+
+            if ($def['login']) {
+                User::firstOrCreate(
+                    ['phone_number' => $def['login']['phone']],
+                    [
+                        'role_id' => $clientOwnerRole->id,
+                        'client_id' => $client->id,
+                        'name' => $def['login']['name'],
+                        'email' => $def['login']['email'],
+                        'status' => 'active',
+                    ]
+                );
+            }
+
+            return $client;
         });
 
         foreach ($clients as $clientIndex => $client) {
@@ -184,6 +236,53 @@ class DemoSeeder extends Seeder
                 }
             }
 
+            // ===== Board Production Workflow status lengkap (client pertama aja) =====
+            // Biar ada 1 client yang board-nya kelihatan semua status
+            // (brief_ready -> in_progress -> waiting_review -> approved)
+            // buat testing, bukan random murni kayak $createdItems di atas.
+            if ($clientIndex === 0) {
+                $designType = $contentTypes->firstWhere('name', 'Design');
+                $igPlatform = $platforms->firstWhere('name', 'Instagram');
+                $boardStatuses = ['brief_ready', 'brief_ready', 'in_progress', 'waiting_review', 'approved'];
+
+                foreach ($boardStatuses as $i => $status) {
+                    $item = ContentItem::create([
+                        'content_plan_id' => $currentPlan->id,
+                        'client_id' => $client->id,
+                        'content_type_id' => $designType->id,
+                        'platform_id' => $igPlatform->id,
+                        'title' => 'Demo Content Item #'.($i + 1),
+                        'brief' => 'Contoh brief untuk testing board.',
+                        'deadline_at' => $now->copy()->subDay()->addDays($i),
+                    ]);
+
+                    ContentWorkflow::create([
+                        'content_item_id' => $item->id,
+                        'current_pic_id' => $picUser->id,
+                        'current_status' => $status,
+                    ]);
+
+                    ContentItemAssignment::create([
+                        'content_item_id' => $item->id,
+                        'user_id' => $picUser->id,
+                        'assignment_role' => 'content_creator',
+                    ]);
+
+                    if ($i === 0) {
+                        ContentItemAssignment::create([
+                            'content_item_id' => $item->id,
+                            'user_id' => $picUser->id,
+                            'assignment_role' => 'designer',
+                        ]);
+                    }
+                }
+
+                UserClientAssignment::firstOrCreate([
+                    'user_id' => $picUser->id,
+                    'client_id' => $client->id,
+                ]);
+            }
+
             // ===== API Integration =====
             foreach ($platforms->take(2) as $platform) {
                 ApiIntegration::firstOrCreate(
@@ -242,7 +341,7 @@ class DemoSeeder extends Seeder
                     'client_id' => $client->id,
                     'platform_id' => $platforms->random()->id,
                     'imported_by' => $picUser->id,
-                    'source_type' => rand(0, 1) ? 'csv_import' : 'api_sync',
+                    'source_type' => collect(['performance_csv_import', 'audience_csv_import', 'api_sync'])->random(),
                     'status' => collect(['success', 'success', 'success', 'failed', 'pending'])->random(),
                 ]);
                 $log->forceFill(['created_at' => $now->copy()->subDays(rand(0, 14))])->save();
@@ -276,6 +375,12 @@ class DemoSeeder extends Seeder
                     ])
                     ->sortByDesc('views')->take(5)->values();
 
+                // Ngikutin AiStrategyService::buildPerformanceSummary() beneran -
+                // dipakai buat nentuin jumlah content_ideas di bawah, biar
+                // insight seeder ini juga aman kalau langsung dicoba
+                // "Terapkan ke Content Plan" tanpa generate ulang dulu.
+                $targetItemCount = ($clientPackage->monthly_content_quota + $clientPackage->monthly_design_quota) ?: 10;
+
                 $performanceData = [
                     'client_name' => $client->name,
                     'period' => $lastMonthStart->format('d M Y').' - '.$lastMonthEnd->format('d M Y'),
@@ -288,6 +393,7 @@ class DemoSeeder extends Seeder
                     'performance_by_pillar' => $byPillar,
                     'performance_by_platform' => $byPlatform,
                     'top_5_content' => $topContentFromMetrics,
+                    'target_content_count' => $targetItemCount,
                 ];
 
                 $pillarNames = $byPillar->isNotEmpty() ? $byPillar->keys() : $pillars->pluck('name')->shuffle()->take(4);
@@ -302,12 +408,25 @@ class DemoSeeder extends Seeder
                     'reasoning' => 'Pillar '.$row['label'].' mencatatkan performa terbaik selama '.$lastMonthStart->translatedFormat('F Y').' (data contoh seeder).',
                 ])->all();
 
-                $contentIdeas = collect($suggestedSplit)->flatMap(function ($row) {
-                    $count = max(1, (int) round($row['value'] / 10));
+                // Platform buat ide dibatasin ke yang beneran ke-track buat
+                // client ini (performance_by_platform) - fallback ke semua
+                // platform kalau bulan lalu kosong data-nya sama sekali.
+                $ideaPlatforms = $byPlatform->isNotEmpty()
+                    ? $platforms->whereIn('name', $byPlatform->keys())->values()
+                    : $platforms;
+                if ($ideaPlatforms->isEmpty()) {
+                    $ideaPlatforms = $platforms;
+                }
+
+                $splitSumForIdeas = collect($suggestedSplit)->sum('value') ?: 100;
+                $contentIdeas = collect($suggestedSplit)->flatMap(function ($row) use ($targetItemCount, $splitSumForIdeas, $contentTypes, $ideaPlatforms) {
+                    $count = max(1, (int) round(($row['value'] / $splitSumForIdeas) * $targetItemCount));
                     return collect(range(1, $count))->map(fn ($n) => [
                         'pillar' => $row['label'],
                         'title' => '[Contoh] Ide konten '.$row['label'].' #'.$n,
                         'brief' => 'Brief contoh dari seeder buat pillar '.$row['label'].' - generate ulang lewat tombol di halaman Analytics buat hasil AI beneran.',
+                        'type' => $contentTypes->random()->name,
+                        'platform' => $ideaPlatforms->random()->name,
                     ]);
                 })->values()->all();
 

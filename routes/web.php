@@ -74,6 +74,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/analytics/table', [AnalyticsController::class, 'table'])->name('analytics.table');
     Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
     Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
+    Route::get('/analytics/ai-strategy/history', [AnalyticsController::class, 'aiStrategyHistory'])->name('analytics.ai-strategy.history');
     Route::post('/analytics/ai-strategy/{aiStrategyInsight}/apply', [AnalyticsController::class, 'applyAiStrategy'])
         ->name('analytics.ai-strategy.apply');
     Route::post('/analytics/ai-strategy/{aiStrategyInsight}/revert', [AnalyticsController::class, 'revertAiStrategy'])

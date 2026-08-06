@@ -132,7 +132,7 @@ class AudienceController extends Controller
         $syncLog = \App\Models\AnalyticsSyncLog::create([
             'client_id' => $client->id,
             'imported_by' => auth()->id(),
-            'source_type' => 'csv_import',
+            'source_type' => 'audience_csv_import',
             'status' => 'pending',
         ]);
 

@@ -32,8 +32,9 @@
                     <p class="text-xs text-[#9aa0a4] mt-0.5 mb-3">
                         {{ $row['connected'] ? 'Last sync: '.$row['updated_at']?->diffForHumans() : 'Belum terhubung' }}
                     </p>
-                    <button type="button" class="text-xs font-medium text-[#044b46] hover:underline">
-                        {{ $row['connected'] ? 'Manage' : 'Reconnect' }}
+                    <button type="button" disabled title="Belum tersedia - nunggu App Review Meta/TikTok kelar dulu"
+                            class="text-xs font-medium text-[#c3c7cb] cursor-not-allowed">
+                        {{ $row['connected'] ? 'Manage' : 'Reconnect' }} <span class="text-[10px]">(segera)</span>
                     </button>
                 </div>
             @endforeach
@@ -84,7 +85,7 @@
                             <td class="px-6 py-3.5 text-[#5c6266]">{{ $log->created_at->format('d M Y, H:i') }}</td>
                             <td class="px-4 py-3.5 font-medium text-[#14181a]">{{ $log->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266]">{{ $log->platform->name ?? 'Campuran' }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ strtoupper($log->source_type) }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266]">{{ \Illuminate\Support\Str::headline($log->source_type) }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266]">{{ $log->importedBy->name ?? '-' }}</td>
                             <td class="px-6 py-3.5">
                                 <span class="text-xs font-medium px-2.5 py-1 rounded-full

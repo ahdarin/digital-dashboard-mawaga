@@ -7,23 +7,23 @@
     {{-- Header --}}
     <div class="flex items-start justify-between mb-7">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Content Analytics</h1>
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a] tracking-tight">Content Analytics</h1>
             <p class="text-[#5c6266] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
             <a href="{{ route('analytics.table') }}"
-               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors">
+               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                 <span class="material-symbols-outlined text-[17px]">table_rows</span> Table
             </a>
             <a href="{{ route('audience') }}"
-               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors">
+               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                 <span class="material-symbols-outlined text-[17px]">groups</span> Audience
             </a>
 
             @if ($selectedClientId)
                 <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
-                   class="text-sm font-medium text-white bg-[#044b46] hover:bg-[#033b37] flex items-center gap-1.5 px-4 py-2 rounded-lg transition-colors">
+                   class="text-sm font-medium text-white bg-[#044b46] hover:bg-[#033b37] active:scale-[0.98] flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all ml-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                     <span class="material-symbols-outlined text-[17px]">download</span> Export
                 </a>
             @endif
@@ -33,7 +33,7 @@
     {{-- Filter bar --}}
     <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap">
         <select name="client_id" onchange="this.form.submit()"
-                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
+                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
             <option value="">Pilih Client...</option>
             @foreach ($clientOptions as $client)
                 <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
@@ -41,7 +41,7 @@
         </select>
 
         <select name="period" onchange="this.form.submit()"
-                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:border-[#044b46]/40">
+                class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
             <option value="7" {{ $period === 7 ? 'selected' : '' }}>Last 7 Days</option>
             <option value="30" {{ $period === 30 ? 'selected' : '' }}>Last 30 Days</option>
             <option value="90" {{ $period === 90 ? 'selected' : '' }}>Last 90 Days</option>
@@ -51,22 +51,29 @@
     @if (! empty($noClientSelected))
         <div class="card p-16 flex flex-col items-center justify-center text-center">
             <div class="w-14 h-14 rounded-full bg-[#f0f5f4] flex items-center justify-center mb-4">
-                <span class="material-symbols-outlined text-[#044b46] text-[26px]">filter_alt</span>
+                <span class="material-symbols-outlined text-[#044b46] text-[24px]">filter_alt</span>
             </div>
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Pilih client dulu</h2>
             <p class="text-sm text-[#5c6266] max-w-sm">Performa konten ditampilkan per client. Pilih salah satu di dropdown atas untuk mulai.</p>
         </div>
     @else
 
+        @php
+            // 1 palet warna kategori dipakai bareng Suggested Split & Traffic
+            // per Platform di bawah - biar nggak ada 2 array warna yang sama
+            // persis didefinisikan ulang di 2 tempat.
+            $chartColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf'];
+        @endphp
+
         {{-- Stat cards --}}
         <div class="grid grid-cols-4 gap-4 mb-6">
             @foreach ($stats as $stat)
-                <div class="card p-5">
+                <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-[13px] text-[#5c6266]">{{ $stat['label'] }}</span>
                         <span class="material-symbols-outlined text-[#c3c7cb] text-[18px]">{{ $stat['icon'] }}</span>
                     </div>
-                    <p class="font-display text-[26px] font-semibold text-[#14181a] mb-2">{{ $stat['value'] }}</p>
+                    <p class="font-display text-[26px] font-semibold text-[#14181a] mb-2 [font-variant-numeric:tabular-nums]">{{ $stat['value'] }}</p>
                     <p class="text-xs flex items-center gap-1
                         {{ $stat['trend'] === 'up' ? 'text-[#0f7a5f]' : ($stat['trend'] === 'down' ? 'text-[#b3423e]' : 'text-[#9aa0a4]') }}">
                         @if ($stat['trend'] === 'up')
@@ -83,25 +90,32 @@
         <div class="space-y-5">
 
                 {{-- AI Strategy Analysis - beneran manggil Gemini API --}}
-                <div class="rounded-2xl overflow-hidden border border-[#e4e9ec]" x-data="{ loading: false }">
+                <div class="rounded-2xl overflow-hidden border border-[#eef0f4] bg-white" x-data="{ loading: false }">
 
-                    {{-- Header dengan gradient, biar section ini keliatan beda dari card biasa --}}
-                    <div class="bg-gradient-to-br from-[#044b46] to-[#0a6b5c] px-6 py-5 flex items-center justify-between">
+                    {{-- Header flat (bukan gradient) - konsisten sama treatment card lain --}}
+                    <div class="bg-[#f7f8fc] border-b border-[#eef0f4] px-6 py-5 flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                                <span class="material-symbols-outlined text-white text-[19px]">auto_awesome</span>
+                            <div class="w-9 h-9 rounded-xl bg-[#f0f5f4] flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-[#044b46] text-[19px]">auto_awesome</span>
                             </div>
                             <div>
-                                <h2 class="font-display text-lg font-semibold text-white leading-tight">AI Strategy Analysis</h2>
-                                <p class="text-xs text-white/70 mt-0.5">Analisis 30 hari terakhir, dibangkitkan Gemini AI dari data asli client ini</p>
+                                <h2 class="font-display text-lg font-semibold text-[#14181a] leading-tight">AI Strategy Analysis</h2>
+                                <p class="text-xs text-[#5c6266] mt-0.5">Analisis performa bulan {{ $aiAnalysisMonth }}, dibangkitkan Gemini AI dari data asli client ini &mdash; independen dari filter periode di atas</p>
                             </div>
                         </div>
 
+                        <div class="flex items-center gap-4 shrink-0">
+                            @if ($latestAiInsight)
+                                <a href="{{ route('analytics.ai-strategy.history', ['client_id' => $selectedClientId]) }}"
+                                   class="text-xs font-medium text-[#9aa0a4] hover:text-[#044b46] flex items-center gap-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
+                                    <span class="material-symbols-outlined text-[15px]">history</span> Riwayat
+                                </a>
+                            @endif
                         <form action="{{ route('analytics.ai-strategy') }}" method="POST" x-on:submit="loading = true" class="shrink-0">
                             @csrf
                             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
                             <button type="submit" :disabled="loading"
-                                    class="text-sm font-medium bg-white text-[#044b46] px-4 py-2.5 rounded-lg hover:bg-white/90 transition-colors disabled:opacity-60 flex items-center gap-2 shadow-sm">
+                                    class="text-sm font-medium bg-[#044b46] text-white px-4 py-2.5 rounded-lg hover:bg-[#033b37] active:scale-[0.98] transition-all disabled:opacity-60 flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                                 <span x-show="!loading" class="flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[16px]">{{ $latestAiInsight ? 'refresh' : 'bolt' }}</span>
                                     {{ $latestAiInsight ? 'Generate Ulang' : 'Generate Analisis' }}
@@ -112,6 +126,7 @@
                                 </span>
                             </button>
                         </form>
+                        </div>
                     </div>
 
                     <div class="bg-white p-6">
@@ -135,215 +150,229 @@
                             Analisis terakhir gagal: {{ $latestAiInsight->error_message }}
                         </div>
                     @else
-                        {{-- Summary banner --}}
-                        <div class="bg-gradient-to-r from-[#f0f5f4] to-[#f7f8fc] rounded-xl p-4 mb-5">
-                            <p class="text-sm text-[#14181a] leading-relaxed">{{ $latestAiInsight->summary }}</p>
+                        <div x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }})">
+
+                        {{-- Tab nav --}}
+                        <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 w-fit">
+                            <button type="button" x-on:click="tab = 'ringkasan'"
+                                    :class="tab === 'ringkasan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200">
+                                Ringkasan
+                            </button>
+                            <button type="button" x-on:click="tab = 'ide'"
+                                    :class="tab === 'ide' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200">
+                                Ide Konten ({{ count($latestAiInsight->content_ideas ?? []) }})
+                            </button>
+                            <button type="button" x-on:click="tab = 'diskusi'"
+                                    :class="tab === 'diskusi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200 flex items-center gap-1.5">
+                                Diskusi
+                                <span x-show="messages.filter(m => m.role !== 'system').length > 0" x-cloak
+                                      class="w-4 h-4 rounded-full bg-[#044b46] text-white text-[9px] font-bold flex items-center justify-center"
+                                      x-text="messages.filter(m => m.role !== 'system').length"></span>
+                            </button>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-6">
-
-                            {{-- Kolom kiri (2/3): Top Pillars + Action Items --}}
-                            <div class="col-span-2 space-y-5">
-
-                                @if (! empty($latestAiInsight->top_pillars))
-                                    <div>
-                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Top Content Pillars</p>
-                                        <div class="space-y-2">
-                                            @php $rankStyles = ['bg-gradient-to-br from-[#f5b942] to-[#e0932a]', 'bg-gradient-to-br from-[#b8c2c9] to-[#8f9aa3]', 'bg-gradient-to-br from-[#c98a53] to-[#a86a3a]']; @endphp
-                                            @foreach ($latestAiInsight->top_pillars as $i => $pillar)
-                                                <div class="flex items-start gap-3 border border-[#eef0f4] rounded-xl p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors">
-                                                    <span class="w-6 h-6 rounded-full {{ $rankStyles[$i] ?? 'bg-[#044b46]' }} text-white text-[11px] font-bold flex items-center justify-center shrink-0 shadow-sm">{{ $i + 1 }}</span>
-                                                    <div class="min-w-0">
-                                                        <p class="text-sm font-semibold text-[#14181a]">{{ $pillar['name'] }}</p>
-                                                        <p class="text-xs text-[#5c6266] mt-0.5 leading-relaxed">{{ $pillar['reasoning'] }}</p>
-                                                    </div>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-
-                                @if (! empty($latestAiInsight->action_items))
-                                    <div>
-                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Action Items</p>
-                                        <ul class="space-y-2.5">
-                                            @foreach ($latestAiInsight->action_items as $item)
-                                                <li class="flex items-start gap-2.5 text-sm text-[#14181a]">
-                                                    <span class="w-5 h-5 rounded-full bg-[#eaf5f0] flex items-center justify-center shrink-0 mt-0.5">
-                                                        <span class="material-symbols-outlined text-[#0f7a5f] text-[13px]">check</span>
-                                                    </span>
-                                                    <span class="leading-relaxed">{{ $item }}</span>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-
-                                @if (! empty($latestAiInsight->content_ideas))
-                                    <div x-data="{ open: false }">
-                                        <button type="button" x-on:click="open = !open" class="flex items-center justify-between w-full text-left">
-                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide">Ide Konten Siap Pakai ({{ count($latestAiInsight->content_ideas) }})</p>
-                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
-                                        </button>
-                                        <div x-show="open" x-cloak class="space-y-2 mt-3">
-                                            @foreach ($latestAiInsight->content_ideas as $idea)
-                                                <div class="border border-[#eef0f4] rounded-lg p-3">
-                                                    <div class="flex items-center gap-2 mb-1">
-                                                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]">{{ $idea['pillar'] ?? '-' }}</span>
-                                                    </div>
-                                                    <p class="text-sm font-semibold text-[#14181a]">{{ $idea['title'] ?? '-' }}</p>
-                                                    <p class="text-xs text-[#5c6266] mt-1 leading-relaxed">{{ $idea['brief'] ?? '-' }}</p>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
+                        {{-- ===== TAB: RINGKASAN ===== --}}
+                        <div x-show="tab === 'ringkasan'" x-cloak>
+                            <div class="bg-[#f7f8fc] border border-[#eef0f4] rounded-xl p-4 mb-5">
+                                <p class="text-sm text-[#14181a] leading-relaxed">{{ $latestAiInsight->summary }}</p>
                             </div>
 
-                            {{-- Kolom kanan (1/3): Suggested Split + kelengkapan data, jadi "sidebar" ringkasan --}}
-                            <div class="space-y-5">
-                                @if (! empty($latestAiInsight->suggested_split))
-                                    <div class="bg-[#f7f8fc] rounded-xl p-4">
-                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Suggested Split</p>
-                                        @php $splitColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf']; @endphp
-                                        <div class="space-y-3">
-                                            @foreach ($latestAiInsight->suggested_split as $i => $row)
-                                                <div>
-                                                    <div class="flex items-center justify-between text-xs mb-1">
-                                                        <span class="text-[#5c6266] flex items-center gap-1.5">
-                                                            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {{ $splitColors[$i % 5] }}"></span>
-                                                            {{ $row['label'] }}
+                            <div class="grid grid-cols-3 gap-6">
+
+                                <div class="col-span-2 space-y-5">
+                                    @if (! empty($latestAiInsight->top_pillars))
+                                        <div>
+                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Top Content Pillars</p>
+                                            <div class="space-y-2">
+                                                @php $rankStyles = ['bg-[#044b46]', 'bg-[#5c6266]', 'bg-[#9aa0a4]']; @endphp
+                                                @foreach ($latestAiInsight->top_pillars as $i => $pillar)
+                                                    <div class="flex items-start gap-3 border border-[#eef0f4] rounded-xl p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors">
+                                                        <span class="w-6 h-6 rounded-full {{ $rankStyles[$i] ?? 'bg-[#c3c7cb]' }} text-white text-[11px] font-semibold flex items-center justify-center shrink-0">{{ $i + 1 }}</span>
+                                                        <div class="min-w-0">
+                                                            <p class="text-sm font-semibold text-[#14181a]">{{ $pillar['name'] }}</p>
+                                                            <p class="text-xs text-[#5c6266] mt-0.5 leading-relaxed">{{ $pillar['reasoning'] }}</p>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if (! empty($latestAiInsight->action_items))
+                                        <div>
+                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Action Items</p>
+                                            <ul class="space-y-2.5">
+                                                @foreach ($latestAiInsight->action_items as $item)
+                                                    <li class="flex items-start gap-2.5 text-sm text-[#14181a]">
+                                                        <span class="w-5 h-5 rounded-full bg-[#eaf5f0] flex items-center justify-center shrink-0 mt-0.5">
+                                                            <span class="material-symbols-outlined text-[#0f7a5f] text-[13px]">check</span>
                                                         </span>
-                                                        <span class="font-semibold text-[#14181a]">{{ $row['value'] }}%</span>
-                                                    </div>
-                                                    <div class="w-full h-1.5 rounded-full bg-white overflow-hidden">
-                                                        <div class="h-full rounded-full" style="width: {{ $row['value'] }}%; background-color: {{ $splitColors[$i % 5] }}"></div>
-                                                    </div>
-                                                </div>
-                                            @endforeach
+                                                        <span class="leading-relaxed">{{ $item }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
                                         </div>
-                                    </div>
-                                @endif
+                                    @endif
+                                </div>
 
-                                @if ($latestAiInsight->data_completeness_percent !== null)
-                                    <div class="border border-[#eef0f4] rounded-xl p-4">
-                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Kelengkapan Data</p>
-                                        <div class="flex items-end gap-2 mb-2">
-                                            <span class="font-display text-2xl font-semibold text-[#14181a] leading-none">{{ $latestAiInsight->data_completeness_percent }}%</span>
-                                            @if ($latestAiInsight->data_completeness_percent < 60)
-                                                <span class="text-[10px] text-[#b8873a] font-medium mb-0.5">Data agak tipis</span>
-                                            @endif
+                                <div class="space-y-5">
+                                    @if (! empty($latestAiInsight->suggested_split))
+                                        <div class="bg-[#f7f8fc] rounded-xl p-4">
+                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Suggested Split</p>
+                                            <div class="space-y-3">
+                                                @foreach ($latestAiInsight->suggested_split as $i => $row)
+                                                    <div>
+                                                        <div class="flex items-center justify-between text-xs mb-1">
+                                                            <span class="text-[#5c6266] flex items-center gap-1.5">
+                                                                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {{ $chartColors[$i % 5] }}"></span>
+                                                                {{ $row['label'] }}
+                                                            </span>
+                                                            <span class="font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $row['value'] }}%</span>
+                                                        </div>
+                                                        <div class="w-full h-1.5 rounded-full bg-white overflow-hidden">
+                                                            <div class="h-full rounded-full transition-all duration-500" style="width: {{ $row['value'] }}%; background-color: {{ $chartColors[$i % 5] }}"></div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
-                                        <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
-                                            <div class="h-full rounded-full {{ $latestAiInsight->data_completeness_percent >= 60 ? 'bg-[#0f7a5f]' : 'bg-[#b8873a]' }}"
-                                                 style="width: {{ $latestAiInsight->data_completeness_percent }}%"></div>
-                                        </div>
-                                    </div>
-                                @endif
+                                    @endif
 
-                                @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
-                                    <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST">
+                                    @if ($latestAiInsight->data_completeness_percent !== null)
+                                        <div class="border border-[#eef0f4] rounded-xl p-4">
+                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Kelengkapan Data</p>
+                                            <div class="flex items-end gap-2 mb-2">
+                                                <span class="font-display text-2xl font-semibold text-[#14181a] leading-none [font-variant-numeric:tabular-nums]">{{ $latestAiInsight->data_completeness_percent }}%</span>
+                                                @if ($latestAiInsight->data_completeness_percent < 60)
+                                                    <span class="text-[10px] text-[#b8873a] font-medium mb-0.5">Data agak tipis</span>
+                                                @endif
+                                            </div>
+                                            <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
+                                                <div class="h-full rounded-full {{ $latestAiInsight->data_completeness_percent >= 60 ? 'bg-[#0f7a5f]' : 'bg-[#b8873a]' }}"
+                                                     style="width: {{ $latestAiInsight->data_completeness_percent }}%"></div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <p class="text-[11px] text-[#c3c7cb] mt-5 pt-4 border-t border-[#f2f3f6]">
+                                Digenerate {{ $latestAiInsight->created_at->diffForHumans() }} oleh {{ $latestAiInsight->generatedBy->name ?? '-' }}
+                                @if ($latestAiInsight->applied_at)
+                                    &middot; Diterapkan {{ $latestAiInsight->applied_at->diffForHumans() }}
+                                @endif
+                            </p>
+                        </div>
+
+                        {{-- ===== TAB: IDE KONTEN ===== --}}
+                        <div x-show="tab === 'ide'" x-cloak>
+                            @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
+                                <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST" class="mb-4">
+                                    @csrf
+                                    <button type="submit" class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-3 rounded-xl hover:bg-[#033b37] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                        <span class="material-symbols-outlined text-[16px]">bolt</span>
+                                        Terapkan Semua Ide Ini ke Content Plan
+                                    </button>
+                                </form>
+                            @elseif ($latestAiInsight->applied_at)
+                                <div class="border border-[#eaf5f0] bg-[#f7fbf9] rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3">
+                                    <div class="flex items-center gap-1.5 text-sm font-medium text-[#0f7a5f]">
+                                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                        Sudah diterapkan ke Content Plan bulan ini
+                                    </div>
+                                    <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
+                                          onsubmit="return confirm('Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).')">
                                         @csrf
-                                        <button type="submit" class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-3 rounded-xl hover:bg-[#033b37] transition-colors flex items-center justify-center gap-2 shadow-sm">
-                                            <span class="material-symbols-outlined text-[16px]">bolt</span>
-                                            Terapkan ke Content Plan
+                                        <button type="submit" class="text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b3423e]">
+                                            <span class="material-symbols-outlined text-[14px]">undo</span>
+                                            Tarik Kembali
                                         </button>
                                     </form>
-                                @elseif ($latestAiInsight->applied_at)
-                                    <div class="border border-[#eaf5f0] bg-[#f7fbf9] rounded-xl p-3.5">
-                                        <div class="flex items-center gap-1.5 text-sm font-medium text-[#0f7a5f] mb-2">
-                                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
-                                            Sudah diterapkan
+                                </div>
+                            @endif
+
+                            @if (empty($latestAiInsight->content_ideas))
+                                <p class="text-sm text-[#9aa0a4] text-center py-10">Belum ada ide konten buat analisis ini.</p>
+                            @else
+                                <div class="grid grid-cols-2 gap-3">
+                                    @foreach ($latestAiInsight->content_ideas as $idea)
+                                        <div class="border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 transition-colors">
+                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block mb-1.5">{{ $idea['pillar'] ?? '-' }}</span>
+                                            <p class="text-sm font-semibold text-[#14181a]">{{ $idea['title'] ?? '-' }}</p>
+                                            <p class="text-xs text-[#5c6266] mt-1 leading-relaxed">{{ $idea['brief'] ?? '-' }}</p>
                                         </div>
-                                        <p class="text-xs text-[#5c6266] mb-3">Draft content item udah dibuat di Content Plan bulan ini.</p>
-                                        <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
-                                              onsubmit="return confirm('Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).')">
-                                            @csrf
-                                            <button type="submit" class="w-full text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] transition-colors flex items-center justify-center gap-1.5">
-                                                <span class="material-symbols-outlined text-[14px]">undo</span>
-                                                Tarik Kembali
-                                            </button>
-                                        </form>
-                                    </div>
-                                @endif
-                            </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
 
-                        <p class="text-[11px] text-[#c3c7cb] mt-5 pt-4 border-t border-[#f2f3f6]">
-                            Digenerate {{ $latestAiInsight->created_at->diffForHumans() }} oleh {{ $latestAiInsight->generatedBy->name ?? '-' }}
-                            @if ($latestAiInsight->applied_at)
-                                &middot; Diterapkan {{ $latestAiInsight->applied_at->diffForHumans() }}
-                            @endif
-                        </p>
+                        {{-- ===== TAB: DISKUSI ===== --}}
+                        <div x-show="tab === 'diskusi'" x-cloak>
+                            <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli.</p>
 
-                        {{-- Diskusi dengan AI --}}
-                        <div class="mt-5 pt-5 border-t border-[#f2f3f6]"
-                             x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }})">
-
-                            <button type="button" x-on:click="open = !open"
-                                    class="flex items-center justify-between w-full text-left mb-3">
-                                <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px]">forum</span>
-                                    Diskusi dengan AI ({{ $latestAiInsight->messages->where('role', '!=', 'system')->count() }})
-                                </p>
-                                <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
-                            </button>
-
-                            <div x-show="open" x-cloak>
-                                <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli.</p>
-
-                                {{-- Daftar pesan --}}
-                                <div class="space-y-3 mb-3 max-h-80 overflow-y-auto" x-ref="messageList">
-                                    <template x-for="msg in messages" :key="msg.id ?? msg.message + msg.time">
-                                        <template x-if="msg.role === 'system'">
-                                            <p class="text-center text-[11px] text-[#9aa0a4] italic" x-text="msg.message"></p>
-                                        </template>
-                                        <template x-if="msg.role !== 'system'">
-                                            <div class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-                                                <div class="max-w-[85%] rounded-xl px-3.5 py-2.5"
-                                                     :class="msg.role === 'user' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#14181a]'">
-                                                    <p class="text-sm leading-relaxed" x-text="msg.message"></p>
-                                                    <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[#9aa0a4]'" x-text="msg.time"></p>
-                                                </div>
+                            <div class="space-y-3 mb-3 max-h-96 overflow-y-auto" x-ref="messageList">
+                                <template x-for="msg in messages" :key="msg.id ?? msg.message + msg.time">
+                                    <div>
+                                        <p x-show="msg.role === 'system'" x-cloak class="text-center text-[11px] text-[#9aa0a4] italic" x-text="msg.message"></p>
+                                        <div x-show="msg.role !== 'system'" x-cloak class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                                            <div class="max-w-[85%] rounded-xl px-3.5 py-2.5"
+                                                 :class="msg.role === 'user' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#14181a]'">
+                                                <p class="text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.message"></p>
+                                                <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[#9aa0a4]'" x-text="msg.time"></p>
                                             </div>
-                                        </template>
-                                    </template>
+                                        </div>
+                                    </div>
+                                </template>
 
-                                    <div x-show="sending" x-cloak class="flex justify-start">
-                                        <div class="bg-[#f7f8fc] rounded-xl px-3.5 py-2.5">
-                                            <div class="flex gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:0ms"></span>
-                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:150ms"></span>
-                                                <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:300ms"></span>
-                                            </div>
+                                <div x-show="messages.length === 0" x-cloak class="text-center py-8">
+                                    <span class="material-symbols-outlined text-[#d4d7db] text-[22px] mb-2 block">forum</span>
+                                    <p class="text-xs text-[#9aa0a4]">Belum ada diskusi. Tulis pertanyaan/masukan di bawah.</p>
+                                </div>
+
+                                <div x-show="sending" x-cloak class="flex justify-start">
+                                    <div class="bg-[#f7f8fc] rounded-xl px-3.5 py-2.5">
+                                        <div class="flex gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:0ms"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:150ms"></span>
+                                            <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:300ms"></span>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <p x-show="errorMsg" x-cloak class="text-xs text-[#b3423e] mb-2" x-text="errorMsg"></p>
+                            <p x-show="errorMsg" x-cloak class="text-xs text-[#b3423e] mb-2" x-text="errorMsg"></p>
 
-                                {{-- Input --}}
-                                <form x-on:submit.prevent="send()" class="flex items-center gap-2 mb-3">
-                                    <input type="text" x-model="draft" placeholder="Tulis masukan atau pertanyaan..."
-                                           :disabled="sending"
-                                           class="flex-1 border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40 disabled:opacity-60">
-                                    <button type="submit" :disabled="sending || !draft.trim()"
-                                            class="w-10 h-10 shrink-0 rounded-lg bg-[#044b46] text-white flex items-center justify-center hover:bg-[#033b37] disabled:opacity-40 transition-colors">
-                                        <span class="material-symbols-outlined text-[18px]">send</span>
+                            <form x-on:submit.prevent="send()" class="flex items-center gap-2 mb-3">
+                                <input type="text" x-model="draft" placeholder="Tulis masukan atau pertanyaan..."
+                                       :disabled="sending"
+                                       class="flex-1 border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60 transition-shadow">
+                                <button type="submit" :disabled="sending || !draft.trim()"
+                                        class="w-10 h-10 shrink-0 rounded-lg bg-[#044b46] text-white flex items-center justify-center hover:bg-[#033b37] active:scale-[0.95] disabled:opacity-40 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                    <span class="material-symbols-outlined text-[18px]">send</span>
+                                </button>
+                            </form>
+
+                            @if ($latestAiInsight->applied_at)
+                                <p class="text-xs text-[#9aa0a4] text-center bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
+                                    Analisis ini sudah diterapkan ke Content Plan, jadi nggak bisa diperbarui dari diskusi lagi (draft yang udah dibuat bisa nggak nyambung lagi).
+                                    <button type="button" x-on:click="tab = 'ide'" class="text-[#044b46] font-medium hover:underline">Tarik kembali dulu</button>
+                                    kalau mau update berdasarkan diskusi ini.
+                                </p>
+                            @elseif ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
+                                <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
+                                      onsubmit="return confirm('Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
+                                    @csrf
+                                    <button type="submit" class="w-full text-xs font-medium bg-[#eef2fb] text-[#3452a8] px-3.5 py-2.5 rounded-lg hover:bg-[#e2e8f8] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3452a8]">
+                                        <span class="material-symbols-outlined text-[15px]">sync</span>
+                                        Perbarui Analisis dari Diskusi Ini
                                     </button>
                                 </form>
+                            @endif
+                        </div>
 
-                                @if ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
-                                    <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
-                                          onsubmit="return confirm('Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
-                                        @csrf
-                                        <button type="submit" class="w-full text-xs font-medium bg-[#eef2fb] text-[#3452a8] px-3.5 py-2.5 rounded-lg hover:bg-[#e2e8f8] transition-colors flex items-center justify-center gap-1.5">
-                                            <span class="material-symbols-outlined text-[15px]">sync</span>
-                                            Perbarui Analisis dari Diskusi Ini
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
                         </div>
                     @endif
 
@@ -378,18 +407,17 @@
                     @else
                         @php
                             $maxPlatform = max($platformBreakdown->max('value'), 1);
-                            $platformColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf'];
                         @endphp
                         <div class="grid grid-cols-4 gap-4">
                             @foreach ($platformBreakdown as $i => $row)
-                                <div class="border border-[#eef0f4] rounded-xl p-4">
+                                <div class="border border-[#eef0f4] rounded-xl p-4 hover:border-[#044b46]/20 transition-colors">
                                     <div class="flex items-center gap-2 mb-3">
-                                        <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ $platformColors[$i % 5] }}"></span>
+                                        <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ $chartColors[$i % 5] }}"></span>
                                         <span class="text-sm text-[#5c6266]">{{ $row['label'] }}</span>
                                     </div>
-                                    <p class="font-display text-xl font-semibold text-[#14181a] mb-2">{{ number_format($row['value']) }}</p>
+                                    <p class="font-display text-xl font-semibold text-[#14181a] mb-2 [font-variant-numeric:tabular-nums]">{{ number_format($row['value']) }}</p>
                                     <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
-                                        <div class="h-full rounded-full" style="width: {{ max(($row['value'] / $maxPlatform) * 100, 3) }}%; background-color: {{ $platformColors[$i % 5] }}"></div>
+                                        <div class="h-full rounded-full transition-all duration-500" style="width: {{ max(($row['value'] / $maxPlatform) * 100, 3) }}%; background-color: {{ $chartColors[$i % 5] }}"></div>
                                     </div>
                                 </div>
                             @endforeach
@@ -420,19 +448,19 @@
                             </thead>
                             <tbody>
                                 @foreach ($topContent as $content)
-                                    <tr class="border-t border-[#f2f3f6]">
+                                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
                                         <td class="py-3 pr-3 font-medium text-[#14181a]">
                                             {{ $content['title'] }}
                                             <p class="text-xs text-[#9aa0a4] font-normal mt-0.5">{{ $content['type'] }}</p>
                                         </td>
                                         <td class="py-3 pr-3 text-[#5c6266]">{{ $content['client'] }}</td>
                                         <td class="py-3 pr-3 text-[#5c6266]">{{ $content['platform'] }}</td>
-                                        <td class="py-3 pr-3 font-medium text-[#14181a]">{{ number_format($content['views']) }}</td>
+                                        <td class="py-3 pr-3 font-medium text-[#14181a] [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
                                         <td class="py-3 pr-3">
-                                            <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">{{ $content['engagement_rate'] }}%</span>
+                                            <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
                                         </td>
                                         <td class="py-3 text-right">
-                                            <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[#044b46] hover:underline">Detail</a>
+                                            <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[#044b46] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -448,6 +476,7 @@
 <script>
 function aiChat(insightId, initialMessages) {
     return {
+        tab: 'ringkasan',
         open: initialMessages.filter(m => m.role !== 'system').length > 0,
         messages: initialMessages,
         draft: '',

@@ -18,7 +18,7 @@ class AnalyticsController extends Controller
      * Ringkasan performa konten terpublikasi (views & engagement rate)
      * lintas client/platform untuk periode yang dipilih.
      */
-    public function index(Request $request)
+    public function index(Request $request, AiStrategyService $aiStrategyService)
     {
         $period = (int) $request->input('period', 30); // 7 / 30 / 90 hari
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
@@ -138,9 +138,11 @@ class AnalyticsController extends Controller
             ->latest()
             ->first();
 
+        $aiAnalysisMonth = $aiStrategyService->analysisPeriod()['start']->translatedFormat('F Y');
+
         return view('analytics.index', compact(
             'stats', 'trend', 'platformBreakdown', 'topContent',
-            'clientOptions', 'selectedClientId', 'period', 'latestAiInsight'
+            'clientOptions', 'selectedClientId', 'period', 'latestAiInsight', 'aiAnalysisMonth'
         ));
     }
 
@@ -396,6 +398,33 @@ class AnalyticsController extends Controller
     }
 
     /**
+     * KF3xx — Riwayat AI Strategy Insight per client.
+     *
+     * Halaman Analytics cuma pernah nampilin insight yang latest() - kalau
+     * PIC klik "Generate Ulang" padahal insight SEBELUMNYA masih applied_at
+     * (ada draft content item nyantol di Content Plan), insight lama itu
+     * jadi nggak kejangkau lagi dari UI manapun (padahal masih ada &
+     * mungkin masih perlu di-revert). Halaman ini nampilin SEMUA insight
+     * client itu, terlepas dari yang mana yang latest, biar tetap bisa
+     * di-lihat/di-apply/di-revert.
+     */
+    public function aiStrategyHistory(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => 'required|exists:clients,id',
+        ]);
+
+        $client = Client::findOrFail($validated['client_id']);
+
+        $insights = AiStrategyInsight::where('client_id', $client->id)
+            ->with('generatedBy')
+            ->latest()
+            ->get();
+
+        return view('analytics.ai-strategy-history', compact('client', 'insights'));
+    }
+
+    /**
      * KF3xx — AI Strategy Analysis (beneran manggil Gemini API, bukan
      * teks statis). Trigger manual lewat tombol di halaman Analytics.
      */
@@ -407,14 +436,16 @@ class AnalyticsController extends Controller
 
         $client = Client::findOrFail($validated['client_id']);
 
-        $periodStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
-        $periodEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth();
+        $period = $aiStrategyService->analysisPeriod();
+        $periodStart = $period['start'];
+        $periodEnd = $period['end'];
 
         try {
             $summary = $aiStrategyService->buildPerformanceSummary($client);
 
             if ($summary['content_published_count'] === 0) {
-                return back()->with('ai_error', 'Belum ada data performa konten bulan '.$periodStart->translatedFormat('F Y').' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
+                return redirect()->route('analytics', ['client_id' => $client->id])
+                    ->with('ai_error', 'Belum ada data performa konten bulan '.$periodStart->translatedFormat('F Y').' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
             }
 
             $result = $aiStrategyService->generateStrategy($summary);
@@ -436,7 +467,8 @@ class AnalyticsController extends Controller
                 'status' => 'completed',
             ]);
 
-            return back()->with('ai_success', 'Analisis AI berhasil digenerate.');
+            return redirect()->route('analytics', ['client_id' => $client->id])
+                ->with('ai_success', 'Analisis AI berhasil digenerate.');
         } catch (\Throwable $e) {
             AiStrategyInsight::create([
                 'client_id' => $client->id,
@@ -449,7 +481,8 @@ class AnalyticsController extends Controller
                 'error_message' => $e->getMessage(),
             ]);
 
-            return back()->with('ai_error', 'Gagal generate analisis AI: '.$e->getMessage());
+            return redirect()->route('analytics', ['client_id' => $client->id])
+                ->with('ai_error', 'Gagal generate analisis AI: '.$e->getMessage());
         }
     }
 
@@ -482,13 +515,27 @@ class AnalyticsController extends Controller
             ]
         );
 
-        $totalItems = min($activePackage->monthly_content_quota ?: 10, 10);
+        // Total draft = kuota konten + kuota desain bulanan client (bukan
+        // dibatasi angka tetap) - AI diminta nandain tipe tiap ide (lihat
+        // AiStrategyService::contentTypeOptions()) biar draft-nya beneran
+        // kehitung sesuai porsi Content vs Design pas dibuka di Content Plan.
+        $totalItems = (($activePackage->monthly_content_quota ?: 0) + ($activePackage->monthly_design_quota ?: 0)) ?: 10;
         $split = collect($aiStrategyInsight->suggested_split);
         $splitSum = $split->sum('value') ?: 100;
         $daysRemaining = max($now->daysInMonth - $now->day, 1);
         $ideasByPillar = collect($aiStrategyInsight->content_ideas)->groupBy('pillar');
 
+        // Fallback buat slot yang nggak kebagian ide spesifik dari AI
+        // (harusnya jarang sejak AiStrategyService diminta generate ide
+        // sejumlah target_content_count, tapi tetap dijaga-jaga) - biar
+        // nggak dibiarkan kosong total, diputer gilir dari platform yang
+        // beneran ke-track buat client ini & tipe konten yang ada di sistem.
+        $knownPlatformNames = array_keys($aiStrategyInsight->performance_data['performance_by_platform'] ?? []);
+        $fallbackPlatforms = \App\Models\Platform::whereIn('name', $knownPlatformNames)->get();
+        $fallbackTypes = \App\Models\ContentType::all();
+
         $created = 0;
+        $fallbackCount = 0;
         foreach ($split as $row) {
             $count = (int) round(($row['value'] / $splitSum) * $totalItems);
             if ($count < 1) {
@@ -503,10 +550,38 @@ class AnalyticsController extends Controller
                 $deadline = $now->copy()->addDays(rand(1, $daysRemaining));
                 $idea = $ideasForPillar->get($i);
 
+                if (! $idea) {
+                    $fallbackCount++;
+                }
+
+                // Insight lama (digenerate sebelum field "type"/"platform"
+                // ada di content_ideas) atau slot yang nggak kebagian ide
+                // sama sekali - pakai fallback round-robin, bukan dibiarkan
+                // null total.
+                $typeName = trim($idea['type'] ?? '');
+                if ($typeName !== '') {
+                    $contentType = \App\Models\ContentType::whereRaw('LOWER(name) = ?', [strtolower($typeName)])->first()
+                        ?? \App\Models\ContentType::firstOrCreate(['name' => $typeName]);
+                    $contentTypeId = $contentType->id;
+                } else {
+                    $contentTypeId = $fallbackTypes->isNotEmpty() ? $fallbackTypes[$created % $fallbackTypes->count()]->id : null;
+                }
+
+                $platformName = trim($idea['platform'] ?? '');
+                if ($platformName !== '') {
+                    $platform = \App\Models\Platform::whereRaw('LOWER(name) = ?', [strtolower($platformName)])->first()
+                        ?? \App\Models\Platform::firstOrCreate(['name' => $platformName]);
+                    $platformId = $platform->id;
+                } else {
+                    $platformId = $fallbackPlatforms->isNotEmpty() ? $fallbackPlatforms[$created % $fallbackPlatforms->count()]->id : null;
+                }
+
                 $item = \App\Models\ContentItem::create([
                     'content_plan_id' => $plan->id,
                     'client_id' => $client->id,
                     'content_pillar_id' => $pillar->id,
+                    'content_type_id' => $contentTypeId,
+                    'platform_id' => $platformId,
                     'ai_strategy_insight_id' => $aiStrategyInsight->id,
                     'title' => $idea['title'] ?? "[Draft AI] {$row['label']} #".($i + 1),
                     'brief' => $idea['brief'] ?? ($reasoning ? "Rekomendasi AI: {$reasoning}" : "Digenerate dari AI Strategy Analysis ({$row['value']}% dari komposisi yang disarankan)."),
@@ -525,8 +600,13 @@ class AnalyticsController extends Controller
 
         $aiStrategyInsight->update(['applied_at' => $now, 'applied_by' => auth()->id()]);
 
+        $message = "{$created} draft content item dibuat berdasarkan rekomendasi AI.";
+        $message .= $fallbackCount > 0
+            ? " {$fallbackCount} di antaranya nggak kebagian ide spesifik dari AI (judul placeholder) - judul, brief, format & platform-nya perlu dilengkapi manual."
+            : ' Judul, brief, format & platform udah terisi dari AI - tetap direview dulu sebelum lanjut ke produksi.';
+
         return redirect()->route('content-plan.show', $plan)
-            ->with('status', "{$created} draft content item dibuat berdasarkan rekomendasi AI. Judul & brief masih perlu dilengkapi manual.");
+            ->with('status', $message);
     }
 
     /**
@@ -553,7 +633,8 @@ class AnalyticsController extends Controller
         });
 
         if ($hasProgress) {
-            return back()->with('ai_error', 'Nggak bisa di-revert - sebagian draft dari analisis ini udah ada progress (revisi/posting/metrik). Hapus manual satu-satu kalau tetap mau dibatalkan.');
+            return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
+                ->with('ai_error', 'Nggak bisa di-revert - sebagian draft dari analisis ini udah ada progress (revisi/posting/metrik). Hapus manual satu-satu kalau tetap mau dibatalkan.');
         }
 
         $deletedCount = $generatedItems->count();
@@ -565,7 +646,8 @@ class AnalyticsController extends Controller
 
         $aiStrategyInsight->update(['applied_at' => null, 'applied_by' => null]);
 
-        return back()->with('ai_success', "{$deletedCount} draft content item berhasil ditarik kembali. Analisis ini bisa diterapkan ulang kalau perlu.");
+        return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
+            ->with('ai_success', "{$deletedCount} draft content item berhasil ditarik kembali. Analisis ini bisa diterapkan ulang kalau perlu.");
     }
 
     /**
@@ -634,6 +716,7 @@ class AnalyticsController extends Controller
     {
         abort_if(empty($aiStrategyInsight->performance_data), 422, 'Analisis ini nggak punya data mentah, generate ulang dulu.');
         abort_if($aiStrategyInsight->messages->isEmpty(), 422, 'Belum ada diskusi buat dijadiin dasar pembaruan.');
+        abort_if($aiStrategyInsight->applied_at !== null, 422, 'Analisis ini sudah diterapkan ke Content Plan - draft yang udah dibuat bakal nggak nyambung lagi kalau analisisnya diperbarui sekarang. Tarik kembali (revert) dulu kalau mau update berdasarkan diskusi ini.');
 
         try {
             $history = $aiStrategyInsight->messages()
@@ -668,9 +751,11 @@ class AnalyticsController extends Controller
                 'message' => 'Analisis diperbarui berdasarkan diskusi di atas oleh '.(auth()->user()->name ?? 'user').'.',
             ]);
 
-            return back()->with('ai_success', 'Analisis berhasil diperbarui berdasarkan diskusi.');
+            return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
+                ->with('ai_success', 'Analisis berhasil diperbarui berdasarkan diskusi.');
         } catch (\Throwable $e) {
-            return back()->with('ai_error', 'Gagal memperbarui analisis: '.$e->getMessage());
+            return redirect()->route('analytics', ['client_id' => $aiStrategyInsight->client_id])
+                ->with('ai_error', 'Gagal memperbarui analisis: '.$e->getMessage());
         }
     }
 }
