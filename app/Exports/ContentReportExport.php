@@ -5,6 +5,7 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use App\Support\WorkflowTransitions;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ContentReportExport implements FromArray, WithHeadings, WithStyles
@@ -36,7 +37,7 @@ class ContentReportExport implements FromArray, WithHeadings, WithStyles
             $rows[] = [
                 $item->title,
                 $item->client->name ?? '-',
-                $item->workflow->current_status ?? '-',
+                $item->workflow ? WorkflowTransitions::label($item->workflow->current_status) : '-',
                 $item->deadline_at->format('d M Y'),
                 $item->revisions->count(),
             ];

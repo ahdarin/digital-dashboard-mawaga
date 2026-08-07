@@ -114,7 +114,7 @@
                             </td>
                             <td class="px-6 py-3.5">
                                 <span class="text-xs px-2 py-1 rounded-full {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
-                                    {{ $item->workflow->current_status ?? 'planned' }}
+                                    {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                                 </span>
                             </td>
                         </tr>

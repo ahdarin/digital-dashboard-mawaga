@@ -49,7 +49,7 @@
                 <tr>
                     <td>{{ $item->title }}</td>
                     <td>{{ $item->client->name ?? '-' }}</td>
-                    <td>{{ $item->workflow->current_status ?? '-' }}</td>
+                    <td>{{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}</td>
                     <td>{{ $item->deadline_at->format('d M Y') }}</td>
                     <td>{{ $item->revisions->count() }}</td>
                 </tr>

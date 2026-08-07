@@ -90,7 +90,7 @@
                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Edit">
                                     <span class="material-symbols-outlined text-[17px]">edit_square</span>
                                 </a>
-                                <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST"
+                                <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST" class="m-0"
                                       onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.')">
                                     @csrf
                                     @method('DELETE')

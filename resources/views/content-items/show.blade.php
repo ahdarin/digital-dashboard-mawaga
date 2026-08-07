@@ -68,8 +68,10 @@
                                     <form action="{{ route('content-revision.resolve', [$contentItem, $revision]) }}" method="POST"
                                         class="mt-2">
                                         @csrf @method('PATCH')
-                                        <button class="text-[10px] font-medium text-[#044b46] hover:underline">Tandai
-                                            Selesai</button>
+                                        <button type="submit"
+                                            class="inline-flex items-center gap-1 bg-[#044b46] text-white text-[11px] font-medium px-3 py-1.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                                            <span class="material-symbols-outlined text-[13px]">check</span> Tandai Selesai
+                                        </button>
                                     </form>
                                 @endif
                             </div>
