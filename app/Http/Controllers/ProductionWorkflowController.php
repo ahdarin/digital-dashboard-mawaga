@@ -103,22 +103,4 @@ class ProductionWorkflowController extends Controller
 
         return response()->json(['success' => true, 'status' => $toStatus]);
     }
-
-    public function show(ContentItem $contentItem)
-    {
-        $contentItem->load([
-            'client',
-            'contentType',
-            'platform',
-            'workflow.currentPic',
-            'assignments.user',
-            'statusLogs.changedBy',
-            'revisions.requestedBy',
-            'publications.platform',
-            'publications.publishedBy',
-            'delayRiskScores' => fn($q) => $q->latest()->limit(5),
-        ]);
-
-        return view('production-workflow.show', compact('contentItem'));
-    }
 }

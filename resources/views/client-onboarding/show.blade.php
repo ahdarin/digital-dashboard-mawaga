@@ -4,7 +4,7 @@
 
 <div class="p-8 max-w-[1300px]">
 
-    <div class="flex items-start justify-between mb-7">
+    <div class="flex items-center justify-between mb-7">
         <div class="flex items-center gap-4">
             <a href="{{ route('client-onboarding.index') }}"
                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266] transition-colors shrink-0">

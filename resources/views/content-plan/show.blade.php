@@ -75,7 +75,7 @@
                     <div class="border border-[#f2f3f6] rounded-lg p-2 min-h-[90px]">
                         <p class="text-xs text-[#9aa0a4] mb-1.5">{{ $day }}</p>
                         @foreach ($itemsByDay->get($day, []) as $it)
-                            <a href="{{ route('production-workflow.show', $it) }}" class="block bg-[#f0f5f4] text-[#044b46] text-[10px] font-medium px-1.5 py-1 rounded mb-1 truncate hover:bg-[#e4ede9]">
+                            <a href="{{ route('content-items.show', $it) }}" class="block bg-[#f0f5f4] text-[#044b46] text-[10px] font-medium px-1.5 py-1 rounded mb-1 truncate hover:bg-[#e4ede9]">
                                 {{ $it->title }}
                             </a>
                         @endforeach
@@ -97,7 +97,7 @@
                 </thead>
                 <tbody>
                     @forelse ($items as $item)
-                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors" onclick="window.location='{{ route('production-workflow.show', $item) }}'">
+                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors" onclick="window.location='{{ route('content-items.show', $item) }}'">
                             <td class="px-6 py-3.5">
                                 <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
                                 <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>

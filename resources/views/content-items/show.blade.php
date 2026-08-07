@@ -11,7 +11,7 @@
 
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
-                <a href="{{ route('production-workflow.index') }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                <a href="{{ url()->previous() }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </a>
                 <div>
@@ -58,7 +58,7 @@
                             <div
                                 class="border border-[#eef0f4] rounded-lg p-3 {{ $revision->status === 'open' ? 'bg-[#fdf6ec]' : 'bg-[#f7f8fc]' }}">
                                 <div class="flex items-center justify-between mb-1">
-                                    <p class="text-xs font-medium text-[#14181a]">Ronde {{ $revision->revision_round }} —
+                                    <p class="text-xs font-medium text-[#14181a]">Revisi #{{ $revision->revision_round }} -
                                         {{ $revision->requestedBy->name ?? '-' }}</p>
                                     <span
                                         class="text-[10px] px-2 py-0.5 rounded-full {{ $revision->status === 'open' ? 'bg-[#f7e8cf] text-[#8a6423]' : 'bg-[#f0f5f4] text-[#0f7a5f]' }}">{{ $revision->status }}</span>
@@ -87,7 +87,21 @@
                     </form>
                 </div>
 
-                @if (!$contentItem->is_posted)
+                @if ($contentItem->is_posted)
+                    <div class="card p-5">
+                        <h3 class="text-sm font-semibold text-[#14181a] mb-3">Publikasi</h3>
+                        @foreach ($contentItem->publications as $pub)
+                            <div class="text-xs text-[#5c6266] border-b border-[#f2f3f6] py-2 last:border-0">
+                                <p class="font-medium text-[#14181a]">{{ $pub->platform->name }} —
+                                    {{ $pub->published_at->format('d M Y, H:i') }}</p>
+                                @if ($pub->post_url)
+                                    <a href="{{ $pub->post_url }}" target="_blank"
+                                        class="text-[#044b46] underline">{{ $pub->post_url }}</a>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @elseif ($workflow->current_status === 'scheduled')
                     <div class="card p-5">
                         <h3 class="text-sm font-semibold text-[#14181a] mb-4">Catat Publikasi</h3>
                         <form action="{{ route('content-publication.store', $contentItem) }}" method="POST" class="space-y-3">
@@ -95,11 +109,10 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Platform</label>
-                                    <select name="platform_id" required
-                                        class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                                        <option value="{{ $contentItem->platform_id }}">
-                                            {{ $contentItem->platform->name ?? '-' }}</option>
-                                    </select>
+                                    <div class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-[#f7f8fc] text-[#5c6266]">
+                                        {{ $contentItem->platform->name ?? '-' }}
+                                    </div>
+                                    <input type="hidden" name="platform_id" value="{{ $contentItem->platform_id }}">
                                 </div>
                                 <div>
                                     <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Tanggal
@@ -122,20 +135,6 @@
                                 class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Simpan
                                 &amp; Tandai Uploaded</button>
                         </form>
-                    </div>
-                @else
-                    <div class="card p-5">
-                        <h3 class="text-sm font-semibold text-[#14181a] mb-3">Publikasi</h3>
-                        @foreach ($contentItem->publications as $pub)
-                            <div class="text-xs text-[#5c6266] border-b border-[#f2f3f6] py-2 last:border-0">
-                                <p class="font-medium text-[#14181a]">{{ $pub->platform->name }} —
-                                    {{ $pub->published_at->format('d M Y, H:i') }}</p>
-                                @if ($pub->post_url)
-                                    <a href="{{ $pub->post_url }}" target="_blank"
-                                        class="text-[#044b46] underline">{{ $pub->post_url }}</a>
-                                @endif
-                            </div>
-                        @endforeach
                     </div>
                 @endif
             </div>

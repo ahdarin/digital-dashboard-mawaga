@@ -1,61 +1,160 @@
 @extends('layouts.app')
 @section('title', 'User Management')
 @section('content')
-<div class="p-8">
-    <div class="flex items-center justify-between mb-6">
+
+<div x-data="{ openAssign: null }" class="p-8 max-w-[1400px]">
+
+    <div class="flex items-center justify-between mb-7">
         <div>
-            <h2 class="text-2xl font-bold text-[#191c1c]">User Management</h2>
-            <p class="text-sm text-gray-500 mt-1">Kelola akun tim internal 523 Studio</p>
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">User Management</h1>
+            <p class="text-[#5c6266] text-sm mt-1">Kelola akun tim internal 523 Studio.</p>
         </div>
+
         <a href="{{ route('user-management.create') }}"
-           class="bg-[#044b46] text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-[#044b46]/90">
-            + Undang User
+           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+            <span class="material-symbols-outlined text-[17px]">person_add</span>
+            Undang User
         </a>
     </div>
 
     @if (session('status'))
-        <div class="bg-teal-50 text-[#044b46] text-sm p-3 rounded-lg mb-4">{{ session('status') }}</div>
+        <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-5">{{ session('status') }}</div>
     @endif
 
-    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="card overflow-hidden">
         <table class="w-full text-sm text-left">
-            <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
-                <tr>
-                    <th class="px-4 py-3">Nama</th>
-                    <th class="px-4 py-3">Email</th>
-                    <th class="px-4 py-3">Role</th>
-                    <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">Aksi</th>
+            <thead>
+                <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Nama</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Role</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Ditangani</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Aksi</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach ($users as $user)
-                    <tr class="border-t border-gray-100">
-                        <td class="px-4 py-3 font-medium">{{ $user->name }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ $user->email }}</td>
-                        <td class="px-4 py-3">{{ $user->role->name ?? '-' }}</td>
-                        <td class="px-4 py-3">
-                            <span class="text-xs px-2 py-1 rounded-full
-                                {{ $user->status === 'active' ? 'bg-green-100 text-green-700' : '' }}
-                                {{ $user->status === 'invited' ? 'bg-yellow-100 text-yellow-700' : '' }}
-                                {{ $user->status === 'inactive' ? 'bg-gray-100 text-gray-600' : '' }}">
-                                {{ $user->status }}
-                            </span>
+                @forelse ($users as $user)
+                    <tr class="border-b border-[#f2f3f6] last:border-0 hover:bg-[#f7f8fc] transition-colors">
+                        <td class="px-6 py-3.5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                                    @if ($user->avatar_url)
+                                        <img src="{{ $user->avatar_url }}" referrerpolicy="no-referrer" class="w-full h-full object-cover">
+                                    @else
+                                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                                    @endif
+                                </div>
+                                <p class="font-medium text-[#14181a]">{{ $user->name }}</p>
+                            </div>
                         </td>
-                        <td class="px-4 py-3">
-                            <a href="{{ route('user-client-assignment.edit', $user) }}" class="text-[#044b46] text-xs font-semibold hover:underline mr-3">
-                                Assign Client
-                            </a>
-                            
-                            @if ($user->status !== 'inactive')
-                                <form action="{{ route('user-management.destroy', $user) }}" method="POST" onsubmit="return confirm('Nonaktifkan user ini?')">
-                                    @csrf @method('DELETE')
-                                    <button class="text-red-600 text-xs font-semibold hover:underline">Nonaktifkan</button>
-                                </form>
+                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $user->email }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $user->role->name ?? '-' }}</td>
+                        <td class="px-6 py-3.5">
+                            @if ($user->assignedClients->isEmpty())
+                                <span class="text-xs text-[#c3c7cb] italic">Belum ada client</span>
+                            @else
+                                <div class="flex flex-wrap gap-1 max-w-xs">
+                                    @foreach ($user->assignedClients as $client)
+                                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f2f3f6] text-[#5c6266]">{{ $client->name }}</span>
+                                    @endforeach
+                                </div>
                             @endif
                         </td>
+                        <td class="px-6 py-3.5">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full
+                                {{ $user->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                {{ $user->status === 'invited' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
+                                {{ $user->status === 'inactive' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
+                                {{ ucfirst($user->status) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3.5">
+                            <div class="flex items-center justify-end gap-1">
+                                <button type="button" @click="openAssign = {{ $user->id }}"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Assign Client">
+                                    <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
+                                </button>
+
+                                @if ($user->status === 'inactive')
+                                    <form action="{{ route('user-management.activate', $user) }}" method="POST"
+                                          onsubmit="return confirm('Aktifkan kembali {{ $user->name }}?')">
+                                        @csrf @method('PATCH')
+                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f0f5f4] hover:text-[#0f7a5f] transition-colors" title="Aktifkan">
+                                            <span class="material-symbols-outlined text-[17px]">restart_alt</span>
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('user-management.destroy', $user) }}" method="POST"
+                                          onsubmit="return confirm('Nonaktifkan {{ $user->name }}?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Nonaktifkan">
+                                            <span class="material-symbols-outlined text-[17px]">toggle_off</span>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </td>
                     </tr>
-                @endforeach
+
+                    {{-- Modal Assign Client --}}
+                    <template x-teleport="body">
+                        <div x-show="openAssign === {{ $user->id }}" x-cloak
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                            <div class="absolute inset-0 bg-[#14181a]/40" @click="openAssign = null"></div>
+
+                            <div x-show="openAssign === {{ $user->id }}" x-transition
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                                    <div>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Assign Client</h3>
+                                        <p class="text-xs text-[#9aa0a4] mt-0.5">Untuk {{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                    </div>
+                                    <button type="button" @click="openAssign = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                                        <span class="material-symbols-outlined text-[19px]">close</span>
+                                    </button>
+                                </div>
+
+                                <form action="{{ route('user-client-assignment.update', $user) }}" method="POST">
+                                    @csrf @method('PUT')
+                                    <div class="px-6 py-5">
+                                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-3">Pilih Client yang Ditangani</p>
+
+                                        <div class="space-y-2 max-h-72 overflow-y-auto">
+                                            @forelse ($allClients as $client)
+                                                @php $assignedIds = $user->assignedClients->pluck('id')->toArray(); @endphp
+                                                <label class="flex items-center gap-3 p-3 border border-[#eef0f4] rounded-lg hover:bg-[#f7f8fc] cursor-pointer">
+                                                    <input type="checkbox" name="client_ids[]" value="{{ $client->id }}"
+                                                           {{ in_array($client->id, $assignedIds) ? 'checked' : '' }}
+                                                           class="rounded border-[#dadfe0] text-[#044b46] focus:ring-[#044b46]">
+                                                    <div>
+                                                        <p class="text-sm font-medium text-[#14181a]">{{ $client->name }}</p>
+                                                        <p class="text-xs text-[#9aa0a4]">{{ $client->brand_name }}</p>
+                                                    </div>
+                                                </label>
+                                            @empty
+                                                <p class="text-xs text-[#9aa0a4] italic">Belum ada client aktif.</p>
+                                            @endforelse
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                                        <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                                            Simpan
+                                        </button>
+                                        <button type="button" @click="openAssign = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                                            Batal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+                @empty
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada user internal.</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
