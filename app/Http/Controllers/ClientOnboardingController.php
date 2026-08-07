@@ -56,6 +56,7 @@ class ClientOnboardingController extends Controller
             'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'logo' => 'nullable|image|max:2048', // max 2MB
+            'color' => 'nullable|string|max:7', 
             'owner_name' => 'required|string|max:255',
             'owner_email' => 'required|email|unique:users,email',
             'owner_phone' => 'required|string',
@@ -71,6 +72,7 @@ class ClientOnboardingController extends Controller
                 'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
                 'logo_path' => $logoPath,
+                'color' => $validated['color'] ?? null,
                 'status' => 'active',
             ]);
 
@@ -131,6 +133,7 @@ class ClientOnboardingController extends Controller
             'status' => 'required|in:active,past_due,paused',
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
+            'color' => 'nullable|string|max:7',
             'owner_name' => 'nullable|string|max:255',
             'owner_email' => [
                 'nullable', 'email',
@@ -158,6 +161,7 @@ class ClientOnboardingController extends Controller
                 'client_category_id' => $validated['client_category_id'],
                 'status' => $validated['status'],
                 'logo_path' => $logoPath,
+                'color' => $validated['color'] ?? $client->color,
             ]);
 
             if ($client->owner && filled($validated['owner_name'] ?? null)) {

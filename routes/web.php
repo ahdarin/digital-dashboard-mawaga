@@ -103,14 +103,18 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('settings.detect-anomalies');
 
     Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');
-    Route::get('/content-plan/create', [ContentPlanController::class, 'create'])->name('content-plan.create');
     Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
+    Route::get('/content-plan/calendar', [ContentPlanController::class, 'calendar'])
+    ->name('content-plan.calendar');
+    Route::get('/content-plan/create', [ContentPlanController::class, 'create'])
+    ->name('content-plan.create');
     Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
     Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
     Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');
     Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])->name('content-plan.items.create');
     Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])->name('content-plan.items.store');
- 
+    Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');Route::get('/content-plan/calendar', [ContentPlanController::class, 'calendar'])->name('content-plan.calendar'); // <-- BARU, taruh sebelum baris di bawah ini
+
     Route::get('/master-data', [MasterDataController::class, 'index'])->name('master-data.index');
     Route::post('/master-data/{type}', [MasterDataController::class, 'store'])->name('master-data.store');
     Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
