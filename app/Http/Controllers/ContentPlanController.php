@@ -39,7 +39,7 @@ class ContentPlanController extends Controller
             ->whereHas('contentType', fn ($q) => $q->where('name', 'Desain'))
             ->count();
 
-        $clientOptions = Client::where('status', 'active')->get();
+        $clientOptions = Client::where('status', 'active')->with('activePackage')->get();
 
         // ---- Data untuk Calendar View ----
         $itemsByDateClient = collect();
@@ -102,13 +102,6 @@ class ContentPlanController extends Controller
             'selectedType',
             'selectedDate'
         ));
-    }
-
-    public function create(Request $request)
-    {
-        $clientOptions = Client::where('status', 'active')->with('activePackage')->get();
-
-        return view('content-plan.create', compact('clientOptions'));
     }
 
     public function store(Request $request)

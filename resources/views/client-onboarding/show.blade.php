@@ -79,7 +79,7 @@
                                     <td class="py-3 pr-4 text-[#5c6266]">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
                                     <td class="py-3 pr-4">
                                         <span class="text-xs px-2 py-1 rounded-full {{ ($item->workflow->is_overdue ?? false) ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
-                                            {{ $item->workflow->current_status ?? '-' }}
+                                            {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
                                         </span>
                                     </td>
                                 </tr>

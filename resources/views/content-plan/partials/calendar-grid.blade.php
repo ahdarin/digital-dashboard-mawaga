@@ -7,7 +7,8 @@
 
         $typeBadge = fn(?string $typeName) => match ($typeName) {
             'Video' => 'V',
-            'Desain' => 'D',
+            'Design' => 'D',
+            'Copywriting' => 'C',
             default => null,
         };
 
@@ -36,11 +37,11 @@
                 Semua
             </a>
 
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Desain']) }}"
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Design']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+               {{ ($selectedType ?? '') === 'Design' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">D</span>
-                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Desain</span>
+                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Design</span>
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
@@ -48,6 +49,13 @@
                {{ ($selectedType ?? '') === 'Video' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">V</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Video</span>
+            </a>
+
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Copywriting']) }}"
+               class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
+               {{ ($selectedType ?? '') === 'Copywriting' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+                <span class="absolute transition-opacity duration-150 group-hover:opacity-0">C</span>
+                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Copy</span>
             </a>
         </div>
 
@@ -60,7 +68,7 @@
         const d = new Date(this.selected);
         return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
     }
-        
+
 }">
             <span class="text-xs font-medium text-[#9aa0a4]">Tanggal:</span>
 
@@ -148,10 +156,6 @@
         </div>
 
     </div>
-    {{-- CATATAN: tag
-</div> ekstra yang sebelumnya ada di sini (setelah filter, sebelum legenda)
-SUDAH DIHAPUS. Itu bug yang menutup <div x-data> lebih awal, sehingga tombol
-    "+N lainnya" di grid bawah tidak berfungsi karena berada di luar scope Alpine. --}}
 
     {{-- Legenda warna client --}}
     <div class="flex flex-wrap gap-3 mb-4">

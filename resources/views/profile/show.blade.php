@@ -82,10 +82,10 @@
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc] text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                     <tr>
-                        <th class="px-4 py-2.5 font-medium">Content Item</th>
-                        <th class="px-4 py-2.5 font-medium">Client</th>
-                        <th class="px-4 py-2.5 font-medium">Status</th>
-                        <th class="px-4 py-2.5 font-medium">Deadline</th>
+                        <th class="px-6 py-3 font-medium">Content Item</th>
+                        <th class="px-4 py-3 font-medium">Client</th>
+                        <th class="px-4 py-3 font-medium">Status</th>
+                        <th class="px-4 py-3 font-medium">Deadline</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,20 +93,22 @@
                         @php $item = $assignment->contentItem; @endphp
                         <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
                             onclick="window.location='{{ route('content-items.show', $item) }}'">
-                            <td class="px-4 py-3 font-medium text-[#14181a]">{{ $item->title }}</td>
-                            <td class="px-4 py-3 text-[#5c6266]">{{ $item->client->name ?? '-' }}</td>
-                            <td class="px-4 py-3">
-                                <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
-                                    {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
-                                </span>
-                                @if ($item->workflow->is_overdue)
-                                    <span class="text-xs text-[#b3423e] font-semibold ml-1">Overdue</span>
-                                @endif
+                            <td class="px-6 py-3.5 font-medium text-[#14181a]">{{ $item->title }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->client->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                                        {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
+                                    </span>
+                                    @if ($item->workflow->is_overdue)
+                                        <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#fdf2f1] text-[#b3423e]">Overdue</span>
+                                    @endif
+                                </div>
                             </td>
-                            <td class="px-4 py-3 text-[#5c6266] [font-variant-numeric:tabular-nums]">{{ $item->deadline_at->format('d M Y') }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->deadline_at->format('d M Y') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="px-4 py-6 text-center text-[#9aa0a4] text-sm">Belum ada task ditugaskan.</td></tr>
+                        <tr><td colspan="4" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada task ditugaskan.</td></tr>
                     @endforelse
                 </tbody>
             </table>

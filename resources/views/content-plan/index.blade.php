@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Content Plan Bulanan')
 @section('content')
-<div class="p-8 max-w-[1400px]">
+<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-8 max-w-[1400px]">
 
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
     <div class="flex items-center justify-between mb-6">
@@ -9,9 +9,9 @@
             <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Content Plan Bulanan</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
-        <a href="{{ route('content-plan.create') }}" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+        <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
-        </a>
+        </button>
     </div>
 
     @if (session('status'))
@@ -125,5 +125,70 @@
         <div class="mt-5">{{ $plans->links() }}</div>
 
     @endif
+
+    {{-- Modal Buat Content Plan Baru --}}
+    <div x-show="showCreateModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="absolute inset-0 bg-[#14181a]/40" @click="showCreateModal = false"></div>
+
+        <div x-show="showCreateModal" x-transition
+             class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                <h3 class="font-display text-lg font-semibold text-[#14181a]">Buat Content Plan Baru</h3>
+                <button type="button" @click="showCreateModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                    <span class="material-symbols-outlined text-[19px]">close</span>
+                </button>
+            </div>
+
+            <form action="{{ route('content-plan.store') }}" method="POST">
+                @csrf
+                <div class="px-6 py-5 space-y-4">
+                    @error('client_id')
+                        <div class="bg-[#fdf2f1] text-[#b3423e] text-xs p-3 rounded-lg">{{ $message }}</div>
+                    @enderror
+
+                    <div>
+                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Client <span class="text-[#b3423e]">*</span></label>
+                        <select name="client_id" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                            <option value="">Pilih client...</option>
+                            @foreach ($clientOptions as $c)
+                                <option value="{{ $c->id }}" {{ !$c->activePackage ? 'disabled' : '' }}>
+                                    {{ $c->name }} {{ !$c->activePackage ? '(belum ada paket aktif)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Bulan</label>
+                            <select name="month" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                                @foreach (range(1,12) as $m)
+                                    <option value="{{ $m }}" {{ now()->month === $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Tahun</label>
+                            <select name="year" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                                @foreach (range(now()->year - 1, now()->year + 1) as $y)
+                                    <option value="{{ $y }}" {{ now()->year === $y ? 'selected' : '' }}>{{ $y }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                    <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                        Buat Plan
+                    </button>
+                    <button type="button" @click="showCreateModal = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 @endsection

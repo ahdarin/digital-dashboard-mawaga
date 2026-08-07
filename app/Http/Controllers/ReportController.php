@@ -115,8 +115,7 @@ class ReportController extends Controller
             'file_path' => $path,
         ]);
 
-        return redirect()->route('report.index')
-            ->with('status', 'Laporan Excel berhasil dibuat, silakan unduh dari daftar di bawah.');
+        return \Storage::disk('public')->download($path, $filename);
     }
 
     // ================================================================
@@ -247,7 +246,6 @@ class ReportController extends Controller
             'file_path' => $path,
         ]);
 
-        return redirect()->route('report.index')
-            ->with('status', 'Laporan performa Excel berhasil dibuat, silakan unduh dari daftar di bawah.');
+        return \Storage::disk('public')->download($path, $filename);
     }
 }

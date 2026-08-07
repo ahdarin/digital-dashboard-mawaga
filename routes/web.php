@@ -127,8 +127,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
     Route::get('/content-plan/calendar', [ContentPlanController::class, 'calendar'])
     ->name('content-plan.calendar');
-    Route::get('/content-plan/create', [ContentPlanController::class, 'create'])
-    ->name('content-plan.create');
     Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
     Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
     Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');

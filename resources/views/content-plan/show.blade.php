@@ -93,7 +93,7 @@
                                 @php
                                     $typeColor = match ($item->contentType->name ?? null) {
                                         'Video' => '#3452a8',
-                                        'Desain' => '#b3427e',
+                                        'Design' => '#b3427e',
                                         default => '#9aa0a4',
                                     };
                                 @endphp
@@ -113,7 +113,7 @@
                             </td>
                             <td class="px-6 py-3.5">
                                 <span class="text-xs px-2 py-1 rounded-full {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
-                                    {{ \App\Support\WorkflowTransitions::label($item->workflow?->current_status ?? 'planned') }}
+                                    {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                                 </span>
                             </td>
                         </tr>
