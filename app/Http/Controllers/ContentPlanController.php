@@ -23,7 +23,7 @@ class ContentPlanController extends Controller
 
         $plans = ContentPlan::with(['client', 'clientPackage'])
             ->withCount('contentItems')
-            ->when($selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
+            ->when($selectedClientId, fn($q) => $q->where('client_id', $selectedClientId))
             ->where('month', $month)
             ->where('year', $year)
             ->latest()
@@ -31,18 +31,25 @@ class ContentPlanController extends Controller
             ->withQueryString();
 
         // Ringkasan target vs realisasi, digabung dari semua plan yang tampil
-        $targetContent = $plans->sum(fn ($p) => $p->clientPackage->monthly_content_quota ?? 0);
-        $targetDesign = $plans->sum(fn ($p) => $p->clientPackage->monthly_design_quota ?? 0);
+        $targetContent = $plans->sum(fn($p) => $p->clientPackage->monthly_content_quota ?? 0);
+        $targetDesign = $plans->sum(fn($p) => $p->clientPackage->monthly_design_quota ?? 0);
         $realizedContent = $plans->sum('content_items_count');
         $realizedDesign = ContentItem::whereIn('content_plan_id', $plans->pluck('id'))
-            ->whereHas('contentType', fn ($q) => $q->where('name', 'Design'))
+            ->whereHas('contentType', fn($q) => $q->where('name', 'Design'))
             ->count();
 
         $clientOptions = Client::where('status', 'active')->get();
 
         return view('content-plan.index', compact(
-            'plans', 'clientOptions', 'selectedClientId', 'month', 'year',
-            'targetContent', 'targetDesign', 'realizedContent', 'realizedDesign'
+            'plans',
+            'clientOptions',
+            'selectedClientId',
+            'month',
+            'year',
+            'targetContent',
+            'targetDesign',
+            'realizedContent',
+            'realizedDesign'
         ));
     }
 
@@ -127,6 +134,8 @@ class ContentPlanController extends Controller
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
             'pic_id' => 'nullable|exists:users,id',
+            'estimated_duration_seconds' => 'nullable|integer',
+            'estimated_slide_count' => 'nullable|integer',
         ]);
 
         $item = ContentItem::create([
@@ -138,16 +147,18 @@ class ContentPlanController extends Controller
             'title' => $validated['title'],
             'brief' => $validated['brief'] ?? null,
             'deadline_at' => Carbon::parse($validated['deadline_at']),
+            'estimated_duration_seconds' => $validated['estimated_duration_seconds'] ?? null,
+            'estimated_slide_count' => $validated['estimated_slide_count'] ?? null,
         ]);
 
         ContentWorkflow::create([
             'content_item_id' => $item->id,
             'current_pic_id' => $validated['pic_id'] ?? null,
-            'current_status' => 'planned',
+            'current_status' => 'brief_ready',
             'is_overdue' => false,
         ]);
 
-        if (! empty($validated['pic_id'])) {
+        if (!empty($validated['pic_id'])) {
             $item->assignments()->create([
                 'user_id' => $validated['pic_id'],
                 'assignment_role' => 'primary',
@@ -159,31 +170,36 @@ class ContentPlanController extends Controller
     }
 
     public function calendar(Request $request)
-{
-    $selectedClientId = $request->input('client_id');
-    $selectedTypeId = $request->input('content_type_id');
-    $month = (int) $request->input('month', now()->month);
-    $year = (int) $request->input('year', now()->year);
+    {
+        $selectedClientId = $request->input('client_id');
+        $selectedTypeId = $request->input('content_type_id');
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
 
-    $items = ContentItem::with(['client', 'contentType'])
-        ->whereMonth('deadline_at', $month)
-        ->whereYear('deadline_at', $year)
-        ->when($selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
-        ->when($selectedTypeId, fn ($q) => $q->where('content_type_id', $selectedTypeId))
-        ->orderBy('deadline_at')
-        ->get();
+        $items = ContentItem::with(['client', 'contentType'])
+            ->whereMonth('deadline_at', $month)
+            ->whereYear('deadline_at', $year)
+            ->when($selectedClientId, fn($q) => $q->where('client_id', $selectedClientId))
+            ->when($selectedTypeId, fn($q) => $q->where('content_type_id', $selectedTypeId))
+            ->orderBy('deadline_at')
+            ->get();
 
-    // date (Y-m-d) -> client_id -> Collection<ContentItem>
-    $itemsByDateClient = $items
-        ->groupBy(fn ($i) => $i->deadline_at->format('Y-m-d'))
-        ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
+        // date (Y-m-d) -> client_id -> Collection<ContentItem>
+        $itemsByDateClient = $items
+            ->groupBy(fn($i) => $i->deadline_at->format('Y-m-d'))
+            ->map(fn($dayItems) => $dayItems->groupBy('client_id'));
 
-    $clientOptions = Client::where('status', 'active')->get();
-    $typeOptions = ContentType::all();
+        $clientOptions = Client::where('status', 'active')->get();
+        $typeOptions = ContentType::all();
 
-    return view('content-plan.calendar', compact(
-        'itemsByDateClient', 'month', 'year',
-        'clientOptions', 'typeOptions', 'selectedClientId', 'selectedTypeId'
-    ));
-}
+        return view('content-plan.calendar', compact(
+            'itemsByDateClient',
+            'month',
+            'year',
+            'clientOptions',
+            'typeOptions',
+            'selectedClientId',
+            'selectedTypeId'
+        ));
+    }
 }

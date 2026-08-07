@@ -97,6 +97,7 @@
                         <th class="px-4 py-3">Overdue</th>
                         <th class="px-4 py-3">Selesai Bulan Ini</th>
                         <th class="px-4 py-3">Jumlah Revisi</th>
+                        <th class="px-4 py-3">Avg. Delay Risk</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -129,6 +130,15 @@
                             </td>
                             <td class="px-4 py-3 text-gray-600">{{ $m['done_count'] }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $m['revision_count'] }}</td>
+                            <td class="px-4 py-3">
+                                @if ($m['avg_risk_score'] !== null)
+                                    <span class="text-xs font-semibold {{ $m['avg_risk_score'] >= 70 ? 'text-rose-600' : ($m['avg_risk_score'] >= 40 ? 'text-amber-600' : 'text-emerald-600') }}">
+                                        {{ $m['avg_risk_score'] }}%
+                                    </span>
+                                @else
+                                    <span class="text-xs text-gray-300">-</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
