@@ -23,12 +23,8 @@
 
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[19px]">search</span>
-                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-64" placeholder="Search tasks..." type="text">
+                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-64" placeholder="Cari konten..." type="text">
             </div>
-
-            <!-- <a href="#" class="bg-[#044b46] text-white text-sm font-medium px-4 h-[40px] rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-2">
-                <span class="material-symbols-outlined text-[17px]">add</span> New Task
-            </a> -->
         </div>
     </header>
 

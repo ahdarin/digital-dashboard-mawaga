@@ -5,7 +5,7 @@
         $firstDayOfWeek = \Carbon\Carbon::create($year, $month, 1)->dayOfWeek;
         $maxVisibleClients = 1;
 
-        $typeBadge = fn (?string $typeName) => match ($typeName) {
+        $typeBadge = fn(?string $typeName) => match ($typeName) {
             'Video' => 'V',
             'Design' => 'D',
             'Copywriting' => 'C',
@@ -32,33 +32,30 @@
         <div class="flex items-center gap-2">
             <span class="text-xs font-medium text-[#9aa0a4]">Tipe:</span>
 
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
                {{ ($selectedType ?? 'all') === 'all' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 Semua
             </a>
 
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Design']) }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Design']) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
                {{ ($selectedType ?? '') === 'Design' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 D
             </a>
 
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
                {{ ($selectedType ?? '') === 'Video' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 V
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Copywriting']) }}"
-               class="px-3 py-1.5 rounded-lg text-xs font-medium
+                class="px-3 py-1.5 rounded-lg text-xs font-medium
                {{ ($selectedType ?? '') === 'Copywriting' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 C
             </a>
         </div>
 
         {{-- Filter tanggal — popup dengan dropdown bulan & tahun, ganti langsung tanpa navigasi panah --}}
-<div class="flex items-center gap-2" x-data="{
+        <div class="flex items-center gap-2" x-data="{
     open: false,
     selected: @js($selectedDate),
     get displayLabel() {
@@ -68,93 +65,103 @@
     }
         
 }">
-    <span class="text-xs font-medium text-[#9aa0a4]">Tanggal:</span>
+            <span class="text-xs font-medium text-[#9aa0a4]">Tanggal:</span>
 
-    <div class="relative">
-        <button type="button" x-on:click="open = !open"
-                class="flex items-center gap-2 border border-[#eef0f4] rounded-lg px-3 py-1.5 text-xs bg-white hover:border-[#044b46]/40 min-w-[130px]">
-            <span class="material-symbols-outlined text-[15px] text-[#9aa0a4]">calendar_today</span>
-            <span class="text-[#14181a]" x-text="displayLabel"></span>
-        </button>
+            <div class="relative">
+                <button type="button" x-on:click="open = !open"
+                    class="flex items-center gap-2 border border-[#eef0f4] rounded-lg px-3 py-1.5 text-xs bg-white hover:border-[#044b46]/40 min-w-[130px]">
+                    <span class="material-symbols-outlined text-[15px] text-[#9aa0a4]">calendar_today</span>
+                    <span class="text-[#14181a]" x-text="displayLabel"></span>
+                </button>
 
-        <div x-show="open" x-cloak x-on:click.outside="open = false" x-transition
-             class="absolute z-20 mt-2 w-72 bg-white rounded-xl border border-[#eef0f4] shadow-lg p-4">
+                <div x-show="open" x-cloak x-on:click.outside="open = false" x-transition
+                    class="absolute z-20 mt-2 w-72 bg-white rounded-xl border border-[#eef0f4] shadow-lg p-4">
 
-            {{-- Dropdown bulan & tahun — ganti langsung, tanpa navigasi panah --}}
-            <form method="GET" class="flex items-center gap-2 mb-3">
-                <input type="hidden" name="view" value="calendar">
-                <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-                <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
+                    {{-- Dropdown bulan & tahun — ganti langsung, tanpa navigasi panah --}}
+                    <form method="GET" class="flex items-center gap-2 mb-3">
+                        <input type="hidden" name="view" value="calendar">
+                        <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                        <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
 
-                <select name="month" onchange="this.form.submit()"
-                        class="flex-1 border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
-                    @foreach (range(1,12) as $m)
-                        <option value="{{ $m }}" {{ $month === $m ? 'selected' : '' }}>
-                            {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
-                        </option>
-                    @endforeach
-                </select>
+                        <select name="month" onchange="this.form.submit()"
+                            class="flex-1 border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
+                            @foreach (range(1, 12) as $m)
+                                <option value="{{ $m }}" {{ $month === $m ? 'selected' : '' }}>
+                                    {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                                </option>
+                            @endforeach
+                        </select>
 
-                <select name="year" onchange="this.form.submit()"
-                        class="border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
-                    @foreach (range(now()->year - 2, now()->year + 2) as $y)
-                        <option value="{{ $y }}" {{ $year === $y ? 'selected' : '' }}>{{ $y }}</option>
-                    @endforeach
-                </select>
-            </form>
+                        <select name="year" onchange="this.form.submit()"
+                            class="border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
+                            @foreach (range(now()->year - 2, now()->year + 2) as $y)
+                                <option value="{{ $y }}" {{ $year === $y ? 'selected' : '' }}>{{ $y }}</option>
+                            @endforeach
+                        </select>
+                    </form>
 
-            {{-- Grid tanggal untuk bulan/tahun yang sedang aktif --}}
-            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[#9aa0a4] uppercase mb-1.5">
-                <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                    {{-- Grid tanggal untuk bulan/tahun yang sedang aktif --}}
+                    <div
+                        class="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[#9aa0a4] uppercase mb-1.5">
+                        <div>Su</div>
+                        <div>Mo</div>
+                        <div>Tu</div>
+                        <div>We</div>
+                        <div>Th</div>
+                        <div>Fr</div>
+                        <div>Sa</div>
+                    </div>
+
+                    <form method="GET" id="dateForm">
+                        <input type="hidden" name="view" value="calendar">
+                        <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                        <input type="hidden" name="month" value="{{ $month }}">
+                        <input type="hidden" name="year" value="{{ $year }}">
+                        <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
+                        <input type="hidden" name="date" id="dateHiddenInput" value="{{ $selectedDate }}">
+
+                        @php
+                            $daysInMonthPopup = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
+                            $firstDayOfWeekPopup = \Carbon\Carbon::create($year, $month, 1)->dayOfWeek;
+                        @endphp
+
+                        <div class="grid grid-cols-7 gap-1">
+                            @for ($i = 0; $i < $firstDayOfWeekPopup; $i++)
+                                <div></div>
+                            @endfor
+                            @for ($d = 1; $d <= $daysInMonthPopup; $d++)
+                                @php $optionDate = \Carbon\Carbon::create($year, $month, $d)->format('Y-m-d'); @endphp
+                                <button type="submit" name="date" value="{{ $optionDate }}"
+                                    class="w-8 h-8 rounded-lg text-xs flex items-center justify-center hover:bg-[#f0f5f4]
+                                            {{ $selectedDate === $optionDate ? 'bg-[#044b46] text-white font-semibold' : 'text-[#14181a]' }}">
+                                    {{ $d }}
+                                </button>
+                            @endfor
+                        </div>
+
+                        <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#eef0f4]">
+                            <button type="submit" name="date" value=""
+                                class="text-xs font-medium text-[#5c6266] hover:underline">Clear</button>
+                            <button type="submit" name="date" value="{{ now()->format('Y-m-d') }}"
+                                class="text-xs font-medium text-[#044b46] hover:underline">Hari ini</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-
-            <form method="GET" id="dateForm">
-                <input type="hidden" name="view" value="calendar">
-                <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-                <input type="hidden" name="month" value="{{ $month }}">
-                <input type="hidden" name="year" value="{{ $year }}">
-                <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
-                <input type="hidden" name="date" id="dateHiddenInput" value="{{ $selectedDate }}">
-
-                @php
-                    $daysInMonthPopup = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
-                    $firstDayOfWeekPopup = \Carbon\Carbon::create($year, $month, 1)->dayOfWeek;
-                @endphp
-
-                <div class="grid grid-cols-7 gap-1">
-                    @for ($i = 0; $i < $firstDayOfWeekPopup; $i++)
-                        <div></div>
-                    @endfor
-                    @for ($d = 1; $d <= $daysInMonthPopup; $d++)
-                        @php $optionDate = \Carbon\Carbon::create($year, $month, $d)->format('Y-m-d'); @endphp
-                        <button type="submit" name="date" value="{{ $optionDate }}"
-                                class="w-8 h-8 rounded-lg text-xs flex items-center justify-center hover:bg-[#f0f5f4]
-                                {{ $selectedDate === $optionDate ? 'bg-[#044b46] text-white font-semibold' : 'text-[#14181a]' }}">
-                            {{ $d }}
-                        </button>
-                    @endfor
-                </div>
-
-                <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#eef0f4]">
-                    <button type="submit" name="date" value="" class="text-xs font-medium text-[#5c6266] hover:underline">Clear</button>
-                    <button type="submit" name="date" value="{{ now()->format('Y-m-d') }}" class="text-xs font-medium text-[#044b46] hover:underline">Hari ini</button>
-                </div>
-            </form>
         </div>
-    </div>
-</div>
 
     </div>
-    {{-- CATATAN: tag </div> ekstra yang sebelumnya ada di sini (setelah filter, sebelum legenda)
-         SUDAH DIHAPUS. Itu bug yang menutup <div x-data> lebih awal, sehingga tombol
-         "+N lainnya" di grid bawah tidak berfungsi karena berada di luar scope Alpine. --}}
+    {{-- CATATAN: tag
+</div> ekstra yang sebelumnya ada di sini (setelah filter, sebelum legenda)
+SUDAH DIHAPUS. Itu bug yang menutup <div x-data> lebih awal, sehingga tombol
+    "+N lainnya" di grid bawah tidak berfungsi karena berada di luar scope Alpine. --}}
 
     {{-- Legenda warna client --}}
     <div class="flex flex-wrap gap-3 mb-4">
         @foreach ($clientOptions as $c)
             <span class="flex items-center gap-1.5 text-xs text-[#5c6266]">
                 <span class="w-2.5 h-2.5 rounded-full"
-                      style="background-color: {{ $c->color ?? $fallbackColor($c->id) }}"></span>
+                    style="background-color: {{ $c->color ?? $fallbackColor($c->id) }}"></span>
                 {{ $c->name }}
             </span>
         @endforeach
@@ -162,7 +169,7 @@
 
     <div class="card p-5">
         <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#9aa0a4] uppercase mb-2">
-            @foreach (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] as $d)
+            @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $d)
                 <div>{{ $d }}</div>
             @endforeach
         </div>
@@ -191,16 +198,17 @@
                         @endphp
 
                         @foreach ($clientItems as $item)
-                            <a href="{{ route('production-workflow.show', $item) }}"
-                               class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1 hover:opacity-80 transition-opacity"
-                               style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
+                            <a href="{{ route('content-items.show', $item) }}"
+                                class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1 hover:opacity-80 transition-opacity"
+                                style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
 
                                 <span class="text-[11px] font-semibold truncate" style="color: {{ $color }}">
                                     {{ $client->name }}
                                 </span>
 
-                                <span class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-                                      style="background-color: {{ $color }}">
+                                <span
+                                    class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+                                    style="background-color: {{ $color }}">
                                     {{ $typeBadge($item->contentType->name ?? null) }}
                                 </span>
                             </a>
@@ -209,17 +217,15 @@
 
                     @if ($overflowCount > 0)
                         <button type="button"
-                                x-on:click="expandedDate = (expandedDate === '{{ $dateKey }}' ? null : '{{ $dateKey }}')"
-                                class="text-[11px] font-medium text-[#044b46] text-left hover:underline mt-0.5">
+                            x-on:click="expandedDate = (expandedDate === '{{ $dateKey }}' ? null : '{{ $dateKey }}')"
+                            class="text-[11px] font-medium text-[#044b46] text-left hover:underline mt-0.5">
                             <span x-show="expandedDate !== '{{ $dateKey }}'">+{{ $overflowCount }} lainnya</span>
                             <span x-show="expandedDate === '{{ $dateKey }}'" x-cloak>Sembunyikan</span>
                         </button>
                     @endif
 
-                    <div x-show="expandedDate === '{{ $dateKey }}'"
-                         x-cloak
-                         x-transition
-                         class="mt-1 pt-1.5 border-t border-[#eef0f4] flex flex-col gap-1">
+                    <div x-show="expandedDate === '{{ $dateKey }}'" x-cloak x-transition
+                        class="mt-1 pt-1.5 border-t border-[#eef0f4] flex flex-col gap-1">
 
                         @foreach ($clientGroups as $clientId => $clientItems)
                             @php
@@ -228,16 +234,17 @@
                             @endphp
 
                             @foreach ($clientItems as $item)
-                                <a href="{{ route('production-workflow.show', $item) }}"
-                                   class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1 hover:opacity-80 transition-opacity"
-                                   style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
+                                <a href="{{ route('content-items.show', $item) }}"
+                                    class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1 hover:opacity-80 transition-opacity"
+                                    style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
 
                                     <span class="text-[11px] font-semibold truncate" style="color: {{ $color }}">
                                         {{ $client->name }}
                                     </span>
 
-                                    <span class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-                                          style="background-color: {{ $color }}">
+                                    <span
+                                        class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+                                        style="background-color: {{ $color }}">
                                         {{ $typeBadge($item->contentType->name ?? null) }}
                                     </span>
                                 </a>

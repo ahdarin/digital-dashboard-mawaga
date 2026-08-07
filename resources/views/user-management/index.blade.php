@@ -2,7 +2,7 @@
 @section('title', 'User Management')
 @section('content')
 
-<div x-data="{ openAssign: null }" class="p-8 max-w-[1400px]">
+<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null }" class="p-8 max-w-[1400px]">
 
     <div class="flex items-center justify-between mb-7">
         <div>
@@ -77,21 +77,15 @@
                                 </button>
 
                                 @if ($user->status === 'inactive')
-                                    <form action="{{ route('user-management.activate', $user) }}" method="POST"
-                                          onsubmit="return confirm('Aktifkan kembali {{ $user->name }}?')">
-                                        @csrf @method('PATCH')
-                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f0f5f4] hover:text-[#0f7a5f] transition-colors" title="Aktifkan">
-                                            <span class="material-symbols-outlined text-[17px]">restart_alt</span>
-                                        </button>
-                                    </form>
+                                    <button type="button" @click="confirmActivate = {{ $user->id }}"
+                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f0f5f4] hover:text-[#0f7a5f] transition-colors" title="Aktifkan">
+                                        <span class="material-symbols-outlined text-[17px]">restart_alt</span>
+                                    </button>
                                 @else
-                                    <form action="{{ route('user-management.destroy', $user) }}" method="POST"
-                                          onsubmit="return confirm('Nonaktifkan {{ $user->name }}?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Nonaktifkan">
-                                            <span class="material-symbols-outlined text-[17px]">toggle_off</span>
-                                        </button>
-                                    </form>
+                                    <button type="button" @click="confirmDeactivate = {{ $user->id }}"
+                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Nonaktifkan">
+                                        <span class="material-symbols-outlined text-[17px]">toggle_off</span>
+                                    </button>
                                 @endif
                             </div>
                         </td>
@@ -143,6 +137,80 @@
                                             Simpan
                                         </button>
                                         <button type="button" @click="openAssign = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                                            Batal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Modal Konfirmasi Nonaktifkan --}}
+                    <template x-teleport="body">
+                        <div x-show="confirmDeactivate === {{ $user->id }}" x-cloak
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                            <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmDeactivate = null"></div>
+
+                            <div x-show="confirmDeactivate === {{ $user->id }}" x-transition
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                                    <div>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Nonaktifkan User</h3>
+                                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                    </div>
+                                    <button type="button" @click="confirmDeactivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                                        <span class="material-symbols-outlined text-[19px]">close</span>
+                                    </button>
+                                </div>
+
+                                <div class="px-6 py-5">
+                                    <p class="text-sm text-[#5c6266]">Yakin ingin menonaktifkan <strong class="text-[#14181a]">{{ $user->name }}</strong>? User tidak akan bisa login sampai diaktifkan kembali.</p>
+                                </div>
+
+                                <form action="{{ route('user-management.destroy', $user) }}" method="POST">
+                                    @csrf @method('DELETE')
+                                    <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                                        <button type="submit" class="bg-[#b3423e] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#9c3733] transition-colors">
+                                            Ya, Nonaktifkan
+                                        </button>
+                                        <button type="button" @click="confirmDeactivate = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                                            Batal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+
+                    {{-- Modal Konfirmasi Aktifkan --}}
+                    <template x-teleport="body">
+                        <div x-show="confirmActivate === {{ $user->id }}" x-cloak
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                            <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmActivate = null"></div>
+
+                            <div x-show="confirmActivate === {{ $user->id }}" x-transition
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                                    <div>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Aktifkan User</h3>
+                                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                    </div>
+                                    <button type="button" @click="confirmActivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                                        <span class="material-symbols-outlined text-[19px]">close</span>
+                                    </button>
+                                </div>
+
+                                <div class="px-6 py-5">
+                                    <p class="text-sm text-[#5c6266]">Aktifkan kembali <strong class="text-[#14181a]">{{ $user->name }}</strong>? User akan bisa login kembali seperti biasa.</p>
+                                </div>
+
+                                <form action="{{ route('user-management.activate', $user) }}" method="POST">
+                                    @csrf @method('PATCH')
+                                    <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                                        <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                                            Ya, Aktifkan
+                                        </button>
+                                        <button type="button" @click="confirmActivate = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
                                             Batal
                                         </button>
                                     </div>
