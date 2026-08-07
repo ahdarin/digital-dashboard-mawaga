@@ -33,10 +33,48 @@ class SettingsController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $integrations = $this->buildIntegrationStatus();
+        $clientOptions = Client::where('status', 'active')->get();
 
-        $platforms = Platform::all();
+        // Status koneksi service pihak ketiga yang dipakai sistem (bukan
+        // per-client platform kayak $integrations di atas, ini level
+        // aplikasi) - sebelumnya nggak kelihatan sama sekali di Settings,
+        // padahal AI Strategy Analysis (Gemini), login client (Fonnte
+        // WhatsApp), dan login tim internal (Google) semuanya bergantung
+        // ke sini. Dicek dari config, bukan nge-tes koneksi beneran (biar
+        // nggak ngirim request tiap kali halaman Settings dibuka).
+        $systemConnections = [
+            [
+                'label' => 'Google Sign-In',
+                'description' => 'Login tim internal',
+                'icon' => 'admin_panel_settings',
+                'connected' => filled(config('services.google.client_id')) && filled(config('services.google.client_secret')),
+            ],
+            [
+                'label' => 'WhatsApp (Fonnte)',
+                'description' => 'Kirim link login client',
+                'icon' => 'chat',
+                'connected' => filled(config('services.fonnte.token')),
+            ],
+            [
+                'label' => 'Gemini AI',
+                'description' => 'AI Strategy Analysis',
+                'icon' => 'auto_awesome',
+                'connected' => filled(config('services.gemini.api_key')),
+            ],
+        ];
 
-        $integrations = $platforms->map(function ($platform) {
+        return view('settings.index', compact('user', 'integrations', 'clientOptions', 'systemConnections'));
+    }
+
+    /**
+     * Status koneksi API per platform - dipakai bareng sama index() dan
+     * integrationsPage(), biar nggak ada 2 salinan logic yang bisa
+     * kebablasan beda pas salah satunya diubah.
+     */
+    private function buildIntegrationStatus()
+    {
+        return Platform::all()->map(function ($platform) {
             $integration = ApiIntegration::where('platform_id', $platform->id)
                 ->where('status', 'active')
                 ->latest()
@@ -49,10 +87,6 @@ class SettingsController extends Controller
                 'updated_at' => $integration->updated_at ?? null,
             ];
         });
-
-        $clientOptions = Client::where('status', 'active')->get();
-
-        return view('settings.index', compact('user', 'integrations', 'clientOptions'));
     }
 
     /**
@@ -84,7 +118,7 @@ class SettingsController extends Controller
         $syncLog = AnalyticsSyncLog::create([
             'client_id' => $client->id,
             'imported_by' => auth()->id(),
-            'source_type' => 'csv_import',
+            'source_type' => 'performance_csv_import',
             'status' => 'pending',
         ]);
 
@@ -219,21 +253,7 @@ class SettingsController extends Controller
      */
     public function integrationsPage(Request $request)
     {
-        $platforms = Platform::all();
-
-        $integrations = $platforms->map(function ($platform) {
-            $integration = ApiIntegration::where('platform_id', $platform->id)
-                ->where('status', 'active')
-                ->latest()
-                ->first();
-
-            return [
-                'platform' => $platform->name,
-                'connected' => (bool) $integration,
-                'integration_name' => $integration->integration_name ?? null,
-                'updated_at' => $integration->updated_at ?? null,
-            ];
-        });
+        $integrations = $this->buildIntegrationStatus();
 
         $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))

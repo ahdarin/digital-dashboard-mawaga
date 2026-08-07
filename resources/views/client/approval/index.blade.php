@@ -4,41 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>523 Studio | Approval Queue</title>
+
+    <link rel="icon" href="{{ asset('images/logo.png') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #f7f8fc; color: #14181a; }
+        .font-display { font-family: 'Fraunces', serif; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen">
 
-    <header class="bg-white border-b border-gray-100 px-5 py-4 sticky top-0 z-10">
-        <h1 class="text-lg font-bold text-gray-900">523 Studio</h1>
-        <p class="text-xs text-gray-400">Approval Queue</p>
+    <header class="bg-white border-b border-[#eef0f4] px-5 py-4 sticky top-0 z-10 flex items-center gap-2.5">
+        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto">
+        <div>
+            <h1 class="font-display text-base font-semibold text-[#14181a] leading-tight">523 Studio</h1>
+            <p class="text-xs text-[#9aa0a4] leading-tight">Approval Queue</p>
+        </div>
     </header>
 
     <div class="p-5">
         @if (session('status'))
-            <div class="bg-teal-50 text-[#0d8276] text-sm p-3 rounded-xl mb-4">{{ session('status') }}</div>
+            <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-xl mb-4 font-medium">{{ session('status') }}</div>
         @endif
 
-        <p class="text-sm text-gray-500 mb-4">{{ $items->count() }} konten menunggu persetujuan Anda</p>
+        <p class="text-sm text-[#5c6266] mb-4">{{ $items->count() }} konten menunggu persetujuan Anda</p>
 
         <div class="space-y-3">
             @forelse ($items as $item)
                 <a href="{{ route('client.approval.show', $item) }}"
-                   class="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+                   class="block bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded uppercase">Waiting Review</span>
-                        <span class="text-[10px] text-gray-400">Due: {{ $item->deadline_at->format('d M') }}</span>
+                        <span class="text-[10px] font-bold text-[#b8873a] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Waiting Review</span>
+                        <span class="text-[10px] text-[#9aa0a4]">Due: {{ $item->deadline_at->format('d M') }}</span>
                     </div>
-                    <p class="text-sm font-bold text-gray-900">{{ $item->title }}</p>
-                    <p class="text-xs text-gray-400 mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
+                    <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
+                    <p class="text-xs text-[#9aa0a4] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
                 </a>
             @empty
                 <div class="text-center py-16">
-                    <p class="text-sm text-gray-400">Tidak ada konten yang perlu ditinjau saat ini.</p>
+                    <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang perlu ditinjau saat ini.</p>
                 </div>
             @endforelse
         </div>

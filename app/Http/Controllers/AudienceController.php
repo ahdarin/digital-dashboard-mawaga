@@ -19,84 +19,15 @@ use Illuminate\Support\Carbon;
  */
 class AudienceController extends Controller
 {
+    /**
+     * URL lama /audience - sekarang cuma alias, kontennya udah gabung
+     * jadi tab "Audience" di halaman Analytics utama (lihat
+     * AnalyticsController::index() + buildAudienceTabData()) biar client
+     * yang lagi dipilih di Analytics nggak ke-reset pas pindah ke sini.
+     */
     public function index(Request $request)
     {
-        $clientOptions = Client::where('status', 'active')->get();
-        $selectedClientId = $request->input('client_id');
-
-        if (! $selectedClientId) {
-            return view('audience.index', [
-                'noClientSelected' => true,
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => null,
-            ]);
-        }
-
-        $client = Client::findOrFail($selectedClientId);
-
-        $platforms = Platform::whereHas('audienceInsights', fn ($q) => $q->where('client_id', $client->id))->get();
-
-        // Kalau client belum punya insight sama sekali di platform manapun
-        if ($platforms->isEmpty()) {
-            return view('audience.index', [
-                'noInsightData' => true,
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => $selectedClientId,
-                'client' => $client,
-            ]);
-        }
-
-        $selectedPlatformId = $request->input('platform_id', $platforms->first()->id);
-        $platform = $platforms->firstWhere('id', (int) $selectedPlatformId) ?? $platforms->first();
-
-        $period = (int) $request->input('period', 30);
-        $period = in_array($period, [7, 30, 90]) ? $period : 30;
-
-        // Snapshot terbaru -> buat gender/usia/lokasi/jam aktif (data breakdown
-        // sifatnya "kondisi saat ini", bukan historis harian)
-        $latestSnapshot = AudienceInsight::where('client_id', $client->id)
-            ->where('platform_id', $platform->id)
-            ->latest('snapshot_date')
-            ->first();
-
-        // Histori followers -> buat trend chart growth
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
-        $history = AudienceInsight::where('client_id', $client->id)
-            ->where('platform_id', $platform->id)
-            ->where('snapshot_date', '>=', $start)
-            ->orderBy('snapshot_date')
-            ->get();
-
-        $followerTrend = $history->map(fn ($row) => [
-            'label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'),
-            'value' => (int) $row->follower_count,
-        ])->values();
-
-        $firstCount = $history->first()->follower_count ?? 0;
-        $lastCount = $history->last()->follower_count ?? ($latestSnapshot->follower_count ?? 0);
-        $growth = $firstCount > 0 ? round((($lastCount - $firstCount) / $firstCount) * 100, 1) : null;
-
-        $genderBreakdown = $latestSnapshot->gender_breakdown ?? [];
-        $ageBreakdown = $latestSnapshot->age_breakdown ?? [];
-        $topLocations = collect($latestSnapshot->top_locations ?? [])->sortByDesc('percentage')->values();
-
-        // Jam aktif: key jam (0-23) -> value, disiapkan buat bar chart 24 kolom
-        $activeHoursRaw = $latestSnapshot->active_hours ?? [];
-        $activeHours = collect(range(0, 23))->map(function ($hour) use ($activeHoursRaw) {
-            return [
-                'label' => str_pad($hour, 2, '0', STR_PAD_LEFT).':00',
-                'value' => (int) ($activeHoursRaw[$hour] ?? $activeHoursRaw[(string) $hour] ?? 0),
-            ];
-        });
-        $peakHour = $activeHours->sortByDesc('value')->first();
-
-        return view('audience.index', compact(
-            'client', 'clientOptions', 'selectedClientId',
-            'platforms', 'platform', 'selectedPlatformId', 'period',
-            'latestSnapshot', 'followerTrend', 'growth', 'lastCount',
-            'genderBreakdown', 'ageBreakdown', 'topLocations',
-            'activeHours', 'peakHour'
-        ));
+        return redirect()->route('analytics', array_merge(['tab' => 'audience'], $request->query()));
     }
 
     /**
@@ -132,7 +63,7 @@ class AudienceController extends Controller
         $syncLog = \App\Models\AnalyticsSyncLog::create([
             'client_id' => $client->id,
             'imported_by' => auth()->id(),
-            'source_type' => 'csv_import',
+            'source_type' => 'audience_csv_import',
             'status' => 'pending',
         ]);
 

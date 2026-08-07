@@ -12,9 +12,14 @@ class ProductionWorkflowController extends Controller
 {
     // Urutan kolom board, harus konsisten dipakai di view juga
     private array $statuses = [
-        'brief_ready', 'in_progress', 'waiting_review', 
-        'revision', 'approved', 'scheduled', 
-        'uploaded', 'cancelled',
+        'brief_ready',
+        'in_progress',
+        'waiting_review',
+        'revision',
+        'approved',
+        'scheduled',
+        'uploaded',
+        'cancelled',
     ];
 
     public function index(Request $request)
@@ -22,10 +27,13 @@ class ProductionWorkflowController extends Controller
         $user = $request->user();
 
         $itemsQuery = ContentItem::with([
-                'client', 'contentType', 'platform',
-                'workflow.currentPic',
-                'assignments.user',
-            ])
+            'client',
+            'contentType',
+            'platform',
+            'workflow.currentPic',
+            'assignments.user',
+            'latestDelayRisk',
+        ])
             ->whereHas('workflow');
 
         // Batasi hanya client yang di-assign, kecuali CEO/Admin
@@ -39,7 +47,7 @@ class ProductionWorkflowController extends Controller
             $itemsQuery->where('client_id', $request->input('client_id'));
         }
 
-        $items = $itemsQuery->get()->groupBy(fn ($item) => $item->workflow->current_status);
+        $items = $itemsQuery->get()->groupBy(fn($item) => $item->workflow->current_status);
 
         $board = [];
         foreach ($this->statuses as $status) {
@@ -99,13 +107,16 @@ class ProductionWorkflowController extends Controller
     public function show(ContentItem $contentItem)
     {
         $contentItem->load([
-            'client', 'contentType', 'platform',
+            'client',
+            'contentType',
+            'platform',
             'workflow.currentPic',
             'assignments.user',
             'statusLogs.changedBy',
             'revisions.requestedBy',
             'publications.platform',
             'publications.publishedBy',
+            'delayRiskScores' => fn($q) => $q->latest()->limit(5),
         ]);
 
         return view('production-workflow.show', compact('contentItem'));

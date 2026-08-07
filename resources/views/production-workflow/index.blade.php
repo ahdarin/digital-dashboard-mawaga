@@ -68,6 +68,21 @@
                                         <span class="material-symbols-outlined text-[12px]">warning</span> Overdue
                                     </span>
                                 @endif
+                                @if ($item->latestDelayRisk)
+                                    @php
+                                        $riskColors = [
+                                            'high' => ['bg' => '#fdf2f1', 'text' => '#b3423e'],
+                                            'medium' => ['bg' => '#fdf6ec', 'text' => '#8a6423'],
+                                            'low' => ['bg' => '#f0f5f4', 'text' => '#0f7a5f'],
+                                        ];
+                                        $riskColor = $riskColors[$item->latestDelayRisk->risk_level] ?? $riskColors['low'];
+                                    @endphp
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-1"
+                                        style="background-color: {{ $riskColor['bg'] }}; color: {{ $riskColor['text'] }};"
+                                        title="{{ $item->latestDelayRisk->top_factor }}">
+                                        {{ $item->latestDelayRisk->risk_score }}% Risk
+                                    </span>
+                                @endif
                             </div>
                             <h4 class="text-sm font-semibold text-[#14181a] mb-1">{{ $item->title }}</h4>
                             <p class="text-xs text-[#9aa0a4] mb-3">{{ $item->client->name ?? '-' }}</p>

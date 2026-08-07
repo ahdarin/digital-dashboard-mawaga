@@ -1,0 +1,13 @@
+# Dependencies buat predict_batch.py (dipanggil dari DelayRiskPredictionService
+# lewat `python3 predict_batch.py`). Install dengan:
+#
+#   python3 -m pip install -r storage/ai/delay_risk/requirements.txt
+#
+# scikit-learn WAJIB persis 1.6.1 - delay_risk_model.pkl dilatih pakai versi
+# ini, dan joblib.load() gagal (AttributeError: _RemainderColsList) kalau
+# di-load pakai scikit-learn versi lain (format pickle internal ColumnTransformer
+# berubah antar versi). Kalau model di-retrain pakai versi scikit-learn baru,
+# angka ini WAJIB diupdate ikut versi training yang baru.
+scikit-learn==1.6.1
+joblib==1.5.3
+pandas==3.0.5
