@@ -84,6 +84,10 @@ class ContentItem extends Model
     {
         return $this->hasMany(DelayRiskScore::class);
     }
+    public function contentBriefDraft()
+    {
+        return $this->hasOne(ContentBriefDraft::class);
+    }
     public function latestDelayRisk()
     {
         return $this->hasOne(DelayRiskScore::class)->latestOfMany();

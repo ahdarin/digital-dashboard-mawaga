@@ -592,7 +592,7 @@ PROMPT;
     {
         $names = ContentType::pluck('name');
 
-        return $names->isNotEmpty() ? $names->implode(', ') : 'Design, Video, Copywriting, Carousel';
+        return $names->isNotEmpty() ? $names->implode(', ') : 'Video, Desain';
     }
 
     /**

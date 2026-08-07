@@ -4,7 +4,8 @@
 <div class="p-8 max-w-2xl">
 
     <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('content-plan.show', $contentPlan) }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266]">
+        <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali ke Content Plan"
+           class="w-9 h-9 flex items-center justify-center rounded-lg border border-[#eef0f4] text-[#5c6266]">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <div>
@@ -94,7 +95,7 @@
                     <option value="3" {{ (string) old('estimated_slide_count') === '3' ? 'selected' : '' }}>Beberapa (2-4 slide)</option>
                     <option value="6" {{ (string) old('estimated_slide_count') === '6' ? 'selected' : '' }}>Banyak (5+ slide)</option>
                 </select>
-                <p class="text-[11px] text-[#9aa0a4] mt-1">Isi kalau jenis kontennya Feed/Carousel - dipakai buat hitung skor Delay Risk.</p>
+                <p class="text-[11px] text-[#9aa0a4] mt-1">Isi kalau jenis kontennya Desain - dipakai buat hitung skor Delay Risk.</p>
             </div>
         </div>
 

@@ -36,7 +36,7 @@ class ContentPlanController extends Controller
         $targetDesign = $plans->sum(fn ($p) => $p->clientPackage->monthly_design_quota ?? 0);
         $realizedContent = $plans->sum('content_items_count');
         $realizedDesign = ContentItem::whereIn('content_plan_id', $plans->pluck('id'))
-            ->whereHas('contentType', fn ($q) => $q->where('name', 'Design'))
+            ->whereHas('contentType', fn ($q) => $q->where('name', 'Desain'))
             ->count();
 
         $clientOptions = Client::where('status', 'active')->get();
@@ -49,7 +49,7 @@ class ContentPlanController extends Controller
 
         if ($view === 'calendar') {
 
-            $allowedTypes = ['Design', 'Video', 'Copywriting'];
+            $allowedTypes = ['Video', 'Desain'];
 
             $calendarItems = ContentItem::with(['client', 'contentType'])
                 ->whereMonth('deadline_at', $month)
@@ -142,13 +142,38 @@ class ContentPlanController extends Controller
         $contentPlan->load(['client', 'clientPackage', 'creator', 'approver']);
 
         $items = $contentPlan->contentItems()
-            ->with(['contentType', 'platform', 'workflow', 'assignments.user'])
+            ->with(['contentType', 'platform', 'workflow', 'assignments.user', 'client'])
             ->orderBy('deadline_at')
             ->get();
 
         $view = $request->input('view', 'table'); // table | calendar
 
-        return view('content-plan.show', compact('contentPlan', 'items', 'view'));
+        // Sama desainnya kayak kalender utama (content-plan.index) - pakai
+        // partial calendar-grid yang sama biar tidak dobel maintenance.
+        $month = (int) $request->input('month', $contentPlan->month);
+        $year = (int) $request->input('year', $contentPlan->year);
+        $selectedType = $request->input('type', 'all');
+        $selectedDate = $request->input('date');
+        $selectedClientId = $contentPlan->client_id;
+        $clientOptions = collect([$contentPlan->client]);
+        $itemsByDateClient = collect();
+
+        if ($view === 'calendar') {
+            $itemsByDateClient = $items
+                ->when($selectedType !== 'all', fn ($collection) => $collection->filter(
+                    fn ($item) => ($item->contentType->name ?? null) === $selectedType
+                ))
+                ->when($selectedDate, fn ($collection) => $collection->filter(
+                    fn ($item) => $item->deadline_at->format('Y-m-d') === $selectedDate
+                ))
+                ->groupBy(fn ($item) => $item->deadline_at->format('Y-m-d'))
+                ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
+        }
+
+        return view('content-plan.show', compact(
+            'contentPlan', 'items', 'view', 'month', 'year',
+            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedDate', 'selectedClientId'
+        ));
     }
 
     public function approve(ContentPlan $contentPlan)
@@ -231,7 +256,7 @@ class ContentPlanController extends Controller
             ->whereMonth('deadline_at', $month)
             ->whereYear('deadline_at', $year)
             ->when($selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
-            ->whereHas('contentType', fn ($q) => $q->whereIn('name', ['Design', 'Video', 'Copywriting']))
+            ->whereHas('contentType', fn ($q) => $q->whereIn('name', ['Video', 'Desain']))
             ->when($selectedTypeId, fn ($q) => $q->where('content_type_id', $selectedTypeId))
             ->orderBy('deadline_at')
             ->get();
@@ -242,7 +267,7 @@ class ContentPlanController extends Controller
             ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
 
         $clientOptions = Client::where('status', 'active')->get();
-        $typeOptions = ContentType::whereIn('name', ['Design', 'Video', 'Copywriting'])->get();
+        $typeOptions = ContentType::whereIn('name', ['Video', 'Desain'])->get();
 
         return view('content-plan.calendar', compact(
             'itemsByDateClient', 'month', 'year',

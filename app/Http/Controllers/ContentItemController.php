@@ -19,6 +19,7 @@ class ContentItemController extends Controller
             'publications.platform',
             'publications.publishedBy',
             'delayRiskScores' => fn ($q) => $q->latest()->limit(5),
+            'contentBriefDraft.takeByUser',
         ]);
 
         return view('content-items.show', compact('contentItem'));

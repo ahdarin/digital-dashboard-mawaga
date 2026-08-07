@@ -88,10 +88,10 @@ class DemoSeeder extends Seeder
         $pillars = collect(['Education', 'Entertainment', 'Soft Selling', 'Hard Selling', 'Product Highlight', 'Information'])
             ->map(fn ($name) => ContentPillar::firstOrCreate(['name' => $name]));
 
-        $contentTypes = collect(['Design', 'Video', 'Copywriting', 'Carousel'])
+        $contentTypes = collect(['Video', 'Desain'])
             ->map(fn ($name) => ContentType::firstOrCreate(['name' => $name]));
 
-        $platforms = collect(['Instagram', 'TikTok', 'Facebook', 'LinkedIn'])
+        $platforms = collect(['Instagram', 'TikTok'])
             ->map(fn ($name) => Platform::firstOrCreate(['name' => $name]));
 
         $videoType = $contentTypes->firstWhere('name', 'Video');
@@ -395,7 +395,7 @@ class DemoSeeder extends Seeder
             // (brief_ready -> in_progress -> waiting_review -> approved)
             // buat testing, bukan random murni kayak $createdItems di atas.
             if ($clientIndex === 0) {
-                $designType = $contentTypes->firstWhere('name', 'Design');
+                $designType = $contentTypes->firstWhere('name', 'Desain');
                 $igPlatform = $platforms->firstWhere('name', 'Instagram');
                 $boardStatuses = ['brief_ready', 'brief_ready', 'in_progress', 'waiting_review', 'approved'];
                 // Makin ke kanan board-nya, makin lama udah nyangkut -

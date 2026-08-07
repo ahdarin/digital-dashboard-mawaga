@@ -3,7 +3,8 @@
 @section('content')
 <div class="p-8 max-w-lg">
     <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('content-plan.index') }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266]">
+        <a href="{{ route('content-plan.index') }}" title="Kembali ke daftar Content Plan"
+           class="w-9 h-9 flex items-center justify-center rounded-lg border border-[#eef0f4] text-[#5c6266]">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <h1 class="font-display text-2xl font-semibold text-[#14181a]">Buat Content Plan Baru</h1>

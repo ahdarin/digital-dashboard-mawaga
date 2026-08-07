@@ -33,8 +33,10 @@
 
             <div class="lg:col-span-2 space-y-5">
 
+                @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
+
                 <div class="card p-5">
-                    <h3 class="text-sm font-semibold text-[#14181a] mb-3">Creative Brief</h3>
+                    <h3 class="text-sm font-semibold text-[#14181a] mb-3">Ide Awal (Brief Mentah)</h3>
                     <p class="text-sm text-[#5c6266] whitespace-pre-line mb-4">
                         {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
                     <div class="grid grid-cols-2 gap-4 text-xs">
@@ -140,6 +142,8 @@
             </div>
 
             <div class="space-y-5">
+                @include('content-items.partials.ai-brief-discussion', ['contentItem' => $contentItem])
+
                 <div class="card p-5">
                     <h3 class="text-sm font-semibold text-[#14181a] mb-3">PIC Penugasan</h3>
                     <div class="space-y-3">

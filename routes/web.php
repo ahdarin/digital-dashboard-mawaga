@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductionWorkflowController;
 use App\Http\Controllers\ContentItemController;
+use App\Http\Controllers\ContentBriefController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
@@ -48,6 +49,23 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/content-items/{contentItem}', [ContentItemController::class, 'show'])
         ->name('content-items.show');
+
+    Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
+        ->name('content-brief.generate');
+    Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
+        ->name('content-brief.show');
+    Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
+        ->name('content-brief.regenerate');
+    Route::post('/content-brief/{contentBrief}/discuss', [ContentBriefController::class, 'discuss'])
+        ->name('content-brief.discuss');
+    Route::post('/content-brief/{contentBrief}/apply', [ContentBriefController::class, 'applyChanges'])
+        ->name('content-brief.apply');
+    Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
+        ->name('content-brief.revert');
+    Route::post('/content-brief/{contentBrief}/finalize', [ContentBriefController::class, 'finalize'])
+        ->name('content-brief.finalize');
+    Route::post('/content-brief/{contentBrief}/withdraw', [ContentBriefController::class, 'withdraw'])
+        ->name('content-brief.withdraw');
 
     Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
         ->name('content-revision.store');

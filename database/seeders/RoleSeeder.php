@@ -70,7 +70,7 @@ class RoleSeeder extends Seeder
 
         User::firstOrCreate(
             [
-                'email' => 'ghazifadhlullah11@gmail.com',
+                'email' => 'ghazifadhlullah31@gmail.com',
             ],
             [
                 'role_id' => $ceoRole->id,
