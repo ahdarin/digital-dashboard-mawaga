@@ -28,6 +28,17 @@
         </div>
     </header>
 
+    <nav class="bg-white border-b border-[#eef0f4] px-5 flex items-center gap-1 sticky top-[65px] z-10">
+        <a href="{{ route('client.approval.index') }}"
+           class="text-sm font-medium px-3 py-3 border-b-2 border-[#044b46] text-[#044b46] transition-colors">
+            Approval
+        </a>
+        <a href="{{ route('client.analytics') }}"
+           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[#9aa0a4] hover:text-[#14181a] transition-colors">
+            Analytics
+        </a>
+    </nav>
+
     <div class="p-5">
         @if (session('status'))
             <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-xl mb-4 font-medium">{{ session('status') }}</div>

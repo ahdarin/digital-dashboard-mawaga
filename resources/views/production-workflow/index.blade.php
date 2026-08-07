@@ -5,10 +5,10 @@
 @section('content')
 <div x-data="kanbanBoard()" class="flex flex-col h-full">
 
-    <header class="px-8 py-5 bg-white border-b border-[#eef0f4] flex-shrink-0 flex items-center justify-between">
+    <header class="px-8 py-5 flex-shrink-0 flex items-center justify-between">
         <div>
-            <h2 class="font-display text-2xl font-semibold text-[#14181a]">Production Workflow Board</h2>
-            <p class="text-sm text-[#9aa0a4] mt-0.5">Active Content Pipeline</p>
+            <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Production Workflow Board</h1>
+            <p class="text-sm text-[#9aa0a4] mt-1">Active Content Pipeline</p>
         </div>
 
         <div class="flex items-center gap-3">
@@ -23,12 +23,12 @@
 
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[19px]">search</span>
-                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-[#f7f8fc] border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-64" placeholder="Search tasks..." type="text">
+                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-64" placeholder="Search tasks..." type="text">
             </div>
 
-            <a href="#" class="bg-[#044b46] text-white text-sm font-medium px-4 h-[40px] rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-2">
+            <!-- <a href="#" class="bg-[#044b46] text-white text-sm font-medium px-4 h-[40px] rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-2">
                 <span class="material-symbols-outlined text-[17px]">add</span> New Task
-            </a>
+            </a> -->
         </div>
     </header>
 
@@ -137,7 +137,7 @@
                                 </div>
                             </div>
                             <div class="mt-2.5 pt-2 border-t border-[#f2f3f6] text-right">
-                                <a href="{{ route('production-workflow.show', $item) }}" class="text-xs text-[#044b46] font-medium hover:underline">Lihat Detail →</a>
+                                <a href="{{ route('content-items.show', $item) }}" class="text-xs text-[#044b46] font-medium hover:underline">Lihat Detail →</a>
                             </div>
                         </div>
                     @empty

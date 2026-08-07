@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,9 +13,11 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        $users = User::with('role')->whereNull('client_id')->latest()->get();
+        $users = User::with(['role', 'assignedClients'])->whereNull('client_id')->latest()->get();
 
-        return view('user-management.index', compact('users'));
+        $allClients = Client::where('status', 'active')->orderBy('name')->get();
+
+        return view('user-management.index', compact('users', 'allClients'));
     }
 
     public function create()
@@ -52,6 +55,15 @@ class UserManagementController extends Controller
         $user->update(['status' => 'inactive']);
 
         return back()->with('status', 'User dinonaktifkan.');
+    }
+
+    public function activate(User $user)
+    {
+        $this->authorizeManage();
+
+        $user->update(['status' => 'active']);
+
+        return back()->with('status', 'User berhasil diaktifkan kembali.');
     }
 
     private function authorizeManage(): void

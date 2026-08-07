@@ -2,6 +2,9 @@
 @section('title', 'Report Generator')
 @section('content')
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <div class="p-8 max-w-[1400px]">
 
     <div class="mb-7">
@@ -40,12 +43,14 @@
                     </select>
                 </div>
 
-                <div>
+                <div class="date-range-wrapper">
                     <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Periode</label>
-                    <div class="flex items-center gap-2 border border-[#eef0f4] rounded-lg px-3.5 py-1 focus-within:border-[#044b46]/40">
-                        <input type="date" name="period_start" required class="w-full text-sm py-1.5 border-0 focus:ring-0 focus:outline-none p-0 bg-transparent">
-                        <span class="material-symbols-outlined text-[#c3c7cb] text-[15px] shrink-0">arrow_forward</span>
-                        <input type="date" name="period_end" required class="w-full text-sm py-1.5 border-0 focus:ring-0 focus:outline-none p-0 bg-transparent">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[16px]">date_range</span>
+                        <input type="text" class="date-range-picker w-full border border-[#eef0f4] rounded-lg pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40 bg-white"
+                               placeholder="Pilih rentang tanggal" autocomplete="off" required>
+                        <input type="hidden" name="period_start" class="period-start-input">
+                        <input type="hidden" name="period_end" class="period-end-input">
                     </div>
                 </div>
 
@@ -84,12 +89,14 @@
                     </select>
                 </div>
 
-                <div>
+                <div class="date-range-wrapper">
                     <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Periode</label>
-                    <div class="flex items-center gap-2 border border-[#eef0f4] rounded-lg px-3.5 py-1 focus-within:border-[#044b46]/40">
-                        <input type="date" name="period_start" required class="w-full text-sm py-1.5 border-0 focus:ring-0 focus:outline-none p-0 bg-transparent">
-                        <span class="material-symbols-outlined text-[#c3c7cb] text-[15px] shrink-0">arrow_forward</span>
-                        <input type="date" name="period_end" required class="w-full text-sm py-1.5 border-0 focus:ring-0 focus:outline-none p-0 bg-transparent">
+                    <div class="relative">
+                        <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[16px]">date_range</span>
+                        <input type="text" class="date-range-picker w-full border border-[#eef0f4] rounded-lg pl-10 pr-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40 bg-white"
+                               placeholder="Pilih rentang tanggal" autocomplete="off" required>
+                        <input type="hidden" name="period_start" class="period-start-input">
+                        <input type="hidden" name="period_end" class="period-end-input">
                     </div>
                 </div>
 
@@ -158,5 +165,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.querySelectorAll('.date-range-picker').forEach(function (el) {
+        const wrapper = el.closest('.date-range-wrapper');
+        const startInput = wrapper.querySelector('.period-start-input');
+        const endInput = wrapper.querySelector('.period-end-input');
+
+        flatpickr(el, {
+            mode: 'range',
+            dateFormat: 'd M Y',
+            onChange: function (selectedDates) {
+                const toIso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                startInput.value = selectedDates[0] ? toIso(selectedDates[0]) : '';
+                endInput.value = selectedDates[1] ? toIso(selectedDates[1]) : '';
+            },
+        });
+
+        el.closest('form').addEventListener('submit', function (e) {
+            if (!startInput.value || !endInput.value) {
+                e.preventDefault();
+                el.focus();
+            }
+        });
+    });
+</script>
 
 @endsection

@@ -7,6 +7,7 @@ use App\Models\ContentPublication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Client;
+use App\Models\Platform;
 
 class ContentPublicationController extends Controller
 {
@@ -27,16 +28,24 @@ class ContentPublicationController extends Controller
             $query->whereHas('contentItem', fn ($q) => $q->where('client_id', $request->input('client_id')));
         }
 
+        if ($request->filled('platform_id')) {
+            $query->where('platform_id', $request->input('platform_id'));
+        }
+
         $publications = $query->paginate(15)->withQueryString();
 
         $clientOptions = $user->canSeeAllClients()
             ? Client::where('status', 'active')->get()
             : $user->assignedClients()->where('status', 'active')->get();
 
+        $platformOptions = Platform::orderBy('name')->get();
+
         return view('publishing-tracker.index', [
             'publications' => $publications,
             'clientOptions' => $clientOptions,
             'selectedClientId' => $request->input('client_id'),
+            'platformOptions' => $platformOptions,
+            'selectedPlatformId' => $request->input('platform_id'),
         ]);
     }
 

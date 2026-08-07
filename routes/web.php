@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductionWorkflowController;
+use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
+use App\Http\Controllers\Client\AnalyticsController as ClientAnalyticsController;
 use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
@@ -44,8 +46,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('production-workflow.update-status');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/production-workflow/{contentItem}', [ProductionWorkflowController::class, 'show'])
-    ->name('production-workflow.show');
+    Route::get('/content-items/{contentItem}', [ContentItemController::class, 'show'])
+        ->name('content-items.show');
 
     Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
         ->name('content-revision.store');
@@ -58,6 +60,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
     Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
     Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
+    Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
 
     Route::get('/user-management/{user}/clients', [UserClientAssignmentController::class, 'edit'])
         ->name('user-client-assignment.edit');
@@ -154,6 +157,8 @@ Route::get('/client/magic-login/{token}', [ClientMagicLinkController::class, 've
 
 Route::middleware(['auth', 'client.user'])->group(function () {
     Route::get('/client/dashboard', [ApprovalController::class, 'index'])->name('client.dashboard');
+
+    Route::get('/client/analytics', [ClientAnalyticsController::class, 'index'])->name('client.analytics');
 
     Route::get('/client/approval', [ApprovalController::class, 'index'])->name('client.approval.index');
     Route::get('/client/approval/{contentItem}', [ApprovalController::class, 'show'])->name('client.approval.show');

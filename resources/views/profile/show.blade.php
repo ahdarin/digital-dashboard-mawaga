@@ -92,7 +92,7 @@
                     @forelse ($assignments as $assignment)
                         @php $item = $assignment->contentItem; @endphp
                         <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
-                            onclick="window.location='{{ route('production-workflow.show', $item) }}'">
+                            onclick="window.location='{{ route('content-items.show', $item) }}'">
                             <td class="px-4 py-3 font-medium text-[#14181a]">{{ $item->title }}</td>
                             <td class="px-4 py-3 text-[#5c6266]">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3">
