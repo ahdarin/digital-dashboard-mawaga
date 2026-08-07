@@ -96,6 +96,15 @@
                             </select>
                             @error('client_category_id') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Warna Penanda (Kalender)</label>
+                            <div class="flex items-center gap-3">
+                            <input type="color" name="color" value="{{ old('color', '#044b46') }}"
+                            class="h-10 w-14 rounded-lg cursor-pointer border border-[#eef0f4]">
+                            <p class="text-xs text-[#9aa0a4]">Dipakai sebagai warna penanda deadline client ini di Content Plan Calendar.</p>
+                    </div>
+                    @error('color') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                    </div>
                     </div>
                 </div>
 
