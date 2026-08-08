@@ -10,10 +10,6 @@
             <p class="text-[#5c6266] text-sm mt-1">Ringkasan aktivitas tim dan klien hari ini.</p>
         </div>
 
-        <a href="{{ Route::has('client-onboarding.create') ? route('client-onboarding.create') : '#' }}"
-           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors shrink-0">
-            <span class="material-symbols-outlined text-[17px]">add</span> Tambah Client
-        </a>
     </div>
 
     <div class="flex gap-5 items-start">

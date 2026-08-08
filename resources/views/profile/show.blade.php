@@ -79,7 +79,7 @@
             <div class="p-5 pb-4 shrink-0">
                 <h2 class="font-display text-base font-semibold text-[#14181a]">Task ({{ $assignments->count() }})</h2>
             </div>
-            <div class="overflow-y-auto max-h-[420px]">
+            <div class="overflow-y-auto max-h-[420px] thin-autohide-scrollbar">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-[#f7f8fc] text-[#9aa0a4] text-[11px] uppercase tracking-wide sticky top-0 z-10">
                         <tr>

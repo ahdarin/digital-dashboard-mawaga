@@ -5,7 +5,7 @@
 <div x-data="{ brandName: '{{ old('brand_name') }}', ownerName: '{{ old('owner_name') }}', logoPreview: null }" class="p-8 max-w-[1200px]">
 
     <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('client-onboarding.index') }}"
+        <a href="{{ route('client-management.index') }}"
            class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266] transition-colors shrink-0">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form action="{{ route('client-onboarding.store') }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('client-management.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         <div class="flex gap-6 items-start">
@@ -153,7 +153,7 @@
                     <button type="submit" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
                         <span class="material-symbols-outlined text-[17px]">check</span> Simpan Client
                     </button>
-                    <a href="{{ route('client-onboarding.index') }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">Batal</a>
+                    <a href="{{ route('client-management.index') }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">Batal</a>
                 </div>
 
             </div>

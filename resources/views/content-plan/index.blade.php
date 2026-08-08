@@ -9,9 +9,11 @@
             <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Monthly Content Plan</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
-        <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
-            <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
-        </button>
+        @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+            <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
+            </button>
+        @endif
     </div>
 
     @if (session('status'))

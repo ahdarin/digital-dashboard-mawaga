@@ -106,8 +106,15 @@
                         @endforeach
                     </div>
                 @elseif ($workflow->current_status === 'scheduled')
+                    @php $canPublish = auth()->user()->hasPermissionTo('publishing', 'manage'); @endphp
                     <div class="card p-5">
                         <h3 class="text-sm font-semibold text-[#14181a] mb-4">Record Publication</h3>
+                        @unless ($canPublish)
+                            <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3.5">
+                                <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
+                                <span>Hanya SMO yang bisa mencatat data publikasi. Hubungi SMO yang bertanggung jawab untuk client ini.</span>
+                            </div>
+                        @endunless
                         <form action="{{ route('content-publication.store', $contentItem) }}" method="POST" class="space-y-3">
                             @csrf
                             <div class="grid grid-cols-2 gap-3">
@@ -135,9 +142,11 @@
                                 <textarea name="caption_final" rows="2"
                                     class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                             </div>
-                            <button type="submit"
-                                class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Simpan
-                                &amp; Tandai Uploaded</button>
+                            <button type="submit" @disabled(! $canPublish)
+                                title="{{ $canPublish ? '' : 'Hanya SMO yang bisa mencatat data publikasi' }}"
+                                class="text-xs font-medium px-4 py-2 rounded-lg transition-colors
+                                    {{ $canPublish ? 'bg-[#044b46] text-white hover:bg-[#033b37]' : 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed' }}">
+                                Simpan &amp; Tandai Uploaded</button>
                         </form>
                     </div>
                 @endif

@@ -62,9 +62,11 @@
 
     <div class="flex items-center justify-between mb-4">
         <h2 class="font-display text-lg font-semibold text-[#14181a]">Content Items</h2>
-        <a href="{{ route('content-plan.items.create', $contentPlan) }}" class="flex items-center h-9 gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 rounded-lg hover:bg-[#033b37] transition-colors">
-            <span class="material-symbols-outlined text-[16px]">add</span> Tambah Content Item
-        </a>
+        @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+            <a href="{{ route('content-plan.items.create', $contentPlan) }}" class="flex items-center h-9 gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 rounded-lg hover:bg-[#033b37] transition-colors">
+                <span class="material-symbols-outlined text-[16px]">add</span> Tambah Content Item
+            </a>
+        @endif
     </div>
 
     @if ($view === 'calendar')

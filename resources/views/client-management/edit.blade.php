@@ -5,14 +5,14 @@
 <div class="p-8 max-w-2xl">
 
     <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('client-onboarding.show', $client) }}"
+        <a href="{{ route('client-management.show', $client) }}"
            class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266] transition-colors">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <h1 class="font-display text-2xl font-semibold text-[#14181a]">Edit {{ $client->brand_name }}</h1>
     </div>
 
-    <form action="{{ route('client-onboarding.update', $client) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
+    <form action="{{ route('client-management.update', $client) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
         @csrf
         @method('PUT')
 
@@ -142,7 +142,7 @@
             <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
                 Simpan Perubahan
             </button>
-            <a href="{{ route('client-onboarding.show', $client) }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a]">Batal</a>
+            <a href="{{ route('client-management.show', $client) }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a]">Batal</a>
         </div>
     </form>
 </div>

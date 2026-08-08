@@ -6,7 +6,7 @@
 
     <div class="flex items-center justify-between mb-7">
         <div class="flex items-center gap-4">
-            <a href="{{ route('client-onboarding.index') }}"
+            <a href="{{ route('client-management.index') }}"
                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266] transition-colors shrink-0">
                 <span class="material-symbols-outlined text-[19px]">arrow_back</span>
             </a>
@@ -31,7 +31,7 @@
             </div>
         </div>
 
-        <a href="{{ route('client-onboarding.edit', $client) }}"
+        <a href="{{ route('client-management.edit', $client) }}"
            class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors shrink-0">
             <span class="material-symbols-outlined text-[17px]">edit</span> Edit Client
         </a>
@@ -138,7 +138,7 @@
 
             <div class="card p-6">
                 <h2 class="text-sm font-semibold text-[#b3423e] mb-3">Danger Zone</h2>
-                <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST"
+                <form action="{{ route('client-management.destroy', $client) }}" method="POST"
                       onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.')">
                     @csrf
                     @method('DELETE')

@@ -87,6 +87,6 @@ class User extends Authenticatable
 
     public function canSeeAllClients(): bool
     {
-        return $this->hasAnyRole([UserRole::CEO, UserRole::Admin]);
+        return $this->hasAnyRole([UserRole::CEO, UserRole::Manager]);
     }
 }

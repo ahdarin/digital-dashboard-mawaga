@@ -12,10 +12,11 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             'CEO',
+            'Manager',
             'Content Creator',
             'Graphic Designer',
-            'MSO',
-            'Admin',
+            'SMO',
+            'Copywriter',
             'Client Owner',
             'Client Member',
         ];
@@ -26,16 +27,16 @@ class RoleSeeder extends Seeder
             ]);
         }
 
-        // Admin Demo
-        $adminRole = Role::where('name', 'Admin')->first();
+        // Manager Demo
+        $managerRole = Role::where('name', 'Manager')->first();
 
         User::firstOrCreate(
             [
                 'email' => 'admin@523studio.test',
             ],
             [
-                'role_id' => $adminRole->id,
-                'name' => 'Admin Demo',
+                'role_id' => $managerRole->id,
+                'name' => 'Manager Demo',
                 'password' => bcrypt('password'),
                 'status' => 'active',
             ]

@@ -3,46 +3,59 @@
         [
             'label' => 'Overview',
             'items' => [
-                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view'],
-                ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring'],
+                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
+                ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring', 'permission' => ['analytics', 'view']],
             ],
         ],
         [
             'label' => 'Content',
             'items' => [
-                ['label' => 'Content Plan', 'route' => 'content-plan.index', 'icon' => 'event_note'],
-                ['label' => 'Production Workflow', 'route' => 'production-workflow.index', 'icon' => 'folder_open'],
-                ['label' => 'Revision Log', 'route' => 'revision-log.index', 'icon' => 'history_edu'],
-                ['label' => 'Publishing Tracker', 'route' => 'publishing-tracker.index', 'icon' => 'publish'],
+                ['label' => 'Content Plan', 'route' => 'content-plan.index', 'icon' => 'event_note', 'permission' => ['content_plan', 'view']],
+                ['label' => 'Production Workflow', 'route' => 'production-workflow.index', 'icon' => 'folder_open', 'permission' => ['workflow', 'view']],
+                ['label' => 'Revision Log', 'route' => 'revision-log.index', 'icon' => 'history_edu', 'permission' => ['workflow', 'view']],
+                ['label' => 'Publishing Tracker', 'route' => 'publishing-tracker.index', 'icon' => 'publish', 'permission' => ['workflow', 'view']],
             ],
         ],
         [
             'label' => 'Clients',
             'items' => [
-                ['label' => 'Client Onboarding', 'route' => 'client-onboarding.index', 'icon' => 'apartment'],
+                ['label' => 'Client Management', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
             ],
         ],
         [
             'label' => 'Team',
             'items' => [
-                ['label' => 'Team Performance', 'route' => 'team-performance.index', 'icon' => 'diversity_3'],
-                ['label' => 'User Management', 'route' => 'user-management.index', 'icon' => 'manage_accounts'],
+                ['label' => 'Team Performance', 'route' => 'team-performance.index', 'icon' => 'diversity_3', 'permission' => ['team_performance', 'view']],
+                ['label' => 'User Management', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'manage']],
             ],
         ],
         [
             'label' => 'Reports',
             'items' => [
-                ['label' => 'Report', 'route' => 'report.index', 'icon' => 'description'],
+                ['label' => 'Report', 'route' => 'report.index', 'icon' => 'description', 'permission' => ['report', 'view']],
             ],
         ],
         [
             'label' => 'System',
             'items' => [
-                ['label' => 'Master Data', 'route' => 'master-data.index', 'icon' => 'database'],
-                ['label' => 'Settings', 'route' => 'settings', 'icon' => 'tune'],
+                ['label' => 'Master Data', 'route' => 'master-data.index', 'icon' => 'database', 'permission' => ['master_data', 'manage']],
+                ['label' => 'Settings', 'route' => 'settings', 'icon' => 'tune', 'permission' => ['settings', 'manage']],
             ],
         ],
     ];
+
+    $authUser = auth()->user();
+    $menuGroups = collect($menuGroups)
+        ->map(function ($group) use ($authUser) {
+            $group['items'] = array_values(array_filter(
+                $group['items'],
+                fn ($item) => $authUser->hasPermissionTo(...$item['permission'])
+            ));
+            return $group;
+        })
+        ->filter(fn ($group) => count($group['items']) > 0)
+        ->values()
+        ->all();
 
     $tooltipEnter = <<<'JS'
         collapsed && (tooltip = {
@@ -76,7 +89,7 @@
             x-show="collapsed" x-cloak x-transition.opacity @click="collapsed = false" title="Expand sidebar">
     </div>
 
-    <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden">
+    <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden thin-autohide-scrollbar">
         @foreach ($menuGroups as $group)
             <div>
                 <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#9aa0a4] whitespace-nowrap"
