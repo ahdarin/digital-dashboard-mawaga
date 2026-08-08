@@ -28,10 +28,6 @@
             <div class="flex items-center gap-2.5">
                 <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-8 w-auto">
             </div>
-            <a href="{{ route('login') }}"
-               class="text-sm font-medium text-[#5c6266] hover:text-[#14181a] px-4 py-2 rounded-lg hover:bg-white transition-colors">
-                Login Tim Internal
-            </a>
         </header>
 
         {{-- Hero --}}
@@ -49,7 +45,7 @@
                     </h1>
 
                     <p class="text-[#5c6266] text-base md:text-lg leading-relaxed mb-9 max-w-md">
-                        Content plan, production workflow, performa konten, sampai analisis strategi berbasis AI —
+                        Content plan, production workflow, performa konten, sampai analisis strategi berbasis AI.
                         tim internal dan client mengelola semuanya di satu tempat.
                     </p>
 
@@ -79,7 +75,7 @@
 
         {{-- Footer --}}
         <footer class="px-6 md:px-10 py-6 text-center md:text-left">
-            <p class="text-xs text-[#9aa0a4]">&copy; {{ date('Y') }} 523 Studio. Internal use only.</p>
+            <p class="text-xs text-[#9aa0a4]">&copy; {{ date('Y') }} 523 Studio</p>
         </footer>
     </div>
 
