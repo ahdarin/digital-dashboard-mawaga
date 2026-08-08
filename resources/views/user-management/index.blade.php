@@ -25,12 +25,12 @@
         <table class="w-full text-sm text-left">
             <thead>
                 <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Nama</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Name</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Role</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Ditangani</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Handled</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Aksi</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -155,7 +155,7 @@
                                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
-                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Nonaktifkan User</h3>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Deactivate User</h3>
                                         <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
                                     </div>
                                     <button type="button" @click="confirmDeactivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
@@ -192,7 +192,7 @@
                                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
-                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Aktifkan User</h3>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Activate User</h3>
                                         <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
                                     </div>
                                     <button type="button" @click="confirmActivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">

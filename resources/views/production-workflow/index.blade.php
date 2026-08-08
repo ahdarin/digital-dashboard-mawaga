@@ -3,12 +3,12 @@
 @section('title', 'Production Workflow Board')
 
 @section('content')
-<div x-data="kanbanBoard()" class="flex flex-col h-full">
+<div x-data="kanbanBoard()" class="flex flex-col h-[calc(100vh-64px)]">
 
     <header class="px-8 py-5 flex-shrink-0 flex items-center justify-between">
         <div>
             <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Production Workflow Board</h1>
-            <p class="text-sm text-[#9aa0a4] mt-1">Active Content Pipeline</p>
+            <p class="text-sm text-[#9aa0a4] mt-1">Alur produksi konten yang sedang berjalan</p>
         </div>
 
         <div class="flex items-center gap-3">
@@ -25,6 +25,13 @@
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[19px]">search</span>
                 <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-64" placeholder="Cari konten..." type="text">
             </div>
+
+            <button type="button" @click="toggleRiskSort()"
+                    class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors"
+                    :class="riskSortActive ? 'bg-[#fdf2f1] border-[#f5d9d7] text-[#b3423e]' : 'bg-white border-[#eef0f4] text-[#5c6266]'">
+                <span class="material-symbols-outlined text-[17px]">sort</span>
+                Risiko Tertinggi
+            </button>
         </div>
     </header>
 
@@ -41,7 +48,7 @@
             <div class="flex-shrink-0 w-[290px] h-full flex flex-col bg-white rounded-xl border border-[#eef0f4]"
                  x-on:dragover.prevent x-on:drop="onDrop($event, '{{ $status }}')">
 
-                <div class="p-3 border-b border-[#eef0f4] flex items-center justify-between">
+                <div class="p-3 border-b border-[#eef0f4] flex items-center justify-between flex-shrink-0">
                     <h3 class="text-xs font-semibold text-[#5c6266] flex items-center gap-2">
                         <div class="w-1.5 h-1.5 rounded-full" style="background-color: {{ $dotColor }}"></div>
                         {{ $statusLabels[$status] }}
@@ -49,12 +56,14 @@
                     <span class="text-xs bg-[#f2f3f6] text-[#5c6266] px-2 py-0.5 rounded-full">{{ $board[$status]->count() }}</span>
                 </div>
 
-                <div class="p-2.5 overflow-y-auto flex-1 space-y-2.5" style="min-height: 100px;">
+                <div class="p-2.5 overflow-y-auto flex-1 space-y-2.5 kanban-column" style="min-height: 100px;"
+                     x-bind:data-expanded="(expandedColumns['{{ $status }}'] || search.length > 0) ? 'true' : 'false'">
                     @forelse ($board[$status] as $item)
                         @php $isOverdue = $item->workflow->is_overdue; @endphp
 
                         <div draggable="true" x-on:dragstart="onDragStart($event, {{ $item->id }})"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
+                             data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              class="bg-white p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-shadow cursor-move {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
 
                             <div class="flex justify-between items-start mb-2">
@@ -109,7 +118,7 @@
 
                                     <div x-show="open" x-transition x-on:mouseenter="open = true" x-on:mouseleave="open = false"
                                          class="absolute z-10 bottom-full right-0 mb-2 w-56 bg-white border border-[#eef0f4] rounded-lg shadow-lg p-3" style="display: none;">
-                                        <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-2">PIC Penugasan</p>
+                                        <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-2">PIC Assignment</p>
                                         <div class="space-y-2">
                                             @forelse ($item->assignments as $assignment)
                                                 <div class="flex items-center gap-2">
@@ -142,11 +151,26 @@
                             <p class="text-xs text-[#c3c7cb]">Drop cards here</p>
                         </div>
                     @endforelse
+
+                    @if ($board[$status]->count() > 8)
+                        <button type="button" x-show="!search"
+                                @click="expandedColumns['{{ $status }}'] = !expandedColumns['{{ $status }}']"
+                                class="column-more-toggle w-full text-center text-xs font-medium text-[#044b46] hover:underline py-1.5">
+                            <span x-show="!expandedColumns['{{ $status }}']">+{{ $board[$status]->count() - 8 }} lainnya</span>
+                            <span x-show="expandedColumns['{{ $status }}']" x-cloak>Sembunyikan</span>
+                        </button>
+                    @endif
                 </div>
             </div>
         @endforeach
     </div>
 </div>
+
+<style>
+    .kanban-column[data-expanded="false"] > [data-risk]:nth-child(n+9) {
+        display: none !important;
+    }
+</style>
 
 <script>
 function kanbanBoard() {
@@ -154,6 +178,19 @@ function kanbanBoard() {
         search: '',
         toast: '',
         draggedItemId: null,
+        riskSortActive: true,
+        expandedColumns: {},
+        toggleRiskSort() {
+            this.riskSortActive = !this.riskSortActive;
+            document.querySelectorAll('.kanban-column').forEach((col) => {
+                const cards = Array.from(col.querySelectorAll(':scope > [data-risk]'));
+                cards.sort((a, b) => this.riskSortActive
+                    ? Number(b.dataset.risk) - Number(a.dataset.risk)
+                    : Number(a.dataset.order) - Number(b.dataset.order));
+                const moreBtn = col.querySelector(':scope > .column-more-toggle');
+                cards.forEach((card) => col.insertBefore(card, moreBtn || null));
+            });
+        },
         onDragStart(event, itemId) {
             this.draggedItemId = itemId;
             event.dataTransfer.effectAllowed = 'move';

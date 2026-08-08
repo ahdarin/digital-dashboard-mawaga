@@ -51,7 +51,11 @@ class ProductionWorkflowController extends Controller
 
         $board = [];
         foreach ($this->statuses as $status) {
-            $board[$status] = $items->get($status, collect());
+            $columnItems = $items->get($status, collect())->values();
+            $columnItems->each(fn ($item, $i) => $item->boardOrder = $i);
+            $board[$status] = $columnItems->sortByDesc(
+                fn ($item) => optional($item->latestDelayRisk)->risk_score ?? -1
+            )->values();
         }
 
         // Daftar client untuk dropdown filter (hanya yang relevan buat user ini)

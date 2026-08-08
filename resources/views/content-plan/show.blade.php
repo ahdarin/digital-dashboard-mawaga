@@ -75,7 +75,7 @@
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium">Item Details</th>
-                        <th class="px-4 py-3 font-medium">Kategori</th>
+                        <th class="px-4 py-3 font-medium">Category</th>
                         <th class="px-4 py-3 font-medium">Platform</th>
                         <th class="px-4 py-3 font-medium">Timeline</th>
                         <th class="px-4 py-3 font-medium">Assignee</th>
@@ -93,7 +93,7 @@
                                 @php
                                     $typeColor = match ($item->contentType->name ?? null) {
                                         'Video' => '#3452a8',
-                                        'Design' => '#b3427e',
+                                        'Desain' => '#b3427e',
                                         default => '#9aa0a4',
                                     };
                                 @endphp

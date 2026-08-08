@@ -12,7 +12,7 @@
 
         <a href="{{ Route::has('client-onboarding.create') ? route('client-onboarding.create') : '#' }}"
            class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors shrink-0">
-            <span class="material-symbols-outlined text-[17px]">add</span> Tambah Klien
+            <span class="material-symbols-outlined text-[17px]">add</span> Tambah Client
         </a>
     </div>
 
@@ -61,7 +61,7 @@
 
             {{-- Performance chart --}}
             <div class="card p-6">
-                <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Performa Konten</h2>
+                <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Content Performance</h2>
                 <p class="text-xs text-[#9aa0a4] mb-6">Jumlah konten berdasarkan deadline, 7 bulan terakhir</p>
 
                 @php
@@ -91,7 +91,7 @@
             {{-- Recent projects --}}
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-lg font-semibold text-[#14181a]">Proyek Terbaru</h2>
+                    <h2 class="font-display text-lg font-semibold text-[#14181a]">Recent Projects</h2>
                     <a href="{{ Route::has('production-workflow.index') ? route('production-workflow.index') : '#' }}" class="text-sm font-medium text-[#044b46] hover:underline">Lihat semua</a>
                 </div>
 
@@ -101,9 +101,9 @@
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                <th class="pb-2.5 font-medium">Judul</th>
-                                <th class="pb-2.5 font-medium">Klien</th>
-                                <th class="pb-2.5 font-medium">Tipe</th>
+                                <th class="pb-2.5 font-medium">Title</th>
+                                <th class="pb-2.5 font-medium">Client</th>
+                                <th class="pb-2.5 font-medium">Type</th>
                                 <th class="pb-2.5 font-medium">Deadline</th>
                                 <th class="pb-2.5 font-medium">Status</th>
                             </tr>
@@ -152,7 +152,7 @@
 
             <div class="card p-6 flex flex-col">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-base font-semibold text-[#14181a]">Perlu Perhatian</h2>
+                    <h2 class="font-display text-base font-semibold text-[#14181a]">Needs Attention</h2>
                     <span class="material-symbols-outlined text-[#b3423e] text-[18px]">priority_high</span>
                 </div>
 
@@ -178,6 +178,35 @@
                     Buka Production Workflow
                     <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
                 </a>
+            </div>
+
+            <div class="card p-6 flex flex-col">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="font-display text-base font-semibold text-[#14181a]">High Risk (AI Prediction)</h2>
+                    <span class="material-symbols-outlined text-[#b3423e] text-[18px]">report</span>
+                </div>
+                <p class="text-xs text-[#9aa0a4] mb-4">Belum overdue, tapi diprediksi berisiko terlambat — cegah sebelum kejadian.</p>
+
+                <div class="space-y-3 flex-1">
+                    @forelse ($highRiskItems as $item)
+                        <a href="{{ route('content-items.show', $item['id']) }}" class="block bg-[#f7f8fc] rounded-lg p-3.5 hover:bg-[#fdf2f1] transition-colors">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-sm font-medium text-[#14181a] flex gap-2 min-w-0">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#b3423e] mt-1.5 shrink-0"></span>
+                                    <span class="truncate">{{ $item['title'] }}</span>
+                                </p>
+                                <span class="text-xs font-semibold text-[#b3423e] shrink-0">{{ $item['risk_score'] }}%</span>
+                            </div>
+                            <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; PIC: {{ $item['pic'] }}</p>
+                            <p class="text-xs text-[#9aa0a4] pl-3.5">{{ $item['top_factor'] }}</p>
+                        </a>
+                    @empty
+                        <div class="text-center py-8">
+                            <span class="material-symbols-outlined text-[#0f7a5f] text-[28px]">verified</span>
+                            <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada item risiko tinggi saat ini.</p>
+                        </div>
+                    @endforelse
+                </div>
             </div>
 
         </div>

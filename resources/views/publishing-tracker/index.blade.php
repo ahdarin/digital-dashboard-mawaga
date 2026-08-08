@@ -42,8 +42,8 @@
                         <th class="px-6 py-3 font-medium">Content Item</th>
                         <th class="px-4 py-3 font-medium">Client</th>
                         <th class="px-4 py-3 font-medium">Platform</th>
-                        <th class="px-4 py-3 font-medium">Tanggal Publish</th>
-                        <th class="px-4 py-3 font-medium">Diupload Oleh</th>
+                        <th class="px-4 py-3 font-medium">Publish Date</th>
+                        <th class="px-4 py-3 font-medium">Uploaded By</th>
                         <th class="px-4 py-3 font-medium">Link</th>
                     </tr>
                 </thead>

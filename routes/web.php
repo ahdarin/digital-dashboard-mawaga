@@ -49,6 +49,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/content-items/{contentItem}', [ContentItemController::class, 'show'])
         ->name('content-items.show');
+    Route::patch('/content-items/{contentItem}/reassign', [ContentItemController::class, 'reassign'])
+        ->name('content-items.reassign');
 
     Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
         ->name('content-brief.generate');

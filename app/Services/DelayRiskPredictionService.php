@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\ContentStatusLog;
 use App\Models\ContentWorkflow;
 use App\Models\DelayRiskScore;
+use App\Models\Notification;
+use App\Models\User;
 use App\Support\ContentComplexityCalculator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
@@ -17,36 +20,94 @@ class DelayRiskPredictionService
 {
     private array $doneStatuses = ['uploaded', 'cancelled'];
 
-    public function predictForItems(array $contentItemIds): void
+    /**
+     * @return int Jumlah item yang berhasil dapat skor baru (dipakai RecomputeDelayRiskScores
+     * untuk deteksi kalau pipeline prediksi rusak masal, lihat callPredictScript()).
+     */
+    public function predictForItems(array $contentItemIds): int
     {
-        $items = ContentItem::with(['client.category', 'contentPillar', 'contentType', 'workflow'])
+        $items = ContentItem::with(['client.category', 'contentPillar', 'contentType', 'workflow.currentPic'])
             ->whereIn('id', $contentItemIds)
             ->whereHas('workflow')
             ->get();
 
         if ($items->isEmpty()) {
-            return;
+            return 0;
         }
 
         $payloadItems = [];
         $featureMap = [];
+        $itemMap = [];
 
         foreach ($items as $item) {
             $features = $this->buildFeatures($item);
             $featureMap[$item->id] = $features;
+            $itemMap[$item->id] = $item;
             $payloadItems[] = array_merge(['content_item_id' => $item->id], $features);
         }
 
         $results = $this->callPredictScript($payloadItems);
 
+        // Ambil snapshot fitur sebelumnya PER ITEM sebelum row baru dibuat, biar
+        // guessTopFactor() bisa jelasin apa yang BERUBAH, bukan cuma ambang statis.
+        $previousFeatureMap = DelayRiskScore::whereIn('content_item_id', array_keys($featureMap))
+            ->get()
+            ->groupBy('content_item_id')
+            ->map(fn ($group) => $group->sortByDesc('id')->first()->features_snapshot);
+
         foreach ($results as $result) {
-            DelayRiskScore::create([
+            $previousFeatures = $previousFeatureMap[$result['content_item_id']] ?? null;
+
+            $score = DelayRiskScore::create([
                 'content_item_id' => $result['content_item_id'],
                 'risk_score' => $result['risk_score'],
                 'risk_level' => $result['risk_level'],
-                'top_factor' => $this->guessTopFactor($featureMap[$result['content_item_id']]),
+                'top_factor' => $this->guessTopFactor($featureMap[$result['content_item_id']], $previousFeatures),
                 'features_snapshot' => $featureMap[$result['content_item_id']],
             ]);
+
+            if ($score->risk_level === 'high') {
+                $this->notifyHighRisk($itemMap[$result['content_item_id']], $score);
+            }
+        }
+
+        return count($results);
+    }
+
+    /**
+     * Notifikasi proaktif ke PIC yang pegang item + role CEO/Admin, sekali per hari
+     * per item (dedup) supaya tidak spam tiap kali cron jam-an jalan.
+     */
+    private function notifyHighRisk(ContentItem $item, DelayRiskScore $score): void
+    {
+        $alreadySent = Notification::where('related_type', ContentItem::class)
+            ->where('related_id', $item->id)
+            ->where('type', 'delay_risk_alert')
+            ->whereDate('created_at', now())
+            ->exists();
+
+        if ($alreadySent) {
+            return;
+        }
+
+        $title = 'Risiko Keterlambatan Tinggi';
+        $body = "Konten '{$item->title}' ({$item->client->name}) berisiko tinggi terlambat ({$score->risk_score}%). Faktor utama: {$score->top_factor}.";
+
+        $recipients = collect();
+
+        if ($item->workflow->currentPic) {
+            $recipients->push($item->workflow->currentPic);
+        }
+
+        $recipients = $recipients->merge(
+            User::whereNull('client_id')
+                ->where('status', 'active')
+                ->whereHas('role', fn ($q) => $q->whereIn('name', [UserRole::CEO->value, UserRole::Admin->value]))
+                ->get()
+        )->unique('id');
+
+        foreach ($recipients as $user) {
+            NotificationService::notify($user, $title, 'delay_risk_alert', $body, $item);
         }
     }
 
@@ -92,6 +153,13 @@ class DelayRiskPredictionService
     private function callPredictScript(array $items): array
     {
         $scriptPath = storage_path('ai/delay_risk/predict_batch.py');
+        $modelPath = storage_path('ai/delay_risk/delay_risk_model.pkl');
+
+        if (! file_exists($modelPath)) {
+            Log::error("Delay Risk prediction dibatalkan: model file tidak ditemukan di {$modelPath}");
+            return [];
+        }
+
         $payload = json_encode(['items' => $items]);
 
         $result = Process::input($payload)->run("python3 {$scriptPath}");
@@ -104,10 +172,29 @@ class DelayRiskPredictionService
         return json_decode($result->output(), true) ?? [];
     }
 
-    private function guessTopFactor(array $features): string
+    private function guessTopFactor(array $features, ?array $previousFeatures = null): string
     {
-        // Penjelasan sederhana (bukan SHAP), cukup untuk konteks MVP:
-        // ambil fitur numerik dengan nilai relatif paling "ekstrem"
+        // Kalau ada histori sebelumnya, prioritaskan penjelasan berbasis PERUBAHAN
+        // (lebih actionable daripada ambang statis) - "kenapa naik", bukan cuma "tinggi".
+        if ($previousFeatures) {
+            if ($features['revision_count'] > $previousFeatures['revision_count']) {
+                return "Revisi bertambah dari {$previousFeatures['revision_count']} ke {$features['revision_count']} ronde";
+            }
+            if ($features['workload_pic_same_week'] > $previousFeatures['workload_pic_same_week']
+                && $features['workload_pic_same_week'] > 5) {
+                return "Beban kerja PIC naik dari {$previousFeatures['workload_pic_same_week']} ke {$features['workload_pic_same_week']} task aktif";
+            }
+            if ($features['current_status'] === $previousFeatures['current_status']
+                && $features['days_in_current_status'] > $previousFeatures['days_in_current_status']
+                && $features['days_in_current_status'] >= 5) {
+                $days = (int) round($features['days_in_current_status']);
+                return "Sudah {$days} hari di status yang sama tanpa progres";
+            }
+        }
+
+        // Fallback: penjelasan sederhana berbasis ambang statis (bukan SHAP, cukup
+        // untuk konteks MVP) - dipakai untuk prediksi pertama kali, atau kalau tidak
+        // ada perubahan signifikan dibanding cek sebelumnya.
         if ($features['workload_pic_same_week'] > 8) {
             return 'Beban kerja PIC sedang tinggi';
         }

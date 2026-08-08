@@ -6,7 +6,7 @@
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Content Plan Bulanan</h1>
+            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Monthly Content Plan</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
@@ -55,7 +55,7 @@
     {{-- Target cards — TETAP --}}
     <div class="grid grid-cols-2 gap-5 mb-6">
         <div class="card p-6">
-            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Target Konten vs Realisasi</p>
+            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Content Target vs Realization</p>
             <p class="font-display text-3xl font-semibold text-[#14181a] mb-3">{{ $realizedContent }} <span class="text-lg text-[#9aa0a4] font-normal">/ {{ $targetContent }}</span></p>
             @php $pct = $targetContent > 0 ? min(100, round($realizedContent / $targetContent * 100, 1)) : 0; @endphp
             <div class="flex items-center justify-between text-xs text-[#9aa0a4] mb-1.5">
@@ -66,7 +66,7 @@
             </div>
         </div>
         <div class="card p-6">
-            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Target Desain vs Realisasi</p>
+            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Design Target vs Realization</p>
             <p class="font-display text-3xl font-semibold text-[#14181a] mb-3">{{ $realizedDesign }} <span class="text-lg text-[#9aa0a4] font-normal">/ {{ $targetDesign }}</span></p>
             @php $pctD = $targetDesign > 0 ? min(100, round($realizedDesign / $targetDesign * 100, 1)) : 0; @endphp
             <div class="flex items-center justify-between text-xs text-[#9aa0a4] mb-1.5">
@@ -90,8 +90,8 @@
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium">Client</th>
-                        <th class="px-4 py-3 font-medium">Bulan/Tahun</th>
-                        <th class="px-4 py-3 font-medium">Jumlah Item</th>
+                        <th class="px-4 py-3 font-medium">Month/Year</th>
+                        <th class="px-4 py-3 font-medium">Item Count</th>
                         <th class="px-4 py-3 font-medium">Status</th>
                         <th class="px-6 py-3"></th>
                     </tr>
@@ -134,7 +134,7 @@
         <div x-show="showCreateModal" x-transition
              class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
-                <h3 class="font-display text-lg font-semibold text-[#14181a]">Buat Content Plan Baru</h3>
+                <h3 class="font-display text-lg font-semibold text-[#14181a]">Create New Content Plan</h3>
                 <button type="button" @click="showCreateModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>

@@ -27,7 +27,7 @@
                 <div class="w-9 h-9 rounded-lg bg-[#eef2fb] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[#3452a8] text-[18px]">fact_check</span>
                 </div>
-                <h3 class="text-sm font-semibold text-[#14181a]">Laporan Progres Operasional</h3>
+                <h3 class="text-sm font-semibold text-[#14181a]">Operational Progress Report</h3>
             </div>
             <p class="text-xs text-[#9aa0a4] mb-5 ml-12">Jumlah konten selesai, overdue, dan revisi.</p>
 
@@ -73,7 +73,7 @@
                 <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[#044b46] text-[18px]">trending_up</span>
                 </div>
-                <h3 class="text-sm font-semibold text-[#14181a]">Laporan Performa Konten</h3>
+                <h3 class="text-sm font-semibold text-[#14181a]">Content Performance Report</h3>
             </div>
             <p class="text-xs text-[#9aa0a4] mb-5 ml-12">Views, engagement rate, top content &amp; breakdown platform.</p>
 
@@ -118,7 +118,7 @@
     {{-- Riwayat --}}
     <div class="card overflow-hidden">
         <div class="p-6 pb-0 flex items-center justify-between">
-            <h3 class="font-display text-lg font-semibold text-[#14181a]">Riwayat Laporan</h3>
+            <h3 class="font-display text-lg font-semibold text-[#14181a]">Report History</h3>
             <span class="text-xs text-[#9aa0a4]">{{ $reports->count() }} laporan</span>
         </div>
 
@@ -132,10 +132,10 @@
                 <table class="w-full text-sm text-left">
                     <thead>
                         <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                            <th class="pb-3 pr-4 font-medium">Tipe</th>
+                            <th class="pb-3 pr-4 font-medium">Type</th>
                             <th class="pb-3 pr-4 font-medium">Client</th>
-                            <th class="pb-3 pr-4 font-medium">Periode</th>
-                            <th class="pb-3 pr-4 font-medium">Dibuat</th>
+                            <th class="pb-3 pr-4 font-medium">Period</th>
+                            <th class="pb-3 pr-4 font-medium">Created</th>
                             <th class="pb-3 pr-4"></th>
                         </tr>
                     </thead>
@@ -144,9 +144,9 @@
                             <tr class="border-t border-[#f2f3f6]">
                                 <td class="py-3 pr-4">
                                     @if ($report->report_type === 'performance_summary')
-                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Performa</span>
+                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Performance</span>
                                     @else
-                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#eef2fb] text-[#3452a8]">Progres</span>
+                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#eef2fb] text-[#3452a8]">Progress</span>
                                     @endif
                                 </td>
                                 <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $report->client->name ?? 'Semua Client' }}</td>

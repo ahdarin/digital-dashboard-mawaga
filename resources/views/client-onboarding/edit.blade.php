@@ -19,7 +19,7 @@
         <div class="card p-6">
             <p class="text-sm font-semibold text-[#14181a] mb-5 flex items-center gap-2">
                 <span class="material-symbols-outlined text-[#044b46] text-[19px]">apartment</span>
-                Informasi Perusahaan
+                Company Information
             </p>
 
             <div class="space-y-4">
@@ -107,7 +107,7 @@
         <div class="card p-6">
             <p class="text-sm font-semibold text-[#14181a] mb-5 flex items-center gap-2">
                 <span class="material-symbols-outlined text-[#044b46] text-[19px]">person</span>
-                Akun Owner
+                Owner Account
             </p>
 
             @if ($client->owner)

@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\ContentItem;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
