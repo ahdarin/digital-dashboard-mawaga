@@ -7,6 +7,7 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
 use App\Models\User;
+use App\Services\DelayRiskAccuracyService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Support\Carbon;
 
@@ -151,6 +152,33 @@ class DashboardController extends Controller
                 ];
             });
 
+        // --- Tambahan: teaser Analytics (org-wide, bulan berjalan) ---
+        $topContent = ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
+            ->get()
+            ->groupBy('content_item_id')
+            ->map(function ($rows, $contentItemId) {
+                $item = ContentItem::with(['client', 'platform'])->find($contentItemId);
+                if (! $item) {
+                    return null;
+                }
+
+                return [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'client' => $item->client->name ?? '-',
+                    'platform' => $item->platform->name ?? '-',
+                    'views' => (int) $rows->sum('views'),
+                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('views')
+            ->take(5)
+            ->values();
+
+        // --- Tambahan: teaser akurasi prediksi AI Delay Risk (feedback loop) ---
+        $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
+
         $recentItems = ContentItem::with(['client', 'contentType', 'workflow'])
             ->latest('created_at')
             ->take(6)
@@ -176,7 +204,8 @@ class DashboardController extends Controller
         );
 
         return view('dashboard.index', compact(
-            'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights'
+            'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights',
+            'topContent', 'riskAccuracy'
         ));
     }
 

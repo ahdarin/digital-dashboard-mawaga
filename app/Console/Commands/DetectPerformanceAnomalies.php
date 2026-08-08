@@ -6,6 +6,7 @@ use App\Models\AnalyticsSyncLog;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\Notification;
+use App\Models\PerformanceAnomaly;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -39,11 +40,15 @@ class DetectPerformanceAnomalies extends Command
 
     public function handle(): int
     {
+        // Deteksi & rekam anomali tetap jalan biarpun nggak ada user
+        // CEO/Admin buat dikirimin notifikasi - PerformanceAnomaly yang
+        // direkam dipakai juga sama AiStrategyService (buildPerformanceSummary())
+        // buat konteks AI Strategy bulan berikutnya, jadi jangan berhenti
+        // total kalau notifyUsers kosong, cukup lewatin loop notifikasinya.
         $notifyUsers = User::with('role')->get()->filter(fn ($u) => $u->canSeeAllClients());
 
         if ($notifyUsers->isEmpty()) {
-            $this->warn('Nggak ada user CEO/Admin buat dikirimin notifikasi. Command dihentikan.');
-            return self::SUCCESS;
+            $this->warn('Nggak ada user CEO/Admin - anomali tetap direkam, notifikasi dilewati.');
         }
 
         $anomalyCount = $this->detectContentAnomalies($notifyUsers);
@@ -109,19 +114,30 @@ class DetectPerformanceAnomalies extends Command
                 continue;
             }
 
-            // Hindari notifikasi dobel buat konten+tanggal yang sama
-            $alreadyNotified = Notification::where('related_type', ContentItem::class)
-                ->where('related_id', $contentItemId)
-                ->whereDate('created_at', $today)
-                ->where('type', 'ai_insight')
+            // Hindari rekam+notif dobel buat konten+tanggal yang sama - dicek
+            // dari PerformanceAnomaly (bukan Notification lagi), soalnya ini
+            // sumber kebenaran tunggal sekarang & tetap konsisten walau
+            // notifyUsers kosong di run sebelumnya (jadi nggak pernah ada
+            // Notification, tapi anomalinya udah kerekam).
+            $alreadyRecorded = PerformanceAnomaly::where('content_item_id', $contentItemId)
+                ->whereDate('detected_date', $today)
                 ->exists();
 
-            if ($alreadyNotified) {
+            if ($alreadyRecorded) {
                 continue;
             }
 
             $percentChange = round(($ratio - 1) * 100);
             $clientName = $contentItem->client->name ?? 'Client';
+
+            PerformanceAnomaly::create([
+                'content_item_id' => $contentItem->id,
+                'type' => $anomalyType,
+                'percent_change' => $percentChange,
+                'views_on_date' => $todayMetric->views,
+                'baseline_avg_views' => (int) round($avgViews),
+                'detected_date' => $today,
+            ]);
 
             if ($anomalyType === 'spike') {
                 $title = 'Trend Detected';
