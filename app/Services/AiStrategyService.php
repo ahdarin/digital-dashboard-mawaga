@@ -6,6 +6,7 @@ use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentMetric;
 use App\Models\ContentType;
+use App\Models\PerformanceAnomaly;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -162,6 +163,26 @@ class AiStrategyService
         $activePackage = $client->activePackage;
         $targetItemCount = (($activePackage->monthly_content_quota ?? 0) + ($activePackage->monthly_design_quota ?? 0)) ?: 10;
 
+        // Anomali performa (spike/drop) yang kedeteksi analytics:detect-anomalies
+        // SELAMA periode yang dianalisis - kasih AI konteks kejadian konkret,
+        // bukan cuma angka agregat pillar/platform. Diurut dari yang paling
+        // signifikan, dibatasin 10 biar prompt-nya nggak membengkak kalau
+        // client-nya banyak konten yang fluktuatif.
+        $notableAnomalies = PerformanceAnomaly::whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
+            ->whereBetween('detected_date', [$start, $end])
+            ->with('contentItem.contentPillar')
+            ->get()
+            ->sortByDesc(fn ($a) => abs($a->percent_change))
+            ->take(10)
+            ->map(fn ($a) => [
+                'content_title' => $a->contentItem->title ?? '-',
+                'pillar' => $a->contentItem?->contentPillar?->name ?? '-',
+                'type' => $a->type,
+                'percent_change' => $a->percent_change,
+                'date' => $a->detected_date->format('d M'),
+            ])
+            ->values();
+
         return [
             'client_name' => $client->name,
             'period' => "{$start->format('d M Y')} - {$end->format('d M Y')}",
@@ -175,8 +196,66 @@ class AiStrategyService
             'performance_by_platform' => $byPlatform,
             'top_5_content' => $topContent,
             'audience_by_platform' => $audienceByPlatform,
+            'notable_anomalies' => $notableAnomalies,
             'target_content_count' => $targetItemCount,
         ];
+    }
+
+    /**
+     * Skor prediksi performa TIAP content idea - statistik murni (rasio vs
+     * rata-rata pillar/platform client itu sendiri dari performance_data
+     * yang SUDAH ada), BUKAN model ML terpisah, konsisten sama pendekatan
+     * DetectPerformanceAnomalies. Tujuannya: kalau ide yang di-generate
+     * lebih banyak dari kapasitas produksi bulan ini, tim bisa prioritaskan
+     * yang skornya paling tinggi duluan - bukan asal urutan AI nulis.
+     *
+     * Skor 50 = setara rata-rata historis client, >50 = di atas rata-rata,
+     * <50 = di bawah. null kalau pillar & platform-nya sama-sama belum
+     * punya data historis (idenya untuk kategori yang benar-benar baru).
+     */
+    public function scoreContentIdeas(array $ideas, array $performanceData): array
+    {
+        $pillarStats = collect($performanceData['performance_by_pillar'] ?? []);
+        $platformStats = collect($performanceData['performance_by_platform'] ?? []);
+
+        $avgPillarEngagement = $pillarStats->avg('avg_engagement') ?: 0;
+        $avgPlatformViews = $platformStats->avg('total_views') ?: 0;
+
+        return collect($ideas)
+            ->map(fn ($idea) => array_merge(
+                $idea,
+                $this->scoreIdea($idea, $pillarStats, $platformStats, $avgPillarEngagement, $avgPlatformViews)
+            ))
+            ->all();
+    }
+
+    private function scoreIdea(array $idea, $pillarStats, $platformStats, float $avgPillarEngagement, float $avgPlatformViews): array
+    {
+        $pillarData = $pillarStats->get($idea['pillar'] ?? null);
+        $platformData = $platformStats->get($idea['platform'] ?? null);
+
+        $ratios = [];
+        if ($pillarData && $avgPillarEngagement > 0) {
+            $ratios[] = ($pillarData['avg_engagement'] ?? 0) / $avgPillarEngagement;
+        }
+        if ($platformData && $avgPlatformViews > 0) {
+            $ratios[] = ($platformData['total_views'] ?? 0) / $avgPlatformViews;
+        }
+
+        if (empty($ratios)) {
+            return ['predicted_score' => null, 'predicted_label' => null];
+        }
+
+        $avgRatio = array_sum($ratios) / count($ratios);
+        $score = (int) round(min(100, max(5, $avgRatio * 50)));
+
+        $label = match (true) {
+            $score >= 65 => 'high',
+            $score >= 40 => 'medium',
+            default => 'low',
+        };
+
+        return ['predicted_score' => $score, 'predicted_label' => $label];
     }
 
     /**
@@ -528,9 +607,16 @@ dominan), top lokasi, dan peak_active_hour di sana buat mempertajam
 rekomendasi (sudut pandang konten yang relevan buat demografi itu, dan jam
 posting yang disaranin) - tapi kalau audience_by_platform kosong atau nggak
 ada buat suatu platform, JANGAN ngarang asumsi audience-nya, cukup dasarkan
-rekomendasi ke data performa konten aja. Kalau data yang tersedia terlalu
-sedikit untuk suatu kesimpulan, katakan itu secara eksplisit di summary,
-jangan dipaksakan.
+rekomendasi ke data performa konten aja. Kalau ada field "notable_anomalies",
+itu konten yang performanya melonjak ("spike") atau anjlok ("drop") secara
+signifikan dibanding rata-rata historisnya sendiri selama periode ini,
+terdeteksi otomatis dari sistem - manfaatin buat memperkuat top_pillars
+(sebut kalau ada spike yang mendukung/drop yang melemahkan reasoning suatu
+pillar) dan content_ideas (kalau beberapa spike sama-sama dari 1
+pillar/type/platform tertentu, itu sinyal kuat buat direplikasi). Kalau
+field-nya kosong, berarti nggak ada anomali terdeteksi periode ini - jangan
+disebut atau dikarang. Kalau data yang tersedia terlalu sedikit untuk suatu
+kesimpulan, katakan itu secara eksplisit di summary, jangan dipaksakan.
 
 Balas HANYA dalam format JSON valid, tanpa teks lain di luar JSON, tanpa
 markdown code block, dengan struktur persis seperti ini:

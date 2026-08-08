@@ -24,6 +24,7 @@ use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
 use App\Http\Controllers\MasterDataController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Schedule;
 use App\Services\AiStrategyService;
 
@@ -140,6 +141,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::patch('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])
         ->name('notifications.mark-all-read');
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::get('/search', [SearchController::class, 'search'])->name('search');
 
     Route::middleware('permission:settings,manage')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');

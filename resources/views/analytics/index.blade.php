@@ -341,7 +341,14 @@
                                 <template x-for="(idea, index) in ideas" :key="index">
                                     <button type="button" x-on:click="openIdea(index)"
                                             class="text-left border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
-                                        <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block mb-1.5" x-text="idea.pillar ?? '-'"></span>
+                                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block" x-text="idea.pillar ?? '-'"></span>
+                                            <span x-show="idea.predicted_score !== null && idea.predicted_score !== undefined"
+                                                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                                                  :class="scoreBadgeClass(idea.predicted_label)"
+                                                  :title="scoreLabelText(idea.predicted_label) + ' — berdasarkan performa historis pillar & platform ini'"
+                                                  x-text="idea.predicted_score + '%'"></span>
+                                        </div>
                                         <p class="text-sm font-semibold text-[#14181a]" x-text="idea.title ?? '-'"></p>
                                         <p class="text-xs text-[#5c6266] mt-1 leading-relaxed" x-text="idea.brief ?? '-'"></p>
                                         <p class="text-[10px] text-[#9aa0a4] mt-2 flex items-center gap-2">
@@ -433,7 +440,13 @@
                                 <template x-if="selectedIdea">
                                     <div class="p-6">
                                         <div class="flex items-start justify-between gap-3 mb-4">
-                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]" x-text="selectedIdea.pillar ?? '-'"></span>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]" x-text="selectedIdea.pillar ?? '-'"></span>
+                                                <span x-show="selectedIdea.predicted_score !== null && selectedIdea.predicted_score !== undefined"
+                                                      class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                      :class="scoreBadgeClass(selectedIdea.predicted_label)"
+                                                      x-text="scoreLabelText(selectedIdea.predicted_label) + ' (' + selectedIdea.predicted_score + '%)'"></span>
+                                            </div>
                                             <button type="button" x-on:click="closeIdea()"
                                                     class="text-[#9aa0a4] hover:text-[#14181a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
                                                 <span class="material-symbols-outlined text-[20px]">close</span>
@@ -609,6 +622,16 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         regenError: '',
         get selectedIdea() {
             return this.selectedIndex !== null ? this.ideas[this.selectedIndex] : null;
+        },
+        scoreBadgeClass(label) {
+            return {
+                high: 'bg-[#f0f5f4] text-[#0f7a5f]',
+                medium: 'bg-[#fdf6ec] text-[#8a6423]',
+                low: 'bg-[#f2f3f6] text-[#5c6266]',
+            }[label] ?? 'bg-[#f2f3f6] text-[#9aa0a4]';
+        },
+        scoreLabelText(label) {
+            return { high: 'Potensi Tinggi', medium: 'Potensi Sedang', low: 'Potensi Rendah' }[label] ?? '';
         },
         openIdea(index) {
             this.selectedIndex = index;

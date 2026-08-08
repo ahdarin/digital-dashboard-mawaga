@@ -10,6 +10,10 @@
             <p class="text-[#5c6266] text-sm mt-1">Ringkasan aktivitas tim dan klien hari ini.</p>
         </div>
 
+        <div x-data="{ now: new Date() }" x-init="setInterval(() => now = new Date(), 1000)" class="text-right shrink-0">
+            <p class="text-sm text-[#5c6266]" x-text="now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"></p>
+            <p class="font-display text-2xl font-semibold text-[#14181a]" x-text="now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })"></p>
+        </div>
     </div>
 
     <div class="flex gap-5 items-start">
@@ -121,6 +125,42 @@
                 @endif
             </div>
 
+            {{-- Top performing content (teaser Analytics) --}}
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="font-display text-lg font-semibold text-[#14181a]">Top Performing Content</h2>
+                    <a href="{{ Route::has('analytics') ? route('analytics') : '#' }}" class="text-sm font-medium text-[#044b46] hover:underline">Lihat Analytics</a>
+                </div>
+                <p class="text-xs text-[#9aa0a4] mb-4">Konten dengan views tertinggi bulan ini, lintas semua client.</p>
+
+                @if ($topContent->isEmpty())
+                    <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa konten bulan ini.</p>
+                @else
+                    <table class="w-full text-sm text-left">
+                        <thead>
+                            <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                <th class="pb-2.5 font-medium">Title</th>
+                                <th class="pb-2.5 font-medium">Client</th>
+                                <th class="pb-2.5 font-medium">Platform</th>
+                                <th class="pb-2.5 font-medium">Views</th>
+                                <th class="pb-2.5 font-medium">Engagement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($topContent as $item)
+                                <tr class="border-t border-[#f2f3f6]">
+                                    <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $item['title'] }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $item['client'] }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $item['platform'] }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ number_format($item['views']) }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $item['engagement_rate'] }}%</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+
         </div>
 
         {{-- Kolom kanan --}}
@@ -164,7 +204,7 @@
                     @empty
                         <div class="text-center py-8">
                             <span class="material-symbols-outlined text-[#0f7a5f] text-[28px]">check_circle</span>
-                            <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada item overdue. Semua on track 🎉</p>
+                            <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada item overdue. Semua on track.</p>
                         </div>
                     @endforelse
                 </div>
@@ -203,6 +243,35 @@
                         </div>
                     @endforelse
                 </div>
+            </div>
+
+            {{-- Akurasi prediksi AI Delay Risk (teaser Team Performance) --}}
+            <div class="card p-6 flex flex-col">
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-9 h-9 rounded-lg bg-[#eef2fb] flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-[#3452a8] text-[18px]">verified</span>
+                    </div>
+                    <h2 class="font-display text-base font-semibold text-[#14181a]">AI Prediction Accuracy</h2>
+                </div>
+
+                @if ($riskAccuracy['total_evaluated'] === 0)
+                    <p class="text-sm text-[#9aa0a4] mt-3">Belum ada cukup data (butuh konten yang sudah upload dan pernah dapat skor risiko).</p>
+                @else
+                    @if ($riskAccuracy['high_risk_accuracy'] !== null)
+                        <div class="flex items-baseline gap-2 mt-3">
+                            <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $riskAccuracy['high_risk_accuracy'] }}%</p>
+                            <p class="text-xs text-[#5c6266]">prediksi <strong>High Risk</strong> benar-benar terlambat</p>
+                        </div>
+                    @else
+                        <p class="text-sm text-[#9aa0a4] mt-3">Belum ada konten dengan prediksi High Risk yang sudah selesai upload.</p>
+                    @endif
+                @endif
+
+                <a href="{{ route('team-performance.index') }}"
+                   class="mt-4 w-full bg-[#f7f8fc] text-[#044b46] text-sm font-medium py-2.5 rounded-lg hover:bg-[#f0f5f4] transition-colors flex items-center justify-center gap-1.5">
+                    Lihat detail lengkap
+                    <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                </a>
             </div>
 
         </div>

@@ -434,7 +434,7 @@ class AnalyticsController extends Controller
                 'action_items' => $result['action_items'],
                 'suggested_split' => $result['suggested_split'],
                 'top_pillars' => $result['top_pillars'],
-                'content_ideas' => $result['content_ideas'],
+                'content_ideas' => $aiStrategyService->scoreContentIdeas($result['content_ideas'], $summary),
                 'data_completeness_percent' => $dataCompleteness,
                 'status' => 'completed',
             ]);
@@ -664,6 +664,8 @@ class AnalyticsController extends Controller
                 $validated['pillar']
             );
 
+            $newIdea = $aiStrategyService->scoreContentIdeas([$newIdea], $aiStrategyInsight->performance_data)[0];
+
             $ideas[$index] = $newIdea;
             $aiStrategyInsight->update(['content_ideas' => array_values($ideas)]);
 
@@ -764,7 +766,7 @@ class AnalyticsController extends Controller
                 'action_items' => $result['action_items'],
                 'suggested_split' => $result['suggested_split'],
                 'top_pillars' => $result['top_pillars'],
-                'content_ideas' => $result['content_ideas'],
+                'content_ideas' => $aiStrategyService->scoreContentIdeas($result['content_ideas'], $aiStrategyInsight->performance_data),
             ]);
 
             \App\Models\AiStrategyMessage::create([
