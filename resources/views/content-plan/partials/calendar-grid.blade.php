@@ -7,8 +7,7 @@
 
         $typeBadge = fn(?string $typeName) => match ($typeName) {
             'Video' => 'V',
-            'Design' => 'D',
-            'Copywriting' => 'C',
+            'Desain' => 'D',
             default => null,
         };
 
@@ -37,11 +36,11 @@
                 Semua
             </a>
 
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Design']) }}"
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Desain']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Design' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">D</span>
-                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Design</span>
+                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Desain</span>
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
@@ -49,13 +48,6 @@
                {{ ($selectedType ?? '') === 'Video' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">V</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Video</span>
-            </a>
-
-            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Copywriting']) }}"
-               class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Copywriting' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
-                <span class="absolute transition-opacity duration-150 group-hover:opacity-0">C</span>
-                <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Copy</span>
             </a>
         </div>
 

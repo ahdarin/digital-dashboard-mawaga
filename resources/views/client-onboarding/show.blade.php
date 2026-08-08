@@ -51,13 +51,13 @@
                     <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $planCount }}</p>
                 </div>
                 <div class="card p-6">
-                    <p class="text-sm text-[#5c6266] mb-2">Total Konten Dibuat</p>
+                    <p class="text-sm text-[#5c6266] mb-2">Total Content Created</p>
                     <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $contentCount }}</p>
                 </div>
             </div>
 
             <div class="card p-6">
-                <h2 class="font-display text-lg font-semibold text-[#14181a] mb-4">Konten Terbaru</h2>
+                <h2 class="font-display text-lg font-semibold text-[#14181a] mb-4">Recent Content</h2>
 
                 @if ($recentContentItems->isEmpty())
                     <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten untuk client ini.</p>
@@ -65,8 +65,8 @@
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                <th class="pb-2.5 font-medium">Judul</th>
-                                <th class="pb-2.5 font-medium">Tipe</th>
+                                <th class="pb-2.5 font-medium">Title</th>
+                                <th class="pb-2.5 font-medium">Type</th>
                                 <th class="pb-2.5 font-medium">Deadline</th>
                                 <th class="pb-2.5 font-medium">Status</th>
                             </tr>
@@ -121,7 +121,7 @@
             </div>
 
             <div class="card p-6">
-                <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Paket Aktif</h2>
+                <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Active Package</h2>
 
                 @if ($client->activePackage)
                     <p class="text-sm font-medium text-[#14181a]">{{ $client->activePackage->package_name_snapshot }}</p>

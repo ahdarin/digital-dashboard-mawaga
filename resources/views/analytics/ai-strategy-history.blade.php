@@ -9,7 +9,7 @@
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
         <span>{{ $client->name }}</span>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
-        <span class="text-[#5c6266] font-medium">Riwayat AI Strategy</span>
+        <span class="text-[#5c6266] font-medium">AI Strategy History</span>
     </div>
 
     <div class="flex items-center gap-3 mb-7">
@@ -17,7 +17,7 @@
             <span class="material-symbols-outlined">arrow_back</span>
         </a>
         <div>
-            <h1 class="font-display text-[26px] font-semibold text-[#14181a]">Riwayat AI Strategy Analysis</h1>
+            <h1 class="font-display text-[26px] font-semibold text-[#14181a]">AI Strategy Analysis History</h1>
             <p class="text-[#5c6266] mt-0.5 text-sm">Semua analisis yang pernah digenerate buat {{ $client->name }}, termasuk yang udah ketiban "Generate Ulang".</p>
         </div>
     </div>

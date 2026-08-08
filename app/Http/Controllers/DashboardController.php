@@ -7,22 +7,12 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
 use App\Models\User;
+use App\Support\WorkflowTransitions;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    private const STATUS_LABELS = [
-        'planned' => 'Direncanakan',
-        'brief_ready' => 'Brief Siap',
-        'in_progress' => 'Dikerjakan',
-        'in_design' => 'Proses Desain',
-        'waiting_review' => 'Menunggu Review',
-        'revision' => 'Revisi',
-        'approved' => 'Disetujui',
-        'scheduled' => 'Terjadwal',
-        'uploaded' => 'Terupload',
-        'cancelled' => 'Dibatalkan',
-    ];
+    private array $doneStatuses = ['uploaded', 'cancelled'];
 
     public function index()
     {
@@ -56,14 +46,14 @@ class DashboardController extends Controller
 
         $stats = [
             [
-                'label' => 'Konten Bulan Ini',
+                'label' => 'Content This Month',
                 'value' => number_format($contentThisMonth),
                 'change' => $contentChange['label'],
                 'trend' => $contentChange['trend'],
                 'icon' => 'draft',
             ],
             [
-                'label' => 'Klien Aktif',
+                'label' => 'Active Clients',
                 'value' => number_format($activeClients),
                 'change' => $newClientsThisMonth > 0
                     ? "+{$newClientsThisMonth} klien baru bulan ini"
@@ -72,28 +62,28 @@ class DashboardController extends Controller
                 'icon' => 'group',
             ],
             [
-                'label' => 'Tim Aktif',
+                'label' => 'Active Team',
                 'value' => number_format($activeTeam),
                 'change' => 'Anggota internal berstatus aktif',
                 'trend' => 'flat',
                 'icon' => 'badge',
             ],
             [
-                'label' => 'Item Overdue',
+                'label' => 'Overdue Items',
                 'value' => number_format($overdueCount),
                 'change' => "{$overdueRate}% dari total workflow berjalan",
                 'trend' => $overdueCount > 0 ? 'down' : 'up',
                 'icon' => 'schedule',
             ],
             [
-                'label' => 'Total Views Bulan Ini',
+                'label' => 'Total Views This Month',
                 'value' => number_format($viewsThisMonth),
                 'change' => $viewsChange['label'],
                 'trend' => $viewsChange['trend'],
                 'icon' => 'visibility',
             ],
             [
-                'label' => 'Konten Terupload',
+                'label' => 'Uploaded Content',
                 'value' => number_format($uploadedThisMonth),
                 'change' => 'Bulan berjalan',
                 'trend' => 'flat',
@@ -141,6 +131,26 @@ class DashboardController extends Controller
                 ];
             });
 
+        // Panel prediktif (beda dari "Perlu Perhatian" di atas yang reaktif/is_overdue):
+        // item aktif yang BELUM overdue tapi skor AI Delay Risk-nya lagi tinggi - biar
+        // tim bisa cegah keterlambatan sebelum kejadian, bukan cuma tahu setelah telat.
+        $highRiskItems = ContentItem::with(['client', 'workflow.currentPic', 'latestDelayRisk'])
+            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses)->where('is_overdue', false))
+            ->whereHas('latestDelayRisk', fn ($q) => $q->where('risk_level', 'high'))
+            ->get()
+            ->sortByDesc(fn ($item) => $item->latestDelayRisk->risk_score)
+            ->take(4)
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'title' => $item->title,
+                    'client' => $item->client->name ?? '-',
+                    'pic' => $item->workflow->currentPic->name ?? 'Belum ditugaskan',
+                    'risk_score' => $item->latestDelayRisk->risk_score,
+                    'top_factor' => $item->latestDelayRisk->top_factor,
+                ];
+            });
+
         $recentItems = ContentItem::with(['client', 'contentType', 'workflow'])
             ->latest('created_at')
             ->take(6)
@@ -166,7 +176,7 @@ class DashboardController extends Controller
         );
 
         return view('dashboard.index', compact(
-            'stats', 'performance', 'viewsTrend', 'attentionItems', 'recentItems', 'insights'
+            'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights'
         ));
     }
 
@@ -197,7 +207,7 @@ class DashboardController extends Controller
             return '-';
         }
 
-        return self::STATUS_LABELS[$status] ?? ucfirst(str_replace('_', ' ', $status));
+        return WorkflowTransitions::label($status);
     }
 
     private function generateInsights(

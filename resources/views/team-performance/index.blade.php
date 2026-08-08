@@ -27,23 +27,62 @@
             <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#044b46] text-[18px]">groups</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Personel Aktif</p>
+            <p class="text-sm text-[#5c6266] mb-2">Active Personnel</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['personnel_active'] }}</p>
         </div>
         <div class="card p-6">
             <div class="w-9 h-9 rounded-lg bg-[#eef2fb] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#3452a8] text-[18px]">assignment</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Total Item Aktif</p>
+            <p class="text-sm text-[#5c6266] mb-2">Total Active Items</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['total_active_items'] }}</p>
         </div>
         <div class="card p-6">
             <div class="w-9 h-9 rounded-lg bg-[#fdf6ec] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#b8873a] text-[18px]">history_edu</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Rata-rata Revisi / Orang</p>
+            <p class="text-sm text-[#5c6266] mb-2">Avg. Revision / Person</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['avg_revision'] }}</p>
         </div>
+    </div>
+
+    {{-- Akurasi Prediksi AI Delay Risk (feedback loop) --}}
+    <div class="card p-6 mb-5">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-9 h-9 rounded-lg bg-[#eef2fb] flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-[#3452a8] text-[18px]">verified</span>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-[#14181a]">AI Delay Risk Prediction Accuracy</h3>
+                <p class="text-xs text-[#9aa0a4]">Dibandingkan dengan status telat/tidak aktual dari konten yang sudah upload</p>
+            </div>
+        </div>
+
+        @if ($riskAccuracy['total_evaluated'] === 0)
+            <p class="text-sm text-[#9aa0a4] py-2">Belum ada cukup data (butuh konten yang sudah upload dan pernah dapat skor risiko).</p>
+        @else
+            <div class="flex items-baseline gap-2 mb-4">
+                @if ($riskAccuracy['high_risk_accuracy'] !== null)
+                    <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $riskAccuracy['high_risk_accuracy'] }}%</p>
+                    <p class="text-xs text-[#5c6266]">dari konten yang diprediksi <strong>High Risk</strong> benar-benar terlambat</p>
+                @else
+                    <p class="text-sm text-[#9aa0a4]">Belum ada konten dengan prediksi High Risk yang sudah selesai upload.</p>
+                @endif
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                @foreach (['high' => 'High', 'medium' => 'Medium', 'low' => 'Low'] as $level => $label)
+                    @php $b = $riskAccuracy['breakdown'][$level]; @endphp
+                    <div class="bg-[#f7f8fc] rounded-lg p-3">
+                        <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1">{{ $label }}</p>
+                        <p class="text-sm text-[#14181a]">
+                            {{ $b['total'] > 0 ? round($b['late'] / $b['total'] * 100) . '%' : '-' }}
+                            <span class="text-xs text-[#9aa0a4] font-normal">telat ({{ $b['late'] }}/{{ $b['total'] }})</span>
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 
     {{-- Risk Indicators --}}
@@ -55,7 +94,7 @@
                 <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-xl p-4 flex items-start gap-3">
                     <span class="material-symbols-outlined text-[#b3423e] text-[19px]">warning</span>
                     <div>
-                        <p class="text-sm font-semibold text-[#14181a]">Beban Kerja Tinggi</p>
+                        <p class="text-sm font-semibold text-[#14181a]">High Workload</p>
                         @foreach ($overloadedMembers as $m)
                             <p class="text-xs text-[#5c6266] mt-0.5">{{ $m['user']->name }} memiliki {{ $m['active_count'] }} task aktif</p>
                         @endforeach
@@ -67,7 +106,7 @@
                 <div class="bg-[#fdf6ec] border border-[#f3e5c8] rounded-xl p-4 flex items-start gap-3">
                     <span class="material-symbols-outlined text-[#b8873a] text-[19px]">schedule</span>
                     <div>
-                        <p class="text-sm font-semibold text-[#14181a]">Ada Task Overdue</p>
+                        <p class="text-sm font-semibold text-[#14181a]">Overdue Tasks</p>
                         @foreach ($overdueMembers as $m)
                             <p class="text-xs text-[#5c6266] mt-0.5">{{ $m['user']->name }}: {{ $m['overdue_count'] }} task terlambat</p>
                         @endforeach
@@ -88,8 +127,8 @@
                         <th class="px-6 py-3 font-medium">Member</th>
                         <th class="px-4 py-3 font-medium">Active Tasks</th>
                         <th class="px-4 py-3 font-medium">Overdue</th>
-                        <th class="px-4 py-3 font-medium">Selesai Bulan Ini</th>
-                        <th class="px-4 py-3 font-medium">Jumlah Revisi</th>
+                        <th class="px-4 py-3 font-medium">Completed This Month</th>
+                        <th class="px-4 py-3 font-medium">Revision Count</th>
                         <th class="px-4 py-3 font-medium">Avg. Delay Risk</th>
                     </tr>
                 </thead>

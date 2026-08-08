@@ -1,10 +1,10 @@
 @extends('layouts.app')
-@section('title', 'Pengaturan Master Data')
+@section('title', 'Master Data Settings')
 @section('content')
 <div x-data="{ showAdd: false }" class="p-8 max-w-[1300px]">
 
     <div class="mb-6">
-        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Pengaturan Master Data</h1>
+        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Master Data Settings</h1>
         <p class="text-[#5c6266] text-sm mt-1">Kelola variabel dasar untuk perencanaan konten dan manajemen client.</p>
     </div>
 
@@ -21,7 +21,7 @@
             'content-pillar' => 'Content Pillar',
             'content-type' => 'Content Type',
             'platform' => 'Platform',
-            'client-category' => 'Kategori Client',
+            'client-category' => 'Client Category',
         ];
     @endphp
     <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 w-fit">
@@ -61,8 +61,8 @@
         <table class="w-full text-sm text-left">
             <thead class="bg-[#f7f8fc]">
                 <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium">Nama</th>
-                    <th class="px-6 py-3 font-medium text-right">Aksi</th>
+                    <th class="px-6 py-3 font-medium">Name</th>
+                    <th class="px-6 py-3 font-medium text-right">Action</th>
                 </tr>
             </thead>
             <tbody>

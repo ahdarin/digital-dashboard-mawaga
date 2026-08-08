@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics | 523 Studio</title>
 
-    <link rel="icon" href="{{ asset('images/logo.png') }}">
+    <link rel="icon" href="{{ asset('images/favicon.png') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,7 +73,7 @@
         </div>
 
         <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
-            <p class="text-sm font-semibold text-[#14181a] mb-3">Tren Views</p>
+            <p class="text-sm font-semibold text-[#14181a] mb-3">Views Trend</p>
             <x-trend-chart :trend="$trend" />
         </div>
 

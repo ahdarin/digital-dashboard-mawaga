@@ -13,7 +13,7 @@ class ProfileController extends Controller
     public function show(User $user)
     {
         $assignments = ContentItemAssignment::where('user_id', $user->id)
-            ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType'])
+            ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType', 'contentItem.latestDelayRisk'])
             ->get()
             ->filter(fn ($a) => $a->contentItem && $a->contentItem->workflow);
 

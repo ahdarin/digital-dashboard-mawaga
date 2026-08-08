@@ -64,11 +64,11 @@
                     <div class="w-14 h-14 rounded-full bg-[#f0f5f4] flex items-center justify-center mb-4">
                         <span class="material-symbols-outlined text-[#044b46] text-[26px]">cloud_upload</span>
                     </div>
-                    <p class="font-display text-lg font-semibold text-[#14181a] mb-1">Drag and drop your file here</p>
-                    <p class="text-sm text-[#9aa0a4] mb-4">or</p>
+                    <p class="font-display text-lg font-semibold text-[#14181a] mb-1">Tarik &amp; lepas file di sini</p>
+                    <p class="text-sm text-[#9aa0a4] mb-4">atau</p>
 
                     <label class="cursor-pointer inline-block bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
-                        Choose File
+                        Pilih File
                         <input type="file" name="file" accept=".csv,.txt" required class="hidden" x-on:change="handleFile($event.target.files[0])">
                     </label>
 
@@ -110,7 +110,7 @@
 
                 <button type="submit" :disabled="!fileName"
                         class="bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    Confirm Import
+                    Konfirmasi Import
                 </button>
 
             </div>
@@ -137,7 +137,7 @@
                     </div>
 
                     <button type="button" x-on:click="downloadTemplate()" class="mt-4 text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[16px]">download</span> Download CSV Template
+                        <span class="material-symbols-outlined text-[16px]">download</span> Download Template CSV
                     </button>
                 </div>
             </div>

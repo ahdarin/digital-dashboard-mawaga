@@ -34,9 +34,9 @@
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium">Content Item</th>
                         <th class="px-4 py-3 font-medium">Client</th>
-                        <th class="px-4 py-3 font-medium">Ronde</th>
-                        <th class="px-4 py-3 font-medium">Catatan</th>
-                        <th class="px-4 py-3 font-medium">Diminta Oleh</th>
+                        <th class="px-4 py-3 font-medium">Round</th>
+                        <th class="px-4 py-3 font-medium">Notes</th>
+                        <th class="px-4 py-3 font-medium">Requested By</th>
                     </tr>
                 </thead>
                 <tbody>

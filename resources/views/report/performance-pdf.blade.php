@@ -14,15 +14,15 @@
     </style>
 </head>
 <body>
-    <h1>Laporan Performa Konten</h1>
+    <h1>Content Performance Report</h1>
     <p class="subtitle">{{ $client_name }} &middot; {{ $period_start }} - {{ $period_end }}</p>
 
     <table style="margin-bottom: 10px;">
         <tr>
             <th>Total Views</th>
             <th>Avg. Engagement Rate</th>
-            <th>Jumlah Konten</th>
-            <th>Platform Terlacak</th>
+            <th>Content Count</th>
+            <th>Platforms Tracked</th>
         </tr>
         <tr>
             <td>{{ number_format($total_views) }}</td>
@@ -36,9 +36,9 @@
     <table>
         <thead>
             <tr>
-                <th>Judul</th>
+                <th>Title</th>
                 <th>Platform</th>
-                <th>Tipe Konten</th>
+                <th>Content Type</th>
                 <th>Views</th>
                 <th>Engagement Rate</th>
             </tr>

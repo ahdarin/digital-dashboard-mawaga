@@ -137,7 +137,7 @@
 
         {{-- Age --}}
         <div class="card p-6">
-            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Rentang Usia</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Age Range</h2>
             @if (empty($ageBreakdown))
                 <p class="text-sm text-[#9aa0a4] text-center py-8">Belum ada data.</p>
             @else
@@ -159,7 +159,7 @@
 
         {{-- Top Locations --}}
         <div class="card p-6">
-            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Top Lokasi</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Top Locations</h2>
             @if ($topLocations->isEmpty())
                 <p class="text-sm text-[#9aa0a4] text-center py-8">Belum ada data.</p>
             @else
@@ -186,7 +186,7 @@
     {{-- Active hours --}}
     <div class="card p-6 mt-5">
         <div class="flex items-center justify-between mb-1">
-            <h2 class="font-display text-base font-semibold text-[#14181a]">Jam Aktif Audience</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a]">Audience Active Hours</h2>
             @if ($peakHour && $peakHour['value'] > 0)
                 <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Paling aktif: {{ $peakHour['label'] }}</span>
             @endif

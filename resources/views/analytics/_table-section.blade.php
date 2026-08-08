@@ -64,11 +64,11 @@
                 <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                     <th class="px-6 py-3 font-medium">
                         <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
-                            Konten <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
+                            Content <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
                         </a>
                     </th>
                     <th class="px-4 py-3 font-medium">Platform</th>
-                    <th class="px-4 py-3 font-medium">Tipe</th>
+                    <th class="px-4 py-3 font-medium">Type</th>
                     <th class="px-4 py-3 font-medium">
                         <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
                             Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>

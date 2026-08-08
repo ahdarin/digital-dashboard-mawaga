@@ -1,4 +1,5 @@
 @php
+    $showTotal = $showTotal ?? true;
     $trendItems = collect($trend)->values();
     $total = $trendItems->sum('value');
     $max = max($trendItems->max('value') ?? 0, 1);
@@ -27,10 +28,12 @@
         </div>
     @else
         <div class="flex items-baseline gap-6 mb-5">
-            <div>
-                <p class="text-[11px] text-[#9aa0a4] mb-0.5">Total</p>
-                <p class="font-display text-xl font-semibold text-[#14181a]">{{ number_format($total) }}</p>
-            </div>
+            @if ($showTotal)
+                <div>
+                    <p class="text-[11px] text-[#9aa0a4] mb-0.5">Total</p>
+                    <p class="font-display text-xl font-semibold text-[#14181a]">{{ number_format($total) }}</p>
+                </div>
+            @endif
             <div>
                 <p class="text-[11px] text-[#9aa0a4] mb-0.5">Rata-rata</p>
                 <p class="font-display text-xl font-semibold text-[#14181a]">{{ $compact(round($avg)) }}</p>

@@ -13,7 +13,7 @@
         <a href="{{ route('client-onboarding.create') }}"
            class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">person_add</span>
-            Add Client
+            Tambah Client
         </a>
     </div>
 

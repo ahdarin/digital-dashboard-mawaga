@@ -41,7 +41,7 @@
                     <div class="flex items-center gap-3 mb-6">
                         <div class="w-7 h-7 rounded-lg bg-[#044b46] text-white flex items-center justify-center text-xs font-semibold shrink-0">1</div>
                         <div>
-                            <p class="text-sm font-semibold text-[#14181a]">Informasi Perusahaan</p>
+                            <p class="text-sm font-semibold text-[#14181a]">Company Information</p>
                             <p class="text-xs text-[#9aa0a4]">Data dasar client dan kategorinya</p>
                         </div>
                     </div>
@@ -113,7 +113,7 @@
                     <div class="flex items-center gap-3 mb-1">
                         <div class="w-7 h-7 rounded-lg bg-[#044b46] text-white flex items-center justify-center text-xs font-semibold shrink-0">2</div>
                         <div>
-                            <p class="text-sm font-semibold text-[#14181a]">Akun Owner (Client Owner)</p>
+                            <p class="text-sm font-semibold text-[#14181a]">Owner Account (Client Owner)</p>
                             <p class="text-xs text-[#9aa0a4]">Akun ini yang login ke dashboard client</p>
                         </div>
                     </div>

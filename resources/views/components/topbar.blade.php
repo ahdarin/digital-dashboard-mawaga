@@ -7,6 +7,9 @@
         'ai_insight' => ['icon' => 'auto_awesome', 'bg' => 'bg-[#f0f5f4]', 'color' => 'text-[#044b46]'],
         'task' => ['icon' => 'assignment', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
         'system' => ['icon' => 'cloud_done', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
+        'deadline_reminder' => ['icon' => 'schedule', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
+        'overdue_reminder' => ['icon' => 'warning', 'bg' => 'bg-[#fdf2f1]', 'color' => 'text-[#b3423e]'],
+        'delay_risk_alert' => ['icon' => 'report', 'bg' => 'bg-[#fdf2f1]', 'color' => 'text-[#b3423e]'],
     ];
 @endphp
 
@@ -15,7 +18,7 @@
 
         <div class="relative flex-1 max-w-md">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa0a4] text-[19px]">search</span>
-            <input type="text" placeholder="Search projects, content, or clients..."
+            <input type="text" placeholder="Cari proyek, konten, atau client..."
                    class="w-full pl-10 pr-4 py-2 text-sm bg-[#f7f8fc] border border-transparent rounded-lg focus:outline-none focus:border-[#044b46]/30 focus:bg-white transition-colors">
         </div>
 
@@ -38,7 +41,7 @@
                             <div class="flex items-center gap-3">
                                 <form action="{{ route('notifications.mark-all-read') }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="text-xs font-medium text-[#044b46] hover:underline">Mark all as read</button>
+                                    <button type="submit" class="text-xs font-medium text-[#044b46] hover:underline">Tandai semua dibaca</button>
                                 </form>
                                 <button @click="open = false" type="button" class="text-[#9aa0a4] hover:text-[#5c6266]">
                                     <span class="material-symbols-outlined text-[18px]">close</span>
@@ -46,7 +49,7 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            @foreach (['all' => 'All', 'task' => 'Tasks', 'ai_insight' => 'AI Insights', 'mention' => 'Mentions'] as $key => $label)
+                            @foreach (['all' => 'All', 'delay_risk_alert' => 'Risk Alerts', 'task' => 'Tasks', 'ai_insight' => 'AI Insights', 'mention' => 'Mentions'] as $key => $label)
                                 <button @click="tab = '{{ $key }}'" type="button"
                                         :class="tab === '{{ $key }}' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#5c6266] hover:bg-[#eef0f4]'"
                                         class="text-xs font-medium px-3 py-1.5 rounded-full transition-colors">
