@@ -37,7 +37,7 @@
 
     <div x-show="toast" x-transition class="fixed top-6 right-6 z-50 bg-[#14181a] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
 
-    <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-[#f7f8fc]">
+    <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-[#f7f8fc] thin-autohide-scrollbar">
         @php $statusLabels = \App\Support\WorkflowTransitions::labels(); @endphp
 
         @foreach ($statuses as $status)
@@ -56,7 +56,7 @@
                     <span class="text-xs bg-[#f2f3f6] text-[#5c6266] px-2 py-0.5 rounded-full">{{ $board[$status]->count() }}</span>
                 </div>
 
-                <div class="p-2.5 overflow-y-auto flex-1 space-y-2.5 kanban-column" style="min-height: 100px;"
+                <div class="p-2.5 overflow-y-auto flex-1 space-y-2.5 kanban-column thin-autohide-scrollbar" style="min-height: 100px;"
                      x-bind:data-expanded="(expandedColumns['{{ $status }}'] || search.length > 0) ? 'true' : 'false'">
                     @forelse ($board[$status] as $item)
                         @php $isOverdue = $item->workflow->is_overdue; @endphp

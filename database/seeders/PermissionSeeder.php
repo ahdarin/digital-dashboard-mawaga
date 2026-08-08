@@ -11,8 +11,9 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $modules = [
-            'client', 'content_plan', 'workflow', 'analytics',
-            'master_data', 'report', 'user_management',
+            'dashboard', 'client', 'team_performance', 'user_management',
+            'analytics', 'report', 'master_data', 'settings',
+            'content_plan', 'workflow', 'publishing',
         ];
         $actions = ['view', 'create', 'update', 'approve', 'manage'];
 
@@ -22,24 +23,46 @@ class PermissionSeeder extends Seeder
             }
         }
 
-        // Mapping role -> permission (sesuaikan lagi nanti kalau ada modul yang kurang tepat)
+        // Mapping role -> permission, mengikuti batas akses RBAC 523 Studio:
+        // - dashboard, client onboarding, team performance, user management: CEO & Manager
+        // - analytics, report, master data, settings: CEO, Manager, SMO
+        // - content plan: semua role bisa lihat, tapi cuma CEO/Manager/Copywriter yang bisa buat plan/item baru
+        // - production workflow, revision log, publishing tracker: semua role bisa lihat (data discope per-client di controller)
+        // - publishing (submit data publikasi/mark uploaded): khusus SMO
         $mapping = [
             'CEO' => ['*'], // semua permission
-            'Admin' => [
-                ['client', 'manage'], ['master_data', 'manage'],
-                ['report', 'manage'], ['user_management', 'manage'],
-                ['content_plan', 'view'], ['workflow', 'view'], ['analytics', 'view'],
+            'Manager' => [
+                ['dashboard', 'view'],
+                ['client', 'manage'],
+                ['team_performance', 'view'],
+                ['user_management', 'manage'],
+                ['analytics', 'view'],
+                ['report', 'view'],
+                ['master_data', 'manage'],
+                ['settings', 'manage'],
+                ['content_plan', 'view'], ['content_plan', 'create'],
+                ['workflow', 'view'],
             ],
             'Content Creator' => [
-                ['client', 'view'], ['content_plan', 'manage'],
+                ['content_plan', 'view'],
                 ['workflow', 'view'], ['workflow', 'update'],
             ],
             'Graphic Designer' => [
+                ['content_plan', 'view'],
                 ['workflow', 'view'], ['workflow', 'update'],
             ],
-            'MSO' => [
-                ['workflow', 'view'], ['workflow', 'update'],
+            'SMO' => [
                 ['analytics', 'view'],
+                ['report', 'view'],
+                ['master_data', 'manage'],
+                ['settings', 'manage'],
+                ['content_plan', 'view'],
+                ['workflow', 'view'], ['workflow', 'update'],
+                ['publishing', 'manage'],
+            ],
+            'Copywriter' => [
+                ['content_plan', 'view'], ['content_plan', 'create'],
+                ['workflow', 'view'],
             ],
             'Client Owner' => [
                 ['workflow', 'view'], ['workflow', 'approve'], ['analytics', 'view'],

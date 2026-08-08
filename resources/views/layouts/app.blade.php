@@ -38,6 +38,32 @@
             width: 70%; opacity: 1;
             transition: width 8s cubic-bezier(0.1,0.5,0.1,1), opacity 0.2s ease;
         }
+
+        /* Scrollbar tipis, transparan, muncul saat hover — dipakai di sidebar, task list profile, dan kanban */
+        .thin-autohide-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: transparent transparent;
+        }
+        .thin-autohide-scrollbar:hover {
+            scrollbar-color: #c3c7cb transparent;
+        }
+        .thin-autohide-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .thin-autohide-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .thin-autohide-scrollbar::-webkit-scrollbar-thumb {
+            background-color: transparent;
+            border-radius: 9999px;
+        }
+        .thin-autohide-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #c3c7cb;
+        }
+        .thin-autohide-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #9aa0a4;
+        }
     </style>
 </head>
 <body class="min-h-screen">

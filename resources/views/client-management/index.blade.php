@@ -10,7 +10,7 @@
             <p class="text-[#5c6266] text-sm mt-1">Kelola portofolio client dan paket langganan mereka.</p>
         </div>
 
-        <a href="{{ route('client-onboarding.create') }}"
+        <a href="{{ route('client-management.create') }}"
            class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">person_add</span>
             Tambah Client
@@ -22,7 +22,7 @@
     @endif
 
     {{-- Search & Filter --}}
-    <form method="GET" action="{{ route('client-onboarding.index') }}" class="card p-4 mb-5 flex items-center gap-3">
+    <form method="GET" action="{{ route('client-management.index') }}" class="card p-4 mb-5 flex items-center gap-3">
         <div class="flex-1 relative">
             <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#c3c7cb] text-[19px]">search</span>
             <input type="text" name="search" value="{{ $search }}" placeholder="Cari client, email, atau paket..."
@@ -55,7 +55,7 @@
                 @forelse ($clients as $client)
                     <tr class="border-b border-[#f2f3f6] last:border-0 hover:bg-[#f7f8fc] transition-colors">
                         <td class="px-6 py-3.5">
-                            <a href="{{ route('client-onboarding.show', $client) }}" class="flex items-center gap-3 group">
+                            <a href="{{ route('client-management.show', $client) }}" class="flex items-center gap-3 group">
                                 <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
                                     @if ($client->logo_url)
                                         <img src="{{ $client->logo_url }}" class="w-full h-full object-cover">
@@ -82,15 +82,15 @@
                         <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner ? ucfirst($client->owner->status) : 'Belum ada owner' }}</td>
                         <td class="px-6 py-3.5">
                             <div class="flex items-center justify-end gap-1">
-                                <a href="{{ route('client-onboarding.show', $client) }}"
+                                <a href="{{ route('client-management.show', $client) }}"
                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Lihat detail">
                                     <span class="material-symbols-outlined text-[17px]">visibility</span>
                                 </a>
-                                <a href="{{ route('client-onboarding.edit', $client) }}"
+                                <a href="{{ route('client-management.edit', $client) }}"
                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Edit">
                                     <span class="material-symbols-outlined text-[17px]">edit_square</span>
                                 </a>
-                                <form action="{{ route('client-onboarding.destroy', $client) }}" method="POST" class="m-0"
+                                <form action="{{ route('client-management.destroy', $client) }}" method="POST" class="m-0"
                                       onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.')">
                                     @csrf
                                     @method('DELETE')

@@ -36,7 +36,7 @@ class ProductionWorkflowController extends Controller
         ])
             ->whereHas('workflow');
 
-        // Batasi hanya client yang di-assign, kecuali CEO/Admin
+        // Batasi hanya client yang di-assign, kecuali CEO/Manager
         if (!$user->canSeeAllClients()) {
             $assignedClientIds = $user->assignedClients()->pluck('clients.id');
             $itemsQuery->whereIn('client_id', $assignedClientIds);

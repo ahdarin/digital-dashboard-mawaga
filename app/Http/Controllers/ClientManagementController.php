@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
-class ClientOnboardingController extends Controller
+class ClientManagementController extends Controller
 {
     public function index(Request $request)
     {
@@ -35,7 +35,7 @@ class ClientOnboardingController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('client-onboarding.index', compact('clients', 'search', 'status'));
+        return view('client-management.index', compact('clients', 'search', 'status'));
     }
 
     public function create()
@@ -44,7 +44,7 @@ class ClientOnboardingController extends Controller
 
         $categories = ClientCategory::all();
 
-        return view('client-onboarding.create', compact('categories'));
+        return view('client-management.create', compact('categories'));
     }
 
     public function store(Request $request)
@@ -88,7 +88,7 @@ class ClientOnboardingController extends Controller
             ]);
         });
 
-        return redirect()->route('client-onboarding.index')
+        return redirect()->route('client-management.index')
             ->with('status', 'Client & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
     }
 
@@ -107,7 +107,7 @@ class ClientOnboardingController extends Controller
         $contentCount = $client->contentItems()->count();
         $planCount = $client->contentPlans()->count();
 
-        return view('client-onboarding.show', compact(
+        return view('client-management.show', compact(
             'client', 'recentContentItems', 'contentCount', 'planCount'
         ));
     }
@@ -119,7 +119,7 @@ class ClientOnboardingController extends Controller
         $categories = ClientCategory::all();
         $client->load('owner');
 
-        return view('client-onboarding.edit', compact('client', 'categories'));
+        return view('client-management.edit', compact('client', 'categories'));
     }
 
     public function update(Request $request, Client $client)
@@ -175,7 +175,7 @@ class ClientOnboardingController extends Controller
             }
         });
 
-        return redirect()->route('client-onboarding.show', $client)
+        return redirect()->route('client-management.show', $client)
             ->with('status', 'Data client berhasil diperbarui.');
     }
 
@@ -188,7 +188,7 @@ class ClientOnboardingController extends Controller
         if ($hasHistory) {
             $client->update(['status' => 'paused']);
 
-            return redirect()->route('client-onboarding.index')
+            return redirect()->route('client-management.index')
                 ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Paused.");
         }
 
@@ -201,7 +201,7 @@ class ClientOnboardingController extends Controller
             $client->delete();
         });
 
-        return redirect()->route('client-onboarding.index')
+        return redirect()->route('client-management.index')
             ->with('status', 'Client berhasil dihapus.');
     }
 
