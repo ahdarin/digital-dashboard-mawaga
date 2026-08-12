@@ -64,6 +64,30 @@
         .thin-autohide-scrollbar::-webkit-scrollbar-thumb:hover {
             background-color: #9aa0a4;
         }
+
+        /* Running text (marquee) - dipakai buat reminder di Dashboard welcome
+           banner. Trik standar: konten di-duplikat 2x berdampingan dalam satu
+           track, lalu track-nya digeser -50% - begitu salinan pertama abis
+           keluar, salinan kedua udah pas di posisi awal, jadi looping-nya
+           keliatan mulus/nyambung tanpa "lompat". */
+        .marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marquee-scroll linear infinite;
+            animation-duration: var(--marquee-duration, 14s);
+        }
+        .marquee-track:hover {
+            animation-play-state: paused;
+        }
+        @keyframes marquee-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .marquee-track {
+                animation: none;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen">
