@@ -41,6 +41,13 @@ use Illuminate\Support\Carbon;
  *   AI Strategy Insight, semua di loop yang sama.
  * - Jumlah client demo dikurangi dari 6 jadi 3 (TechNova Inc., Kopi Senja,
  *   FreshBite Indonesia) biar data seeder nggak kebanyakan.
+ * - v6: 3 client contoh generik (TechNova/Kopi Senja/FreshBite) diganti
+ *   5 client yang mendekati portofolio riil 523 Studio (Yasmin International
+ *   Boarding School, PT Guna Griya Abadi, LuxSuits, Top Scorer Arena,
+ *   FTI UNAND) - masing-masing punya brand_name & brief content yang
+ *   dipakai buat generate 'brief' content item, biar data demo kerasa
+ *   representatif per-industri (edukasi, properti, fashion rental,
+ *   olahraga, akademik) daripada generik "Dummy brief".
  * - AiStrategyInsight sekarang diisi performance_data (dihitung beneran
  *   dari content_metrics yang digenerate di seeder ini, bukan kosong) -
  *   ini yang bikin fitur "Diskusi dengan AI" bisa langsung dicoba tanpa
@@ -160,24 +167,52 @@ class DemoSeeder extends Seeder
         // beneran ada di agensi (bukan 20+20 rata semua kayak sebelumnya,
         // itu bikin AI Strategy Analysis nyaranin sampe 40 ide konten/bulan
         // - kejauhan dari paket riil yang kebanyakan 9-12 konten/bulan).
+        //
+        // 'brand_name' eksplisit (bukan auto-ambil kata pertama dari 'name')
+        // karena beberapa nama client diawali badan hukum ("PT ...") yang
+        // bukan brand name aslinya. 'brief_context' dipakai sebagai brief
+        // content item biar nggak generik "Dummy brief" - ngikutin fokus
+        // visual/komunikasi asli tiap client.
         $clientDefs = [
             [
-                'name' => 'TechNova Inc.',
-                'login' => ['name' => 'Client Demo', 'email' => 'client-demo@technova.test', 'phone' => '6281275471093'],
-                'package' => ['name' => 'Paket Growth', 'content_quota' => 9, 'design_quota' => 9],
-                'category' => 'Startup',
+                'name' => 'Yasmin International Boarding School',
+                'brand_name' => 'Yasmin IBS',
+                'brief_context' => 'Visual identity dan materi promosi Yasmin International Boarding School, mengkomunikasikan citra terpercaya dan modern untuk calon siswa dan orang tua.',
+                'login' => ['name' => 'Rina Kartika', 'email' => 'humas@yasminschool.test', 'phone' => '6281199988771'],
+                'package' => ['name' => 'Paket Institusi', 'content_quota' => 10, 'design_quota' => 8],
+                'category' => 'Korporat',
             ],
             [
-                'name' => 'Kopi Senja',
+                'name' => 'PT Guna Griya Abadi',
+                'brand_name' => 'Guna Griya Abadi',
+                'brief_context' => 'Visual identity dan materi promosi perumahan yang dijual oleh PT Guna Griya Abadi.',
+                'login' => ['name' => 'Ahmad Fauzi', 'email' => 'marketing@gunagriyaabadi.test', 'phone' => '6281388823456'],
+                'package' => ['name' => 'Paket Korporat', 'content_quota' => 8, 'design_quota' => 10],
+                'category' => 'Korporat',
+            ],
+            [
+                'name' => 'LuxSuits',
+                'brand_name' => 'LuxSuits',
+                'brief_context' => 'Visual promotional design untuk LuxSuits, brand formal-wear rental, yang mengkomunikasikan citra premium dan elegan - komposisi minimalis dengan kontras kuat untuk menonjolkan nilai produk formal wear.',
                 'login' => null,
-                'package' => ['name' => 'Paket Konten', 'content_quota' => 12, 'design_quota' => 0],
+                'package' => ['name' => 'Paket Premium', 'content_quota' => 6, 'design_quota' => 10],
+                'category' => 'Retail',
+            ],
+            [
+                'name' => 'Top Scorer Arena',
+                'brand_name' => 'Top Scorer',
+                'brief_context' => 'Eksplorasi visual high-energy untuk bisnis mini soccer Top Scorer Arena, menjaga identitas sport yang kuat dan dinamis secara konsisten lintas platform media sosial.',
+                'login' => ['name' => 'Bayu Saputra', 'email' => 'bayu@topscorerarena.test', 'phone' => '6285711234567'],
+                'package' => ['name' => 'Paket Dinamis', 'content_quota' => 14, 'design_quota' => 4],
                 'category' => 'UMKM',
             ],
             [
-                'name' => 'FreshBite Indonesia',
-                'login' => ['name' => 'Budi Santoso', 'email' => 'budi@freshbite.test', 'phone' => '6282288706114'],
-                'package' => ['name' => 'Paket Starter', 'content_quota' => 6, 'design_quota' => 6],
-                'category' => 'Retail',
+                'name' => 'FTI UNAND',
+                'brand_name' => 'FTI UNAND',
+                'brief_context' => 'Materi visual akademik untuk Fakultas Teknologi Informasi, Universitas Andalas, menyeimbangkan informasi yang padat lewat layout yang bersih dan terstruktur.',
+                'login' => null,
+                'package' => ['name' => 'Paket Akademik', 'content_quota' => 6, 'design_quota' => 12],
+                'category' => 'Korporat',
             ],
         ];
 
@@ -188,7 +223,7 @@ class DemoSeeder extends Seeder
                 ['name' => $def['name']],
                 [
                     'client_category_id' => $clientCategory->id,
-                    'brand_name' => str($def['name'])->before(' ')->toString(),
+                    'brand_name' => $def['brand_name'],
                     'status' => 'active',
                 ]
             );
@@ -211,6 +246,7 @@ class DemoSeeder extends Seeder
 
         foreach ($clients as $clientIndex => $client) {
             $packageDef = $clientDefs[$clientIndex]['package'];
+            $briefContext = $clientDefs[$clientIndex]['brief_context'];
 
             $clientPackage = ClientPackage::firstOrCreate(
                 ['client_id' => $client->id],
@@ -311,7 +347,7 @@ class DemoSeeder extends Seeder
                     'content_type_id' => $contentType->id,
                     'platform_id' => $platform->id,
                     'title' => $client->brand_name.' - '.$contentType->name.' #'.($i + 1),
-                    'brief' => 'Dummy brief untuk seeding data demo.',
+                    'brief' => $briefContext,
                     'deadline_at' => $deadline,
                     'is_posted' => $isPosted,
                     'estimated_duration_seconds' => $estimatedDuration,
@@ -417,7 +453,7 @@ class DemoSeeder extends Seeder
                         'content_type_id' => $designType->id,
                         'platform_id' => $igPlatform->id,
                         'title' => 'Demo Content Item #'.($i + 1),
-                        'brief' => 'Contoh brief untuk testing board.',
+                        'brief' => $briefContext,
                         'deadline_at' => $now->copy()->subDay()->addDays($i),
                         'estimated_slide_count' => rand(1, 8),
                     ]);
