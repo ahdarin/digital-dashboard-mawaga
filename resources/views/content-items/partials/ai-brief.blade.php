@@ -25,26 +25,15 @@
         </div>
     </div>
 @else
-    @php
-        $scenesForDisplay = $contentBrief->scenes_for_display;
-        $isVideo = ($contentItem->contentType->name ?? '') === 'Video';
-        $secondFieldLabel = $isVideo ? 'Script Talent' : 'Isi Design / Copy';
-        $secondFieldIcon = $isVideo ? 'record_voice_over' : 'text_fields';
-    @endphp
-    <div class="card p-6 border border-[#044b46]/15" x-data="{ editing: false }">
+    <div class="card p-6 border border-[#044b46]/15">
         <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[#044b46] text-[16px]">auto_awesome</span>
                 <p class="text-[10px] font-semibold text-[#044b46] uppercase tracking-wide">AI Brief Execution Assistant</p>
-                <span class="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full
-                    {{ $isVideo ? 'bg-[#eef2fb] text-[#3452a8]' : 'bg-[#fdf6ec] text-[#8a6423]' }}">
-                    <span class="material-symbols-outlined text-[12px]">{{ $isVideo ? 'videocam' : 'palette' }}</span>
-                    {{ $contentItem->contentType->name ?? '-' }}
-                </span>
             </div>
 
-            <div class="flex items-center justify-between gap-2 h-8 w-full">
-                <span class="flex items-center h-8 text-xs font-medium px-3 rounded-full
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-medium px-3 py-1.5 rounded-full
                     {{ $contentBrief->status === 'finalized' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                     {{ $contentBrief->status === 'discussing' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
                     {{ $contentBrief->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
@@ -52,112 +41,16 @@
                 </span>
 
                 @if (! $contentBrief->isLocked())
-                    <div class="flex items-center h-8 gap-2">
-                        <button type="button" @click="editing = !editing"
-                            class="inline-flex items-center h-8 gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 rounded-lg hover:bg-[#f0f5f4] transition-colors leading-none">
-                            <span class="material-symbols-outlined text-[15px]" x-text="editing ? 'close' : 'edit'"></span>
-                            <span x-text="editing ? 'Cancel' : 'Edit'"></span>
+                    <form action="{{ route('content-brief.regenerate', $contentBrief) }}" method="POST"
+                          onsubmit="return confirm('Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).');">
+                        @csrf
+                        <button class="flex items-center gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                            <span class="material-symbols-outlined text-[15px]">refresh</span> Generate Ulang
                         </button>
-
-                        <form action="{{ route('content-brief.regenerate', $contentBrief) }}" method="POST" class="inline-flex h-8 m-0"
-                            onsubmit="return confirm('Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).');">
-                            @csrf
-                            <button class="inline-flex items-center h-8 gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 rounded-lg hover:bg-[#f0f5f4] transition-colors leading-none">
-                                <span class="material-symbols-outlined text-[15px]">refresh</span> Regenerate
-                            </button>
-                        </form>
-                    </div>
+                    </form>
                 @endif
             </div>
         </div>
-
-        @if (! $contentBrief->isLocked())
-            <div x-show="editing" x-cloak x-transition class="mb-5 -mx-6 -mt-1 px-6 pt-5 pb-6 bg-[#fafbfc] border-y border-[#eef0f4]">
-                <form action="{{ route('content-brief.update', $contentBrief) }}" method="POST" class="space-y-5">
-                    @csrf
-                    @method('PATCH')
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">Hook / Judul Brief</label>
-                            <input type="text" name="hook_title" value="{{ $contentBrief->hook_title }}" required
-                                class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">Talent</label>
-                            <input type="text" name="talent" value="{{ $contentBrief->talent }}"
-                                class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">Properti</label>
-                            <input type="text" name="properti" value="{{ $contentBrief->properti }}"
-                                class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">Platform</label>
-                            <input type="text" name="platform" value="{{ $contentBrief->platform }}"
-                                class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                        </div>
-                    </div>
-
-                    <div x-data="{
-                        scenes: @js(count($scenesForDisplay) ? $scenesForDisplay : [['label' => null, 'visual' => '', 'talent_script' => '']])
-                    }">
-                        <div class="flex items-center justify-between mb-2.5">
-                            <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase">Adegan / Slide</label>
-                            <button type="button" @click="scenes.push({ label: 'ADEGAN ' + (scenes.length + 1), visual: '', talent_script: '' })"
-                                class="flex items-center gap-1 text-xs font-medium text-[#044b46] hover:underline">
-                                <span class="material-symbols-outlined text-[14px]">add</span> Tambah Adegan/Slide
-                            </button>
-                        </div>
-
-                        <div class="space-y-3">
-                            <template x-for="(scene, index) in scenes" :key="index">
-                                <div class="border border-[#eef0f4] rounded-xl bg-white overflow-hidden">
-                                    <div class="flex items-center justify-between gap-2 bg-[#f7f8fc] border-b border-[#eef0f4] px-3.5 py-2">
-                                        <input type="text" :name="'scenes[' + index + '][label]'" x-model="scene.label"
-                                            placeholder="Contoh: ADEGAN 1 / SLIDE 1"
-                                            class="flex-1 text-xs font-semibold text-[#14181a] bg-transparent border-0 focus:outline-none focus:ring-0 p-0 uppercase placeholder:text-[#9aa0a4] placeholder:normal-case">
-                                        <button type="button" @click="scenes.splice(index, 1)"
-                                            class="text-[#b3423e] hover:opacity-70 shrink-0">
-                                            <span class="material-symbols-outlined text-[16px]">delete</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="divide-y divide-[#eef0f4]">
-                                        <div class="p-3.5">
-                                            <label class="flex items-center gap-1.5 text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">
-                                                <span class="material-symbols-outlined text-[13px]">visibility</span> Visual
-                                            </label>
-                                            <textarea :name="'scenes[' + index + '][visual]'" x-model="scene.visual" rows="2"
-                                                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-[#fafbfc] focus:outline-none focus:border-[#044b46]/40 focus:bg-white"></textarea>
-                                        </div>
-                                        <div class="p-3.5">
-                                            <label class="flex items-center gap-1.5 text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">
-                                                <span class="material-symbols-outlined text-[13px]">{{ $secondFieldIcon }}</span> {{ $secondFieldLabel }}
-                                            </label>
-                                            <textarea :name="'scenes[' + index + '][talent_script]'" x-model="scene.talent_script" rows="2"
-                                                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-[#fafbfc] focus:outline-none focus:border-[#044b46]/40 focus:bg-white"></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-3 pt-1">
-                        <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
-                            Simpan Perubahan
-                        </button>
-                        <button type="button" @click="editing = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
-                            Batal
-                        </button>
-                    </div>
-                </form>
-            </div>
-        @endif
-
-        <div x-show="! editing">
 
         <h3 class="font-display text-lg font-semibold text-[#14181a] mb-4">{{ $contentBrief->hook_title }}</h3>
 
@@ -183,45 +76,14 @@
             </div>
         </div>
 
-        {{-- Naskah/script - per adegan/slide, visual & {{ $secondFieldLabel }} disusun atas-bawah --}}
+        {{-- Naskah/script - dikasih kotak sendiri karena isinya paling panjang --}}
         <div class="mb-5">
             <p class="flex items-center gap-1.5 text-xs font-semibold text-[#14181a] mb-2">
                 <span class="material-symbols-outlined text-[15px] text-[#044b46]">description</span> Naskah / Script
             </p>
-
-            @if (count($scenesForDisplay))
-                <div class="space-y-3">
-                    @foreach ($scenesForDisplay as $i => $scene)
-                        <div class="border border-[#eef0f4] rounded-xl overflow-hidden">
-                            <div class="flex items-center gap-2 bg-[#f7f8fc] border-b border-[#eef0f4] px-4 py-2">
-                                <span class="w-5 h-5 rounded-full bg-[#044b46] text-white text-[10px] font-bold flex items-center justify-center shrink-0">{{ $i + 1 }}</span>
-                                <p class="text-xs font-semibold text-[#14181a] uppercase tracking-wide">
-                                    {{ $scene['label'] ?: 'Adegan/Slide '.($i + 1) }}
-                                </p>
-                            </div>
-
-                            <div class="divide-y divide-[#eef0f4]">
-                                <div class="px-4 py-3">
-                                    <p class="flex items-center gap-1.5 text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">
-                                        <span class="material-symbols-outlined text-[13px]">visibility</span> Visual
-                                    </p>
-                                    <p class="text-sm text-[#14181a] whitespace-pre-line">{{ $scene['visual'] ?: '-' }}</p>
-                                </div>
-                                <div class="px-4 py-3">
-                                    <p class="flex items-center gap-1.5 text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">
-                                        <span class="material-symbols-outlined text-[13px]">{{ $secondFieldIcon }}</span> {{ $secondFieldLabel }}
-                                    </p>
-                                    <p class="text-sm text-[#14181a] whitespace-pre-line">{{ $scene['talent_script'] ?: '-' }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <div class="ai-markdown text-sm text-[#5c6266] bg-[#f7f8fc] border border-[#eef0f4] rounded-lg p-4">
-                    <p>-</p>
-                </div>
-            @endif
+            <div class="ai-markdown text-sm text-[#5c6266] bg-[#f7f8fc] border border-[#eef0f4] rounded-lg p-4">
+                {!! \App\Support\Markdown::toHtml($contentBrief->copywriting_script) ?: '<p>-</p>' !!}
+            </div>
         </div>
 
         {{-- Kebutuhan produksi --}}
@@ -268,8 +130,6 @@
                 </span>
             </div>
         </div>
-
-        </div>{{-- /x-show="! editing" --}}
 
         @if (! $contentBrief->isLocked())
             <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3">
