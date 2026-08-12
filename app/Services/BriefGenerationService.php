@@ -17,9 +17,9 @@ class BriefGenerationService
     // Field brief yang boleh diubah lewat generate/regenerate/apply, dan
     // yang di-snapshot ke previous_snapshot sebelum berubah (buat fitur
     // revert 1-langkah).
-    private const EDITABLE_FIELDS = [
+    public const EDITABLE_FIELDS = [
         'hook_title', 'start_date', 'post_date', 'platform', 'reference_link',
-        'copywriting_script', 'talent', 'properti',
+        'copywriting_script', 'scenes', 'talent', 'properti',
         'estimated_duration_seconds', 'slide_count', 'talent_count',
         'location_count', 'complexity_level',
     ];
@@ -41,6 +41,7 @@ class BriefGenerationService
             'post_date' => $parsed['post_date'] ?? null,
             'platform' => $parsed['platform'] ?? ($rawIdea->platform->name ?? null),
             'copywriting_script' => $parsed['copywriting_script'] ?? null,
+            'scenes' => $parsed['scenes'] ?? null,
             'talent' => $parsed['talent'] ?? null,
             'properti' => $parsed['properti'] ?? null,
             'estimated_duration_seconds' => $parsed['estimated_duration_seconds'] ?? null,
@@ -69,6 +70,7 @@ class BriefGenerationService
             'post_date' => $parsed['post_date'] ?? null,
             'platform' => $parsed['platform'] ?? ($brief->contentItem->platform->name ?? null),
             'copywriting_script' => $parsed['copywriting_script'] ?? null,
+            'scenes' => $parsed['scenes'] ?? null,
             'talent' => $parsed['talent'] ?? null,
             'properti' => $parsed['properti'] ?? null,
             'estimated_duration_seconds' => $parsed['estimated_duration_seconds'] ?? null,
@@ -136,6 +138,18 @@ class BriefGenerationService
     {
         $typeName = $idea->contentType->name ?? 'Tidak diketahui';
         $platformName = $idea->platform->name ?? 'Tidak diketahui';
+        $isVideo = $typeName === 'Video';
+
+        $secondFieldSpec = $isVideo
+            ? '* talent_script: naskah/dialog/voice over yang diucapkan talent di adegan ini (teks '
+              .'biasa). WAJIB DIISI (jangan null/kosong) untuk SETIAP adegan yang ada talent-nya '
+              .'berbicara - karang dialog yang natural dan relevan kalau ide mentahnya tidak '
+              .'menyebutkan dialog spesifik. Cuma boleh null kalau adegan itu B-roll murni tanpa '
+              .'talent berbicara sama sekali.'
+            : '* talent_script: isi design/copywriting yang TAMPIL TERTULIS di slide ini (headline, '
+              .'caption, body text, CTA, dsb - teks biasa). WAJIB DIISI (jangan null/kosong) untuk '
+              .'SETIAP slide - karang copy yang relevan kalau ide mentahnya tidak menyebutkan teks '
+              .'spesifik. Cuma boleh null kalau slide itu murni gambar tanpa teks apapun.';
 
         return <<<PROMPT
         Kamu adalah asisten produksi konten untuk agensi kreatif. Ubah ide mentah berikut
@@ -154,27 +168,24 @@ class BriefGenerationService
         - start_date: perkiraan tanggal mulai produksi (format YYYY-MM-DD), asumsikan mulai besok
         - post_date: perkiraan tanggal posting (format YYYY-MM-DD), 3-5 hari setelah start_date
         - platform: platform publikasi
-        - copywriting_script: naskah/copy lengkap sesuai tipe kontennya, WAJIB ikuti template
-          format persis seperti ini (contoh untuk design/carousel 2 slide - kalau video, ganti
-          "SLIDE" jadi "ADEGAN"):
-
-          **SLIDE 1**
-
-          (isi teks/narasi slide 1 di sini)
-
-          **SLIDE 2**
-
-          (isi teks/narasi slide 2 di sini)
+        - scenes: array JSON berisi satu object per SLIDE (Design/Carousel) atau ADEGAN (Video),
+          urut dari scene pertama. Tiap object WAJIB punya key:
+            * label: nama scene, contoh "SLIDE 1", "ADEGAN 1" - HURUF BESAR SEMUA, angka urut
+              mulai dari 1.
+            * visual: deskripsi visual/gambar/aksi/layout yang tampil di scene ini (teks biasa,
+              TANPA menyisipkan isi field kedua di dalamnya).
+            {$secondFieldSpec}
 
           Aturan WAJIB:
-            * Tiap bagian (SLIDE/ADEGAN) diawali heading bold di barisnya sendiri, contoh
-              "**SLIDE 1**", "**ADEGAN 1**" - HURUF BESAR SEMUA, angka urut mulai dari 1.
-            * WAJIB ada baris kosong sebelum DAN sesudah tiap heading bold itu (pisahkan tiap
-              bagian jadi paragraf sendiri-sendiri).
-            * DILARANG KERAS menulis semua bagian menyambung dalam satu baris/paragraf panjang
-              seperti "Slide 1: ... Slide 2: ..." - ini format yang SALAH, jangan ditiru.
-            * Boleh pakai list "-" untuk poin-poin di dalam satu bagian.
-            * Jangan pakai heading markdown "#"/"##", cukup bold "**...**" untuk judul bagian.
+            * visual dan talent_script adalah DUA FIELD TERPISAH dengan makna berbeda sesuai tipe
+              konten ({$typeName}) - JANGAN ditukar isinya. DILARANG KERAS menggabungkan keduanya
+              jadi satu field pakai tanda kurung atau format lain seperti "visual (talent_script)"
+              - ini format yang SALAH, jangan ditiru.
+            * Contoh benar (Video): {"label": "ADEGAN 1", "visual": "Talent membuka kotak produk
+              di meja kerja", "talent_script": "Nah, ini dia produk yang kalian tunggu-tunggu!"}
+            * Contoh benar (Design/Carousel): {"label": "SLIDE 1", "visual": "Foto produk di atas
+              meja kayu dengan pencahayaan natural", "talent_script": "5 Alasan Kamu Butuh Produk
+              Ini Sekarang"}
         - talent: nama peran talent yang dibutuhkan (contoh: "1 model wanita, 1 model pria" - JANGAN
           pakai nama asli orang, cukup peran/jumlahnya)
         - properti: daftar properti/alat KHUSUS yang dibutuhkan di luar peralatan standar tim
@@ -201,7 +212,7 @@ class BriefGenerationService
     private function buildDiscussPrompt(ContentBriefDraft $brief, string $userMessage): string
     {
         $currentBrief = json_encode($brief->only([
-            'hook_title', 'copywriting_script', 'talent', 'properti',
+            'hook_title', 'scenes', 'talent', 'properti',
             'start_date', 'post_date', 'platform',
             'estimated_duration_seconds', 'slide_count', 'talent_count',
             'location_count', 'complexity_level',
@@ -228,8 +239,12 @@ class BriefGenerationService
         Jawab masukan itu secara natural dan singkat (maksimal 3 kalimat), lalu tentukan field
         apa saja yang perlu diubah berdasarkan permintaan user. Kalau user minta ubah durasi/jumlah
         slide/talent/lokasi, sertakan juga penyesuaian complexity_level kalau relevan. Kalau field
-        yang diubah adalah copywriting_script, tetap ikuti format markdown (heading bold per
-        adegan/slide) seperti brief aslinya.
+        yang diubah adalah scenes, kirim ULANG SELURUH array scenes (bukan cuma scene yang
+        berubah), dengan format tiap object {"label", "visual", "talent_script"} seperti brief
+        aslinya - visual dan talent_script WAJIB tetap field terpisah, jangan digabung.
+
+        Catatan: PIC juga bisa mengedit field scenes secara manual langsung dari UI tanpa AI,
+        jadi kamu tidak perlu mengulang isi scenes yang tidak diminta berubah oleh user.
 
         Kalau user cuma tanya/klarifikasi (tidak minta perubahan), kembalikan updated_fields kosong ({}).
 
@@ -256,7 +271,7 @@ class BriefGenerationService
                 ],
                 'generationConfig' => [
                     'temperature' => 0.4,
-                    'maxOutputTokens' => 1500,
+                    'maxOutputTokens' => 2500,
                 ],
             ]
         );

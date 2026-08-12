@@ -110,6 +110,38 @@ class ContentBriefController extends Controller
     }
 
     /**
+     * Edit manual oleh PIC - hook_title, talent, properti, platform, dan
+     * field visual/talent_script tiap scene/slide/adegan diedit langsung
+     * tanpa lewat AI, supaya tidak boros token cuma buat perubahan kecil.
+     */
+    public function updateManual(Request $request, ContentBriefDraft $contentBrief)
+    {
+        abort_if($contentBrief->isLocked(), 422, 'Brief sudah diterapkan, tarik kembali dulu sebelum diedit.');
+
+        $validated = $request->validate([
+            'hook_title' => 'required|string|max:255',
+            'platform' => 'nullable|string|max:255',
+            'talent' => 'nullable|string',
+            'properti' => 'nullable|string',
+            'scenes' => 'array',
+            'scenes.*.label' => 'nullable|string|max:100',
+            'scenes.*.visual' => 'nullable|string',
+            'scenes.*.talent_script' => 'nullable|string',
+        ]);
+
+        $contentBrief->update([
+            'previous_snapshot' => $contentBrief->only(BriefGenerationService::EDITABLE_FIELDS),
+            'hook_title' => $validated['hook_title'],
+            'platform' => $validated['platform'] ?? null,
+            'talent' => $validated['talent'] ?? null,
+            'properti' => $validated['properti'] ?? null,
+            'scenes' => array_values($validated['scenes'] ?? []),
+        ]);
+
+        return back()->with('status', 'Brief berhasil diedit manual.');
+    }
+
+    /**
      * Kembalikan brief ke kondisi sebelum perubahan terakhir (undo 1 langkah).
      */
     public function revert(ContentBriefDraft $contentBrief)

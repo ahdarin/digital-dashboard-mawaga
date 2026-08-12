@@ -75,6 +75,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('content-brief.discuss');
     Route::post('/content-brief/{contentBrief}/apply', [ContentBriefController::class, 'applyChanges'])
         ->name('content-brief.apply');
+    Route::patch('/content-brief/{contentBrief}', [ContentBriefController::class, 'updateManual'])
+        ->name('content-brief.update');
     Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
         ->name('content-brief.revert');
     Route::post('/content-brief/{contentBrief}/finalize', [ContentBriefController::class, 'finalize'])
