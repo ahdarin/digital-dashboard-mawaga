@@ -43,7 +43,11 @@
                 </span>
             </div>
 
+<<<<<<< HEAD
             <div class="flex items-center gap-2 h-8">
+=======
+            <div class="flex items-center justify-between gap-2 h-8 w-full">
+>>>>>>> 6decf821c7f2e8beae461acf9077e3fc73f04570
                 <span class="flex items-center h-8 text-xs font-medium px-3 rounded-full
                     {{ $contentBrief->status === 'finalized' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                     {{ $contentBrief->status === 'discussing' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
@@ -60,7 +64,11 @@
                         </button>
 
                         <form action="{{ route('content-brief.regenerate', $contentBrief) }}" method="POST" class="inline-flex h-8 m-0"
+<<<<<<< HEAD
                               onsubmit="return confirm('Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).');">
+=======
+                            onsubmit="return confirm('Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).');">
+>>>>>>> 6decf821c7f2e8beae461acf9077e3fc73f04570
                             @csrf
                             <button class="inline-flex items-center h-8 gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 rounded-lg hover:bg-[#f0f5f4] transition-colors leading-none">
                                 <span class="material-symbols-outlined text-[15px]">refresh</span> Regenerate
@@ -71,6 +79,7 @@
             </div>
         </div>
 
+<<<<<<< HEAD
         {{-- Video di status Brief Ready bisa selesai syuting duluan sebelum proses
              edit (yang baru memindahkan status ke In Progress) dimulai. --}}
         @if ($isVideo && $contentItem->workflow->current_status === 'brief_ready')
@@ -97,6 +106,8 @@
             @endif
         @endif
 
+=======
+>>>>>>> 6decf821c7f2e8beae461acf9077e3fc73f04570
         @if (! $contentBrief->isLocked())
             <div x-show="editing" x-cloak x-transition class="mb-5 -mx-6 -mt-1 px-6 pt-5 pb-6 bg-[#fafbfc] border-y border-[#eef0f4]">
                 <form action="{{ route('content-brief.update', $contentBrief) }}" method="POST" class="space-y-5">
