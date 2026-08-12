@@ -9,6 +9,8 @@ class ContentMetric extends Model
     protected $fillable = [
         'content_item_id', 'platform_id', 'sync_log_id', 'imported_by',
         'metric_date', 'views', 'engagement_rate',
+        'watch_time_avg', 'completion_rate', 'shares', 'saves',
+        'reach', 'impressions', 'likes', 'comments', 'profile_visit',
     ];
 
     protected $casts = [

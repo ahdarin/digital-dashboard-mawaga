@@ -105,6 +105,10 @@ class SettingsController extends Controller
      * - Baris yang content_title-nya nggak ketemu content item manapun
      *   milik client itu akan DI-SKIP (dicatat di ringkasan hasil import,
      *   nggak bikin proses gagal total).
+     * - Kolom opsional (PRD 7.3.1): reach, impressions, likes, comments,
+     *   profile_visit, plus watch_time_avg/completion_rate/shares/saves
+     *   khusus konten video. Kalau kolomnya nggak ada di CSV atau
+     *   kosong, disimpan null - nggak dipaksa jadi 0.
      */
     public function importPerformance(Request $request)
     {
@@ -196,6 +200,18 @@ class SettingsController extends Controller
                         ? (int) $data['shares'] : null,
                     'saves' => isset($data['saves']) && $data['saves'] !== ''
                         ? (int) $data['saves'] : null,
+                    // Kolom engagement tambahan (PRD 7.3.1) - sama-sama
+                    // opsional, null kalau nggak ada di CSV atau kosong.
+                    'reach' => isset($data['reach']) && $data['reach'] !== ''
+                        ? (int) $data['reach'] : null,
+                    'impressions' => isset($data['impressions']) && $data['impressions'] !== ''
+                        ? (int) $data['impressions'] : null,
+                    'likes' => isset($data['likes']) && $data['likes'] !== ''
+                        ? (int) $data['likes'] : null,
+                    'comments' => isset($data['comments']) && $data['comments'] !== ''
+                        ? (int) $data['comments'] : null,
+                    'profile_visit' => isset($data['profile_visit']) && $data['profile_visit'] !== ''
+                        ? (int) $data['profile_visit'] : null,
                 ]
             );
 

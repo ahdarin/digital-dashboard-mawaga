@@ -133,7 +133,7 @@
                             <li><strong class="text-[#14181a]">views</strong> (angka)</li>
                             <li><strong class="text-[#14181a]">engagement_rate</strong> (angka, %)</li>
                         </ul>
-                        <p class="text-[11px] text-[#9aa0a4] mt-3">Opsional (khusus Reels/TikTok): watch_time_avg, completion_rate, shares, saves.</p>
+                        <p class="text-[11px] text-[#9aa0a4] mt-3">Opsional: reach, impressions, likes, comments, profile_visit. Khusus Reels/TikTok: watch_time_avg, completion_rate, shares, saves.</p>
                     </div>
 
                     <button type="button" x-on:click="downloadTemplate()" class="mt-4 text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1.5">

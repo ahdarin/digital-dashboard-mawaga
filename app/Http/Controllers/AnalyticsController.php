@@ -465,6 +465,14 @@ class AnalyticsController extends Controller
      * ContentItem buat bulan berjalan, jumlah & distribusinya ngikutin
      * suggested_split dari AI. User tetap wajib isi judul/brief detail -
      * ini cuma bikinin "kerangka" plan-nya biar nggak mulai dari kosong.
+     *
+     * Deadline disebar ke SELURUH hari bulan berjalan (tanggal 1 s/d akhir
+     * bulan), bukan cuma dari tanggal generate ke akhir bulan - meskipun
+     * generate-nya telat (misal tanggal 5/10), draft yang deadline-nya
+     * jatuh sebelum hari ini sengaja tetap dibikin dan langsung ditandai
+     * overdue. Ini disengaja: draft yang "sudah telat" begitu dibuat
+     * berfungsi sebagai sinyal prioritas buat PIC (kerjain yang paling
+     * telat duluan), bukan numpuk semua di sisa hari yang ada.
      */
     public function applyAiStrategy(AiStrategyInsight $aiStrategyInsight)
     {
@@ -494,7 +502,7 @@ class AnalyticsController extends Controller
         $totalItems = (($activePackage->monthly_content_quota ?: 0) + ($activePackage->monthly_design_quota ?: 0)) ?: 10;
         $split = collect($aiStrategyInsight->suggested_split);
         $splitSum = $split->sum('value') ?: 100;
-        $daysRemaining = max($now->daysInMonth - $now->day, 1);
+        $daysInMonth = $now->daysInMonth;
         $ideasByPillar = collect($aiStrategyInsight->content_ideas)->groupBy('pillar');
 
         // Fallback buat slot yang nggak kebagian ide spesifik dari AI
@@ -519,7 +527,7 @@ class AnalyticsController extends Controller
             $ideasForPillar = $ideasByPillar->get($row['label'], collect());
 
             for ($i = 0; $i < $count; $i++) {
-                $deadline = $now->copy()->addDays(rand(1, $daysRemaining));
+                $deadline = $now->copy()->startOfMonth()->addDays(rand(0, $daysInMonth - 1));
                 $idea = $ideasForPillar->get($i);
 
                 if (!$idea) {
@@ -563,7 +571,10 @@ class AnalyticsController extends Controller
                 \App\Models\ContentWorkflow::create([
                     'content_item_id' => $item->id,
                     'current_status' => 'brief_ready',
-                    'is_overdue' => false,
+                    // Deadline yang jatuh sebelum hari ini langsung ditandai
+                    // overdue saat dibuat - nggak nunggu cron
+                    // `workflow:update-overdue` buat kasih sinyal prioritas.
+                    'is_overdue' => $deadline->lt($now),
                 ]);
 
                 $created++;

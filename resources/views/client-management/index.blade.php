@@ -56,7 +56,7 @@
                     <tr class="border-b border-[#f2f3f6] last:border-0 hover:bg-[#f7f8fc] transition-colors">
                         <td class="px-6 py-3.5">
                             <a href="{{ route('client-management.show', $client) }}" class="flex items-center gap-3 group">
-                                <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                                <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[#f0f5f4]' : 'bg-[#044b46] text-white' }}">
                                     @if ($client->logo_url)
                                         <img src="{{ $client->logo_url }}" class="w-full h-full object-cover">
                                     @else
