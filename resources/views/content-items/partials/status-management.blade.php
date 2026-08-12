@@ -5,7 +5,7 @@
     $btnDisabled = 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed';
 @endphp
 
-<div class="card p-5" x-data="{ scheduledUploadAt: '' }">
+<div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
         <h3 class="text-sm font-semibold text-[#14181a]">Status Management</h3>
     </div>

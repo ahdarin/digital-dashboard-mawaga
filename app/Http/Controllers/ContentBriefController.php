@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ContentBriefDraft;
 use App\Models\ContentItem;
 use App\Services\BriefGenerationService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class ContentBriefController extends Controller
@@ -164,7 +165,16 @@ class ContentBriefController extends Controller
             'finalized_at' => now(),
         ]);
 
-        return back()->with('status', 'Brief sudah diterapkan dan dikirim ke tim produksi.');
+        $contentItem = $contentBrief->contentItem;
+
+        NotificationService::notifyAssignedUsers(
+            $contentItem,
+            'Brief produksi siap dikerjakan',
+            'task',
+            "Brief \"{$contentBrief->hook_title}\" untuk \"{$contentItem->title}\" sudah diterapkan dan siap dieksekusi tim produksi."
+        );
+
+        return back()->with('status', 'Brief sudah diterapkan dan PIC produksi sudah diberi notifikasi.');
     }
 
     /**

@@ -72,6 +72,72 @@ class ContentItemController extends Controller
     }
 
     /**
+     * Tandai footage video sudah selesai di-take di lokasi, TANPA memindahkan
+     * status workflow (masih Brief Ready) - dipakai buat kasus produksi video
+     * dimana syuting sudah kelar tapi proses edit (baru itu yang bikin
+     * pindah ke In Progress) belum mulai. Cuma penanda visual buat tim,
+     * bukan bagian dari WorkflowTransitions karena from===to selalu invalid.
+     *
+     * Idempoten (klik dobel / sudah ditandai sebelumnya tetap dianggap
+     * sukses, bukan error) supaya tombol di kanban board (yang bisa retrigger
+     * kalau board belum sempat reload) tidak keliru muncul gagal.
+     */
+    public function markFootageCaptured(Request $request, ContentItem $contentItem)
+    {
+        abort_if($contentItem->workflow->current_status !== 'brief_ready', 422, 'Cuma bisa ditandai selama status masih Brief Ready.');
+
+        if (! $contentItem->footage_captured_at) {
+            $contentItem->update(['footage_captured_at' => now()]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'footage_captured_at' => $contentItem->footage_captured_at->format('d M Y, H:i'),
+            ]);
+        }
+
+        return back()->with('status', 'Footage video ditandai sudah selesai di-take.');
+    }
+
+    /**
+     * Simpan/perbarui link file hasil produksi (draft di Google Drive/Canva/
+     * dsb) - diisi PIC produksi setelah konten selesai diedit, SEBELUM masuk
+     * tahap review/upload, supaya reviewer & client bisa cek hasilnya duluan.
+     * Terpisah dari post_url (link postingan LIVE) yang baru diisi di Record
+     * Publication saat status Scheduled -> Uploaded.
+     */
+    public function updateContentLink(Request $request, ContentItem $contentItem)
+    {
+        $validated = $request->validate([
+            'content_file_link' => 'nullable|url|max:2048',
+        ]);
+
+        $contentItem->update(['content_file_link' => $validated['content_file_link'] ?? null]);
+
+        return back()->with('status', 'Link konten berhasil disimpan.');
+    }
+
+    /**
+     * Batalkan penandaan footage sudah di-take - buat kasus salah klik.
+     * Idempoten juga, sama seperti markFootageCaptured di atas.
+     */
+    public function unmarkFootageCaptured(Request $request, ContentItem $contentItem)
+    {
+        abort_if($contentItem->workflow->current_status !== 'brief_ready', 422, 'Cuma bisa dibatalkan selama status masih Brief Ready.');
+
+        if ($contentItem->footage_captured_at) {
+            $contentItem->update(['footage_captured_at' => null]);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('status', 'Penandaan footage sudah di-take dibatalkan.');
+    }
+
+    /**
      * Pindahkan PIC utama content item ke user lain, lalu langsung hitung ulang
      * skor Delay Risk-nya sinkron - biar penurunan beban kerja PIC baru
      * langsung kereflect di skor tanpa nunggu cron jam-an.

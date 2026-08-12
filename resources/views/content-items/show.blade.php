@@ -40,6 +40,111 @@
 
                 @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
 
+                @php
+                    $isVideoContent = ($contentItem->contentType->name ?? '') === 'Video';
+
+                    $nextStepMeta = [
+                        'brief_ready' => ['icon' => 'play_arrow', 'text' => 'Brief siap — klik "Kerjakan Konten" di Status Management untuk mulai edit/produksi.'],
+                        'in_progress' => ['icon' => 'construction', 'text' => 'Konten sedang dikerjakan — tandai "Konten Telah Selesai" di Status Management kalau sudah rampung.'],
+                        'waiting_review' => ['icon' => 'rate_review', 'text' => 'Menunggu review — approve atau ajukan revisi lewat Status Management / Revision Log.'],
+                        'revision' => ['icon' => 'edit_note', 'text' => 'Ada revisi terbuka — kerjakan lewat Revision Log di bawah.'],
+                        'approved' => ['icon' => 'event_available', 'text' => 'Sudah di-approve — jadwalkan tanggal upload lewat Status Management.'],
+                        'scheduled' => ['icon' => 'cloud_upload', 'text' => 'Terjadwal upload — catat link & tanggal publish lewat Record Publication.'],
+                        'uploaded' => ['icon' => 'check_circle', 'text' => 'Sudah dipublikasikan. Lihat detail link & tanggal publish di bawah.'],
+                        'cancelled' => ['icon' => 'cancel', 'text' => 'Konten ini sudah dibatalkan.'],
+                    ];
+                    $nextStep = $nextStepMeta[$workflow->current_status] ?? null;
+                    $latestPublication = $contentItem->publications->sortByDesc('published_at')->first();
+                    $hasUnresolvedRevisions = $contentItem->revisions->whereIn('status', ['open', 'in_progress'])->isNotEmpty();
+                @endphp
+
+                <div class="card p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-[#14181a]">Status Produksi &amp; Langkah Selanjutnya</h3>
+                        <span class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                            {{ $statusLabels[$workflow->current_status] ?? $workflow->current_status }}
+                        </span>
+                    </div>
+
+                    @if ($nextStep)
+                        <div class="flex items-start gap-2 bg-[#f7f8fc] border border-[#eef0f4] rounded-lg p-3 mb-3">
+                            <span class="material-symbols-outlined text-[16px] text-[#044b46] mt-0.5">{{ $nextStep['icon'] }}</span>
+                            <p class="text-xs text-[#5c6266] leading-relaxed">{{ $nextStep['text'] }}</p>
+                        </div>
+                    @endif
+
+                    {{-- Khusus konten Video di status Brief Ready - syuting bisa selesai duluan
+                         sebelum proses edit (yang baru memindahkan status ke In Progress) dimulai. --}}
+                    @if ($isVideoContent && $workflow->current_status === 'brief_ready')
+                        @if ($contentItem->footage_captured_at)
+                            <div class="flex items-center justify-between gap-2 bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg mb-3">
+                                <span class="flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
+                                    <span>Video sudah di-take di lokasi ({{ $contentItem->footage_captured_at->format('d M Y, H:i') }}), menunggu proses edit.</span>
+                                </span>
+                                <form action="{{ route('content-items.footage-captured.unmark', $contentItem) }}" method="POST"
+                                      onsubmit="return confirm('Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-[11px] font-medium text-[#8a6423] hover:underline whitespace-nowrap">Batalkan</button>
+                                </form>
+                            </div>
+                        @else
+                            <form action="{{ route('content-items.footage-captured', $contentItem) }}" method="POST" class="mb-3">
+                                @csrf @method('PATCH')
+                                <button type="submit"
+                                    class="flex items-center justify-center gap-1.5 w-full border border-[#044b46]/30 text-[#044b46] text-sm font-medium py-2.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                    <span class="material-symbols-outlined text-[16px]">videocam</span> Tandai Video Sudah Di-take
+                                </button>
+                            </form>
+                        @endif
+                    @endif
+
+                    @if ($latestPublication)
+                        <div class="grid grid-cols-2 gap-4 text-xs mb-4">
+                            <div>
+                                <p class="text-[#9aa0a4] uppercase font-medium mb-1">Tanggal Publish</p>
+                                <p class="text-[#14181a] font-medium">{{ $latestPublication->published_at->format('d M Y, H:i') }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[#9aa0a4] uppercase font-medium mb-1">Link Post</p>
+                                @if ($latestPublication->post_url)
+                                    <a href="{{ $latestPublication->post_url }}" target="_blank" class="text-[#044b46] underline break-all">{{ $latestPublication->post_url }}</a>
+                                @else
+                                    <p class="text-[#5c6266]">-</p>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('production-workflow.index') }}"
+                            class="flex items-center justify-center gap-1.5 flex-1 border border-[#eef0f4] text-[#5c6266] text-sm font-medium py-2.5 rounded-lg hover:bg-[#f7f8fc] transition-colors">
+                            <span class="material-symbols-outlined text-[16px]">view_kanban</span> Lihat di Production Workflow
+                        </a>
+
+                        @unless (in_array($workflow->current_status, ['uploaded', 'cancelled']))
+                            @if ($hasUnresolvedRevisions)
+                                <button type="button" disabled title="Masih ada revisi terbuka di Revision Log"
+                                    class="flex items-center justify-center gap-1.5 flex-1 bg-[#f2f3f6] text-[#c3c7cb] text-sm font-medium py-2.5 rounded-lg cursor-not-allowed">
+                                    Lanjut ke Status Management <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                </button>
+                            @else
+                                <a href="#{{ $workflow->current_status === 'scheduled' ? 'record-publication' : 'status-management' }}"
+                                    class="flex items-center justify-center gap-1.5 flex-1 bg-[#044b46] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                                    Lanjut ke Status Management <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                </a>
+                            @endif
+                        @endunless
+                    </div>
+
+                    @if ($hasUnresolvedRevisions && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
+                        <p class="text-[11px] text-[#8a6423] mt-2">
+                            <span class="material-symbols-outlined text-[12px] align-middle">hourglass_empty</span>
+                            Masih ada revisi terbuka — selesaikan dulu di <strong>Revision Log</strong> di bawah sebelum lanjut.
+                        </p>
+                    @endif
+                </div>
+
                 <div class="card p-5">
                     <h3 class="text-sm font-semibold text-[#14181a] mb-3">Initial Brief</h3>
                     <p class="text-sm text-[#5c6266] whitespace-pre-line mb-4">
@@ -55,6 +160,35 @@
                         </div>
                     </div>
                 </div>
+
+                @unless ($workflow->current_status === 'brief_ready')
+                    <div class="card p-5" x-data="{ editingLink: {{ $contentItem->content_file_link ? 'false' : 'true' }} }">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-semibold text-[#14181a]">Link Konten (Draft)</h3>
+                            @if ($contentItem->content_file_link)
+                                <button type="button" @click="editingLink = !editingLink" class="text-xs font-medium text-[#044b46] hover:underline">
+                                    <span x-text="editingLink ? 'Batal' : 'Ubah'"></span>
+                                </button>
+                            @endif
+                        </div>
+                        <p class="text-xs text-[#9aa0a4] mb-3">Link file hasil produksi (Google Drive/Canva/dsb) - diisi setelah konten selesai diedit, supaya bisa direview sebelum upload. Beda dengan Link Post di Record Publication (itu link postingan yang sudah live).</p>
+
+                        <div x-show="! editingLink" x-cloak class="flex items-center gap-2">
+                            <a href="{{ $contentItem->content_file_link }}" target="_blank"
+                                class="flex-1 text-sm text-[#044b46] underline break-all">{{ $contentItem->content_file_link }}</a>
+                        </div>
+
+                        <form x-show="editingLink" x-cloak action="{{ route('content-items.content-link', $contentItem) }}" method="POST" class="flex items-center gap-2">
+                            @csrf @method('PATCH')
+                            <input type="url" name="content_file_link" value="{{ $contentItem->content_file_link }}"
+                                placeholder="https://drive.google.com/..."
+                                class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                            <button type="submit" class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors whitespace-nowrap">
+                                Simpan
+                            </button>
+                        </form>
+                    </div>
+                @endunless
 
                 <div class="card p-5">
                     <h3 class="text-sm font-semibold text-[#14181a] mb-4">Revision Log
@@ -134,7 +268,7 @@
                     </div>
                 @elseif ($workflow->current_status === 'scheduled')
                     @php $canPublish = auth()->user()->hasPermissionTo('publishing', 'manage'); @endphp
-                    <div class="card p-5">
+                    <div id="record-publication" class="card p-5 scroll-mt-6">
                         <h3 class="text-sm font-semibold text-[#14181a] mb-4">Record Publication</h3>
                         @unless ($canPublish)
                             <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3.5">

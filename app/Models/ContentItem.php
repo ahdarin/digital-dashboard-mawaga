@@ -20,6 +20,8 @@ class ContentItem extends Model
         'brief',
         'caption_draft',
         'deadline_at',
+        'footage_captured_at',
+        'content_file_link',
         'scheduled_upload_at',
         'is_posted',
         'ai_strategy_insight_id',
@@ -29,6 +31,7 @@ class ContentItem extends Model
 
     protected $casts = [
         'deadline_at' => 'datetime',
+        'footage_captured_at' => 'datetime',
         'scheduled_upload_at' => 'datetime',
         'is_posted' => 'boolean',
     ];

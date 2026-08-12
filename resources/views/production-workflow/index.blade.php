@@ -114,6 +114,28 @@
                             <h4 class="text-sm font-semibold text-[#14181a] mb-1">{{ $item->title }}</h4>
                             <p class="text-xs text-[#9aa0a4] mb-3">{{ $item->client->name ?? '-' }}</p>
 
+                            {{-- Video di Brief Ready bisa selesai syuting duluan sebelum edit (yang
+                                 baru memindahkan status ke In Progress) dimulai - penanda ini bantu
+                                 tim lihat progres riil tanpa harus pindah status dulu. --}}
+                            @if ($status === 'brief_ready' && ($item->contentType->name ?? '') === 'Video')
+                                <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mb-2.5">
+                                    @if ($item->footage_captured_at)
+                                        <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                                            <span class="flex items-center gap-1">
+                                                <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                            </span>
+                                            <button type="button" x-on:click.stop="unmarkFootageCaptured({{ $item->id }}, $event)"
+                                                class="text-[#8a6423] hover:underline">Batalkan</button>
+                                        </div>
+                                    @else
+                                        <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
+                                            class="flex items-center justify-center gap-1 w-full text-[10px] font-medium border border-[#044b46]/30 text-[#044b46] px-2 py-1.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                            <span class="material-symbols-outlined text-[13px]">videocam</span> Tandai Sudah Di-take
+                                        </button>
+                                    @endif
+                                </div>
+                            @endif
+
                             <div class="flex items-center justify-between pt-2.5 border-t border-[#f2f3f6]">
                                 <div class="flex items-center gap-1 text-[#9aa0a4]">
                                     <span class="material-symbols-outlined text-[15px]">schedule</span>
@@ -264,6 +286,15 @@
     .kanban-column[data-expanded="false"] > [data-risk]:nth-child(n+9) {
         display: none !important;
     }
+    .footage-toggle-fade {
+        transition: opacity 180ms ease, transform 180ms ease;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    .footage-toggle-fade.footage-toggle-fade-out {
+        opacity: 0;
+        transform: translateY(-2px) scale(0.98);
+    }
 </style>
 
 <script>
@@ -373,6 +404,61 @@ function kanbanBoard() {
         matchesSearch(title) {
             if (!this.search) return true;
             return title.toLowerCase().includes(this.search.toLowerCase());
+        },
+        markFootageCaptured(itemId, event) {
+            this.submitFootageCaptured(itemId, event.currentTarget, 'PATCH', 'Video ditandai sudah di-take', 'Gagal menandai footage sudah di-take');
+        },
+        unmarkFootageCaptured(itemId, event) {
+            this.submitFootageCaptured(itemId, event.currentTarget, 'DELETE', 'Penandaan sudah di-take dibatalkan', 'Gagal membatalkan penandaan');
+        },
+        // Tanpa reload halaman penuh (bikin "getaran"/flash) - fade-out
+        // wrapper, tukar markup badge<->tombol setelah request sukses, lalu
+        // fade-in lagi. Alpine.initTree dipanggil biar x-on di markup baru
+        // ikut ke-bind (Alpine tidak otomatis scan HTML yang disuntik manual).
+        submitFootageCaptured(itemId, btn, method, successMessage, errorMessage) {
+            const wrapper = btn.closest('[data-footage-toggle]');
+            btn.disabled = true;
+
+            fetch(`/content-items/${itemId}/footage-captured`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+            })
+            .then((res) => {
+                if (!res.ok) throw new Error(errorMessage);
+                return res.json();
+            })
+            .then((data) => {
+                this.toast = successMessage;
+                setTimeout(() => this.toast = '', 2500);
+
+                if (!wrapper) return;
+                wrapper.classList.add('footage-toggle-fade-out');
+                setTimeout(() => {
+                    wrapper.innerHTML = method === 'PATCH'
+                        ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                                <span class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                </span>
+                                <button type="button" x-on:click.stop="unmarkFootageCaptured(${itemId}, $event)"
+                                    class="text-[#8a6423] hover:underline">Batalkan</button>
+                            </div>`
+                        : `<button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)"
+                                class="flex items-center justify-center gap-1 w-full text-[10px] font-medium border border-[#044b46]/30 text-[#044b46] px-2 py-1.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                <span class="material-symbols-outlined text-[13px]">videocam</span> Tandai Sudah Di-take
+                            </button>`;
+                    window.Alpine?.initTree(wrapper);
+                    wrapper.classList.remove('footage-toggle-fade-out');
+                }, 180);
+            })
+            .catch((err) => {
+                btn.disabled = false;
+                this.toast = err.message;
+                setTimeout(() => this.toast = '', 3000);
+            });
         },
     }
 }

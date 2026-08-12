@@ -68,6 +68,15 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::patch('/content-items/{contentItem}/transition', [ContentItemController::class, 'transition'])
         ->middleware('permission:workflow,update')
         ->name('content-items.transition');
+    Route::patch('/content-items/{contentItem}/content-link', [ContentItemController::class, 'updateContentLink'])
+        ->middleware('permission:workflow,update')
+        ->name('content-items.content-link');
+    Route::patch('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'markFootageCaptured'])
+        ->middleware('permission:workflow,update')
+        ->name('content-items.footage-captured');
+    Route::delete('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'unmarkFootageCaptured'])
+        ->middleware('permission:workflow,update')
+        ->name('content-items.footage-captured.unmark');
 
     Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
         ->name('content-brief.generate');
