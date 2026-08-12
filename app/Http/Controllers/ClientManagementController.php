@@ -56,7 +56,8 @@ class ClientManagementController extends Controller
             'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'logo' => 'nullable|image|max:2048', // max 2MB
-            'color' => 'nullable|string|max:7', 
+            'color' => 'nullable|string|max:7',
+            'asset_link' => 'nullable|url|max:255',
             'owner_name' => 'required|string|max:255',
             'owner_email' => 'required|email|unique:users,email',
             'owner_phone' => 'required|string',
@@ -73,6 +74,7 @@ class ClientManagementController extends Controller
                 'client_category_id' => $validated['client_category_id'],
                 'logo_path' => $logoPath,
                 'color' => $validated['color'] ?? null,
+                'asset_link' => $validated['asset_link'] ?? null,
                 'status' => 'active',
             ]);
 
@@ -134,6 +136,7 @@ class ClientManagementController extends Controller
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
+            'asset_link' => 'nullable|url|max:255',
             'owner_name' => 'nullable|string|max:255',
             'owner_email' => [
                 'nullable', 'email',
@@ -162,6 +165,7 @@ class ClientManagementController extends Controller
                 'status' => $validated['status'],
                 'logo_path' => $logoPath,
                 'color' => $validated['color'] ?? $client->color,
+                'asset_link' => $validated['asset_link'] ?? null,
             ]);
 
             if ($client->owner && filled($validated['owner_name'] ?? null)) {

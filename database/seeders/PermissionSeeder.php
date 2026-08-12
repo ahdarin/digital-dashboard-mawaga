@@ -41,7 +41,7 @@ class PermissionSeeder extends Seeder
                 ['master_data', 'manage'],
                 ['settings', 'manage'],
                 ['content_plan', 'view'], ['content_plan', 'create'],
-                ['workflow', 'view'],
+                ['workflow', 'view'], ['workflow', 'update'],
             ],
             'Content Creator' => [
                 ['content_plan', 'view'],

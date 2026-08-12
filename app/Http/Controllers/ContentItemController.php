@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
+use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
 
 class ContentItemController extends Controller
@@ -38,7 +40,35 @@ class ContentItemController extends Controller
             ->orderBy('active_task_count')
             ->get();
 
-        return view('content-items.show', compact('contentItem', 'reassignCandidates'));
+        $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
+
+        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow'));
+    }
+
+    /**
+     * Endpoint umum buat tombol Status Management (Kerjakan Konten, Konten
+     * Telah Selesai, Approve Konten, Jadwalkan Upload, Batalkan Konten).
+     * Semua guard & efek samping ditangani WorkflowStatusService - sama
+     * persis yang dipakai drag-and-drop di kanban board.
+     */
+    public function transition(Request $request, ContentItem $contentItem, WorkflowStatusService $workflowStatusService)
+    {
+        $validated = $request->validate([
+            'to_status' => 'required|string',
+            'notes' => 'nullable|string',
+            'scheduled_upload_at' => 'nullable|date',
+        ]);
+
+        $toStatus = $validated['to_status'];
+        unset($validated['to_status']);
+
+        try {
+            $workflowStatusService->transition($contentItem, $toStatus, $validated, $request->user());
+        } catch (WorkflowTransitionException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Status konten berhasil diperbarui.');
     }
 
     /**

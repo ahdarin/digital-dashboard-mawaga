@@ -7,7 +7,7 @@
         $statusLabels = \App\Support\WorkflowTransitions::labels();
     @endphp
 
-    <div x-data="{ showReassignModal: false }" class="p-8 max-w-6xl">
+    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-8 max-w-6xl">
 
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
@@ -27,6 +27,11 @@
 
         @if (session('status'))
             <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-6">{{ session('status') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="bg-[#fdf2f1] text-[#b3423e] text-sm p-3.5 rounded-lg mb-6 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[17px]">error</span> {{ session('error') }}
+            </div>
         @endif
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -57,24 +62,42 @@
 
                     <div class="space-y-2.5 mb-4">
                         @forelse ($contentItem->revisions as $revision)
-                            <div
-                                class="border border-[#eef0f4] rounded-lg p-3 {{ $revision->status === 'open' ? 'bg-[#fdf6ec]' : 'bg-[#f7f8fc]' }}">
+                            @php
+                                $revisionStyles = [
+                                    'open' => ['card' => 'bg-[#fdf6ec]', 'badge' => 'bg-[#f7e8cf] text-[#8a6423]', 'label' => 'Open'],
+                                    'in_progress' => ['card' => 'bg-[#eef2fb]', 'badge' => 'bg-[#dde4f7] text-[#3452a8]', 'label' => 'Sedang Dikerjakan'],
+                                    'resolved' => ['card' => 'bg-[#f7f8fc]', 'badge' => 'bg-[#f0f5f4] text-[#0f7a5f]', 'label' => 'Resolved'],
+                                ];
+                                $revisionStyle = $revisionStyles[$revision->status] ?? $revisionStyles['resolved'];
+                            @endphp
+                            <div class="border border-[#eef0f4] rounded-lg p-3 {{ $revisionStyle['card'] }}">
                                 <div class="flex items-center justify-between mb-1">
                                     <p class="text-xs font-medium text-[#14181a]">Revisi #{{ $revision->revision_round }} -
                                         {{ $revision->requestedBy->name ?? '-' }}</p>
-                                    <span
-                                        class="text-[10px] px-2 py-0.5 rounded-full {{ $revision->status === 'open' ? 'bg-[#f7e8cf] text-[#8a6423]' : 'bg-[#f0f5f4] text-[#0f7a5f]' }}">{{ $revision->status }}</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full {{ $revisionStyle['badge'] }}">{{ $revisionStyle['label'] }}</span>
                                 </div>
                                 <p class="text-xs text-[#5c6266]">{{ $revision->revision_note }}</p>
+
                                 @if ($revision->status === 'open')
-                                    <form action="{{ route('content-revision.resolve', [$contentItem, $revision]) }}" method="POST"
-                                        class="mt-2">
-                                        @csrf @method('PATCH')
-                                        <button type="submit"
-                                            class="inline-flex items-center gap-1 bg-[#044b46] text-white text-[11px] font-medium px-3 py-1.5 rounded-lg hover:bg-[#033b37] transition-colors">
-                                            <span class="material-symbols-outlined text-[13px]">check</span> Tandai Selesai
-                                        </button>
-                                    </form>
+                                    <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
+                                        @click="confirmAction = {
+                                            title: 'Kerjakan Revisi',
+                                            message: 'Mulai kerjakan revisi ini? Status konten akan berpindah ke In Progress, dan semua revisi yang masih open ikut mulai dikerjakan bareng.',
+                                            formAction: '{{ route('content-revision.start-work', [$contentItem, $revision]) }}',
+                                            method: 'PATCH',
+                                            confirmLabel: 'Ya, Kerjakan',
+                                        }"
+                                        title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
+                                        class="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg transition-colors
+                                            {{ $canUpdateWorkflow ? 'bg-[#044b46] text-white hover:bg-[#033b37]' : 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed' }}">
+                                        <span class="material-symbols-outlined text-[13px]">build</span> Kerjakan Revisi
+                                    </button>
+                                @elseif ($revision->status === 'in_progress')
+                                    <button type="button" disabled
+                                        class="mt-2 inline-flex items-center gap-1.5 bg-[#dde4f7] text-[#3452a8] text-[11px] font-medium px-3 py-1.5 rounded-lg cursor-not-allowed">
+                                        <span class="inline-block w-3 h-3 border-2 border-[#3452a8]/30 border-t-[#3452a8] rounded-full animate-spin"></span>
+                                        Sedang Revisi
+                                    </button>
                                 @endif
                             </div>
                         @empty
@@ -82,13 +105,17 @@
                         @endforelse
                     </div>
 
-                    <form action="{{ route('content-revision.store', $contentItem) }}" method="POST" class="flex gap-2">
-                        @csrf
-                        <input type="text" name="revision_note" required placeholder="Tulis catatan revisi..."
-                            class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                        <button type="submit"
-                            class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Kirim</button>
-                    </form>
+                    @if (in_array($workflow->current_status, ['waiting_review', 'revision']))
+                        <form action="{{ route('content-revision.store', $contentItem) }}" method="POST" class="flex gap-2">
+                            @csrf
+                            <input type="text" name="revision_note" required placeholder="Tulis catatan revisi..."
+                                class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                            <button type="submit"
+                                class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Kirim</button>
+                        </form>
+                    @else
+                        <p class="text-[11px] text-[#9aa0a4] italic">Catatan revisi cuma bisa ditambahkan saat status Waiting Review atau Revision.</p>
+                    @endif
                 </div>
 
                 @if ($contentItem->is_posted)
@@ -155,6 +182,8 @@
             <div class="space-y-5">
                 @include('content-items.partials.ai-brief-discussion', ['contentItem' => $contentItem])
 
+                @include('content-items.partials.client-assets', ['contentItem' => $contentItem])
+
                 <div class="card p-5">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-semibold text-[#14181a]">PIC Assignment</h3>
@@ -184,6 +213,14 @@
                         @endforelse
                     </div>
                 </div>
+
+                @unless (in_array($workflow->current_status, ['uploaded', 'cancelled']))
+                    @include('content-items.partials.status-management', [
+                        'contentItem' => $contentItem,
+                        'workflow' => $workflow,
+                        'canUpdateWorkflow' => $canUpdateWorkflow,
+                    ])
+                @endunless
 
                     @if ($contentItem->delayRiskScores->isNotEmpty())
                         @php
@@ -328,6 +365,72 @@
                             Simpan
                         </button>
                         <button type="button" @click="showReassignModal = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                            Batal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{-- Modal Konfirmasi generik - dipakai semua tombol Status Management
+             (Kerjakan Konten, Konten Telah Selesai, Approve Konten, Jadwalkan
+             Upload, Batalkan Konten) dan tombol Kerjakan Revisi, biar nggak
+             ada 6 blok modal yang isinya nyaris sama persis berulang-ulang. --}}
+        <div x-show="confirmAction" x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+            <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmAction = null"></div>
+
+            <div x-show="confirmAction" x-transition
+                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                    <div>
+                        <h3 class="font-display text-lg font-semibold text-[#14181a]" x-text="confirmAction?.title"></h3>
+                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $contentItem->title }}</p>
+                    </div>
+                    <button type="button" @click="confirmAction = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                        <span class="material-symbols-outlined text-[19px]">close</span>
+                    </button>
+                </div>
+
+                <div class="px-6 py-5">
+                    <p class="text-sm text-[#5c6266]" x-text="confirmAction?.message"></p>
+
+                    <template x-if="confirmAction?.extra">
+                        <p class="mt-3 bg-[#f7f8fc] rounded-lg p-3 text-sm font-medium text-[#14181a]" x-text="confirmAction?.extra"></p>
+                    </template>
+
+                    <template x-if="confirmAction?.withNotes">
+                        <div class="mt-3">
+                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5" x-text="confirmAction?.notesLabel"></label>
+                            <textarea x-model="confirmNotes" rows="2" placeholder="Tulis alasan..."
+                                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                        </div>
+                    </template>
+                </div>
+
+                {{-- Sengaja TIDAK ada @submit="confirmAction = null" - :action & hidden
+                     input di form ini reaktif ke confirmAction, jadi kalau di-null-kan
+                     di handler submit, race condition: browser baca action yang udah
+                     kosong duluan sebelum benar-benar navigasi. Modal ketutup sendiri
+                     karena halaman langsung redirect/reload setelah submit selesai. --}}
+                <form :action="confirmAction?.formAction" method="POST">
+                    @csrf
+                    <template x-if="confirmAction?.method && confirmAction.method !== 'POST'">
+                        <input type="hidden" name="_method" :value="confirmAction.method">
+                    </template>
+                    <template x-for="(value, key) in (confirmAction?.fields || {})" :key="key">
+                        <input type="hidden" :name="key" :value="value">
+                    </template>
+                    <template x-if="confirmAction?.withNotes">
+                        <input type="hidden" name="notes" :value="confirmNotes">
+                    </template>
+
+                    <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                        <button type="submit"
+                            :class="confirmAction?.danger ? 'bg-[#b3423e] text-white hover:bg-[#9c3733]' : 'bg-[#044b46] text-white hover:bg-[#033b37]'"
+                            class="text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+                            x-text="confirmAction?.confirmLabel || 'Ya, Lanjutkan'"></button>
+                        <button type="button" @click="confirmAction = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
                             Batal
                         </button>
                     </div>

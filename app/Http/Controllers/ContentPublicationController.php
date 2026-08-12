@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
 use App\Models\ContentPublication;
+use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use App\Models\Client;
 use App\Models\Platform;
 
@@ -49,7 +50,12 @@ class ContentPublicationController extends Controller
         ]);
     }
 
-    public function store(Request $request, ContentItem $contentItem)
+    /**
+     * Catat publikasi & pindahkan status ke uploaded. Dipanggil dari 2 titik
+     * masuk: form Record Publication di halaman detail content item, dan
+     * modal drag-and-drop kanban (scheduled -> uploaded, lewat fetch JSON).
+     */
+    public function store(Request $request, ContentItem $contentItem, WorkflowStatusService $workflowStatusService)
     {
         $validated = $request->validate([
             'platform_id' => 'required|exists:platforms,id',
@@ -58,31 +64,21 @@ class ContentPublicationController extends Controller
             'caption_final' => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($validated, $contentItem, $request) {
-            ContentPublication::create([
-                'content_item_id' => $contentItem->id,
-                'platform_id' => $validated['platform_id'],
-                'published_by' => $request->user()->id,
-                'published_at' => $validated['published_at'],
-                'post_url' => $validated['post_url'] ?? null,
-                'caption_final' => $validated['caption_final'] ?? null,
-            ]);
-
-            $contentItem->update(['is_posted' => true]);
-
-            $workflow = $contentItem->workflow;
-            $fromStatus = $workflow->current_status;
-            $workflow->update(['current_status' => 'uploaded']);
-
-            \App\Models\ContentStatusLog::create([
-                'content_item_id' => $contentItem->id,
-                'changed_by' => $request->user()->id,
-                'from_status' => $fromStatus,
-                'to_status' => 'uploaded',
+        try {
+            $workflowStatusService->transition($contentItem, 'uploaded', [
+                ...$validated,
                 'notes' => 'Dipublikasikan dan dicatat via form Publishing Tracker.',
-                'changed_at' => now(),
-            ]);
-        });
+            ], $request->user());
+        } catch (WorkflowTransitionException $e) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+            return back()->with('error', $e->getMessage());
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'status' => 'uploaded']);
+        }
 
         return back()->with('status', 'Publikasi berhasil dicatat.');
     }

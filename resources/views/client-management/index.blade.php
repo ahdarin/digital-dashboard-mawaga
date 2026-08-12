@@ -46,6 +46,7 @@
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Name</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Plan</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Aset</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Owner Status</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Actions</th>
@@ -71,6 +72,16 @@
                         </td>
                         <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner->email ?? '-' }}</td>
                         <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
+                        <td class="px-6 py-3.5">
+                            @if ($client->asset_link)
+                                <a href="{{ $client->asset_link }}" target="_blank" rel="noopener"
+                                   class="inline-flex items-center gap-1 text-[#044b46] hover:underline" title="{{ $client->asset_link }}">
+                                    <span class="material-symbols-outlined text-[15px]">folder_open</span>
+                                </a>
+                            @else
+                                <span class="text-[#c3c7cb]">-</span>
+                            @endif
+                        </td>
                         <td class="px-6 py-3.5">
                             <span class="text-xs font-medium px-2.5 py-1 rounded-full
                                 {{ $client->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
@@ -103,7 +114,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4]">Tidak ada client yang cocok dengan pencarian.</td>
+                        <td colspan="7" class="px-6 py-10 text-center text-[#9aa0a4]">Tidak ada client yang cocok dengan pencarian.</td>
                     </tr>
                 @endforelse
             </tbody>
