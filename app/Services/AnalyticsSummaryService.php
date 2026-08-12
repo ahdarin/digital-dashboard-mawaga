@@ -111,7 +111,7 @@ class AnalyticsSummaryService
         return compact('stats', 'trend', 'platformBreakdown', 'topContent');
     }
 
-    private function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
+    public function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
     {
         if ($period <= 30) {
             $byDate = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->format('Y-m-d'));

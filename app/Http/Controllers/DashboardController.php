@@ -7,15 +7,17 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
 use App\Models\User;
+use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
 use App\Support\WorkflowTransitions;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
     private array $doneStatuses = ['uploaded', 'cancelled'];
 
-    public function index()
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService)
     {
         $now = Carbon::now();
         $startOfThisMonth = $now->copy()->startOfMonth();
@@ -105,18 +107,14 @@ class DashboardController extends Controller
             ];
         })->toArray();
 
-        // --- Tambahan: trend views 8 minggu terakhir (domain PIC 3) ---
-        $viewsTrend = collect(range(7, 0))->map(function ($weeksAgo) {
-            $weekStart = Carbon::now()->subWeeks($weeksAgo)->startOfWeek();
-            $weekEnd = $weekStart->copy()->endOfWeek();
+        // --- Tambahan: trend views dengan selector periode 7/30/90 hari (domain PIC 3, PRD 7.3.3) ---
+        $period = (int) $request->input('period', 30);
+        $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
-            $sum = (int) ContentMetric::whereBetween('metric_date', [$weekStart, $weekEnd])->sum('views');
-
-            return [
-                'label' => $weekStart->translatedFormat('d M'),
-                'value' => $sum,
-            ];
-        })->toArray();
+        $trendEnd = Carbon::now()->endOfDay();
+        $trendStart = Carbon::now()->subDays($period - 1)->startOfDay();
+        $trendMetrics = ContentMetric::whereBetween('metric_date', [$trendStart, $trendEnd])->get();
+        $viewsTrend = $analyticsSummaryService->buildTrend($trendMetrics, $trendStart, $trendEnd, $period);
 
         $attentionItems = ContentWorkflow::with(['contentItem.client', 'currentPic'])
             ->where('is_overdue', true)
@@ -153,11 +151,14 @@ class DashboardController extends Controller
             });
 
         // --- Tambahan: teaser Analytics (org-wide, bulan berjalan) ---
-        $topContent = ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
-            ->get()
+        $monthMetrics = ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
+            ->with('contentItem.client', 'contentItem.platform')
+            ->get();
+
+        $topContent = $monthMetrics
             ->groupBy('content_item_id')
             ->map(function ($rows, $contentItemId) {
-                $item = ContentItem::with(['client', 'platform'])->find($contentItemId);
+                $item = $rows->first()->contentItem;
                 if (! $item) {
                     return null;
                 }
@@ -169,6 +170,28 @@ class DashboardController extends Controller
                     'platform' => $item->platform->name ?? '-',
                     'views' => (int) $rows->sum('views'),
                     'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('views')
+            ->take(5)
+            ->values();
+
+        // --- Tambahan: Top Client ranking (PRD 7.3.3 Executive Dashboard) ---
+        $topClients = $monthMetrics
+            ->groupBy(fn ($m) => $m->contentItem->client_id ?? 0)
+            ->map(function ($rows) {
+                $client = $rows->first()->contentItem->client ?? null;
+                if (! $client) {
+                    return null;
+                }
+
+                return [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'views' => (int) $rows->sum('views'),
+                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                    'content_count' => $rows->pluck('content_item_id')->unique()->count(),
                 ];
             })
             ->filter()
@@ -205,7 +228,7 @@ class DashboardController extends Controller
 
         return view('dashboard.index', compact(
             'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights',
-            'topContent', 'riskAccuracy'
+            'topContent', 'topClients', 'riskAccuracy', 'period'
         ));
     }
 

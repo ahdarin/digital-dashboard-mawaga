@@ -83,8 +83,18 @@
 
             {{-- Views trend (domain PIC 3) --}}
             <div class="card p-6">
-                <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Views Trend</h2>
-                <p class="text-xs text-[#9aa0a4] mb-5">Total views seluruh konten, 8 minggu terakhir.</p>
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="font-display text-lg font-semibold text-[#14181a]">Views Trend</h2>
+                    <form method="GET">
+                        <select name="period" onchange="this.form.submit()"
+                            class="text-sm border border-[#eef0f4] rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+                            <option value="7" {{ $period === 7 ? 'selected' : '' }}>7 Hari</option>
+                            <option value="30" {{ $period === 30 ? 'selected' : '' }}>30 Hari</option>
+                            <option value="90" {{ $period === 90 ? 'selected' : '' }}>90 Hari</option>
+                        </select>
+                    </form>
+                </div>
+                <p class="text-xs text-[#9aa0a4] mb-5">Total views seluruh konten, {{ $period }} hari terakhir.</p>
                 <x-trend-chart :trend="$viewsTrend" />
             </div>
 
@@ -154,6 +164,40 @@
                                     <td class="py-3 pr-4 text-[#5c6266]">{{ $item['platform'] }}</td>
                                     <td class="py-3 pr-4 text-[#5c6266]">{{ number_format($item['views']) }}</td>
                                     <td class="py-3 pr-4 text-[#5c6266]">{{ $item['engagement_rate'] }}%</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+
+            {{-- Top client ranking (Executive Dashboard, PRD 7.3.3) --}}
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-1">
+                    <h2 class="font-display text-lg font-semibold text-[#14181a]">Top Client</h2>
+                    <a href="{{ Route::has('client-management.index') ? route('client-management.index') : '#' }}" class="text-sm font-medium text-[#044b46] hover:underline">Lihat semua client</a>
+                </div>
+                <p class="text-xs text-[#9aa0a4] mb-4">Client dengan performa views tertinggi bulan ini.</p>
+
+                @if ($topClients->isEmpty())
+                    <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa client bulan ini.</p>
+                @else
+                    <table class="w-full text-sm text-left">
+                        <thead>
+                            <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                <th class="pb-2.5 font-medium">Client</th>
+                                <th class="pb-2.5 font-medium">Views</th>
+                                <th class="pb-2.5 font-medium">Engagement</th>
+                                <th class="pb-2.5 font-medium">Jumlah Konten</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($topClients as $client)
+                                <tr class="border-t border-[#f2f3f6]">
+                                    <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $client['name'] }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ number_format($client['views']) }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $client['engagement_rate'] }}%</td>
+                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $client['content_count'] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
