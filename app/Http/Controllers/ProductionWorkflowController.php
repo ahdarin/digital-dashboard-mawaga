@@ -1,12 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
-use App\Models\ContentStatusLog;
-use App\Models\ContentWorkflow;
+use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Support\WorkflowTransitions;
+use Illuminate\Support\Carbon;
 
 class ProductionWorkflowController extends Controller
 {
@@ -47,6 +46,13 @@ class ProductionWorkflowController extends Controller
             $itemsQuery->where('client_id', $request->input('client_id'));
         }
 
+        // Filter bulan berdasarkan deadline (opsional, format YYYY-MM dari query string)
+        if ($request->filled('month')) {
+            $month = Carbon::parse($request->input('month') . '-01');
+            $itemsQuery->whereYear('deadline_at', $month->year)
+                ->whereMonth('deadline_at', $month->month);
+        }
+
         $items = $itemsQuery->get()->groupBy(fn($item) => $item->workflow->current_status);
 
         $board = [];
@@ -68,42 +74,40 @@ class ProductionWorkflowController extends Controller
             'statuses' => $this->statuses,
             'clientOptions' => $clientOptions,
             'selectedClientId' => $request->input('client_id'),
+            'selectedMonth' => $request->input('month'),
+            'canUpdateWorkflow' => $user->hasPermissionTo('workflow', 'update'),
         ]);
     }
 
-    public function updateStatus(Request $request, ContentItem $contentItem)
+    /**
+     * Satu-satunya endpoint drag-and-drop kanban buat semua perpindahan
+     * status - transisi simpel (nggak butuh data tambahan) maupun yang
+     * butuh payload (revision_note, scheduled_upload_at, data publikasi)
+     * SEMUA lewat WorkflowStatusService yang sama persis dipakai tombol
+     * Status Management, biar guard & efek sampingnya konsisten di kedua
+     * jalur.
+     */
+    public function updateStatus(Request $request, ContentItem $contentItem, WorkflowStatusService $workflowStatusService)
     {
         $validated = $request->validate([
             'to_status' => 'required|in:' . implode(',', $this->statuses),
             'notes' => 'nullable|string',
+            'revision_note' => 'nullable|string',
+            'scheduled_upload_at' => 'nullable|date',
+            'platform_id' => 'nullable|exists:platforms,id',
+            'published_at' => 'nullable|date',
+            'post_url' => 'nullable|url',
+            'caption_final' => 'nullable|string',
         ]);
 
-        $workflow = $contentItem->workflow;
-        $fromStatus = $workflow->current_status;
         $toStatus = $validated['to_status'];
+        unset($validated['to_status']);
 
-        if (!WorkflowTransitions::isValid($fromStatus, $toStatus)) {
-            $fromLabel = WorkflowTransitions::label($fromStatus);
-            $toLabel = WorkflowTransitions::label($toStatus);
-
-            return response()->json([
-                'success' => false,
-                'message' => "Tidak bisa memindahkan dari '{$fromLabel}' langsung ke '{$toLabel}'.",
-            ], 422);
+        try {
+            $workflowStatusService->transition($contentItem, $toStatus, $validated, $request->user());
+        } catch (WorkflowTransitionException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
-
-        DB::transaction(function () use ($workflow, $contentItem, $fromStatus, $toStatus, $validated, $request) {
-            $workflow->update(['current_status' => $toStatus]);
-
-            ContentStatusLog::create([
-                'content_item_id' => $contentItem->id,
-                'changed_by' => $request->user()->id,
-                'from_status' => $fromStatus,
-                'to_status' => $toStatus,
-                'notes' => $validated['notes'] ?? null,
-                'changed_at' => now(),
-            ]);
-        });
 
         return response()->json(['success' => true, 'status' => $toStatus]);
     }

@@ -16,6 +16,13 @@
                         <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
                     @endforeach
                 </select>
+
+                <select name="status" form="filter-client-form" onchange="this.form.submit()"
+                    class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
+                    @foreach (['open' => 'Open', 'in_progress' => 'Sedang Dikerjakan', 'resolved' => 'Resolved', 'all' => 'Semua'] as $value => $label)
+                        <option value="{{ $value }}" {{ $selectedStatus === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
                 <form id="filter-client-form" method="GET" action="{{ route('revision-log.index') }}"></form>
 
                 <div class="relative">
@@ -37,10 +44,19 @@
                         <th class="px-4 py-3 font-medium">Round</th>
                         <th class="px-4 py-3 font-medium">Notes</th>
                         <th class="px-4 py-3 font-medium">Requested By</th>
+                        <th class="px-4 py-3 font-medium">Status</th>
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $revisionStatusStyles = [
+                            'open' => ['bg' => 'bg-[#f7e8cf]', 'text' => 'text-[#8a6423]', 'label' => 'Open'],
+                            'in_progress' => ['bg' => 'bg-[#dde4f7]', 'text' => 'text-[#3452a8]', 'label' => 'Sedang Dikerjakan'],
+                            'resolved' => ['bg' => 'bg-[#f0f5f4]', 'text' => 'text-[#0f7a5f]', 'label' => 'Resolved'],
+                        ];
+                    @endphp
                     @forelse ($revisions as $revision)
+                        @php $revStatusStyle = $revisionStatusStyles[$revision->status] ?? $revisionStatusStyles['resolved']; @endphp
                         <tr x-show="matches('{{ addslashes($revision->contentItem->title) }}', '{{ addslashes($revision->contentItem->client->name ?? '') }}', '{{ addslashes($revision->revision_note) }}')"
                             class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors"
                             onclick="window.location='{{ route('content-items.show', $revision->contentItem) }}'">
@@ -49,6 +65,9 @@
                             <td class="px-4 py-3.5 text-[#5c6266]">Revisi #{{ $revision->revision_round }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] max-w-xs truncate">{{ $revision->revision_note }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266]">{{ $revision->requestedBy->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5">
+                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full {{ $revStatusStyle['bg'] }} {{ $revStatusStyle['text'] }}">{{ $revStatusStyle['label'] }}</span>
+                            </td>
                         </tr>
                     @empty
                         <tr>

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Client extends Model
 {
     protected $fillable = [
-        'client_category_id', 'name', 'brand_name', 'logo_path', 'status', 'color'
+        'client_category_id', 'name', 'brand_name', 'logo_path', 'status', 'color', 'asset_link'
     ];
 
     public function category() { return $this->belongsTo(ClientCategory::class, 'client_category_id'); }

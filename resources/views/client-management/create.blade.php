@@ -105,6 +105,14 @@
                     </div>
                     @error('color') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Link Aset (Google Drive)</label>
+                            <input type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
+                                   class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[#e39a96] @enderror">
+                            <p class="text-xs text-[#9aa0a4] mt-1.5">Opsional. Link folder aset konten/desain client, tampil di tiap content item-nya.</p>
+                            @error('asset_link') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                        </div>
                     </div>
                 </div>
 

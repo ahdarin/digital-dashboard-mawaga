@@ -137,6 +137,21 @@
             </div>
 
             <div class="card p-6">
+                <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Aset Klien</h2>
+
+                @if ($client->asset_link)
+                    <a href="{{ $client->asset_link }}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2.5 bg-[#f0f5f4] text-[#044b46] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#e4ede9] transition-colors">
+                        <span class="material-symbols-outlined text-[17px]">folder_open</span>
+                        Buka Google Drive
+                        <span class="material-symbols-outlined text-[14px] ml-auto">open_in_new</span>
+                    </a>
+                @else
+                    <p class="text-sm text-[#9aa0a4]">Belum ada link aset. <a href="{{ route('client-management.edit', $client) }}" class="text-[#044b46] hover:underline">Tambahkan di Edit Client</a>.</p>
+                @endif
+            </div>
+
+            <div class="card p-6">
                 <h2 class="text-sm font-semibold text-[#b3423e] mb-3">Danger Zone</h2>
                 <form action="{{ route('client-management.destroy', $client) }}" method="POST"
                       onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.')">

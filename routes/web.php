@@ -54,6 +54,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware('permission:workflow,view')
         ->name('production-workflow.index');
     Route::patch('/production-workflow/{contentItem}/status', [ProductionWorkflowController::class, 'updateStatus'])
+        ->middleware('permission:workflow,update')
         ->name('production-workflow.update-status');
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:dashboard,view')
@@ -64,6 +65,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('content-items.show');
     Route::patch('/content-items/{contentItem}/reassign', [ContentItemController::class, 'reassign'])
         ->name('content-items.reassign');
+    Route::patch('/content-items/{contentItem}/transition', [ContentItemController::class, 'transition'])
+        ->middleware('permission:workflow,update')
+        ->name('content-items.transition');
 
     Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
         ->name('content-brief.generate');
@@ -83,9 +87,11 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('content-brief.withdraw');
 
     Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
+        ->middleware('permission:workflow,update')
         ->name('content-revision.store');
-    Route::patch('/production-workflow/{contentItem}/revisions/{revision}/resolve', [ContentRevisionController::class, 'resolve'])
-        ->name('content-revision.resolve');
+    Route::patch('/production-workflow/{contentItem}/revisions/{revision}/start-work', [ContentRevisionController::class, 'startWork'])
+        ->middleware('permission:workflow,update')
+        ->name('content-revision.start-work');
     Route::post('/production-workflow/{contentItem}/publications', [ContentPublicationController::class, 'store'])
         ->middleware('permission:publishing,manage')
         ->name('content-publication.store');
