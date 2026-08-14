@@ -1,4 +1,4 @@
-{{-- Tombol + modal "Konten Dadakan" - permintaan mendadak dari client
+{{-- Tombol + modal "Jobdesk Tambahan" - permintaan mendadak dari client
      (dokumentasi event, liputan kelas, dsb) yang butuh langsung masuk
      produksi tanpa lewat alur perencanaan bulanan biasa. Self-contained
      (x-data sendiri) supaya bisa ditaruh di halaman manapun tanpa perlu
@@ -11,8 +11,8 @@
 @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
     <div x-data="{ urgentOpen: false }">
         <button type="button" @click="urgentOpen = true"
-                class="flex items-center gap-2 bg-[#b3423e] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#96352f] transition-colors">
-            <span class="material-symbols-outlined text-[17px]">bolt</span> Konten Dadakan
+                class="flex items-center gap-2 bg-[#b3423e] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#96352f] transition-colors whitespace-nowrap">
+            <span class="material-symbols-outlined text-[17px]">bolt</span> Jobdesk Tambahan
         </button>
 
         <div x-show="urgentOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
@@ -22,7 +22,7 @@
                     @csrf
                     <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                         <div>
-                            <h3 class="font-display text-lg font-semibold text-[#14181a]">Konten Dadakan</h3>
+                            <h3 class="font-display text-lg font-semibold text-[#14181a]">Jobdesk Tambahan</h3>
                             <p class="text-xs text-[#9aa0a4] mt-0.5">Permintaan mendadak dari client - langsung masuk Production Workflow.</p>
                         </div>
                         <button type="button" @click="urgentOpen = false" class="text-[#9aa0a4] hover:text-[#5c6266]">

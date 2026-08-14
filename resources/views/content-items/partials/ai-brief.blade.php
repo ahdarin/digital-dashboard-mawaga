@@ -71,11 +71,11 @@
             </div>
         </div>
 
-        {{-- Video di status Brief Ready bisa selesai syuting duluan sebelum proses
-             edit (yang baru memindahkan status ke In Progress) dimulai. Tanggal
-             take-nya diisi manual (bukan otomatis "sekarang") karena sering baru
-             sempat ditandai beberapa hari setelah syuting beneran terjadi. --}}
-        @if ($isVideo && $contentItem->workflow->current_status === 'brief_ready')
+        {{-- Video di status In Progress bisa selesai syuting belakangan setelah
+             proses edit sudah/lagi berjalan. Tanggal take-nya diisi manual
+             (bukan otomatis "sekarang") karena sering baru sempat ditandai
+             beberapa hari setelah syuting beneran terjadi. --}}
+        @if ($isVideo && $contentItem->workflow->current_status === 'in_progress')
             <div x-data="{ editingTakeDate: {{ $contentItem->footage_captured_at ? 'false' : 'true' }} }" class="mb-4">
                 @if ($contentItem->footage_captured_at)
                     <div x-show="! editingTakeDate" class="bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg">

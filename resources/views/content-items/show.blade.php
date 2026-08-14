@@ -20,8 +20,8 @@
                     <div class="flex items-center gap-2">
                         <h2 class="font-display text-xl font-semibold text-[#14181a]">{{ $contentItem->title }}</h2>
                         @if ($contentItem->is_urgent)
-                            <span class="flex items-center gap-1 text-[10px] font-semibold text-white bg-[#b3423e] px-2 py-0.5 rounded-full uppercase tracking-wide">
-                                <span class="material-symbols-outlined text-[12px]">bolt</span> Dadakan
+                            <span class="flex items-center gap-1 text-[10px] font-semibold text-white bg-[#b3423e] px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
+                                <span class="material-symbols-outlined text-[12px]">bolt</span> Jobdesk Tambahan
                             </span>
                         @endif
                     </div>
@@ -46,124 +46,6 @@
             <div class="lg:col-span-2 space-y-5">
 
                 @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
-
-                @php
-                    $isVideoContent = ($contentItem->contentType->name ?? '') === 'Video';
-
-                    $nextStepMeta = [
-                        'brief_ready' => ['icon' => 'play_arrow', 'text' => 'Brief siap — klik "Kerjakan Konten" di Status Management untuk mulai edit/produksi.'],
-                        'in_progress' => ['icon' => 'construction', 'text' => 'Konten sedang dikerjakan — tandai "Konten Telah Selesai" di Status Management kalau sudah rampung.'],
-                        'waiting_review' => ['icon' => 'rate_review', 'text' => 'Menunggu review — approve atau ajukan revisi lewat Status Management / Revision Log.'],
-                        'revision' => ['icon' => 'edit_note', 'text' => 'Ada revisi terbuka — kerjakan lewat Revision Log di bawah.'],
-                        'approved' => ['icon' => 'event_available', 'text' => 'Sudah di-approve — jadwalkan tanggal upload lewat Status Management.'],
-                        'scheduled' => ['icon' => 'cloud_upload', 'text' => 'Terjadwal upload — catat link & tanggal publish lewat Record Publication.'],
-                        'uploaded' => ['icon' => 'check_circle', 'text' => 'Sudah dipublikasikan. Lihat detail link & tanggal publish di bawah.'],
-                        'cancelled' => ['icon' => 'cancel', 'text' => 'Konten ini sudah dibatalkan.'],
-                    ];
-                    $nextStep = $nextStepMeta[$workflow->current_status] ?? null;
-                    $latestPublication = $contentItem->publications->sortByDesc('published_at')->first();
-                    $hasUnresolvedRevisions = $contentItem->revisions->whereIn('status', ['open', 'in_progress'])->isNotEmpty();
-                @endphp
-
-                <div class="card p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold text-[#14181a]">Status Produksi &amp; Langkah Selanjutnya</h3>
-                        <span class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#044b46]">
-                            {{ $statusLabels[$workflow->current_status] ?? $workflow->current_status }}
-                        </span>
-                    </div>
-
-                    @if ($nextStep)
-                        <div class="flex items-start gap-2 bg-[#f7f8fc] border border-[#eef0f4] rounded-lg p-3 mb-3">
-                            <span class="material-symbols-outlined text-[16px] text-[#044b46] mt-0.5">{{ $nextStep['icon'] }}</span>
-                            <p class="text-xs text-[#5c6266] leading-relaxed">{{ $nextStep['text'] }}</p>
-                        </div>
-                    @endif
-
-                    {{-- Khusus konten Video di status Brief Ready - syuting bisa selesai duluan
-                         sebelum proses edit (yang baru memindahkan status ke In Progress) dimulai.
-                         Tanggal take-nya diisi manual, bukan otomatis "sekarang". --}}
-                    @if ($isVideoContent && $workflow->current_status === 'brief_ready')
-                        <div x-data="{ editingTakeDate: {{ $contentItem->footage_captured_at ? 'false' : 'true' }} }" class="mb-3">
-                            @if ($contentItem->footage_captured_at)
-                                <div x-show="! editingTakeDate" class="bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg">
-                                    <div class="flex items-start gap-2">
-                                        <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
-                                        <span>Video sudah di-take di lokasi ({{ $contentItem->footage_captured_at->format('d M Y, H:i') }}), menunggu proses edit.</span>
-                                    </div>
-                                    <div class="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-[#0f7a5f]/15">
-                                        <button type="button" @click="editingTakeDate = true" class="text-[11px] font-medium text-[#0f7a5f] hover:underline">Ubah Tanggal</button>
-                                        <form action="{{ route('content-items.footage-captured.unmark', $contentItem) }}" method="POST" class="m-0"
-                                              onsubmit="return confirm('Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.');">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="text-[11px] font-medium text-[#8a6423] hover:underline">Batalkan</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            @endif
-
-                            <form x-show="editingTakeDate" action="{{ route('content-items.footage-captured', $contentItem) }}" method="POST"
-                                  class="flex items-center gap-2">
-                                @csrf @method('PATCH')
-                                <input type="datetime-local" name="footage_captured_at"
-                                    value="{{ ($contentItem->footage_captured_at ?? now())->format('Y-m-d\TH:i') }}" required
-                                    class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-                                <button type="submit"
-                                    class="flex items-center justify-center gap-1.5 border border-[#044b46]/30 text-[#044b46] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#f0f5f4] transition-colors whitespace-nowrap">
-                                    <span class="material-symbols-outlined text-[16px]">videocam</span> Tandai Sudah Di-take
-                                </button>
-                                @if ($contentItem->footage_captured_at)
-                                    <button type="button" @click="editingTakeDate = false" class="text-xs font-medium text-[#9aa0a4] hover:text-[#14181a] px-2">Batal</button>
-                                @endif
-                            </form>
-                        </div>
-                    @endif
-
-                    @if ($latestPublication)
-                        <div class="grid grid-cols-2 gap-4 text-xs mb-4">
-                            <div>
-                                <p class="text-[#9aa0a4] uppercase font-medium mb-1">Tanggal Publish</p>
-                                <p class="text-[#14181a] font-medium">{{ $latestPublication->published_at->format('d M Y, H:i') }}</p>
-                            </div>
-                            <div>
-                                <p class="text-[#9aa0a4] uppercase font-medium mb-1">Link Post</p>
-                                @if ($latestPublication->post_url)
-                                    <a href="{{ $latestPublication->post_url }}" target="_blank" class="text-[#044b46] underline break-all">{{ $latestPublication->post_url }}</a>
-                                @else
-                                    <p class="text-[#5c6266]">-</p>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
-
-                    <div class="flex items-center gap-2">
-                        <a href="{{ route('production-workflow.index') }}"
-                            class="flex items-center justify-center gap-1.5 flex-1 border border-[#eef0f4] text-[#5c6266] text-sm font-medium py-2.5 rounded-lg hover:bg-[#f7f8fc] transition-colors">
-                            <span class="material-symbols-outlined text-[16px]">view_kanban</span> Lihat di Production Workflow
-                        </a>
-
-                        @unless (in_array($workflow->current_status, ['uploaded', 'cancelled']))
-                            @if ($hasUnresolvedRevisions)
-                                <button type="button" disabled title="Masih ada revisi terbuka di Revision Log"
-                                    class="flex items-center justify-center gap-1.5 flex-1 bg-[#f2f3f6] text-[#c3c7cb] text-sm font-medium py-2.5 rounded-lg cursor-not-allowed">
-                                    Lanjut ke Status Management <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                                </button>
-                            @else
-                                <a href="#{{ $workflow->current_status === 'scheduled' ? 'record-publication' : 'status-management' }}"
-                                    class="flex items-center justify-center gap-1.5 flex-1 bg-[#044b46] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
-                                    Lanjut ke Status Management <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                                </a>
-                            @endif
-                        @endunless
-                    </div>
-
-                    @if ($hasUnresolvedRevisions && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
-                        <p class="text-[11px] text-[#8a6423] mt-2">
-                            <span class="material-symbols-outlined text-[12px] align-middle">hourglass_empty</span>
-                            Masih ada revisi terbuka — selesaikan dulu di <strong>Revision Log</strong> di bawah sebelum lanjut.
-                        </p>
-                    @endif
-                </div>
 
                 <div class="card p-5">
                     <h3 class="text-sm font-semibold text-[#14181a] mb-3">Initial Brief</h3>
@@ -442,7 +324,13 @@
                     @endif
 
                     <div class="card p-5">
-                        <h3 class="text-sm font-semibold text-[#14181a] mb-3">Status History</h3>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-[#14181a]">Status History</h3>
+                            <a href="{{ route('production-workflow.index') }}"
+                                class="flex items-center gap-1 text-xs font-medium text-[#044b46] hover:underline whitespace-nowrap">
+                                <span class="material-symbols-outlined text-[14px]">view_kanban</span> Lihat di Workflow
+                            </a>
+                        </div>
                         <div class="space-y-3">
                             @forelse ($contentItem->statusLogs->sortByDesc('changed_at') as $log)
                                 <div class="flex gap-3">

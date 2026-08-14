@@ -72,11 +72,11 @@ class ContentItemController extends Controller
     }
 
     /**
-     * Tandai footage video sudah selesai di-take di lokasi, TANPA memindahkan
-     * status workflow (masih Brief Ready) - dipakai buat kasus produksi video
-     * dimana syuting sudah kelar tapi proses edit (baru itu yang bikin
-     * pindah ke In Progress) belum mulai. Cuma penanda visual buat tim,
-     * bukan bagian dari WorkflowTransitions karena from===to selalu invalid.
+     * Tandai footage video sudah selesai di-take di lokasi - dipakai buat
+     * kasus produksi video dimana syuting baru selesai setelah status sudah
+     * pindah ke In Progress (proses edit sudah/lagi berjalan duluan, bukan
+     * nunggu Brief Ready). Cuma penanda visual buat tim, bukan bagian dari
+     * WorkflowTransitions karena from===to selalu invalid.
      *
      * Tanggal/jam take-nya diisi manual oleh user (bukan otomatis now()) -
      * syuting sering terjadi beberapa hari sebelum baru sempat ditandai di
@@ -88,7 +88,7 @@ class ContentItemController extends Controller
      */
     public function markFootageCaptured(Request $request, ContentItem $contentItem)
     {
-        abort_if($contentItem->workflow->current_status !== 'brief_ready', 422, 'Cuma bisa ditandai selama status masih Brief Ready.');
+        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa ditandai selama status masih In Progress.');
 
         $validated = $request->validate([
             'footage_captured_at' => 'nullable|date',
@@ -132,7 +132,7 @@ class ContentItemController extends Controller
      */
     public function unmarkFootageCaptured(Request $request, ContentItem $contentItem)
     {
-        abort_if($contentItem->workflow->current_status !== 'brief_ready', 422, 'Cuma bisa dibatalkan selama status masih Brief Ready.');
+        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa dibatalkan selama status masih In Progress.');
 
         if ($contentItem->footage_captured_at) {
             $contentItem->update(['footage_captured_at' => null]);

@@ -10,12 +10,13 @@
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+            <div class="flex items-center gap-2">
+                @include('partials.urgent-content-modal')
 
-            @include('partials.urgent-content-modal')
-            
-            <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
-                <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
-            </button>
+                <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                    <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
+                </button>
+            </div>
         @endif
     </div>
 

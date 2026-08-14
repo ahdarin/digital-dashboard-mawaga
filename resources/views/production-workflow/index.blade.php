@@ -89,11 +89,11 @@
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              class="bg-white p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-shadow {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
 
-                            <div class="flex justify-between items-start mb-2">
+                            <div class="flex justify-between items-start gap-1 flex-wrap mb-2">
                                 <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded">{{ $item->contentType->name ?? '-' }}</span>
                                 @if ($item->is_urgent)
-                                    <span class="text-[10px] text-white font-semibold flex items-center gap-1 bg-[#b3423e] px-2 py-0.5 rounded">
-                                        <span class="material-symbols-outlined text-[12px]">bolt</span> Dadakan
+                                    <span class="text-[10px] text-white font-semibold flex items-center gap-1 bg-[#b3423e] px-2 py-0.5 rounded whitespace-nowrap">
+                                        <span class="material-symbols-outlined text-[12px]">bolt</span> Jobdesk Tambahan
                                     </span>
                                 @endif
                                 @if ($isOverdue)
@@ -120,10 +120,10 @@
                             <h4 class="text-sm font-semibold text-[#14181a] mb-1">{{ $item->title }}</h4>
                             <p class="text-xs text-[#9aa0a4] mb-3">{{ $item->client->name ?? '-' }}</p>
 
-                            {{-- Video di Brief Ready bisa selesai syuting duluan sebelum edit (yang
-                                 baru memindahkan status ke In Progress) dimulai - penanda ini bantu
-                                 tim lihat progres riil tanpa harus pindah status dulu. --}}
-                            @if ($status === 'brief_ready' && ($item->contentType->name ?? '') === 'Video')
+                            {{-- Video di In Progress bisa selesai syuting belakangan setelah proses
+                                 edit sudah/lagi berjalan - penanda ini bantu tim lihat progres riil
+                                 tanpa harus nunggu/pindah status dulu. --}}
+                            @if ($status === 'in_progress' && ($item->contentType->name ?? '') === 'Video')
                                 <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mb-2.5">
                                     @if ($item->footage_captured_at)
                                         <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">

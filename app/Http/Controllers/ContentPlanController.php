@@ -252,7 +252,7 @@ class ContentPlanController extends Controller
     }
 
     /**
-     * Input cepat buat "konten dadakan" - permintaan mendadak dari client
+     * Input cepat buat "jobdesk tambahan" - permintaan mendadak dari client
      * (dokumentasi event, liputan kelas, dsb) yang tidak lewat proses
      * perencanaan bulanan biasa. Otomatis cari/buatkan ContentPlan bulan
      * berjalan buat client itu (item tetap butuh content_plan_id), langsung
@@ -308,7 +308,7 @@ class ContentPlanController extends Controller
 
             NotificationService::notify(
                 User::findOrFail($validated['pic_id']),
-                'Konten dadakan baru buat kamu',
+                'Jobdesk tambahan baru buat kamu',
                 'task',
                 "\"{$item->title}\" ({$client->name}) - permintaan mendadak, deadline {$item->deadline_at->format('d M Y, H:i')}.",
                 $item
@@ -316,7 +316,7 @@ class ContentPlanController extends Controller
         }
 
         return redirect()->route('content-items.show', $item)
-            ->with('status', 'Konten dadakan berhasil ditambahkan ke Production Workflow.');
+            ->with('status', 'Jobdesk tambahan berhasil ditambahkan ke Production Workflow.');
     }
 
     public function calendar(Request $request)
