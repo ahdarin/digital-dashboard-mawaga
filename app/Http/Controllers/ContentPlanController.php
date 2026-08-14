@@ -10,6 +10,7 @@ use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Platform;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -86,6 +87,10 @@ class ContentPlanController extends Controller
             )->get();
         }
 
+        $contentTypeOptions = ContentType::all();
+        $platformOptions = Platform::all();
+        $picOptions = User::whereNull('client_id')->where('status', 'active')->get();
+
         return view('content-plan.index', compact(
             'plans',
             'clientOptions',
@@ -100,7 +105,10 @@ class ContentPlanController extends Controller
             'itemsByDateClient',
             'typeOptions',
             'selectedType',
-            'selectedDate'
+            'selectedDate',
+            'contentTypeOptions',
+            'platformOptions',
+            'picOptions'
         ));
     }
 
@@ -163,9 +171,14 @@ class ContentPlanController extends Controller
                 ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
         }
 
+        $contentTypeOptions = ContentType::all();
+        $platformOptions = Platform::all();
+        $picOptions = User::whereNull('client_id')->where('status', 'active')->get();
+
         return view('content-plan.show', compact(
             'contentPlan', 'items', 'view', 'month', 'year',
-            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedDate', 'selectedClientId'
+            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedDate', 'selectedClientId',
+            'contentTypeOptions', 'platformOptions', 'picOptions'
         ));
     }
 
@@ -236,6 +249,74 @@ class ContentPlanController extends Controller
 
         return redirect()->route('content-plan.show', $contentPlan)
             ->with('status', 'Content item berhasil ditambahkan.');
+    }
+
+    /**
+     * Input cepat buat "konten dadakan" - permintaan mendadak dari client
+     * (dokumentasi event, liputan kelas, dsb) yang tidak lewat proses
+     * perencanaan bulanan biasa. Otomatis cari/buatkan ContentPlan bulan
+     * berjalan buat client itu (item tetap butuh content_plan_id), langsung
+     * masuk papan Production Workflow dengan flag is_urgent supaya menonjol,
+     * dan PIC yang ditugaskan langsung dapat notifikasi karena sifatnya
+     * mendesak.
+     */
+    public function quickCreateUrgent(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'title' => 'required|string|max:255',
+            'brief' => 'nullable|string',
+            'content_type_id' => 'nullable|exists:content_types,id',
+            'platform_id' => 'nullable|exists:platforms,id',
+            'deadline_at' => 'required|date',
+            'pic_id' => 'nullable|exists:users,id',
+        ]);
+
+        $client = Client::findOrFail($validated['client_id']);
+        $activePackage = $client->activePackage;
+
+        abort_unless($activePackage, 422, 'Client ini belum punya paket aktif, tidak bisa ditambahkan konten.');
+
+        $plan = ContentPlan::firstOrCreate(
+            ['client_id' => $client->id, 'month' => now()->month, 'year' => now()->year],
+            ['client_package_id' => $activePackage->id, 'created_by' => auth()->id(), 'status' => 'draft']
+        );
+
+        $item = ContentItem::create([
+            'content_plan_id' => $plan->id,
+            'client_id' => $client->id,
+            'is_urgent' => true,
+            'content_type_id' => $validated['content_type_id'] ?? null,
+            'platform_id' => $validated['platform_id'] ?? null,
+            'title' => $validated['title'],
+            'brief' => $validated['brief'] ?? null,
+            'deadline_at' => Carbon::parse($validated['deadline_at']),
+        ]);
+
+        ContentWorkflow::create([
+            'content_item_id' => $item->id,
+            'current_pic_id' => $validated['pic_id'] ?? null,
+            'current_status' => 'brief_ready',
+            'is_overdue' => false,
+        ]);
+
+        if (!empty($validated['pic_id'])) {
+            $item->assignments()->create([
+                'user_id' => $validated['pic_id'],
+                'assignment_role' => 'primary',
+            ]);
+
+            NotificationService::notify(
+                User::findOrFail($validated['pic_id']),
+                'Konten dadakan baru buat kamu',
+                'task',
+                "\"{$item->title}\" ({$client->name}) - permintaan mendadak, deadline {$item->deadline_at->format('d M Y, H:i')}.",
+                $item
+            );
+        }
+
+        return redirect()->route('content-items.show', $item)
+            ->with('status', 'Konten dadakan berhasil ditambahkan ke Production Workflow.');
     }
 
     public function calendar(Request $request)

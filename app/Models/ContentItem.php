@@ -12,6 +12,7 @@ class ContentItem extends Model
 
     protected $fillable = [
         'content_plan_id',
+        'is_urgent',
         'client_id',
         'content_pillar_id',
         'content_type_id',
@@ -34,6 +35,7 @@ class ContentItem extends Model
         'footage_captured_at' => 'datetime',
         'scheduled_upload_at' => 'datetime',
         'is_posted' => 'boolean',
+        'is_urgent' => 'boolean',
     ];
 
     public function client()

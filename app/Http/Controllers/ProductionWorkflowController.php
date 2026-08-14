@@ -76,6 +76,10 @@ class ProductionWorkflowController extends Controller
             'selectedClientId' => $request->input('client_id'),
             'selectedMonth' => $request->input('month'),
             'canUpdateWorkflow' => $user->hasPermissionTo('workflow', 'update'),
+            'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
+            'contentTypeOptions' => \App\Models\ContentType::all(),
+            'platformOptions' => \App\Models\Platform::all(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
         ]);
     }
 

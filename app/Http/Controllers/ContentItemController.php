@@ -78,6 +78,10 @@ class ContentItemController extends Controller
      * pindah ke In Progress) belum mulai. Cuma penanda visual buat tim,
      * bukan bagian dari WorkflowTransitions karena from===to selalu invalid.
      *
+     * Tanggal/jam take-nya diisi manual oleh user (bukan otomatis now()) -
+     * syuting sering terjadi beberapa hari sebelum baru sempat ditandai di
+     * sistem, jadi tanggalnya harus bisa disesuaikan sama kenyataan.
+     *
      * Idempoten (klik dobel / sudah ditandai sebelumnya tetap dianggap
      * sukses, bukan error) supaya tombol di kanban board (yang bisa retrigger
      * kalau board belum sempat reload) tidak keliru muncul gagal.
@@ -86,9 +90,13 @@ class ContentItemController extends Controller
     {
         abort_if($contentItem->workflow->current_status !== 'brief_ready', 422, 'Cuma bisa ditandai selama status masih Brief Ready.');
 
-        if (! $contentItem->footage_captured_at) {
-            $contentItem->update(['footage_captured_at' => now()]);
-        }
+        $validated = $request->validate([
+            'footage_captured_at' => 'nullable|date',
+        ]);
+
+        // Selalu update ke tanggal yang diisi user (bukan cuma sekali set) -
+        // biar tanggalnya juga bisa dikoreksi belakangan kalau salah isi.
+        $contentItem->update(['footage_captured_at' => $validated['footage_captured_at'] ?? now()]);
 
         if ($request->wantsJson()) {
             return response()->json([

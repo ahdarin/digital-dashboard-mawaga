@@ -10,6 +10,9 @@
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+
+            @include('partials.urgent-content-modal')
+            
             <button type="button" @click="showCreateModal = true" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
                 <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
             </button>
@@ -40,119 +43,6 @@
                 <option value="{{ $y }}" {{ $year === $y ? 'selected' : '' }}>{{ $y }}</option>
             @endforeach
         </select>
-
-        @if ($view === 'calendar')
-            {{-- Filter Tipe & Tanggal khusus calendar — disatukan dengan filter utama agar tidak "meloncat" saat ganti client --}}
-            <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1">
-                <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}"
-                   class="px-3 py-1.5 rounded-md text-xs font-medium
-                   {{ ($selectedType ?? 'all') === 'all' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
-                    Semua
-                </a>
-                <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Desain']) }}"
-                   class="px-3 py-1.5 rounded-md text-xs font-medium
-                   {{ ($selectedType ?? '') === 'Desain' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
-                    Desain
-                </a>
-                <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
-                   class="px-3 py-1.5 rounded-md text-xs font-medium
-                   {{ ($selectedType ?? '') === 'Video' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
-                    Video
-                </a>
-            </div>
-
-            <div class="flex items-center gap-2" x-data="{
-        open: false,
-        selected: @js($selectedDate),
-        get displayLabel() {
-            if (!this.selected) return 'Semua tanggal';
-            const d = new Date(this.selected);
-            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-        }
-    }">
-                <div class="relative">
-                    <button type="button" x-on:click="open = !open"
-                        class="flex items-center gap-2 border border-[#eef0f4] rounded-lg px-3 py-1.5 text-xs bg-white hover:border-[#044b46]/40 min-w-[130px]">
-                        <span class="material-symbols-outlined text-[15px] text-[#9aa0a4]">calendar_today</span>
-                        <span class="text-[#14181a]" x-text="displayLabel"></span>
-                    </button>
-
-                    <div x-show="open" x-cloak x-on:click.outside="open = false" x-transition
-                        class="absolute z-20 mt-2 w-72 bg-white rounded-xl border border-[#eef0f4] shadow-lg p-4">
-
-                        {{-- Dropdown bulan & tahun — ganti langsung, tanpa navigasi panah --}}
-                        <form method="GET" class="flex items-center gap-2 mb-3">
-                            <input type="hidden" name="view" value="calendar">
-                            <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-                            <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
-
-                            <select name="month" onchange="this.form.submit()"
-                                class="flex-1 border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
-                                @foreach (range(1, 12) as $m)
-                                    <option value="{{ $m }}" {{ $month === $m ? 'selected' : '' }}>
-                                        {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
-                                    </option>
-                                @endforeach
-                            </select>
-
-                            <select name="year" onchange="this.form.submit()"
-                                class="border border-[#eef0f4] rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
-                                @foreach (range(now()->year - 2, now()->year + 2) as $y)
-                                    <option value="{{ $y }}" {{ $year === $y ? 'selected' : '' }}>{{ $y }}</option>
-                                @endforeach
-                            </select>
-                        </form>
-
-                        {{-- Grid tanggal untuk bulan/tahun yang sedang aktif --}}
-                        <div
-                            class="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-[#9aa0a4] uppercase mb-1.5">
-                            <div>Su</div>
-                            <div>Mo</div>
-                            <div>Tu</div>
-                            <div>We</div>
-                            <div>Th</div>
-                            <div>Fr</div>
-                            <div>Sa</div>
-                        </div>
-
-                        <form method="GET" id="dateForm">
-                            <input type="hidden" name="view" value="calendar">
-                            <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-                            <input type="hidden" name="month" value="{{ $month }}">
-                            <input type="hidden" name="year" value="{{ $year }}">
-                            <input type="hidden" name="type" value="{{ $selectedType ?? 'all' }}">
-                            <input type="hidden" name="date" id="dateHiddenInput" value="{{ $selectedDate }}">
-
-                            @php
-                                $daysInMonthPopup = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
-                                $firstDayOfWeekPopup = \Carbon\Carbon::create($year, $month, 1)->dayOfWeek;
-                            @endphp
-
-                            <div class="grid grid-cols-7 gap-1">
-                                @for ($i = 0; $i < $firstDayOfWeekPopup; $i++)
-                                    <div></div>
-                                @endfor
-                                @for ($d = 1; $d <= $daysInMonthPopup; $d++)
-                                    @php $optionDate = \Carbon\Carbon::create($year, $month, $d)->format('Y-m-d'); @endphp
-                                    <button type="submit" name="date" value="{{ $optionDate }}"
-                                        class="w-8 h-8 rounded-lg text-xs flex items-center justify-center hover:bg-[#f0f5f4]
-                                            {{ $selectedDate === $optionDate ? 'bg-[#044b46] text-white font-semibold' : 'text-[#14181a]' }}">
-                                        {{ $d }}
-                                    </button>
-                                @endfor
-                            </div>
-
-                            <div class="flex items-center justify-between mt-3 pt-3 border-t border-[#eef0f4]">
-                                <button type="submit" name="date" value=""
-                                    class="text-xs font-medium text-[#5c6266] hover:underline">Clear</button>
-                                <button type="submit" name="date" value="{{ now()->format('Y-m-d') }}"
-                                    class="text-xs font-medium text-[#044b46] hover:underline">Hari ini</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        @endif
 
         {{-- Toggle Table / Calendar --}}
         <div class="flex items-center bg-[#f2f3f6] rounded-lg p-1 ml-auto">

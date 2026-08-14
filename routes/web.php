@@ -183,6 +183,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
         Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])->name('content-plan.items.create');
         Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])->name('content-plan.items.store');
+        Route::post('/content-items/urgent', [ContentPlanController::class, 'quickCreateUrgent'])->name('content-items.quick-urgent');
     });
 
     Route::middleware('permission:master_data,manage')->group(function () {

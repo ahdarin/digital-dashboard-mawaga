@@ -11,6 +11,7 @@
                 <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Production Workflow Board</h1>
                 <p class="text-sm text-[#9aa0a4] mt-1">Alur produksi konten yang sedang berjalan</p>
             </div>
+            @include('partials.urgent-content-modal')
         </div>
 
         <form id="filter-form" method="GET" action="{{ route('production-workflow.index') }}"></form>
@@ -90,6 +91,11 @@
 
                             <div class="flex justify-between items-start mb-2">
                                 <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded">{{ $item->contentType->name ?? '-' }}</span>
+                                @if ($item->is_urgent)
+                                    <span class="text-[10px] text-white font-semibold flex items-center gap-1 bg-[#b3423e] px-2 py-0.5 rounded">
+                                        <span class="material-symbols-outlined text-[12px]">bolt</span> Dadakan
+                                    </span>
+                                @endif
                                 @if ($isOverdue)
                                     <span class="text-[10px] text-[#b3423e] font-semibold flex items-center gap-1 bg-[#fdf2f1] px-2 py-0.5 rounded">
                                         <span class="material-symbols-outlined text-[12px]">warning</span> Overdue
@@ -122,16 +128,21 @@
                                     @if ($item->footage_captured_at)
                                         <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
                                             <span class="flex items-center gap-1">
-                                                <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                                <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take ({{ $item->footage_captured_at->format('d M Y, H:i') }})
                                             </span>
                                             <button type="button" x-on:click.stop="unmarkFootageCaptured({{ $item->id }}, $event)"
-                                                class="text-[#8a6423] hover:underline">Batalkan</button>
+                                                class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
                                         </div>
                                     @else
-                                        <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
-                                            class="flex items-center justify-center gap-1 w-full text-[10px] font-medium border border-[#044b46]/30 text-[#044b46] px-2 py-1.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
-                                            <span class="material-symbols-outlined text-[13px]">videocam</span> Tandai Sudah Di-take
-                                        </button>
+                                        <div class="flex items-center gap-1">
+                                            <input type="datetime-local" data-take-date value="{{ now()->format('Y-m-d\TH:i') }}"
+                                                x-on:click.stop x-on:mousedown.stop
+                                                class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                            <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
+                                                class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                                <span class="material-symbols-outlined text-[15px]">videocam</span>
+                                            </button>
+                                        </div>
                                     @endif
                                 </div>
                             @endif
@@ -280,6 +291,7 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <style>
@@ -406,7 +418,11 @@ function kanbanBoard() {
             return title.toLowerCase().includes(this.search.toLowerCase());
         },
         markFootageCaptured(itemId, event) {
-            this.submitFootageCaptured(itemId, event.currentTarget, 'PATCH', 'Video ditandai sudah di-take', 'Gagal menandai footage sudah di-take');
+            const btn = event.currentTarget;
+            const dateInput = btn.closest('[data-footage-toggle]')?.querySelector('[data-take-date]');
+            this.submitFootageCaptured(itemId, btn, 'PATCH', 'Video ditandai sudah di-take', 'Gagal menandai footage sudah di-take', {
+                footage_captured_at: dateInput?.value || null,
+            });
         },
         unmarkFootageCaptured(itemId, event) {
             this.submitFootageCaptured(itemId, event.currentTarget, 'DELETE', 'Penandaan sudah di-take dibatalkan', 'Gagal membatalkan penandaan');
@@ -415,7 +431,7 @@ function kanbanBoard() {
         // wrapper, tukar markup badge<->tombol setelah request sukses, lalu
         // fade-in lagi. Alpine.initTree dipanggil biar x-on di markup baru
         // ikut ke-bind (Alpine tidak otomatis scan HTML yang disuntik manual).
-        submitFootageCaptured(itemId, btn, method, successMessage, errorMessage) {
+        submitFootageCaptured(itemId, btn, method, successMessage, errorMessage, body = null) {
             const wrapper = btn.closest('[data-footage-toggle]');
             btn.disabled = true;
 
@@ -426,6 +442,7 @@ function kanbanBoard() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json',
                 },
+                body: body ? JSON.stringify(body) : undefined,
             })
             .then((res) => {
                 if (!res.ok) throw new Error(errorMessage);
@@ -438,18 +455,24 @@ function kanbanBoard() {
                 if (!wrapper) return;
                 wrapper.classList.add('footage-toggle-fade-out');
                 setTimeout(() => {
+                    const nowValue = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
                     wrapper.innerHTML = method === 'PATCH'
                         ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
                                 <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                    <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take (${data.footage_captured_at ?? ''})
                                 </span>
                                 <button type="button" x-on:click.stop="unmarkFootageCaptured(${itemId}, $event)"
-                                    class="text-[#8a6423] hover:underline">Batalkan</button>
+                                    class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
                             </div>`
-                        : `<button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)"
-                                class="flex items-center justify-center gap-1 w-full text-[10px] font-medium border border-[#044b46]/30 text-[#044b46] px-2 py-1.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
-                                <span class="material-symbols-outlined text-[13px]">videocam</span> Tandai Sudah Di-take
-                            </button>`;
+                        : `<div class="flex items-center gap-1">
+                                <input type="datetime-local" data-take-date value="${nowValue}"
+                                    x-on:click.stop x-on:mousedown.stop
+                                    class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
+                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                    <span class="material-symbols-outlined text-[15px]">videocam</span>
+                                </button>
+                            </div>`;
                     window.Alpine?.initTree(wrapper);
                     wrapper.classList.remove('footage-toggle-fade-out');
                 }, 180);

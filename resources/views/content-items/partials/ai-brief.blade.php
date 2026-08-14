@@ -72,29 +72,43 @@
         </div>
 
         {{-- Video di status Brief Ready bisa selesai syuting duluan sebelum proses
-             edit (yang baru memindahkan status ke In Progress) dimulai. --}}
+             edit (yang baru memindahkan status ke In Progress) dimulai. Tanggal
+             take-nya diisi manual (bukan otomatis "sekarang") karena sering baru
+             sempat ditandai beberapa hari setelah syuting beneran terjadi. --}}
         @if ($isVideo && $contentItem->workflow->current_status === 'brief_ready')
-            @if ($contentItem->footage_captured_at)
-                <div class="flex items-center justify-between gap-2 bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg mb-4">
-                    <span class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
-                        <span>Video sudah di-take di lokasi ({{ $contentItem->footage_captured_at->format('d M Y, H:i') }}), menunggu proses edit.</span>
-                    </span>
-                    <form action="{{ route('content-items.footage-captured.unmark', $contentItem) }}" method="POST"
-                          onsubmit="return confirm('Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.');">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="text-[11px] font-medium text-[#8a6423] hover:underline whitespace-nowrap">Batalkan</button>
-                    </form>
-                </div>
-            @else
-                <form action="{{ route('content-items.footage-captured', $contentItem) }}" method="POST" class="mb-4">
+            <div x-data="{ editingTakeDate: {{ $contentItem->footage_captured_at ? 'false' : 'true' }} }" class="mb-4">
+                @if ($contentItem->footage_captured_at)
+                    <div x-show="! editingTakeDate" class="bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg">
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
+                            <span>Video sudah di-take di lokasi ({{ $contentItem->footage_captured_at->format('d M Y, H:i') }}), menunggu proses edit.</span>
+                        </div>
+                        <div class="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-[#0f7a5f]/15">
+                            <button type="button" @click="editingTakeDate = true" class="text-[11px] font-medium text-[#0f7a5f] hover:underline">Ubah Tanggal</button>
+                            <form action="{{ route('content-items.footage-captured.unmark', $contentItem) }}" method="POST" class="m-0"
+                                  onsubmit="return confirm('Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.');">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="text-[11px] font-medium text-[#8a6423] hover:underline">Batalkan</button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+
+                <form x-show="editingTakeDate" action="{{ route('content-items.footage-captured', $contentItem) }}" method="POST"
+                      class="flex items-center gap-2">
                     @csrf @method('PATCH')
+                    <input type="datetime-local" name="footage_captured_at"
+                        value="{{ ($contentItem->footage_captured_at ?? now())->format('Y-m-d\TH:i') }}" required
+                        class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                     <button type="submit"
-                        class="flex items-center justify-center gap-1.5 w-full border border-[#044b46]/30 text-[#044b46] text-sm font-medium py-2.5 rounded-lg hover:bg-[#f0f5f4] transition-colors">
-                        <span class="material-symbols-outlined text-[16px]">videocam</span> Tandai Video Sudah Di-take
+                        class="flex items-center justify-center gap-1.5 border border-[#044b46]/30 text-[#044b46] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#f0f5f4] transition-colors whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[16px]">videocam</span> Tandai Sudah Di-take
                     </button>
+                    @if ($contentItem->footage_captured_at)
+                        <button type="button" @click="editingTakeDate = false" class="text-xs font-medium text-[#9aa0a4] hover:text-[#14181a] px-2">Batal</button>
+                    @endif
                 </form>
-            @endif
+            </div>
         @endif
 
         @if (! $contentBrief->isLocked())
