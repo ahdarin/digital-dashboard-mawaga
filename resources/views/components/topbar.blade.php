@@ -150,7 +150,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('profile.me') }}" class="flex items-center gap-2.5 pl-3 border-l border-[#eef0f4]">
+            <a href="{{ route('profile.show', auth()->id()) }}" class="flex items-center gap-2.5 pl-3 border-l border-[#eef0f4]">
                 @if (auth()->user()->avatar_url)
                     <img src="{{ auth()->user()->avatar_url }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover">
                 @else

@@ -4,9 +4,9 @@
 <div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Monthly Content Plan</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Rencana Konten Bulanan</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
@@ -34,16 +34,13 @@
                 <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
             @endforeach
         </select>
-        <select name="month" onchange="this.form.submit()" class="border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-            @foreach (range(1,12) as $m)
-                <option value="{{ $m }}" {{ $month === $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}</option>
-            @endforeach
-        </select>
-        <select name="year" onchange="this.form.submit()" class="border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-            @foreach (range(now()->year - 1, now()->year + 1) as $y)
-                <option value="{{ $y }}" {{ $year === $y ? 'selected' : '' }}>{{ $y }}</option>
-            @endforeach
-        </select>
+        <input type="hidden" name="month" id="plan-month-input" value="{{ $month }}">
+        <input type="hidden" name="year" id="plan-year-input" value="{{ $year }}">
+        <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px] pointer-events-none">calendar_month</span>
+            <input type="text" data-flatpickr="month" data-month-input="#plan-month-input" data-year-input="#plan-year-input" data-autosubmit="true"
+                   class="border border-[#eef0f4] rounded-lg pl-9 pr-3 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 w-[150px]" readonly>
+        </div>
 
         {{-- Toggle Table / Calendar --}}
         <div class="flex items-center bg-[#f2f3f6] rounded-lg p-1 sm:ml-auto">
@@ -97,8 +94,8 @@
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium whitespace-nowrap">Client</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Month/Year</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Item Count</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Bulan/Tahun</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Jumlah Item</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
                         <th class="px-6 py-3"></th>
                     </tr>
@@ -153,7 +150,7 @@
         <div x-show="showCreateModal" x-transition
              class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
-                <h3 class="font-display text-lg font-semibold text-[#14181a]">Create New Content Plan</h3>
+                <h3 class="font-display text-lg font-semibold text-[#14181a]">Buat Rencana Konten Baru</h3>
                 <button type="button" @click="showCreateModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>
@@ -178,22 +175,14 @@
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Bulan</label>
-                            <select name="month" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                                @foreach (range(1,12) as $m)
-                                    <option value="{{ $m }}" {{ now()->month === $m ? 'selected' : '' }}>{{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Tahun</label>
-                            <select name="year" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                                @foreach (range(now()->year - 1, now()->year + 1) as $y)
-                                    <option value="{{ $y }}" {{ now()->year === $y ? 'selected' : '' }}>{{ $y }}</option>
-                                @endforeach
-                            </select>
+                    <div>
+                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Bulan &amp; Tahun</label>
+                        <input type="hidden" name="month" id="create-plan-month-input" value="{{ now()->month }}">
+                        <input type="hidden" name="year" id="create-plan-year-input" value="{{ now()->year }}">
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px] pointer-events-none">calendar_month</span>
+                            <input type="text" required data-flatpickr="month" data-month-input="#create-plan-month-input" data-year-input="#create-plan-year-input"
+                                   class="w-full border border-[#eef0f4] rounded-lg pl-10 pr-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40" readonly>
                         </div>
                     </div>
                 </div>

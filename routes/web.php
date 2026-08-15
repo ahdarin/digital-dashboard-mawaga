@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductionWorkflowController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\ContentBriefController;
 use App\Http\Controllers\Auth\GoogleAuthController;
@@ -36,9 +37,7 @@ Route::get('/', function () {
             return redirect()->route('client.dashboard');
         }
 
-        return redirect()->route(
-            $user->hasPermissionTo('dashboard', 'view') ? 'dashboard' : 'production-workflow.index'
-        );
+        return redirect()->route('profile.me');
     }
 
     return view('welcome');
@@ -120,7 +119,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::middleware('permission:user_management,manage')->group(function () {
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
-        Route::get('/user-management/create', [UserManagementController::class, 'create'])->name('user-management.create');
         Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
@@ -200,15 +198,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
     });
 
     Route::middleware('permission:master_data,manage')->group(function () {
-        Route::get('/master-data', [MasterDataController::class, 'index'])->name('master-data.index');
         Route::post('/master-data/{type}', [MasterDataController::class, 'store'])->name('master-data.store');
         Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
     });
 
     Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
-    Route::get('/profile', function () {
-        return redirect()->route('profile.show', auth()->id());
-    })->name('profile.me');
+    Route::get('/beranda', [HomeController::class, 'index'])->name('profile.me');
 
     Route::get('/publishing-tracker', [ContentPublicationController::class, 'index'])
         ->middleware('permission:workflow,view')

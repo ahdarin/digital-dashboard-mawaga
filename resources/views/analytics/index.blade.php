@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Content Analytics')
+@section('title', 'Performa Konten')
 @section('content')
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
@@ -7,7 +7,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a] tracking-tight">Content Analytics</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Performa Konten</h1>
             <p class="text-[#5c6266] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
         </div>
 
@@ -558,7 +558,7 @@
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">military_tech</span>
-                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Top Performing Content</h2>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Konten Berperforma Terbaik</h2>
                     </div>
 
                     @if ($topContent->isEmpty())

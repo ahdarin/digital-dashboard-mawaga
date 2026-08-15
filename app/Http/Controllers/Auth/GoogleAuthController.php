@@ -53,12 +53,9 @@ class GoogleAuthController extends Controller
 
         $this->logAttempt($user, 'login_success', $request);
 
-        // Sama seperti logika di rute '/': arahkan ke Dashboard kalau punya izin,
-        // kalau tidak ke Production Workflow - biar role tanpa akses dashboard
-        // (Content Creator, Graphic Designer, Copywriter, SMO) nggak mentok 403.
-        $destination = $user->hasPermissionTo('dashboard', 'view') ? 'dashboard' : 'production-workflow.index';
-
-        return redirect()->intended(route($destination));
+        // Sama seperti logika di rute '/': semua user internal mendarat di
+        // Beranda (ringkasan tugas masing-masing), bukan Dashboard eksekutif.
+        return redirect()->intended(route('profile.me'));
     }
 
     private function logAttempt(?User $user, string $event, Request $request): void

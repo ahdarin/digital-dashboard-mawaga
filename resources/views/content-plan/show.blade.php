@@ -97,11 +97,11 @@
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">Item Details</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Category</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Detail Item</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Kategori</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Timeline</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Assignee</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Penanggung Jawab</th>
                         <th class="px-6 py-3 font-medium whitespace-nowrap">Status</th>
                     </tr>
                 </thead>

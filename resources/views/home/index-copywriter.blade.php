@@ -1,35 +1,12 @@
 @extends('layouts.app')
-@section('title', $user->name . ' - Profile')
+@section('title', 'Beranda')
 @section('content')
-@php
-    $isOwnProfile = auth()->id() === $user->id;
-@endphp
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    {{-- Header --}}
-    <div class="flex items-center gap-4 mb-8 flex-wrap">
-        <a href="{{ url()->previous() }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#9aa0a4] hover:text-[#14181a] transition-colors">
-            <span class="material-symbols-outlined text-[19px]">arrow_back</span>
-        </a>
-        @if ($user->avatar_url)
-            <img src="{{ $user->avatar_url }}" referrerpolicy="no-referrer" class="w-16 h-16 rounded-full object-cover">
-        @else
-            <div class="w-16 h-16 rounded-full bg-[#044b46] text-white text-xl font-semibold flex items-center justify-center">
-                {{ strtoupper(substr($user->name, 0, 1)) }}
-            </div>
-        @endif
-        <div>
-            <div class="flex items-center gap-2">
-                <h1 class="font-display text-2xl font-semibold text-[#14181a]">{{ $user->name }}</h1>
-                @if ($isOwnProfile)
-                    <span class="text-[10px] bg-[#f0f5f4] text-[#044b46] px-2 py-0.5 rounded-full font-semibold">Anda</span>
-                @endif
-            </div>
-            <p class="text-sm text-[#5c6266]">{{ $user->role->name ?? '-' }}</p>
-            <p class="text-xs text-[#9aa0a4] mt-1">Bergabung sejak {{ $user->created_at->format('d M Y') }}</p>
-        </div>
-    </div>
+    <x-welcome-banner />
+
+    <x-next-steps :steps="$nextSteps" />
 
     <div class="card overflow-hidden flex flex-col">
         <div class="p-5 pb-4 shrink-0">

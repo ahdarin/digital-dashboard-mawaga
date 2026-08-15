@@ -8,8 +8,8 @@
     <header class="px-4 sm:px-6 lg:px-8 pt-5 flex-shrink-0">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Produksi</h1>
-                <p class="text-sm text-[#9aa0a4] mt-1">Alur produksi, revisi, dan riwayat tayang konten</p>
+                <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Produksi</h1>
+                <p class="text-[#5c6266] text-sm mt-1">Alur produksi, revisi, dan riwayat tayang konten.</p>
             </div>
             @include('partials.urgent-content-modal')
         </div>
@@ -18,7 +18,7 @@
         <div class="flex items-center h-10 bg-[#f2f3f6] rounded-lg p-1 w-fit mb-5">
             <a href="{{ route('production-workflow.index') }}"
                class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'board' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#14181a]' }}">
-                Papan
+                Papan Alur Produksi
             </a>
             <a href="{{ route('production-workflow.index', ['tab' => 'revisions']) }}"
                class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'revisions' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#14181a]' }}">
@@ -40,7 +40,6 @@
     <div class="px-4 sm:px-6 lg:px-8 flex-shrink-0">
         <form id="filter-form" method="GET" action="{{ route('production-workflow.index') }}"></form>
 
-        {{-- Baris 1: client & search --}}
         <div class="flex items-center gap-3 mb-2.5 flex-wrap">
             <select name="client_id" form="filter-form" onchange="this.form.submit()"
                     class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
@@ -54,30 +53,23 @@
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[19px]">search</span>
                 <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-full sm:w-64" placeholder="Cari konten..." type="text">
             </div>
-        </div>
 
-        {{-- Baris 2: sort risiko & filter bulan --}}
-        <div class="flex items-center gap-3 flex-wrap">
             <button type="button" @click="toggleRiskSort()"
-                    class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors"
+                    class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors whitespace-nowrap"
                     :class="riskSortActive ? 'bg-[#fdf2f1] border-[#f5d9d7] text-[#b3423e]' : 'bg-white border-[#eef0f4] text-[#5c6266]'">
                 <span class="material-symbols-outlined text-[17px]">sort</span>
                 Risiko Tertinggi
             </button>
 
-            @php
-                $monthOptions = collect(range(-6, 3))->map(function ($offset) {
-                    $m = now()->addMonthsNoOverflow($offset);
-                    return ['value' => $m->format('Y-m'), 'label' => $m->translatedFormat('F Y')];
-                });
-            @endphp
-            <select name="month" form="filter-form" onchange="this.form.submit()"
-                    class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
-                <option value="">Semua Bulan</option>
-                @foreach ($monthOptions as $opt)
-                    <option value="{{ $opt['value'] }}" {{ $selectedMonth === $opt['value'] ? 'selected' : '' }}>{{ $opt['label'] }}</option>
-                @endforeach
-            </select>
+            <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px] pointer-events-none">calendar_month</span>
+                <input type="text" name="month" form="filter-form" value="{{ $selectedMonth }}"
+                       data-flatpickr="month-combined" data-autosubmit="true" placeholder="Semua Bulan"
+                       class="border border-[#eef0f4] rounded-lg pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
+            </div>
+            @if ($selectedMonth)
+                <a href="{{ request()->fullUrlWithQuery(['month' => null]) }}" class="text-xs font-medium text-[#9aa0a4] hover:text-[#14181a]">Reset bulan</a>
+            @endif
         </div>
     </div>
 
@@ -166,7 +158,7 @@
                                         </div>
                                     @else
                                         <div class="flex items-center gap-1">
-                                            <input type="datetime-local" data-take-date value="{{ now()->format('Y-m-d\TH:i') }}"
+                                            <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                 x-on:click.stop x-on:mousedown.stop
                                                 class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                             <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
@@ -297,7 +289,7 @@
             <div class="px-6 py-5 space-y-3">
                 <div>
                     <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Tanggal Publish</label>
-                    <input type="datetime-local" x-model="pubForm.published_at"
+                    <input type="text" x-model="pubForm.published_at" data-flatpickr="datetime" autocomplete="off"
                         class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                 </div>
                 <div>
@@ -350,7 +342,7 @@ function kanbanBoard() {
         draggedItemId: null,
         draggedItemTitle: '',
         draggedItemPlatformId: null,
-        riskSortActive: true,
+        riskSortActive: false,
         expandedColumns: {},
         revisionModal: null,
         revisionNote: '',
@@ -467,8 +459,9 @@ function kanbanBoard() {
                 card.querySelector('[data-client-approved-badge]')?.remove();
             }
 
-            const moreBtn = targetColumn.querySelector(':scope > .column-more-toggle');
-            targetColumn.insertBefore(card, moreBtn || null);
+            // Taruh di paling atas kolom tujuan - biar kelihatan langsung
+            // kartu mana yang baru saja dipindahkan (urutan default: terbaru di atas).
+            targetColumn.insertBefore(card, targetColumn.firstElementChild || null);
             window.Alpine?.initTree(card);
 
             this.updateColumnCount(sourceColumn);
@@ -538,7 +531,8 @@ function kanbanBoard() {
                 if (!wrapper) return;
                 wrapper.classList.add('footage-toggle-fade-out');
                 setTimeout(() => {
-                    const nowValue = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                    const nowValue = now.toISOString().slice(0, 10) + ' ' + now.toISOString().slice(11, 16);
                     wrapper.innerHTML = method === 'PATCH'
                         ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
                                 <span class="flex items-center gap-1">
@@ -548,7 +542,7 @@ function kanbanBoard() {
                                     class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
                             </div>`
                         : `<div class="flex items-center gap-1">
-                                <input type="datetime-local" data-take-date value="${nowValue}"
+                                <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${nowValue}"
                                     x-on:click.stop x-on:mousedown.stop
                                     class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                 <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
@@ -557,6 +551,7 @@ function kanbanBoard() {
                                 </button>
                             </div>`;
                     window.Alpine?.initTree(wrapper);
+                    window.initFlatpickrs?.(wrapper);
                     wrapper.classList.remove('footage-toggle-fade-out');
                 }, 180);
             })

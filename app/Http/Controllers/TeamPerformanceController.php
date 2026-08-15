@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
@@ -17,18 +16,13 @@ class TeamPerformanceController extends Controller
 
     public function index(Request $request)
     {
-        $selectedClientId = $request->input('client_id');
-
         $membersQuery = User::whereNull('client_id')
             ->where('status', 'active')
             ->with(['role', 'assignments.contentItem.workflow']);
 
-        $members = $membersQuery->get()->map(function ($user) use ($selectedClientId) {
+        $members = $membersQuery->get()->map(function ($user) {
             $assignments = $user->assignments
-                ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow)
-                ->when($selectedClientId, fn($items) => $items->filter(
-                    fn($a) => $a->contentItem->client_id == $selectedClientId
-                ));
+                ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
 
             $activeCount = $assignments->filter(
                 fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses)
@@ -81,22 +75,9 @@ class TeamPerformanceController extends Controller
                 : 0,
         ];
 
-        $overloadedMembers = $members->filter(fn($m) => $m['is_overloaded']);
-        $overdueMembers = $members->filter(fn($m) => $m['overdue_count'] > 0);
-
-        $clientOptions = Client::where('status', 'active')->get();
-
         $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
 
-        return view('team-performance.index', compact(
-            'members',
-            'summary',
-            'overloadedMembers',
-            'overdueMembers',
-            'clientOptions',
-            'selectedClientId',
-            'riskAccuracy'
-        ));
+        return view('team-performance.index', compact('members', 'summary', 'riskAccuracy'));
     }
 
     public function show(User $user)

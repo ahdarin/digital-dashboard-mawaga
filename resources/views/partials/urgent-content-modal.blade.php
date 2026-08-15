@@ -76,7 +76,7 @@
                         </div>
                         <div>
                             <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Deadline <span class="text-[#b3423e]">*</span></label>
-                            <input type="datetime-local" name="deadline_at" required value="{{ now()->addDay()->format('Y-m-d\TH:i') }}"
+                            <input type="text" name="deadline_at" required value="{{ now()->addDay()->format('Y-m-d H:i') }}" data-flatpickr="datetime" autocomplete="off"
                                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                         </div>
                         <div>

@@ -225,7 +225,7 @@
                                 <div>
                                     <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Tanggal
                                         Publish</label>
-                                    <input type="datetime-local" name="published_at" required
+                                    <input type="text" name="published_at" required data-flatpickr="datetime" autocomplete="off"
                                         class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                                 </div>
                             </div>
@@ -364,7 +364,7 @@
 
                     <div class="card p-5">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-sm font-semibold text-[#14181a]">Status History</h3>
+                            <h3 class="text-sm font-semibold text-[#14181a]">Riwayat Status</h3>
                             <a href="{{ route('production-workflow.index') }}"
                                 class="flex items-center gap-1 text-xs font-medium text-[#044b46] hover:underline whitespace-nowrap">
                                 <span class="material-symbols-outlined text-[14px]">view_kanban</span> Lihat di Workflow

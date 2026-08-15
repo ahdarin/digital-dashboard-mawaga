@@ -19,17 +19,9 @@ class UserManagementController extends Controller
         $users = User::with(['role', 'assignedClients'])->whereNull('client_id')->latest()->get();
 
         $allClients = Client::where('status', 'active')->orderBy('name')->get();
-
-        return view('user-management.index', compact('users', 'allClients'));
-    }
-
-    public function create()
-    {
-        $this->authorizeManage();
-
         $roles = Role::whereNotIn('name', ['Client Owner'])->get();
 
-        return view('user-management.create', compact('roles'));
+        return view('user-management.index', compact('users', 'allClients', 'roles'));
     }
 
     public function store(Request $request)

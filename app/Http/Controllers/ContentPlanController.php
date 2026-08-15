@@ -46,7 +46,6 @@ class ContentPlanController extends Controller
         $itemsByDateClient = collect();
         $typeOptions = collect();
         $selectedType = $request->input('type', 'all');
-        $selectedDate = $request->input('date');
 
         if ($view === 'calendar') {
 
@@ -68,10 +67,6 @@ class ContentPlanController extends Controller
                     $q->whereHas('contentType', function ($query) use ($selectedType) {
                         $query->where('name', $selectedType);
                     });
-                })
-
-                ->when($selectedDate, function ($q) use ($selectedDate) {
-                    $q->whereDate('deadline_at', $selectedDate);
                 })
 
                 ->orderBy('deadline_at')
@@ -105,7 +100,6 @@ class ContentPlanController extends Controller
             'itemsByDateClient',
             'typeOptions',
             'selectedType',
-            'selectedDate',
             'contentTypeOptions',
             'platformOptions',
             'picOptions'
@@ -154,7 +148,6 @@ class ContentPlanController extends Controller
         $month = (int) $request->input('month', $contentPlan->month);
         $year = (int) $request->input('year', $contentPlan->year);
         $selectedType = $request->input('type', 'all');
-        $selectedDate = $request->input('date');
         $selectedClientId = $contentPlan->client_id;
         $clientOptions = collect([$contentPlan->client]);
         $itemsByDateClient = collect();
@@ -163,9 +156,6 @@ class ContentPlanController extends Controller
             $itemsByDateClient = $items
                 ->when($selectedType !== 'all', fn ($collection) => $collection->filter(
                     fn ($item) => ($item->contentType->name ?? null) === $selectedType
-                ))
-                ->when($selectedDate, fn ($collection) => $collection->filter(
-                    fn ($item) => $item->deadline_at->format('Y-m-d') === $selectedDate
                 ))
                 ->groupBy(fn ($item) => $item->deadline_at->format('Y-m-d'))
                 ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
@@ -177,7 +167,7 @@ class ContentPlanController extends Controller
 
         return view('content-plan.show', compact(
             'contentPlan', 'items', 'view', 'month', 'year',
-            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedDate', 'selectedClientId',
+            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedClientId',
             'contentTypeOptions', 'platformOptions', 'picOptions'
         ));
     }

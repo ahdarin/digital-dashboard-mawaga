@@ -1,12 +1,12 @@
 @extends('layouts.app')
-@section('title', 'Import Performance Data')
+@section('title', 'Import Data Performa')
 @section('content')
 
 <div x-data="importPage()" class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Import Performance Data</h1>
-        <a href="{{ route('settings.integrations') }}" class="text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1">
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Import Data Performa</h1>
+        <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1">
             Lihat Sync Log <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
         </a>
     </div>

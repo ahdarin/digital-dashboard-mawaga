@@ -78,7 +78,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
                 <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Deadline Produksi <span class="text-[#b3423e]">*</span></label>
-                <input type="date" name="deadline_at" required value="{{ old('deadline_at') }}"
+                <input type="text" name="deadline_at" required value="{{ old('deadline_at') }}" data-flatpickr="datetime" autocomplete="off"
                        class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
             </div>
             <div>

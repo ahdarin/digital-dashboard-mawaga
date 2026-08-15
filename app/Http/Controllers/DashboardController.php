@@ -9,7 +9,6 @@ use App\Models\ContentWorkflow;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
-use App\Services\NextStepsService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -50,14 +49,14 @@ class DashboardController extends Controller
 
         $stats = [
             [
-                'label' => 'Content This Month',
+                'label' => 'Konten Bulan Ini',
                 'value' => number_format($contentThisMonth),
                 'change' => $contentChange['label'],
                 'trend' => $contentChange['trend'],
                 'icon' => 'draft',
             ],
             [
-                'label' => 'Active Clients',
+                'label' => 'Client Aktif',
                 'value' => number_format($activeClients),
                 'change' => $newClientsThisMonth > 0
                     ? "+{$newClientsThisMonth} klien baru bulan ini"
@@ -66,28 +65,28 @@ class DashboardController extends Controller
                 'icon' => 'group',
             ],
             [
-                'label' => 'Active Team',
+                'label' => 'Tim Aktif',
                 'value' => number_format($activeTeam),
                 'change' => 'Anggota internal berstatus aktif',
                 'trend' => 'flat',
                 'icon' => 'badge',
             ],
             [
-                'label' => 'Overdue Items',
+                'label' => 'Item Overdue',
                 'value' => number_format($overdueCount),
                 'change' => "{$overdueRate}% dari total workflow berjalan",
                 'trend' => $overdueCount > 0 ? 'down' : 'up',
                 'icon' => 'schedule',
             ],
             [
-                'label' => 'Total Views This Month',
+                'label' => 'Total Views Bulan Ini',
                 'value' => number_format($viewsThisMonth),
                 'change' => $viewsChange['label'],
                 'trend' => $viewsChange['trend'],
                 'icon' => 'visibility',
             ],
             [
-                'label' => 'Uploaded Content',
+                'label' => 'Konten Tayang',
                 'value' => number_format($uploadedThisMonth),
                 'change' => 'Bulan berjalan',
                 'trend' => 'flat',
@@ -227,11 +226,9 @@ class DashboardController extends Controller
             activeClients: $activeClients
         );
 
-        $nextSteps = app(NextStepsService::class)->forUser($request->user());
-
         return view('dashboard.index', compact(
             'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights',
-            'topContent', 'topClients', 'riskAccuracy', 'period', 'nextSteps'
+            'topContent', 'topClients', 'riskAccuracy', 'period'
         ));
     }
 

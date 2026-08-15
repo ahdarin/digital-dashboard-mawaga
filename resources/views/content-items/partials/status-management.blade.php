@@ -87,7 +87,7 @@
     @elseif ($workflow->current_status === 'approved')
         <div class="mb-3">
             <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
-            <input type="datetime-local" x-model="scheduledUploadAt" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
+            <input type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[#f7f8fc] disabled:text-[#c3c7cb]">
         </div>
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }} || !scheduledUploadAt"

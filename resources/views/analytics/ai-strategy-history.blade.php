@@ -17,7 +17,7 @@
             <span class="material-symbols-outlined">arrow_back</span>
         </a>
         <div>
-            <h1 class="font-display text-[26px] font-semibold text-[#14181a]">AI Strategy Analysis History</h1>
+            <h1 class="font-display text-[26px] font-semibold text-[#14181a]">Riwayat Analisis AI Strategy</h1>
             <p class="text-[#5c6266] mt-0.5 text-sm">Semua analisis yang pernah digenerate buat {{ $client->name }}, termasuk yang udah ketiban "Generate Ulang".</p>
         </div>
     </div>

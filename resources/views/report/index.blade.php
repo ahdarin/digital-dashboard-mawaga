@@ -2,13 +2,10 @@
 @section('title', 'Report Generator')
 @section('content')
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     <div class="mb-7">
-        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Report Generator</h1>
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Report Generator</h1>
         <p class="text-[#5c6266] text-sm mt-1">Generate laporan progres operasional atau performa konten, siap dikirim ke client.</p>
     </div>
 
@@ -169,6 +166,7 @@
 </div>
 
 <script>
+  document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.date-range-picker').forEach(function (el) {
         const wrapper = el.closest('.date-range-wrapper');
         const startInput = wrapper.querySelector('.period-start-input');
@@ -177,6 +175,7 @@
         flatpickr(el, {
             mode: 'range',
             dateFormat: 'd M Y',
+            locale: 'id',
             onChange: function (selectedDates) {
                 const toIso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                 startInput.value = selectedDates[0] ? toIso(selectedDates[0]) : '';
@@ -191,6 +190,7 @@
             }
         });
     });
+  });
 </script>
 
 @endsection

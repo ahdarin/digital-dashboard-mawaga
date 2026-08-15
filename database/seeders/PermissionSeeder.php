@@ -52,6 +52,7 @@ class PermissionSeeder extends Seeder
                 ['workflow', 'view'], ['workflow', 'update'],
             ],
             'SMO' => [
+                ['dashboard', 'view'],
                 ['analytics', 'view'],
                 ['report', 'view'],
                 ['master_data', 'manage'],

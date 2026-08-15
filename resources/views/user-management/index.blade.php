@@ -1,20 +1,20 @@
 @extends('layouts.app')
-@section('title', 'User Management')
+@section('title', 'Kelola Pengguna')
 @section('content')
 
-<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">User Management</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Kelola Pengguna</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola akun tim internal 523 Studio.</p>
         </div>
 
-        <a href="{{ route('user-management.create') }}"
+        <button type="button" @click="showCreateModal = true"
            class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">person_add</span>
             Undang User
-        </a>
+        </button>
     </div>
 
     @if (session('status'))
@@ -26,12 +26,12 @@
         <table class="w-full text-sm text-left">
             <thead>
                 <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Name</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Nama</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Email</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Role</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Client Handled</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Client Ditangani</th>
                     <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Status</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right whitespace-nowrap">Action</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right whitespace-nowrap">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,7 +53,7 @@
                         <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $user->role->name ?? '-' }}</td>
                         <td class="px-6 py-3.5">
                             @if ($user->assignedClients->isEmpty())
-                                <span class="text-xs text-[#c3c7cb] italic">Belum ada client</span>
+                                <span class="text-xs text-[#c3c7cb] italic">Belum ada client ditangani</span>
                             @else
                                 <div class="flex flex-wrap gap-1 max-w-xs">
                                     @foreach ($user->assignedClients as $client)
@@ -67,13 +67,13 @@
                                 {{ $user->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                                 {{ $user->status === 'invited' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
                                 {{ $user->status === 'inactive' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
-                                {{ ucfirst($user->status) }}
+                                {{ match($user->status) { 'active' => 'Aktif', 'invited' => 'Diundang', 'inactive' => 'Nonaktif', default => ucfirst($user->status) } }}
                             </span>
                         </td>
                         <td class="px-6 py-3.5">
                             <div class="flex items-center justify-end gap-1">
                                 <button type="button" @click="openAssign = {{ $user->id }}"
-                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Assign Client">
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Assign Klien">
                                     <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
                                 </button>
 
@@ -92,7 +92,7 @@
                         </td>
                     </tr>
 
-                    {{-- Modal Assign Client --}}
+                    {{-- Modal Assign Klien --}}
                     <template x-teleport="body">
                         <div x-show="openAssign === {{ $user->id }}" x-cloak
                              class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
@@ -102,7 +102,7 @@
                                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
-                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Assign Client</h3>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Assign Klien</h3>
                                         <p class="text-xs text-[#9aa0a4] mt-0.5">Untuk {{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
                                     </div>
                                     <button type="button" @click="openAssign = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
@@ -156,7 +156,7 @@
                                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
-                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Deactivate User</h3>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Nonaktifkan User</h3>
                                         <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
                                     </div>
                                     <button type="button" @click="confirmDeactivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
@@ -193,7 +193,7 @@
                                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
-                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Activate User</h3>
+                                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Aktifkan User</h3>
                                         <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
                                     </div>
                                     <button type="button" @click="confirmActivate = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
@@ -224,13 +224,69 @@
                         <td colspan="6" class="px-6 py-12 text-center">
                             <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">group_add</span>
                             <p class="text-sm text-[#9aa0a4]">Belum ada user internal.</p>
-                            <a href="{{ route('user-management.create') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Undang user pertama</a>
+                            <button type="button" @click="showCreateModal = true" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Undang user pertama</button>
                         </td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
       </div>
+    </div>
+
+    {{-- Modal Undang User --}}
+    <div x-show="showCreateModal" x-cloak x-transition
+         class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="absolute inset-0 bg-[#14181a]/40" @click="showCreateModal = false"></div>
+
+        <div x-show="showCreateModal" x-transition
+             class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+                <h3 class="font-display text-lg font-semibold text-[#14181a]">Undang User Baru</h3>
+                <button type="button" @click="showCreateModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                    <span class="material-symbols-outlined text-[19px]">close</span>
+                </button>
+            </div>
+
+            <form action="{{ route('user-management.store') }}" method="POST">
+                @csrf
+                <div class="px-6 py-5 space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama</label>
+                        <input type="text" name="name" value="{{ old('name') }}" required
+                               class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                        @error('name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Email Google</label>
+                        <input type="email" name="email" value="{{ old('email') }}" required
+                               placeholder="akan dipakai untuk login Google"
+                               class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40">
+                        @error('email') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Role</label>
+                        <select name="role_id" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                            <option value="">-- Pilih Role --</option>
+                            @foreach ($roles as $role)
+                                <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('role_id') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+                    <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                        Kirim Undangan
+                    </button>
+                    <button type="button" @click="showCreateModal = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                        Batal
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 @endsection

@@ -1,24 +1,11 @@
 @extends('layouts.app')
-@section('title', 'Team Performance')
+@section('title', 'Performa Tim')
 @section('content')
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
-        <div>
-            <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Team Performance</h1>
-            <p class="text-sm text-[#9aa0a4] mt-1">Beban kerja dan produktivitas tim internal</p>
-        </div>
-        <form method="GET">
-            <select name="client_id" onchange="this.form.submit()"
-                    class="border border-[#eef0f4] rounded-lg px-3.5 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                <option value="">Semua Client</option>
-                @foreach ($clientOptions as $client)
-                    <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>
-                        {{ $client->name }}
-                    </option>
-                @endforeach
-            </select>
-        </form>
+    <div class="mb-7">
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Performa Tim</h1>
+        <p class="text-[#5c6266] text-sm mt-1">Beban kerja dan produktivitas tim internal.</p>
     </div>
 
     {{-- Kartu Ringkasan --}}
@@ -27,21 +14,21 @@
             <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#044b46] text-[18px]">groups</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Active Personnel</p>
+            <p class="text-sm text-[#5c6266] mb-2">Personel Aktif</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['personnel_active'] }}</p>
         </div>
         <div class="card p-6">
             <div class="w-9 h-9 rounded-lg bg-[#eef2fb] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#3452a8] text-[18px]">assignment</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Total Active Items</p>
+            <p class="text-sm text-[#5c6266] mb-2">Total Task Aktif</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['total_active_items'] }}</p>
         </div>
         <div class="card p-6">
             <div class="w-9 h-9 rounded-lg bg-[#fdf6ec] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#b8873a] text-[18px]">history_edu</span>
             </div>
-            <p class="text-sm text-[#5c6266] mb-2">Avg. Revision / Person</p>
+            <p class="text-sm text-[#5c6266] mb-2">Rata-rata Revisi / Orang</p>
             <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $summary['avg_revision'] }}</p>
         </div>
     </div>
@@ -53,7 +40,7 @@
                 <span class="material-symbols-outlined text-[#3452a8] text-[18px]">verified</span>
             </div>
             <div>
-                <h3 class="text-sm font-semibold text-[#14181a]">AI Delay Risk Prediction Accuracy</h3>
+                <h3 class="text-sm font-semibold text-[#14181a]">Akurasi Prediksi AI Delay Risk</h3>
                 <p class="text-xs text-[#9aa0a4]">Dibandingkan dengan status telat/tidak aktual dari konten yang sudah upload</p>
             </div>
         </div>
@@ -85,38 +72,6 @@
         @endif
     </div>
 
-    {{-- Risk Indicators --}}
-    @if ($overloadedMembers->isNotEmpty() || $overdueMembers->isNotEmpty())
-    <div class="mb-5">
-        <h3 class="text-sm font-semibold text-[#14181a] mb-3">Risk Indicators</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            @if ($overloadedMembers->isNotEmpty())
-                <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-xl p-4 flex items-start gap-3">
-                    <span class="material-symbols-outlined text-[#b3423e] text-[19px]">warning</span>
-                    <div>
-                        <p class="text-sm font-semibold text-[#14181a]">High Workload</p>
-                        @foreach ($overloadedMembers as $m)
-                            <p class="text-xs text-[#5c6266] mt-0.5">{{ $m['user']->name }} memiliki {{ $m['active_count'] }} task aktif</p>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            @if ($overdueMembers->isNotEmpty())
-                <div class="bg-[#fdf6ec] border border-[#f3e5c8] rounded-xl p-4 flex items-start gap-3">
-                    <span class="material-symbols-outlined text-[#b8873a] text-[19px]">schedule</span>
-                    <div>
-                        <p class="text-sm font-semibold text-[#14181a]">Overdue Tasks</p>
-                        @foreach ($overdueMembers as $m)
-                            <p class="text-xs text-[#5c6266] mt-0.5">{{ $m['user']->name }}: {{ $m['overdue_count'] }} task terlambat</p>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-        </div>
-    </div>
-    @endif
-
     {{-- Tabel Team Members --}}
     <div>
         <h3 class="text-sm font-semibold text-[#14181a] mb-3">Team Members</h3>
@@ -125,12 +80,12 @@
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">Member</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Active Tasks</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Anggota</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Task Aktif</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Overdue</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Completed This Month</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Revision Count</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Avg. Delay Risk</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Selesai Bulan Ini</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Jumlah Revisi</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Rata-rata Delay Risk</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -155,7 +110,7 @@
                             <td class="px-4 py-3.5 whitespace-nowrap">
                                 <span class="flex items-center gap-1.5 text-[#5c6266]">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $m['is_overloaded'] ? 'bg-[#b3423e]' : 'bg-[#044b46]' }}"></span>
-                                    {{ $m['active_count'] }} Active Tasks
+                                    {{ $m['active_count'] }} Task Aktif
                                 </span>
                             </td>
                             <td class="px-4 py-3.5 whitespace-nowrap {{ $m['overdue_count'] > 0 ? 'text-[#b3423e] font-semibold' : 'text-[#9aa0a4]' }}">

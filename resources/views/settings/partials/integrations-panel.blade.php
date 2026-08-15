@@ -37,7 +37,7 @@
 {{-- Sync Log --}}
 <div class="card overflow-hidden">
     <div class="p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 class="font-display text-lg font-semibold text-[#14181a]">Sync Log</h2>
+        <h2 class="font-display text-lg font-semibold text-[#14181a]">Log Sinkronisasi</h2>
 
         <form method="GET" class="flex items-center gap-2.5 flex-wrap">
             <input type="hidden" name="tab" value="integrasi">
@@ -48,7 +48,7 @@
                 <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
             </select>
-            <input type="date" name="date" value="{{ request('date') }}" onchange="this.form.submit()"
+            <input type="text" name="date" value="{{ request('date') }}" data-flatpickr="date" data-autosubmit="true" autocomplete="off"
                    class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 focus:outline-none focus:border-[#044b46]/40">
             @if (request('status') || request('date'))
                 <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-xs text-[#9aa0a4] hover:text-[#5c6266]">Reset</a>

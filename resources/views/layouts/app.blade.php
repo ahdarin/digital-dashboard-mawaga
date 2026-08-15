@@ -8,8 +8,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..500,0..1&display=swap" rel="stylesheet">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- Flatpickr - satu library kalender dipakai konsisten di seluruh
+         form/filter tanggal, bulan, dan rentang tanggal. --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/style.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js"></script>
     <style>
         [x-cloak] { display: none !important; }
+
+        /* Tema Flatpickr disamakan sama brand (#044b46) - bukan oranye bawaan */
+        .flatpickr-day.selected, .flatpickr-day.selected:hover,
+        .flatpickr-day.startRange, .flatpickr-day.endRange,
+        .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover,
+        .monthSelect-month.selected, .monthSelect-month.selected:hover {
+            background: #044b46; border-color: #044b46;
+        }
+        .flatpickr-day.inRange, .monthSelect-month.inRange {
+            background: #f0f5f4; border-color: #f0f5f4; box-shadow: -5px 0 0 #f0f5f4, 5px 0 0 #f0f5f4;
+        }
+        .flatpickr-day:hover, .monthSelect-month:hover { background: #eef0f4; }
+        .flatpickr-day.today { border-color: #044b46; }
+        .flatpickr-day.today:hover { background: #044b46; color: #fff; }
+        .flatpickr-months .flatpickr-month, .flatpickr-current-month .flatpickr-monthDropdown-months,
+        .flatpickr-weekdays, span.flatpickr-weekday { background: #fff; color: #14181a; }
+        .flatpickr-current-month input.cur-year { color: #14181a; }
+        .flatpickr-calendar { box-shadow: 0 1px 2px rgba(20,24,26,0.03), 0 20px 40px -12px rgba(20,24,26,0.15); border-radius: 12px; overflow: hidden; }
+        .flatpickr-months { border-radius: 12px 12px 0 0; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -142,6 +169,88 @@
             </div>
         </div>
     </div>
+    {{-- Inisialisasi Flatpickr global - satu library dipakai konsisten di
+         seluruh form/filter tanggal. Elemen ditandai lewat atribut
+         data-flatpickr, dipanggil ulang lewat window.initFlatpickrs(root)
+         tiap kali ada markup baru disuntik manual (bukan lewat Blade). --}}
+    <script>
+        window.initFlatpickrs = function (root) {
+            root = root || document;
+            if (typeof flatpickr === 'undefined') return;
+
+            // dispatch input+change biar x-model Alpine yang nempel di
+            // elemen aslinya ikut ke-update (flatpickr nulis value elemen
+            // asli secara langsung, nggak lewat event DOM biasa).
+            var notifyAlpine = function (el) {
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            };
+
+            root.querySelectorAll('[data-flatpickr="date"]').forEach(function (el) {
+                if (el._flatpickr) return;
+                var autosubmit = el.dataset.autosubmit === 'true';
+                flatpickr(el, {
+                    dateFormat: 'Y-m-d', altInput: true, altFormat: 'd M Y', locale: 'id', allowInput: true,
+                    onChange: function () {
+                        notifyAlpine(el);
+                        if (autosubmit) el.closest('form')?.submit();
+                    },
+                });
+            });
+
+            root.querySelectorAll('[data-flatpickr="datetime"]').forEach(function (el) {
+                if (el._flatpickr) return;
+                flatpickr(el, {
+                    enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i',
+                    altInput: true, altFormat: 'd M Y, H:i', locale: 'id', allowInput: true,
+                    onChange: function () { notifyAlpine(el); },
+                });
+            });
+
+            // Bulan+tahun sebagai satu picker, tapi backend-nya masih 2 field
+            // terpisah (month, year) - disinkronkan lewat 2 hidden input yang
+            // namanya dikasih lewat data-month-input / data-year-input.
+            root.querySelectorAll('[data-flatpickr="month"]').forEach(function (el) {
+                if (el._flatpickr) return;
+                var monthInput = document.querySelector(el.dataset.monthInput);
+                var yearInput = document.querySelector(el.dataset.yearInput);
+                var autosubmit = el.dataset.autosubmit === 'true';
+                var initial = (monthInput && yearInput && monthInput.value && yearInput.value)
+                    ? new Date(Number(yearInput.value), Number(monthInput.value) - 1, 1)
+                    : new Date();
+
+                flatpickr(el, {
+                    locale: 'id',
+                    defaultDate: initial,
+                    plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
+                    onChange: function (selectedDates) {
+                        if (!selectedDates[0]) return;
+                        if (monthInput) monthInput.value = selectedDates[0].getMonth() + 1;
+                        if (yearInput) yearInput.value = selectedDates[0].getFullYear();
+                        if (autosubmit) el.closest('form')?.submit();
+                    },
+                });
+            });
+
+            // Sama kayak "month" di atas, tapi backend-nya nerima SATU field
+            // gabungan format Y-m (bukan month & year terpisah).
+            root.querySelectorAll('[data-flatpickr="month-combined"]').forEach(function (el) {
+                if (el._flatpickr) return;
+                var autosubmit = el.dataset.autosubmit === 'true';
+
+                flatpickr(el, {
+                    locale: 'id',
+                    defaultDate: el.value || undefined,
+                    plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
+                    onChange: function () {
+                        if (autosubmit) el.closest('form')?.submit();
+                    },
+                });
+            });
+        };
+        document.addEventListener('DOMContentLoaded', function () { window.initFlatpickrs(); });
+    </script>
+
     <script>
         window.appConfirm = function (form, message, opts) {
             opts = opts || {};

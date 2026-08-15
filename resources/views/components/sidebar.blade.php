@@ -3,8 +3,8 @@
         [
             'label' => 'Ringkasan',
             'items' => [
-                ['label' => 'Tugas Saya', 'route' => 'profile.me', 'icon' => 'checklist', 'permission' => ['workflow', 'view']],
-                ['label' => 'Beranda', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
+                ['label' => 'Beranda', 'route' => 'profile.me', 'icon' => 'home', 'permission' => ['workflow', 'view']],
+                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
                 ['label' => 'Performa', 'route' => 'analytics', 'icon' => 'monitoring', 'permission' => ['analytics', 'view']],
             ],
         ],
@@ -116,12 +116,6 @@
                     @foreach ($group['items'] as $item)
                         @php
                             $isActive = Route::has($item['route']) && request()->routeIs($item['route']);
-                            // 'profile.me' cuma redirect ke 'profile.show' milik user sendiri -
-                            // routeIs() nggak pernah match nama itu, jadi dicek manual biar
-                            // "Tugas Saya" tetap ke-highlight pas lagi buka profil sendiri.
-                            if ($item['route'] === 'profile.me') {
-                                $isActive = request()->routeIs('profile.show') && (int) request()->route('user')?->id === (int) $authUser->id;
-                            }
                         @endphp
                         <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                             aria-label="{{ $item['label'] }}"
