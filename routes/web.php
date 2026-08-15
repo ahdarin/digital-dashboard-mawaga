@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductionWorkflowController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\ContentBriefController;
 use App\Http\Controllers\Auth\GoogleAuthController;
@@ -204,6 +205,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::get('/profile/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/beranda', [HomeController::class, 'index'])->name('profile.me');
+
+    Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
 
     Route::get('/publishing-tracker', [ContentPublicationController::class, 'index'])
         ->middleware('permission:workflow,view')

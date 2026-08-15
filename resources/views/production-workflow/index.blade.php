@@ -38,7 +38,13 @@
     @else
     <div x-data="kanbanBoard()" class="flex flex-col flex-1 min-h-0">
     <div class="px-4 sm:px-6 lg:px-8 flex-shrink-0">
-        <form id="filter-form" method="GET" action="{{ route('production-workflow.index') }}"></form>
+        <form id="filter-form" method="GET" action="{{ route('production-workflow.index') }}">
+            <input type="hidden" name="view" value="{{ $view }}">
+            @if ($sortColumn !== 'deadline' || $sortDir !== 'asc')
+                <input type="hidden" name="sort" value="{{ $sortColumn }}">
+                <input type="hidden" name="dir" value="{{ $sortDir }}">
+            @endif
+        </form>
 
         <div class="flex items-center gap-3 mb-2.5 flex-wrap">
             <select name="client_id" form="filter-form" onchange="this.form.submit()"
@@ -54,12 +60,14 @@
                 <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-full sm:w-64" placeholder="Cari konten..." type="text">
             </div>
 
-            <button type="button" @click="toggleRiskSort()"
-                    class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors whitespace-nowrap"
-                    :class="riskSortActive ? 'bg-[#fdf2f1] border-[#f5d9d7] text-[#b3423e]' : 'bg-white border-[#eef0f4] text-[#5c6266]'">
-                <span class="material-symbols-outlined text-[17px]">sort</span>
-                Risiko Tertinggi
-            </button>
+            @if ($view === 'board')
+                <button type="button" @click="toggleRiskSort()"
+                        class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors whitespace-nowrap"
+                        :class="riskSortActive ? 'bg-[#fdf2f1] border-[#f5d9d7] text-[#b3423e]' : 'bg-white border-[#eef0f4] text-[#5c6266]'">
+                    <span class="material-symbols-outlined text-[17px]">sort</span>
+                    Risiko Tertinggi
+                </button>
+            @endif
 
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#c3c7cb] text-[17px] pointer-events-none">calendar_month</span>
@@ -70,8 +78,23 @@
             @if ($selectedMonth)
                 <a href="{{ request()->fullUrlWithQuery(['month' => null]) }}" class="text-xs font-medium text-[#9aa0a4] hover:text-[#14181a]">Reset bulan</a>
             @endif
+
+            <div class="flex items-center h-9 bg-[#f2f3f6] rounded-lg p-1 sm:ml-auto">
+                <a href="{{ request()->fullUrlWithQuery(['view' => 'board']) }}"
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'board' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
+                    <span class="material-symbols-outlined text-[15px] align-middle">view_kanban</span> Papan
+                </a>
+                <a href="{{ request()->fullUrlWithQuery(['view' => 'list']) }}"
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'list' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
+                    <span class="material-symbols-outlined text-[15px] align-middle">view_list</span> List
+                </a>
+            </div>
         </div>
     </div>
+
+    @if ($view === 'list')
+        @include('production-workflow.partials.list-tab')
+    @else
 
     <div x-show="toast" x-transition class="fixed top-6 right-6 z-50 bg-[#14181a] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
 
@@ -316,6 +339,7 @@
     </div>
 
 </div>
+    @endif
     @endif
 </div>
 

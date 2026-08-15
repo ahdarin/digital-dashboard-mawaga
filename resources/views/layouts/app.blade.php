@@ -193,7 +193,11 @@
                     dateFormat: 'Y-m-d', altInput: true, altFormat: 'd M Y', locale: 'id', allowInput: true,
                     onChange: function () {
                         notifyAlpine(el);
-                        if (autosubmit) el.closest('form')?.submit();
+                        // el.form (bukan cuma closest('form')) - elemen ini
+                        // sering dipasang di luar tag <form> dan disambungkan
+                        // lewat atribut form="id", yang cuma dikenali lewat
+                        // property .form, bukan closest() yang murni DOM tree.
+                        if (autosubmit) (el.form || el.closest('form'))?.submit();
                     },
                 });
             });
@@ -227,7 +231,11 @@
                         if (!selectedDates[0]) return;
                         if (monthInput) monthInput.value = selectedDates[0].getMonth() + 1;
                         if (yearInput) yearInput.value = selectedDates[0].getFullYear();
-                        if (autosubmit) el.closest('form')?.submit();
+                        // el.form (bukan cuma closest('form')) - elemen ini
+                        // sering dipasang di luar tag <form> dan disambungkan
+                        // lewat atribut form="id", yang cuma dikenali lewat
+                        // property .form, bukan closest() yang murni DOM tree.
+                        if (autosubmit) (el.form || el.closest('form'))?.submit();
                     },
                 });
             });
@@ -243,7 +251,11 @@
                     defaultDate: el.value || undefined,
                     plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
                     onChange: function () {
-                        if (autosubmit) el.closest('form')?.submit();
+                        // el.form (bukan cuma closest('form')) - elemen ini
+                        // sering dipasang di luar tag <form> dan disambungkan
+                        // lewat atribut form="id", yang cuma dikenali lewat
+                        // property .form, bukan closest() yang murni DOM tree.
+                        if (autosubmit) (el.form || el.closest('form'))?.submit();
                     },
                 });
             });

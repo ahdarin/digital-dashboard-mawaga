@@ -61,7 +61,8 @@ class ProductionWorkflowController extends Controller
                 ->whereMonth('deadline_at', $month->month);
         }
 
-        $items = $itemsQuery->get()->groupBy(fn($item) => $item->workflow->current_status);
+        $allItems = $itemsQuery->get();
+        $items = $allItems->groupBy(fn($item) => $item->workflow->current_status);
 
         $board = [];
         foreach ($this->statuses as $status) {
@@ -74,6 +75,28 @@ class ProductionWorkflowController extends Controller
             $board[$status] = $columnItems;
         }
 
+        // Tampilan List - alternatif Kanban buat scan cepat lintas status.
+        // Default: deadline paling dekat dulu, biar yang paling mendesak
+        // ketemu duluan tanpa loncat-loncat kolom. Bisa di-sort ulang per
+        // kolom lewat query string sort/dir.
+        $sortColumn = $request->input('sort', 'deadline');
+        $sortDir = $request->input('dir', 'asc') === 'desc' ? 'desc' : 'asc';
+
+        $sortKeys = [
+            'title' => fn ($item) => strtolower($item->title),
+            'client' => fn ($item) => strtolower($item->client->name ?? ''),
+            'type' => fn ($item) => strtolower($item->contentType->name ?? ''),
+            // Bukan alfabet - urut sesuai tahapan workflow yang sudah
+            // disusun (brief_ready -> ... -> cancelled), sesuai statuses.
+            'status' => fn ($item) => array_search($item->workflow->current_status, $this->statuses),
+            'pic' => fn ($item) => strtolower($item->workflow->currentPic->name ?? ''),
+            'deadline' => fn ($item) => $item->deadline_at,
+            'risk' => fn ($item) => $item->latestDelayRisk->risk_score ?? -1,
+        ];
+
+        $sortKey = $sortKeys[$sortColumn] ?? $sortKeys['deadline'];
+        $listItems = ($sortDir === 'desc' ? $allItems->sortByDesc($sortKey) : $allItems->sortBy($sortKey))->values();
+
         // Daftar client untuk dropdown filter (hanya yang relevan buat user ini)
         $clientOptions = $user->canSeeAllClients()
             ? \App\Models\Client::where('status', 'active')->get()
@@ -81,7 +104,11 @@ class ProductionWorkflowController extends Controller
 
         return view('production-workflow.index', [
             'tab' => 'board',
+            'view' => $request->input('view', 'board') === 'list' ? 'list' : 'board',
             'board' => $board,
+            'listItems' => $listItems,
+            'sortColumn' => $sortColumn,
+            'sortDir' => $sortDir,
             'statuses' => $this->statuses,
             'clientOptions' => $clientOptions,
             'selectedClientId' => $request->input('client_id'),

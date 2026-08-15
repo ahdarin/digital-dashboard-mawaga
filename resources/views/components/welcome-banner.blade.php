@@ -90,11 +90,12 @@
 </div>
 
 <div x-data="{ now: new Date() }" x-init="setInterval(() => now = new Date(), 1000)"
-    class="flex justify-start mb-6">
+    class="flex items-start justify-between mb-6 flex-wrap gap-3">
     <div class="shrink-0">
         <p class="text-sm text-[#5c6266]"
             x-text="now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"></p>
         <p class="font-display text-2xl font-semibold text-[#14181a]"
             x-text="now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })"></p>
     </div>
+    <x-attendance-widget />
 </div>

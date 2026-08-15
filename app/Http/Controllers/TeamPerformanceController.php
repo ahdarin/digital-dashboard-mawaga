@@ -6,16 +6,40 @@ use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
 use App\Models\DelayRiskScore;
+use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class TeamPerformanceController extends Controller
 {
     private array $doneStatuses = ['uploaded', 'cancelled'];
     private int $overloadThreshold = 5;
 
-    public function index(Request $request)
+    public function index(Request $request, AttendanceService $attendanceService)
     {
+        $tab = $request->input('tab', 'performa');
+
+        if ($tab === 'kehadiran') {
+            $date = $request->filled('date')
+                ? Carbon::parse($request->input('date'))
+                : Carbon::now();
+            $month = $request->filled('month')
+                ? Carbon::parse($request->input('month').'-01')
+                : Carbon::now()->startOfMonth();
+
+            $attendanceRecords = $attendanceService->dailyRecords($date);
+            $monthlySummary = $attendanceService->monthlySummary($month);
+
+            return view('team-performance.index', [
+                'tab' => $tab,
+                'date' => $date,
+                'month' => $month,
+                'attendanceRecords' => $attendanceRecords,
+                'monthlySummary' => $monthlySummary,
+            ]);
+        }
+
         $membersQuery = User::whereNull('client_id')
             ->where('status', 'active')
             ->with(['role', 'assignments.contentItem.workflow']);
@@ -77,7 +101,12 @@ class TeamPerformanceController extends Controller
 
         $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
 
-        return view('team-performance.index', compact('members', 'summary', 'riskAccuracy'));
+        return view('team-performance.index', [
+            'tab' => $tab,
+            'members' => $members,
+            'summary' => $summary,
+            'riskAccuracy' => $riskAccuracy,
+        ]);
     }
 
     public function show(User $user)
