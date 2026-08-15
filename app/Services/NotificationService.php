@@ -34,4 +34,26 @@ class NotificationService
             }
         }
     }
+
+    /**
+     * Notif ke Manager & SMO saat klien approve dari Portal Klien, supaya
+     * antrean pengecekan internal (waiting_review + client_review_result
+     * approved) nggak kelewat sebelum benar-benar dipindah ke Disetujui.
+     */
+    public static function notifyInternalCheckers(ContentItem $contentItem): void
+    {
+        $checkers = User::whereHas('role', fn ($q) => $q->whereIn('name', ['Manager', 'SMO']))
+            ->where('status', 'active')
+            ->get();
+
+        foreach ($checkers as $checker) {
+            self::notify(
+                $checker,
+                'Klien Sudah Setuju - Perlu Dicek',
+                'client_approved',
+                "\"{$contentItem->title}\" sudah disetujui klien, tunggu pengecekan internal sebelum ditandai Disetujui.",
+                $contentItem
+            );
+        }
+    }
 }

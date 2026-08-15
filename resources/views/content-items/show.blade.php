@@ -27,9 +27,16 @@
                     </div>
                 </div>
             </div>
-            <span class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#044b46]">
-                {{ $statusLabels[$workflow->current_status] ?? $workflow->current_status }}
-            </span>
+            <div class="flex items-center gap-2">
+                @if ($workflow->client_reviewed_at && $workflow->current_status === 'waiting_review')
+                    <span class="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#0f7a5f]">
+                        <span class="material-symbols-outlined text-[14px]">check_circle</span> Klien Setuju
+                    </span>
+                @endif
+                <span class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                    {{ $statusLabels[$workflow->current_status] ?? $workflow->current_status }}
+                </span>
+            </div>
         </div>
 
         @if (session('status'))

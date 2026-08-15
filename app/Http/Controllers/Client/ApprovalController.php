@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContentItem;
 use App\Models\ContentRevision;
 use App\Models\ContentStatusLog;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,10 @@ class ApprovalController extends Controller
             ->orderBy('deadline_at')
             ->get();
 
-        return view('client.approval.index', compact('items'));
+        $pendingItems = $items->whereNull('workflow.client_reviewed_at')->values();
+        $reviewedItems = $items->whereNotNull('workflow.client_reviewed_at')->values();
+
+        return view('client.approval.index', compact('pendingItems', 'reviewedItems'));
     }
 
     public function show(Request $request, ContentItem $contentItem)
@@ -30,7 +34,9 @@ class ApprovalController extends Controller
 
         $contentItem->load(['contentType', 'platform', 'workflow']);
 
-        return view('client.approval.show', compact('contentItem'));
+        $alreadyReviewed = ! is_null($contentItem->workflow->client_reviewed_at);
+
+        return view('client.approval.show', compact('contentItem', 'alreadyReviewed'));
     }
 
     public function approve(Request $request, ContentItem $contentItem)
@@ -39,24 +45,18 @@ class ApprovalController extends Controller
 
         $workflow = $contentItem->workflow;
         abort_unless($workflow->current_status === 'waiting_review', 400);
+        abort_unless(is_null($workflow->client_reviewed_at), 400);
 
-        DB::transaction(function () use ($workflow, $contentItem, $request) {
-            $fromStatus = $workflow->current_status;
-            $workflow->update(['current_status' => 'approved']);
+        $workflow->update([
+            'client_reviewed_at' => now(),
+            'client_reviewed_by' => $request->user()->id,
+            'client_review_result' => 'approved',
+        ]);
 
-            ContentStatusLog::create([
-                'content_item_id' => $contentItem->id,
-                'changed_by' => $request->user()->id,
-                'from_status' => $fromStatus,
-                'to_status' => 'approved',
-                'approval_type' => 'client_approval',
-                'notes' => 'Disetujui oleh klien melalui Portal Klien.',
-                'changed_at' => now(),
-            ]);
-        });
+        NotificationService::notifyInternalCheckers($contentItem);
 
         return redirect()->route('client.approval.index')
-            ->with('status', 'Konten berhasil disetujui.');
+            ->with('status', 'Terima kasih! Persetujuan kamu sudah dicatat dan akan dicek oleh tim internal sebelum konten resmi disetujui.');
     }
 
     public function requestRevision(Request $request, ContentItem $contentItem)

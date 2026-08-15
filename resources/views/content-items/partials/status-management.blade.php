@@ -49,6 +49,17 @@
         </button>
     @elseif ($workflow->current_status === 'waiting_review')
         @php $approveDisabled = ! $canApprove || $hasUnresolvedRevisions; @endphp
+        @if ($workflow->client_reviewed_at)
+            <div class="flex items-start gap-2 bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg mb-3">
+                <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
+                <span>Klien sudah menyetujui konten ini ({{ $workflow->client_reviewed_at->format('d M Y, H:i') }}). Cek sekali lagi sebelum approve final.</span>
+            </div>
+        @else
+            <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3">
+                <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>
+                <span>Klien belum merespons konten ini. Approve tetap bisa dilakukan, tapi belum ada persetujuan dari klien.</span>
+            </div>
+        @endif
         @if ($hasUnresolvedRevisions)
             <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3">
                 <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>

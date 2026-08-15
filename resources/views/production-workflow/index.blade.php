@@ -101,6 +101,11 @@
                                         <span class="material-symbols-outlined text-[12px]">warning</span> Overdue
                                     </span>
                                 @endif
+                                @if ($item->workflow->client_reviewed_at && $status === 'waiting_review')
+                                    <span class="text-[10px] text-[#0f7a5f] font-semibold flex items-center gap-1 bg-[#f0f5f4] px-2 py-0.5 rounded whitespace-nowrap">
+                                        <span class="material-symbols-outlined text-[12px]">check_circle</span> Klien Setuju
+                                    </span>
+                                @endif
                                 @if ($item->latestDelayRisk)
                                     @php
                                         $riskColors = [

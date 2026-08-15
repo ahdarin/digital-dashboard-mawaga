@@ -44,10 +44,10 @@
             <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-xl mb-4 font-medium">{{ session('status') }}</div>
         @endif
 
-        <p class="text-sm text-[#5c6266] mb-4">{{ $items->count() }} konten menunggu persetujuan Anda</p>
+        <p class="text-sm text-[#5c6266] mb-4">{{ $pendingItems->count() }} konten menunggu persetujuan Anda</p>
 
         <div class="space-y-3">
-            @forelse ($items as $item)
+            @forelse ($pendingItems as $item)
                 <a href="{{ route('client.approval.show', $item) }}"
                    class="block bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
@@ -63,6 +63,22 @@
                 </div>
             @endforelse
         </div>
+
+        @if ($reviewedItems->isNotEmpty())
+            <p class="text-xs font-semibold text-[#9aa0a4] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
+            <div class="space-y-3">
+                @foreach ($reviewedItems as $item)
+                    <div class="bg-white rounded-xl border border-[#eef0f4] p-4 opacity-70">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[10px] font-bold text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded uppercase">Sudah Anda Setujui</span>
+                            <span class="text-[10px] text-[#9aa0a4]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
+                        </div>
+                        <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
+                        <p class="text-xs text-[#9aa0a4] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }} · Menunggu pengecekan tim internal</p>
+                    </div>
+                @endforeach
+            </div>
+        @endif
     </div>
 </body>
 </html>
