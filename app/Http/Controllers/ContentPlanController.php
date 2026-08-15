@@ -182,8 +182,26 @@ class ContentPlanController extends Controller
         ));
     }
 
+    /**
+     * "Ajukan Rencana" - pindahkan draft ke antrean persetujuan (pending).
+     * Sebelum ini ditambahkan, draft bisa langsung di-approve tanpa pernah
+     * diajukan, jadi langkah pengajuan ini tidak pernah benar-benar dilewati.
+     */
+    public function submit(ContentPlan $contentPlan)
+    {
+        abort_unless($contentPlan->status === 'draft', 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
+
+        $contentPlan->update(['status' => 'pending']);
+
+        NotificationService::notifyPlanApprovers($contentPlan);
+
+        return back()->with('status', 'Rencana berhasil diajukan, menunggu persetujuan.');
+    }
+
     public function approve(ContentPlan $contentPlan)
     {
+        abort_unless($contentPlan->status === 'pending', 422, 'Cuma rencana yang sudah diajukan yang bisa disetujui.');
+
         $contentPlan->update(['status' => 'approved', 'approved_by' => auth()->id()]);
 
         return back()->with('status', 'Content plan disetujui.');
@@ -191,6 +209,8 @@ class ContentPlanController extends Controller
 
     public function reject(ContentPlan $contentPlan)
     {
+        abort_unless($contentPlan->status === 'pending', 422, 'Cuma rencana yang sudah diajukan yang bisa ditolak.');
+
         $contentPlan->update(['status' => 'rejected', 'approved_by' => auth()->id()]);
 
         return back()->with('status', 'Content plan ditolak, silakan revisi.');
@@ -215,7 +235,7 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => 'nullable|exists:users,id',
+            'pic_id' => 'required|exists:users,id',
             'estimated_duration_seconds' => 'nullable|integer',
             'estimated_slide_count' => 'nullable|integer',
         ]);

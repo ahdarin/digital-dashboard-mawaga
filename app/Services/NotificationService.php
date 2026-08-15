@@ -36,6 +36,27 @@ class NotificationService
     }
 
     /**
+     * Notif ke pemegang izin content_plan.approve, KECUALI pembuat rencana
+     * itu sendiri - dia sudah tahu dia mengajukan.
+     */
+    public static function notifyPlanApprovers(\App\Models\ContentPlan $contentPlan): void
+    {
+        $approvers = User::whereHas('role', fn ($q) => $q->whereHas('permissions', fn ($p) => $p->where('module', 'content_plan')->where('action', 'approve')))
+            ->where('status', 'active')
+            ->where('id', '!=', $contentPlan->created_by)
+            ->get();
+
+        foreach ($approvers as $approver) {
+            self::notify(
+                $approver,
+                'Rencana Konten Perlu Disetujui',
+                'plan_submitted',
+                "Rencana konten {$contentPlan->client->name} ({$contentPlan->month}/{$contentPlan->year}) diajukan oleh {$contentPlan->creator->name}.",
+            );
+        }
+    }
+
+    /**
      * Notif ke Manager & SMO saat klien approve dari Portal Klien, supaya
      * antrean pengecekan internal (waiting_review + client_review_result
      * approved) nggak kelewat sebelum benar-benar dipindah ke Disetujui.

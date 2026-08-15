@@ -115,8 +115,11 @@
                                     {{ $plan->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}
                                     {{ $plan->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
                                     {{ $plan->status === 'rejected' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}">
-                                    {{ ucfirst($plan->status) }}
+                                    {{ $plan->status === 'pending' ? 'Diajukan' : ($plan->status === 'draft' ? 'Draf' : ($plan->status === 'rejected' ? 'Ditolak' : 'Disetujui')) }}
                                 </span>
+                                @if ($plan->status === 'approved' && $plan->created_by === $plan->approved_by)
+                                    <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#fdf6ec] text-[#8a6423] uppercase ml-1" title="Pembuat rencana ini juga yang menyetujuinya">Sendiri</span>
+                                @endif
                             </td>
                             <td class="px-6 py-3.5 text-right text-[#c3c7cb]">
                                 <span class="material-symbols-outlined text-[17px]">chevron_right</span>

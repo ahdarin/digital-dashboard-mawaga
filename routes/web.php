@@ -177,6 +177,10 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
     });
 
+    Route::middleware('permission:content_plan,create')->group(function () {
+        Route::patch('/content-plan/{contentPlan}/submit', [ContentPlanController::class, 'submit'])->name('content-plan.submit');
+    });
+
     Route::middleware('permission:content_plan,approve')->group(function () {
         Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
         Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');

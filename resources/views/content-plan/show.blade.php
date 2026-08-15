@@ -21,8 +21,13 @@
                         {{ $contentPlan->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}
                         {{ $contentPlan->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
                         {{ $contentPlan->status === 'rejected' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}">
-                        {{ $contentPlan->status === 'pending' ? 'Pending Approval' : ucfirst($contentPlan->status) }}
+                        {{ $contentPlan->status === 'pending' ? 'Diajukan' : ($contentPlan->status === 'draft' ? 'Draf' : ($contentPlan->status === 'rejected' ? 'Ditolak' : 'Disetujui')) }}
                     </span>
+                    @if ($contentPlan->status === 'approved' && $contentPlan->created_by === $contentPlan->approved_by)
+                        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#fdf6ec] text-[#8a6423] uppercase" title="Pembuat rencana ini juga yang menyetujuinya">
+                            Disetujui Sendiri
+                        </span>
+                    @endif
                 </div>
                 <p class="text-xs text-[#9aa0a4] mt-1">
                     Target: {{ $contentPlan->clientPackage->monthly_content_quota ?? 0 }} Content /
@@ -43,7 +48,16 @@
                 </div>
             @endif
 
-            @if (($contentPlan->status === 'pending' || $contentPlan->status === 'draft') && auth()->user()->hasPermissionTo('content_plan', 'approve'))
+            @if ($contentPlan->status === 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
+                <form action="{{ route('content-plan.submit', $contentPlan) }}" method="POST">
+                    @csrf @method('PATCH')
+                    <button class="flex items-center gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">send</span> Ajukan Rencana
+                    </button>
+                </form>
+            @endif
+
+            @if ($contentPlan->status === 'pending' && auth()->user()->hasPermissionTo('content_plan', 'approve'))
                 <div class="flex items-center gap-2">
                     <form action="{{ route('content-plan.reject', $contentPlan) }}" method="POST">
                         @csrf @method('PATCH')

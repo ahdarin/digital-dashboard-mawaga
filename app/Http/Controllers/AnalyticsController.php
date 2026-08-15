@@ -9,6 +9,7 @@ use App\Models\Platform;
 use App\Models\AiStrategyInsight;
 use App\Services\AiStrategyService;
 use App\Services\AnalyticsSummaryService;
+use App\Services\PicAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -504,6 +505,8 @@ class AnalyticsController extends Controller
 
         $created = 0;
         $fallbackCount = 0;
+        $picSummary = [];
+        $picAssignmentService = new PicAssignmentService();
         foreach ($split as $row) {
             $count = (int) round(($row['value'] / $splitSum) * $totalItems);
             if ($count < 1) {
@@ -528,12 +531,12 @@ class AnalyticsController extends Controller
                 // null total.
                 $typeName = trim($idea['type'] ?? '');
                 if ($typeName !== '') {
-                    $contentType = \App\Models\ContentType::whereRaw('LOWER(name) = ?', [strtolower($typeName)])->first()
+                    $contentTypeModel = \App\Models\ContentType::whereRaw('LOWER(name) = ?', [strtolower($typeName)])->first()
                         ?? \App\Models\ContentType::firstOrCreate(['name' => $typeName]);
-                    $contentTypeId = $contentType->id;
                 } else {
-                    $contentTypeId = $fallbackTypes->isNotEmpty() ? $fallbackTypes[$created % $fallbackTypes->count()]->id : null;
+                    $contentTypeModel = $fallbackTypes->isNotEmpty() ? $fallbackTypes[$created % $fallbackTypes->count()] : null;
                 }
+                $contentTypeId = $contentTypeModel?->id;
 
                 $platformName = trim($idea['platform'] ?? '');
                 if ($platformName !== '') {
@@ -556,14 +559,22 @@ class AnalyticsController extends Controller
                     'deadline_at' => $deadline,
                 ]);
 
+                $pic = $picAssignmentService->assign($client, $contentTypeModel?->name);
+
                 \App\Models\ContentWorkflow::create([
                     'content_item_id' => $item->id,
+                    'current_pic_id' => $pic?->id,
                     'current_status' => 'brief_ready',
                     // Deadline yang jatuh sebelum hari ini langsung ditandai
                     // overdue saat dibuat - nggak nunggu cron
                     // `workflow:update-overdue` buat kasih sinyal prioritas.
                     'is_overdue' => $deadline->lt($now),
                 ]);
+
+                if ($pic) {
+                    $item->assignments()->create(['user_id' => $pic->id, 'assignment_role' => 'primary']);
+                    $picSummary[$pic->name] = ($picSummary[$pic->name] ?? 0) + 1;
+                }
 
                 $created++;
             }
@@ -575,6 +586,14 @@ class AnalyticsController extends Controller
         $message .= $fallbackCount > 0
             ? " {$fallbackCount} di antaranya nggak kebagian ide spesifik dari AI (judul placeholder) - judul, brief, format & platform-nya perlu dilengkapi manual."
             : ' Judul, brief, format & platform udah terisi dari AI - tetap direview dulu sebelum lanjut ke produksi.';
+
+        if (!empty($picSummary)) {
+            $summaryParts = collect($picSummary)->map(fn ($count, $name) => "{$name} {$count}")->implode(', ');
+            $message .= " Pembagian PIC: {$summaryParts}.";
+        }
+        if ($picAssignmentService->usedFallbackRole()) {
+            $message .= ' Sebagian item nggak punya kandidat PIC dengan role yang cocok, tetap dibagi ke tim internal aktif - cek lagi penugasannya.';
+        }
 
         return redirect()->route('content-plan.show', $plan)
             ->with('status', $message);
