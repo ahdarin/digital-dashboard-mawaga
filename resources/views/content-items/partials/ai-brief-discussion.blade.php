@@ -44,7 +44,7 @@
         @if ($contentBrief->isLocked())
             <div class="bg-[#f2f3f6] rounded-lg p-3 text-center text-xs text-[#9aa0a4]">
                 Brief ini sudah diterapkan ke tim produksi, jadi tidak bisa didiskusikan lagi
-                (biar tidak membingungkan PIC yang sedang mengerjakan).
+                (biar tidak membingungkan Penanggung Jawab yang sedang mengerjakan).
                 Tarik kembali dulu kalau mau revisi.
             </div>
         @else

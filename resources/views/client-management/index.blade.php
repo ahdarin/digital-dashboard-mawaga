@@ -103,7 +103,7 @@
                                     <span class="material-symbols-outlined text-[17px]">edit_square</span>
                                 </a>
                                 <form action="{{ route('client-management.destroy', $client) }}" method="POST" class="m-0"
-                                      onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.')">
+                                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan.', { danger: true })">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Hapus">
@@ -115,7 +115,16 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-10 text-center text-[#9aa0a4]">Tidak ada client yang cocok dengan pencarian.</td>
+                        <td colspan="7" class="px-6 py-12 text-center">
+                            <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">apartment</span>
+                            @if ($search || $status !== 'all')
+                                <p class="text-sm text-[#9aa0a4]">Tidak ada client yang cocok dengan filter ini.</p>
+                                <a href="{{ route('client-management.index') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Reset filter</a>
+                            @else
+                                <p class="text-sm text-[#9aa0a4]">Belum ada client.</p>
+                                <a href="{{ route('client-management.create') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Tambah client pertama</a>
+                            @endif
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

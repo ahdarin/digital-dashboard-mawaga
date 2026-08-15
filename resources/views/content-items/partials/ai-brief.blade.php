@@ -62,7 +62,7 @@
                         </button>
 
                         <form action="{{ route('content-brief.regenerate', $contentBrief) }}" method="POST" class="inline-flex h-8 m-0"
-                              onsubmit="return confirm('Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).');">
+                              onsubmit="return appConfirm(this, 'Susun ulang brief dari awal? Isi brief saat ini akan tertimpa (masih bisa di-revert 1x kalau berubah pikiran).')">
                             @csrf
                             <button class="inline-flex items-center h-8 gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 rounded-lg hover:bg-[#f0f5f4] transition-colors leading-none">
                                 <span class="material-symbols-outlined text-[15px]">refresh</span> Regenerate
@@ -88,7 +88,7 @@
                         <div class="flex items-center justify-end gap-3 mt-2 pt-2 border-t border-[#0f7a5f]/15">
                             <button type="button" @click="editingTakeDate = true" class="text-[11px] font-medium text-[#0f7a5f] hover:underline">Ubah Tanggal</button>
                             <form action="{{ route('content-items.footage-captured.unmark', $contentItem) }}" method="POST" class="m-0"
-                                  onsubmit="return confirm('Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.');">
+                                  onsubmit="return appConfirm(this, 'Batalkan penandaan? Kalau ternyata belum di-take, batalkan supaya statusnya akurat lagi.')">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-[11px] font-medium text-[#8a6423] hover:underline">Batalkan</button>
                             </form>
@@ -319,13 +319,13 @@
                 <p class="text-xs text-[#5c6266] leading-relaxed">
                     <strong class="text-[#14181a]">"Terapkan Brief ke Tim Produksi" adalah serah-terima resmi</strong> dari
                     Copywriter ke tim produksi — begitu diklik, brief jadi read-only (tidak bisa diedit lagi) dan
-                    <strong class="text-[#14181a]">PIC produksi yang ditugaskan otomatis dapat notifikasi</strong>
+                    <strong class="text-[#14181a]">Penanggung Jawab produksi yang ditugaskan otomatis dapat notifikasi</strong>
                     kalau brief siap dikerjakan. Pastikan brief sudah final. Masih mau diskusi/edit dulu? Pakai tombol Edit/Regenerate/Diskusi di atas.
                 </p>
             </div>
 
             <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3"
-                  onsubmit="return confirm('Terapkan brief ini ke tim produksi? Brief akan terkunci (tidak bisa diedit) dan PIC produksi langsung dapat notifikasi. Ini adalah serah-terima resmi dari Copywriter ke tim produksi.');">
+                  onsubmit="return appConfirm(this, 'Terapkan brief ini ke tim produksi? Brief akan terkunci (tidak bisa diedit) dan Penanggung Jawab produksi langsung dapat notifikasi. Ini adalah serah-terima resmi dari Copywriter ke tim produksi.')">
                 @csrf
                 <button class="w-full bg-[#044b46] text-white text-sm font-medium py-3 rounded-lg hover:bg-[#033b37] transition-colors flex items-center justify-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">handshake</span> Terapkan Brief ke Tim Produksi
@@ -345,7 +345,7 @@
             <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[#f0f5f4] border border-[#0f7a5f]/15">
                 <span class="material-symbols-outlined text-[15px] text-[#0f7a5f] mt-0.5">check_circle</span>
                 <p class="text-xs text-[#0f7a5f] leading-relaxed">
-                    Brief ini sudah <strong>diterapkan ke tim produksi</strong> dan terkunci (tidak bisa diedit) — PIC yang
+                    Brief ini sudah <strong>diterapkan ke tim produksi</strong> dan terkunci (tidak bisa diedit) — Penanggung Jawab yang
                     ditugaskan sudah menerima notifikasi.
                     @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
                         Kalau ternyata masih perlu revisi, klik <strong>"Tarik Kembali untuk Direvisi"</strong> di bawah untuk membuka brief lagi.

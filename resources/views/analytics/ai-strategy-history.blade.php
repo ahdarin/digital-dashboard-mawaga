@@ -93,7 +93,7 @@
                                 </form>
                             @else
                                 <form action="{{ route('analytics.ai-strategy.revert', $insight) }}" method="POST"
-                                      onsubmit="return confirm('Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).')">
+                                      onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
                                     @csrf
                                     <button type="submit" class="text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] transition-colors flex items-center gap-1.5">
                                         <span class="material-symbols-outlined text-[14px]">undo</span>

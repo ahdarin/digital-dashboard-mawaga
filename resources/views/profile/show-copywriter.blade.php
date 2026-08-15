@@ -31,6 +31,20 @@
         </div>
     </div>
 
+    @if (! empty($nextSteps))
+        <div class="card p-5 mb-6 border-l-4 border-l-[#044b46]">
+            <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Langkah Berikutnya</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                @foreach ($nextSteps as $step)
+                    <a href="{{ $step['route'] }}" class="flex items-start gap-2.5 p-3 rounded-lg bg-[#f7f8fc] hover:bg-[#f0f5f4] transition-colors">
+                        <span class="material-symbols-outlined text-[#044b46] text-[18px] shrink-0">{{ $step['icon'] }}</span>
+                        <span class="text-sm text-[#14181a] leading-snug">{{ $step['label'] }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="card overflow-hidden flex flex-col">
         <div class="p-5 pb-4 shrink-0">
             <h2 class="font-display text-base font-semibold text-[#14181a]">Brief Belum Final ({{ $briefQueueItems->count() }})</h2>

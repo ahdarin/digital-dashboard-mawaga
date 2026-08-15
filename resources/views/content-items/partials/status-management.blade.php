@@ -119,7 +119,7 @@
                 <span class="material-symbols-outlined text-[15px]">build</span> Koreksi Status (kesalahan input)
             </button>
             <div x-show="showCorrection" x-cloak x-transition class="mt-3 space-y-2.5">
-                <p class="text-[11px] text-[#9aa0a4]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja PIC.</p>
+                <p class="text-[11px] text-[#9aa0a4]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja Penanggung Jawab.</p>
                 <select x-model="correctTo" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
                     <option value="">Pilih status yang benar...</option>
                     @foreach (\App\Support\WorkflowTransitions::labels() as $value => $label)

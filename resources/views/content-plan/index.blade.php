@@ -126,7 +126,15 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada content plan untuk periode ini.</td></tr>
+                        <tr>
+                            <td colspan="5" class="px-6 py-12 text-center">
+                                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">event_note</span>
+                                <p class="text-sm text-[#9aa0a4]">Belum ada content plan untuk periode ini.</p>
+                                @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                                    <button type="button" @click="showCreateModal = true" class="text-xs text-[#044b46] font-medium hover:underline mt-1">Buat Content Plan Baru</button>
+                                @endif
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>

@@ -114,6 +114,55 @@
         })();
     </script>
 
+    {{-- Modal konfirmasi aplikasi - pengganti confirm() bawaan browser di
+         seluruh sistem, supaya tampilannya konsisten dengan brand (bukan
+         dialog native OS) dan bisa di-styling untuk aksi berbahaya. Dipicu
+         lewat window.appConfirm(form, message, {danger}) yang dipasang di
+         atribut onsubmit form manapun. --}}
+    <div x-data="{
+            show: false, message: '', danger: false, onConfirm: null,
+            open(detail) { this.message = detail.message; this.danger = detail.danger; this.onConfirm = detail.onConfirm; this.show = true },
+            confirm() { this.show = false; this.onConfirm && this.onConfirm() },
+        }"
+        x-init="window.addEventListener('app-confirm', (e) => open(e.detail))"
+        x-show="show" x-cloak x-transition
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4" style="display: none;">
+        <div class="absolute inset-0 bg-[#14181a]/40" @click="show = false"></div>
+        <div x-show="show" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <p class="text-sm text-[#14181a] leading-relaxed mb-5" x-text="message"></p>
+            <div class="flex items-center gap-3">
+                <button type="button" @click="confirm()"
+                    :class="danger ? 'bg-[#b3423e] hover:bg-[#96352f]' : 'bg-[#044b46] hover:bg-[#033b37]'"
+                    class="text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+                    Ya, Lanjutkan
+                </button>
+                <button type="button" @click="show = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        window.appConfirm = function (form, message, opts) {
+            opts = opts || {};
+            if (form.dataset.confirmBypass === '1') {
+                delete form.dataset.confirmBypass;
+                return true;
+            }
+            window.dispatchEvent(new CustomEvent('app-confirm', {
+                detail: {
+                    message: message,
+                    danger: !!opts.danger,
+                    onConfirm: function () {
+                        form.dataset.confirmBypass = '1';
+                        form.requestSubmit();
+                    },
+                },
+            }));
+            return false;
+        };
+    </script>
+
     <div class="flex min-h-screen" x-data="{ sidebarOpen: false }"
         x-init="$watch('sidebarOpen', value => { document.documentElement.style.overflow = value ? 'hidden' : '' })">
 

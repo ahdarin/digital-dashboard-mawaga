@@ -1,46 +1,43 @@
 @php
     $menuGroups = [
         [
-            'label' => 'Overview',
+            'label' => 'Ringkasan',
             'items' => [
                 ['label' => 'Tugas Saya', 'route' => 'profile.me', 'icon' => 'checklist', 'permission' => ['workflow', 'view']],
-                ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
-                ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring', 'permission' => ['analytics', 'view']],
+                ['label' => 'Beranda', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
+                ['label' => 'Performa', 'route' => 'analytics', 'icon' => 'monitoring', 'permission' => ['analytics', 'view']],
             ],
         ],
         [
-            'label' => 'Content',
+            'label' => 'Konten',
             'items' => [
-                ['label' => 'Content Plan', 'route' => 'content-plan.index', 'icon' => 'event_note', 'permission' => ['content_plan', 'view']],
-                ['label' => 'Production Workflow', 'route' => 'production-workflow.index', 'icon' => 'folder_open', 'permission' => ['workflow', 'view']],
-                ['label' => 'Revision Log', 'route' => 'revision-log.index', 'icon' => 'history_edu', 'permission' => ['workflow', 'view']],
-                ['label' => 'Publishing Tracker', 'route' => 'publishing-tracker.index', 'icon' => 'publish', 'permission' => ['workflow', 'view']],
+                ['label' => 'Rencana Konten', 'route' => 'content-plan.index', 'icon' => 'event_note', 'permission' => ['content_plan', 'view']],
+                ['label' => 'Produksi', 'route' => 'production-workflow.index', 'icon' => 'folder_open', 'permission' => ['workflow', 'view']],
             ],
         ],
         [
-            'label' => 'Clients',
+            'label' => 'Klien',
             'items' => [
-                ['label' => 'Client Management', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
+                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
             ],
         ],
         [
-            'label' => 'Team',
+            'label' => 'Tim',
             'items' => [
-                ['label' => 'Team Performance', 'route' => 'team-performance.index', 'icon' => 'diversity_3', 'permission' => ['team_performance', 'view']],
-                ['label' => 'User Management', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'manage']],
+                ['label' => 'Performa Tim', 'route' => 'team-performance.index', 'icon' => 'diversity_3', 'permission' => ['team_performance', 'view']],
+                ['label' => 'Kelola Pengguna', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'manage']],
             ],
         ],
         [
-            'label' => 'Reports',
+            'label' => 'Laporan',
             'items' => [
-                ['label' => 'Report', 'route' => 'report.index', 'icon' => 'description', 'permission' => ['report', 'view']],
+                ['label' => 'Laporan', 'route' => 'report.index', 'icon' => 'description', 'permission' => ['report', 'view']],
             ],
         ],
         [
-            'label' => 'System',
+            'label' => 'Sistem',
             'items' => [
-                ['label' => 'Master Data', 'route' => 'master-data.index', 'icon' => 'database', 'permission' => ['master_data', 'manage']],
-                ['label' => 'Settings', 'route' => 'settings', 'icon' => 'tune', 'permission' => ['settings', 'manage']],
+                ['label' => 'Pengaturan', 'route' => 'settings', 'icon' => 'tune', 'permission' => ['settings', 'manage']],
             ],
         ],
     ];

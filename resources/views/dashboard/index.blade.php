@@ -111,6 +111,20 @@
             </div>
         </div>
 
+        @if (! empty($nextSteps))
+            <div class="card p-5 mb-6 border-l-4 border-l-[#044b46]">
+                <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Langkah Berikutnya</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    @foreach ($nextSteps as $step)
+                        <a href="{{ $step['route'] }}" class="flex items-start gap-2.5 p-3 rounded-lg bg-[#f7f8fc] hover:bg-[#f0f5f4] transition-colors">
+                            <span class="material-symbols-outlined text-[#044b46] text-[18px] shrink-0">{{ $step['icon'] }}</span>
+                            <span class="text-sm text-[#14181a] leading-snug">{{ $step['label'] }}</span>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
         <div class="flex flex-col lg:flex-row gap-5 items-stretch lg:items-start">
 
             <div class="flex-1 min-w-0 space-y-5">
@@ -350,7 +364,7 @@
                                     <span class="w-1.5 h-1.5 rounded-full bg-[#b3423e] mt-1.5 shrink-0"></span>
                                     {{ $item['title'] }}
                                 </p>
-                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; PIC:
+                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
                                     {{ $item['pic'] }} &middot; {{ $item['status'] }}</p>
                             </div>
                         @empty
@@ -388,7 +402,7 @@
                                     <span
                                         class="text-xs font-semibold text-[#b3423e] shrink-0">{{ $item['risk_score'] }}%</span>
                                 </div>
-                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; PIC:
+                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
                                     {{ $item['pic'] }}</p>
                                 <p class="text-xs text-[#9aa0a4] pl-3.5">{{ $item['top_factor'] }}</p>
                             </a>

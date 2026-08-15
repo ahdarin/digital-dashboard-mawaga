@@ -256,7 +256,7 @@
 
                 <div class="card p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold text-[#14181a]">PIC Assignment</h3>
+                        <h3 class="text-sm font-semibold text-[#14181a]">Penanggung Jawab</h3>
                         @if ($canUpdateWorkflow)
                             <button type="button" @click="showReassignModal = true"
                                     class="inline-flex items-center gap-1 bg-[#f0f5f4] text-[#044b46] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#e4ede9] transition-colors">
@@ -281,7 +281,7 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-[#9aa0a4] italic">Belum ada PIC.</p>
+                            <p class="text-xs text-[#9aa0a4] italic">Belum ada Penanggung Jawab.</p>
                         @endforelse
                     </div>
                 </div>
@@ -328,11 +328,11 @@
                                 <div class="bg-[#fdf6ec] rounded-lg p-3 mb-3 flex items-start gap-2.5">
                                     <span class="material-symbols-outlined text-[#b8873a] text-[16px] mt-0.5">group</span>
                                     <div class="flex-1">
-                                        <p class="text-xs text-[#8a6423] mb-2">PIC saat ini sedang menangani banyak task aktif. Pertimbangkan reassign ke PIC yang lebih longgar.</p>
+                                        <p class="text-xs text-[#8a6423] mb-2">Penanggung Jawab saat ini sedang menangani banyak task aktif. Pertimbangkan reassign ke yang lebih longgar.</p>
                                         @if ($canUpdateWorkflow)
                                             <button type="button" @click="showReassignModal = true"
                                                     class="inline-flex items-center gap-1 bg-[#8a6423] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#735220] transition-colors">
-                                                <span class="material-symbols-outlined text-[14px]">sync_alt</span> Reassign PIC
+                                                <span class="material-symbols-outlined text-[14px]">sync_alt</span> Ganti Penanggung Jawab
                                             </button>
                                         @endif
                                     </div>
@@ -397,7 +397,7 @@
                 </div>
             </div>
 
-        {{-- Modal Reassign PIC --}}
+        {{-- Modal Ganti Penanggung Jawab --}}
         <div x-show="showReassignModal" x-cloak
              class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="absolute inset-0 bg-[#14181a]/40" @click="showReassignModal = false"></div>
@@ -406,7 +406,7 @@
                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                     <div>
-                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Reassign PIC</h3>
+                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Ganti Penanggung Jawab</h3>
                         <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $contentItem->title }}</p>
                     </div>
                     <button type="button" @click="showReassignModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
@@ -417,7 +417,7 @@
                 <form action="{{ route('content-items.reassign', $contentItem) }}" method="POST">
                     @csrf @method('PATCH')
                     <div class="px-6 py-5">
-                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-3">Pilih PIC Baru</p>
+                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-3">Pilih Penanggung Jawab Baru</p>
                         <p class="text-[11px] text-[#9aa0a4] mb-3">Diurutkan dari yang task aktifnya paling sedikit.</p>
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">

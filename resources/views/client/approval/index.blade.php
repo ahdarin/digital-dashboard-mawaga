@@ -59,7 +59,9 @@
                 </a>
             @empty
                 <div class="text-center py-16">
+                    <span class="material-symbols-outlined text-[#d4d7db] text-[32px] mb-2 block">task_alt</span>
                     <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang perlu ditinjau saat ini.</p>
+                    <p class="text-xs text-[#c3c7cb] mt-1">Konten baru akan muncul di sini begitu tim selesai mengerjakannya.</p>
                 </div>
             @endforelse
         </div>

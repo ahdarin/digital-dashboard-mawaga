@@ -151,7 +151,7 @@ class ContentItemController extends Controller
 
         $contentItem->update(['caption_draft' => $validated['caption_draft'] ?? null]);
 
-        return back()->with('status', 'Draft caption berhasil disimpan.');
+        return back()->with('status', 'Draft caption berhasil disimpan - akan dibaca & disetujui klien di Portal Klien saat konten masuk Menunggu Persetujuan.');
     }
 
     /**
@@ -196,6 +196,6 @@ class ContentItemController extends Controller
 
         $delayRiskService->predictForItems([$contentItem->id]);
 
-        return back()->with('status', "PIC berhasil dipindahkan ke {$newPic->name}.");
+        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$newPic->name} - notifikasi otomatis terkirim ke yang bersangkutan.");
     }
 }

@@ -82,9 +82,9 @@
                        class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
             </div>
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">PIC Pengerjaan <span class="text-[#b3423e]">*</span></label>
+                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Penanggung Jawab <span class="text-[#b3423e]">*</span></label>
                 <select name="pic_id" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
-                    <option value="">Pilih PIC...</option>
+                    <option value="">Pilih Penanggung Jawab...</option>
                     @foreach ($picOptions as $pic) <option value="{{ $pic->id }}">{{ $pic->name }}</option> @endforeach
                 </select>
             </div>

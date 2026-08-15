@@ -325,7 +325,7 @@
                                         Sudah diterapkan ke Content Plan bulan ini
                                     </div>
                                     <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
-                                          onsubmit="return confirm('Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).')">
+                                          onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
                                         @csrf
                                         <button type="submit" class="text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b3423e]">
                                             <span class="material-symbols-outlined text-[14px]">undo</span>
@@ -415,7 +415,7 @@
                                 </p>
                             @elseif ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
                                 <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
-                                      onsubmit="return confirm('Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
+                                      onsubmit="return appConfirm(this, 'Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
                                     @csrf
                                     <button type="submit" class="w-full text-xs font-medium bg-[#eef2fb] text-[#3452a8] px-3.5 py-2.5 rounded-lg hover:bg-[#e2e8f8] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3452a8]">
                                         <span class="material-symbols-outlined text-[15px]">sync</span>

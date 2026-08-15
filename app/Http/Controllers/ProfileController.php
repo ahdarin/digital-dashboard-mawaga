@@ -6,6 +6,7 @@ use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
+use App\Services\NextStepsService;
 
 class ProfileController extends Controller
 {
@@ -23,7 +24,9 @@ class ProfileController extends Controller
                 ->orderBy('deadline_at')
                 ->get();
 
-            return view('profile.show-copywriter', compact('user', 'briefQueueItems'));
+            $nextSteps = auth()->id() === $user->id ? app(NextStepsService::class)->forUser($user) : [];
+
+            return view('profile.show-copywriter', compact('user', 'briefQueueItems', 'nextSteps'));
         }
 
         $assignments = ContentItemAssignment::where('user_id', $user->id)
@@ -58,9 +61,11 @@ class ProfileController extends Controller
 
         $assignedClients = $user->assignedClients()->where('status', 'active')->get();
 
+        $nextSteps = auth()->id() === $user->id ? app(NextStepsService::class)->forUser($user) : [];
+
         return view('profile.show', compact(
             'user', 'assignments', 'activeCount', 'overdueCount',
-            'completionRate', 'doneThisMonth', 'revisionCount', 'assignedClients'
+            'completionRate', 'doneThisMonth', 'revisionCount', 'assignedClients', 'nextSteps'
         ));
     }
 }

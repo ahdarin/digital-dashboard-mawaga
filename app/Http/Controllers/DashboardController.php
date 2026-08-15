@@ -9,6 +9,7 @@ use App\Models\ContentWorkflow;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
+use App\Services\NextStepsService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -226,9 +227,11 @@ class DashboardController extends Controller
             activeClients: $activeClients
         );
 
+        $nextSteps = app(NextStepsService::class)->forUser($request->user());
+
         return view('dashboard.index', compact(
             'stats', 'performance', 'viewsTrend', 'attentionItems', 'highRiskItems', 'recentItems', 'insights',
-            'topContent', 'topClients', 'riskAccuracy', 'period'
+            'topContent', 'topClients', 'riskAccuracy', 'period', 'nextSteps'
         ));
     }
 

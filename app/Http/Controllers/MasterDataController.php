@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class MasterDataController extends Controller
 {
-    private const TYPES = [
+    public const TYPES = [
         'content-pillar' => ContentPillar::class,
         'content-type' => ContentType::class,
         'platform' => Platform::class,
@@ -42,7 +42,7 @@ class MasterDataController extends Controller
 
         self::TYPES[$type]::create($validated);
 
-        return back()->with('status', 'Data berhasil ditambahkan.');
+        return back()->with('status', 'Data berhasil ditambahkan - langsung bisa dipilih di form terkait.');
     }
 
     public function destroy(string $type, int $id)

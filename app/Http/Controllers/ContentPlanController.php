@@ -204,7 +204,7 @@ class ContentPlanController extends Controller
 
         $contentPlan->update(['status' => 'approved', 'approved_by' => auth()->id()]);
 
-        return back()->with('status', 'Content plan disetujui.');
+        return back()->with('status', 'Content plan disetujui - tim bisa mulai menambahkan content item sesuai rencana ini.');
     }
 
     public function reject(ContentPlan $contentPlan)
@@ -268,7 +268,7 @@ class ContentPlanController extends Controller
         }
 
         return redirect()->route('content-plan.show', $contentPlan)
-            ->with('status', 'Content item berhasil ditambahkan.');
+            ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Siap Dikerjakan.');
     }
 
     /**

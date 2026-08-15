@@ -156,7 +156,7 @@
             <div class="card p-6">
                 <h2 class="text-sm font-semibold text-[#b3423e] mb-3">Danger Zone</h2>
                 <form action="{{ route('client-management.destroy', $client) }}" method="POST"
-                      onsubmit="return confirm('Yakin hapus {{ $client->brand_name }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.')">
+                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="w-full bg-[#fdf2f1] text-[#b3423e] text-sm font-medium py-2.5 rounded-lg hover:bg-[#fbe2e0] transition-colors">

@@ -101,7 +101,7 @@ class ContentRevisionController extends Controller
             return response()->json(['success' => true, 'status' => $contentItem->workflow->fresh()->current_status]);
         }
 
-        return back()->with('status', 'Catatan revisi berhasil ditambahkan.');
+        return back()->with('status', 'Catatan revisi berhasil ditambahkan - klik "Kerjakan Revisi" saat siap mulai menggarapnya.');
     }
 
     /**

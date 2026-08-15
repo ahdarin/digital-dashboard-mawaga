@@ -53,7 +53,7 @@ class ContentBriefController extends Controller
         $this->briefService->regenerate($contentBrief);
 
         return redirect()->route('content-items.show', $contentItem)
-            ->with('status', 'Brief berhasil disusun ulang.');
+            ->with('status', 'Brief berhasil disusun ulang - review dulu sebelum diterapkan ke tim produksi.');
     }
 
     /**
@@ -139,7 +139,7 @@ class ContentBriefController extends Controller
             'scenes' => array_values($validated['scenes'] ?? []),
         ]);
 
-        return back()->with('status', 'Brief berhasil diedit manual.');
+        return back()->with('status', 'Brief berhasil diedit manual - review dulu sebelum diterapkan ke tim produksi.');
     }
 
     /**

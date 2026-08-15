@@ -221,7 +221,11 @@
                     </template>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada user internal.</td>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">group_add</span>
+                            <p class="text-sm text-[#9aa0a4]">Belum ada user internal.</p>
+                            <a href="{{ route('user-management.create') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Undang user pertama</a>
+                        </td>
                     </tr>
                 @endforelse
             </tbody>

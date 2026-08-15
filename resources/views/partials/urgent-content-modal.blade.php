@@ -80,7 +80,7 @@
                                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">PIC</label>
+                            <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Penanggung Jawab</label>
                             <select name="pic_id" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
                                 <option value="">Belum ditentukan</option>
                                 @foreach ($picOptions as $pic)

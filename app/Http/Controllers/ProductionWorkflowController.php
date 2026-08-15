@@ -24,6 +24,14 @@ class ProductionWorkflowController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $tab = $request->input('tab', 'board');
+
+        if ($tab === 'revisions') {
+            return $this->revisionsTab($request, $user);
+        }
+        if ($tab === 'published') {
+            return $this->publishedTab($request, $user);
+        }
 
         $itemsQuery = ContentItem::with([
             'client',
@@ -70,6 +78,7 @@ class ProductionWorkflowController extends Controller
             : $user->assignedClients()->where('status', 'active')->get();
 
         return view('production-workflow.index', [
+            'tab' => 'board',
             'board' => $board,
             'statuses' => $this->statuses,
             'clientOptions' => $clientOptions,
@@ -79,6 +88,91 @@ class ProductionWorkflowController extends Controller
             'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
+        ]);
+    }
+
+    /**
+     * Tab "Revisi" - dulu halaman terpisah (Revision Log), sekarang
+     * digabung ke Produksi (Tahap 6.1) supaya tim nggak perlu loncat menu
+     * buat lihat status revisi vs papan produksi.
+     */
+    private function revisionsTab(Request $request, $user)
+    {
+        $query = \App\Models\ContentRevision::with(['contentItem.client', 'requestedBy'])
+            ->latest('created_at');
+
+        if (! $user->canSeeAllClients()) {
+            $assignedClientIds = $user->assignedClients()->pluck('clients.id');
+            $query->whereHas('contentItem', fn ($q) => $q->whereIn('client_id', $assignedClientIds));
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('contentItem', fn ($q) => $q->where('client_id', $request->input('client_id')));
+        }
+
+        if ($request->input('status', 'open') !== 'all') {
+            $query->where('status', $request->input('status', 'open'));
+        }
+
+        $revisions = $query->paginate(15)->withQueryString();
+
+        $clientOptions = $user->canSeeAllClients()
+            ? \App\Models\Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
+
+        return view('production-workflow.index', [
+            'tab' => 'revisions',
+            'statuses' => $this->statuses,
+            'revisions' => $revisions,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $request->input('client_id'),
+            'selectedStatus' => $request->input('status', 'open'),
+            'contentTypeOptions' => \App\Models\ContentType::all(),
+            'platformOptions' => \App\Models\Platform::all(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
+        ]);
+    }
+
+    /**
+     * Tab "Sudah Tayang" - dulu halaman terpisah (Publishing Tracker),
+     * sekarang digabung ke Produksi (Tahap 6.1).
+     */
+    private function publishedTab(Request $request, $user)
+    {
+        $query = \App\Models\ContentPublication::with(['contentItem.client', 'platform', 'publishedBy'])
+            ->latest('published_at');
+
+        if (! $user->canSeeAllClients()) {
+            $assignedClientIds = $user->assignedClients()->pluck('clients.id');
+            $query->whereHas('contentItem', fn ($q) => $q->whereIn('client_id', $assignedClientIds));
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('contentItem', fn ($q) => $q->where('client_id', $request->input('client_id')));
+        }
+
+        if ($request->filled('platform_id')) {
+            $query->where('platform_id', $request->input('platform_id'));
+        }
+
+        $publications = $query->paginate(15)->withQueryString();
+
+        $clientOptions = $user->canSeeAllClients()
+            ? \App\Models\Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
+
+        $platformOptions = \App\Models\Platform::orderBy('name')->get();
+
+        return view('production-workflow.index', [
+            'tab' => 'published',
+            'statuses' => $this->statuses,
+            'publications' => $publications,
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $request->input('client_id'),
+            'platformOptions' => $platformOptions,
+            'selectedPlatformId' => $request->input('platform_id'),
+            'contentTypeOptions' => \App\Models\ContentType::all(),
             'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
         ]);
     }

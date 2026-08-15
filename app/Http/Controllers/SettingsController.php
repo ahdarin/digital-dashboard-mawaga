@@ -11,6 +11,7 @@ use App\Models\Platform;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\MasterDataController;
 
 /**
  * NOTE UNTUK TIM:
@@ -30,11 +31,38 @@ use Illuminate\Support\Facades\Artisan;
  */
 class SettingsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $section = $request->input('tab', 'umum');
+
         $user = auth()->user();
         $integrations = $this->buildIntegrationStatus();
         $clientOptions = Client::where('status', 'active')->get();
+
+        // Tahap 6.2 - Data Pilihan (dulu Master Data) & Integrasi digabung
+        // jadi tab di Pengaturan, bukan halaman menu terpisah lagi.
+        $mdTab = null;
+        $mdItems = collect();
+        $mdSearch = null;
+        if ($section === 'data-pilihan') {
+            $mdTab = $request->input('type', 'content-pillar');
+            abort_unless(array_key_exists($mdTab, MasterDataController::TYPES), 404);
+            $mdSearch = $request->input('search');
+            $mdItems = MasterDataController::TYPES[$mdTab]::query()
+                ->when($mdSearch, fn ($q) => $q->where('name', 'like', "%{$mdSearch}%"))
+                ->orderBy('name')
+                ->get();
+        }
+
+        $syncLogs = null;
+        if ($section === 'integrasi') {
+            $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
+                ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
+                ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
+                ->latest()
+                ->paginate(15)
+                ->withQueryString();
+        }
 
         // Status koneksi service pihak ketiga yang dipakai sistem (bukan
         // per-client platform kayak $integrations di atas, ini level
@@ -64,7 +92,10 @@ class SettingsController extends Controller
             ],
         ];
 
-        return view('settings.index', compact('user', 'integrations', 'clientOptions', 'systemConnections'));
+        return view('settings.index', compact(
+            'user', 'integrations', 'clientOptions', 'systemConnections',
+            'section', 'mdTab', 'mdItems', 'mdSearch', 'syncLogs'
+        ));
     }
 
     /**

@@ -80,6 +80,6 @@ class ContentPublicationController extends Controller
             return response()->json(['success' => true, 'status' => 'uploaded']);
         }
 
-        return back()->with('status', 'Publikasi berhasil dicatat.');
+        return back()->with('status', 'Publikasi berhasil dicatat - status konten dipindahkan ke Sudah Tayang.');
     }
 }

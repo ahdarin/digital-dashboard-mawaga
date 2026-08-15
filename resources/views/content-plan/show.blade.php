@@ -131,7 +131,7 @@
                                 @if ($pic)
                                     <span class="text-xs text-[#5c6266]">{{ $pic->name }}</span>
                                 @else
-                                    <span class="text-xs text-[#c3c7cb] italic">Belum ada PIC</span>
+                                    <span class="text-xs text-[#c3c7cb] italic">Belum ada Penanggung Jawab</span>
                                 @endif
                             </td>
                             <td class="px-6 py-3.5">

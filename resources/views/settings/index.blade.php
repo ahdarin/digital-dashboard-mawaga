@@ -4,11 +4,32 @@
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="mb-7">
-        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Settings</h1>
-        <p class="text-[#5c6266] text-sm mt-1">Kelola akun dan koneksi data performa kontenmu.</p>
+    <div class="mb-6">
+        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Pengaturan</h1>
+        <p class="text-[#5c6266] text-sm mt-1">Kelola akun, data pilihan, dan koneksi data performa kontenmu.</p>
     </div>
 
+    {{-- Tab switcher --}}
+    <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit">
+        <a href="{{ route('settings') }}"
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'umum' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+            Umum
+        </a>
+        <a href="{{ route('settings', ['tab' => 'data-pilihan']) }}"
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'data-pilihan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+            Data Pilihan
+        </a>
+        <a href="{{ route('settings', ['tab' => 'integrasi']) }}"
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'integrasi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+            Integrasi
+        </a>
+    </div>
+
+    @if ($section === 'data-pilihan')
+        @include('master-data.partials.panel')
+    @elseif ($section === 'integrasi')
+        @include('settings.partials.integrations-panel')
+    @else
     <div class="space-y-5">
 
         {{-- Account --}}
@@ -130,6 +151,7 @@
         </div>
 
     </div>
+    @endif
 </div>
 
 @endsection

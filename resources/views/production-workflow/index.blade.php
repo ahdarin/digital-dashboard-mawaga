@@ -1,19 +1,43 @@
 @extends('layouts.app')
 
-@section('title', 'Production Workflow Board')
+@section('title', 'Produksi')
 
 @section('content')
-<div x-data="kanbanBoard()" class="flex flex-col h-[calc(100vh-64px)]">
+<div class="flex flex-col {{ $tab === 'board' ? 'h-[calc(100vh-64px)]' : '' }}">
 
-    <header class="px-4 sm:px-6 lg:px-8 py-5 flex-shrink-0">
+    <header class="px-4 sm:px-6 lg:px-8 pt-5 flex-shrink-0">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Production Workflow Board</h1>
-                <p class="text-sm text-[#9aa0a4] mt-1">Alur produksi konten yang sedang berjalan</p>
+                <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Produksi</h1>
+                <p class="text-sm text-[#9aa0a4] mt-1">Alur produksi, revisi, dan riwayat tayang konten</p>
             </div>
             @include('partials.urgent-content-modal')
         </div>
 
+        {{-- Tab switcher --}}
+        <div class="flex items-center h-10 bg-[#f2f3f6] rounded-lg p-1 w-fit mb-5">
+            <a href="{{ route('production-workflow.index') }}"
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'board' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#14181a]' }}">
+                Papan
+            </a>
+            <a href="{{ route('production-workflow.index', ['tab' => 'revisions']) }}"
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'revisions' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#14181a]' }}">
+                Revisi
+            </a>
+            <a href="{{ route('production-workflow.index', ['tab' => 'published']) }}"
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'published' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#14181a]' }}">
+                Sudah Tayang
+            </a>
+        </div>
+    </header>
+
+    @if ($tab === 'revisions')
+        @include('production-workflow.partials.revisions-tab')
+    @elseif ($tab === 'published')
+        @include('production-workflow.partials.published-tab')
+    @else
+    <div x-data="kanbanBoard()" class="flex flex-col flex-1 min-h-0">
+    <div class="px-4 sm:px-6 lg:px-8 flex-shrink-0">
         <form id="filter-form" method="GET" action="{{ route('production-workflow.index') }}"></form>
 
         {{-- Baris 1: client & search --}}
@@ -55,7 +79,7 @@
                 @endforeach
             </select>
         </div>
-    </header>
+    </div>
 
     <div x-show="toast" x-transition class="fixed top-6 right-6 z-50 bg-[#14181a] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
 
@@ -75,10 +99,11 @@
                         <div class="w-1.5 h-1.5 rounded-full" style="background-color: {{ $dotColor }}"></div>
                         {{ $statusLabels[$status] }}
                     </h3>
-                    <span class="text-xs bg-[#f2f3f6] text-[#5c6266] px-2 py-0.5 rounded-full">{{ $board[$status]->count() }}</span>
+                    <span class="text-xs bg-[#f2f3f6] text-[#5c6266] px-2 py-0.5 rounded-full" data-column-count>{{ $board[$status]->count() }}</span>
                 </div>
 
                 <div class="p-2.5 overflow-y-auto flex-1 space-y-2.5 kanban-column thin-autohide-scrollbar" style="min-height: 100px;"
+                     data-column="{{ $status }}"
                      x-bind:data-expanded="(expandedColumns['{{ $status }}'] || search.length > 0) ? 'true' : 'false'">
                     @forelse ($board[$status] as $item)
                         @php $isOverdue = $item->workflow->is_overdue; @endphp
@@ -87,6 +112,7 @@
                              x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }})"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
+                             data-item-id="{{ $item->id }}"
                              class="bg-white p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-shadow {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
 
                             <div class="flex justify-between items-start gap-1 flex-wrap mb-2">
@@ -102,7 +128,7 @@
                                     </span>
                                 @endif
                                 @if ($item->workflow->client_reviewed_at && $status === 'waiting_review')
-                                    <span class="text-[10px] text-[#0f7a5f] font-semibold flex items-center gap-1 bg-[#f0f5f4] px-2 py-0.5 rounded whitespace-nowrap">
+                                    <span data-client-approved-badge class="text-[10px] text-[#0f7a5f] font-semibold flex items-center gap-1 bg-[#f0f5f4] px-2 py-0.5 rounded whitespace-nowrap">
                                         <span class="material-symbols-outlined text-[12px]">check_circle</span> Klien Setuju
                                     </span>
                                 @endif
@@ -169,7 +195,7 @@
                                                 </div>
                                             @endif
                                         @empty
-                                            <span class="text-xs text-[#c3c7cb] italic">Belum ada PIC</span>
+                                            <span class="text-xs text-[#c3c7cb] italic">Belum ada Penanggung Jawab</span>
                                         @endforelse
                                         @if ($item->assignments->count() > 3)
                                             <div class="w-6 h-6 rounded-full bg-[#f2f3f6] text-[#5c6266] text-[9px] font-semibold flex items-center justify-center ring-2 ring-white">+{{ $item->assignments->count() - 3 }}</div>
@@ -178,7 +204,7 @@
 
                                     <div x-show="open" x-transition x-on:mouseenter="open = true" x-on:mouseleave="open = false"
                                          class="absolute z-10 bottom-full right-0 mb-2 w-56 bg-white border border-[#eef0f4] rounded-lg shadow-lg p-3" style="display: none;">
-                                        <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-2">PIC Assignment</p>
+                                        <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-2">Penanggung Jawab</p>
                                         <div class="space-y-2">
                                             @forelse ($item->assignments as $assignment)
                                                 <div class="flex items-center gap-2">
@@ -195,7 +221,7 @@
                                                     </div>
                                                 </div>
                                             @empty
-                                                <p class="text-xs text-[#9aa0a4] italic">Belum ada PIC ditugaskan</p>
+                                                <p class="text-xs text-[#9aa0a4] italic">Belum ada Penanggung Jawab ditugaskan</p>
                                             @endforelse
                                         </div>
                                     </div>
@@ -297,6 +323,8 @@
         </div>
     </div>
 
+</div>
+    @endif
 </div>
 
 <style>
@@ -411,12 +439,62 @@ function kanbanBoard() {
             })
             .then(() => {
                 this.toast = 'Status berhasil diperbarui';
-                setTimeout(() => window.location.reload(), 600);
+                setTimeout(() => this.toast = '', 2500);
+                this.moveCardToColumn(itemId, toStatus);
             })
             .catch((err) => {
                 this.toast = err.message;
                 setTimeout(() => this.toast = '', 3000);
             });
+        },
+        // Pindahkan kartu ke kolom tujuan langsung di DOM, tanpa reload
+        // halaman penuh (yang bikin "getaran"/flash tiap kali drag-drop).
+        // Beberapa badge yang cuma relevan buat status tertentu (footage
+        // toggle, "Klien Setuju") disembunyikan kalau kartu keluar dari
+        // kolom asalnya - bukan dibuat ulang, karena markup-nya butuh data
+        // dari server yang nggak ada di sisi client.
+        moveCardToColumn(itemId, toStatus) {
+            const card = document.querySelector(`[data-item-id="${itemId}"]`);
+            const targetColumn = document.querySelector(`[data-column="${toStatus}"]`);
+            if (!card || !targetColumn) { return; }
+
+            const sourceColumn = card.closest('.kanban-column');
+
+            if (toStatus !== 'in_progress') {
+                card.querySelector('[data-footage-toggle]')?.remove();
+            }
+            if (toStatus !== 'waiting_review') {
+                card.querySelector('[data-client-approved-badge]')?.remove();
+            }
+
+            const moreBtn = targetColumn.querySelector(':scope > .column-more-toggle');
+            targetColumn.insertBefore(card, moreBtn || null);
+            window.Alpine?.initTree(card);
+
+            this.updateColumnCount(sourceColumn);
+            this.updateColumnCount(targetColumn);
+            this.toggleEmptyPlaceholder(sourceColumn);
+            this.toggleEmptyPlaceholder(targetColumn);
+        },
+        toggleEmptyPlaceholder(column) {
+            if (!column) return;
+            const hasCards = column.querySelectorAll(':scope > [data-item-id]').length > 0;
+            let placeholder = column.querySelector(':scope > [data-empty-placeholder]');
+            if (!hasCards && !placeholder) {
+                placeholder = document.createElement('div');
+                placeholder.setAttribute('data-empty-placeholder', '');
+                placeholder.className = 'text-center p-6 border border-dashed border-[#dadfe0] rounded-lg';
+                placeholder.innerHTML = '<span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">note_add</span><p class="text-xs text-[#c3c7cb]">Drop cards here</p>';
+                column.appendChild(placeholder);
+            } else if (hasCards && placeholder) {
+                placeholder.remove();
+            }
+        },
+        updateColumnCount(column) {
+            if (!column) return;
+            const count = column.querySelectorAll(':scope > [data-item-id]').length;
+            const badge = column.closest('.rounded-xl')?.querySelector('[data-column-count]');
+            if (badge) badge.textContent = count;
         },
         matchesSearch(title) {
             if (!this.search) return true;
