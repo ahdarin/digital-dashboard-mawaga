@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
@@ -12,6 +13,19 @@ class ProfileController extends Controller
 
     public function show(User $user)
     {
+        // Copywriter tidak jadi PIC produksi, jadi "Tugas Saya" mereka bukan
+        // papan produksi biasa - melainkan antrean brief yang belum final,
+        // karena itu pekerjaan mereka yang sesungguhnya.
+        if ($user->role?->name === 'Copywriter') {
+            $briefQueueItems = ContentItem::with(['client', 'contentType', 'contentBriefDraft', 'workflow'])
+                ->whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
+                ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses))
+                ->orderBy('deadline_at')
+                ->get();
+
+            return view('profile.show-copywriter', compact('user', 'briefQueueItems'));
+        }
+
         $assignments = ContentItemAssignment::where('user_id', $user->id)
             ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType', 'contentItem.latestDelayRisk'])
             ->get()

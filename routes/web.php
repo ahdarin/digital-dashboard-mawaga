@@ -69,9 +69,15 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::patch('/content-items/{contentItem}/transition', [ContentItemController::class, 'transition'])
         ->middleware('permission:workflow,update')
         ->name('content-items.transition');
+    Route::patch('/content-items/{contentItem}/correct-status', [ContentItemController::class, 'correctStatus'])
+        ->middleware('permission:workflow,approve')
+        ->name('content-items.correct-status');
     Route::patch('/content-items/{contentItem}/content-link', [ContentItemController::class, 'updateContentLink'])
         ->middleware('permission:workflow,update')
         ->name('content-items.content-link');
+    Route::patch('/content-items/{contentItem}/caption', [ContentItemController::class, 'updateCaption'])
+        ->middleware('permission:content_plan,create')
+        ->name('content-items.caption');
     Route::patch('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'markFootageCaptured'])
         ->middleware('permission:workflow,update')
         ->name('content-items.footage-captured');

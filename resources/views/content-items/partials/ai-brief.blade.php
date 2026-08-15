@@ -315,18 +315,20 @@
 
         @if (! $contentBrief->isLocked() && auth()->user()->hasPermissionTo('content_plan', 'create'))
             <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[#f7f8fc] border border-[#eef0f4]">
-                <span class="material-symbols-outlined text-[15px] text-[#9aa0a4] mt-0.5">info</span>
+                <span class="material-symbols-outlined text-[15px] text-[#9aa0a4] mt-0.5">handshake</span>
                 <p class="text-xs text-[#5c6266] leading-relaxed">
-                    Kalau brief sudah final, klik <strong class="text-[#14181a]">"Terapkan Brief ke Tim Produksi"</strong> —
-                    brief jadi read-only dan <strong class="text-[#14181a]">PIC produksi yang ditugaskan otomatis dapat notifikasi</strong>
-                    kalau brief siap dikerjakan. Masih mau diskusi/edit dulu? Pakai tombol Edit/Regenerate/Diskusi di atas.
+                    <strong class="text-[#14181a]">"Terapkan Brief ke Tim Produksi" adalah serah-terima resmi</strong> dari
+                    Copywriter ke tim produksi — begitu diklik, brief jadi read-only (tidak bisa diedit lagi) dan
+                    <strong class="text-[#14181a]">PIC produksi yang ditugaskan otomatis dapat notifikasi</strong>
+                    kalau brief siap dikerjakan. Pastikan brief sudah final. Masih mau diskusi/edit dulu? Pakai tombol Edit/Regenerate/Diskusi di atas.
                 </p>
             </div>
 
-            <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3">
+            <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3"
+                  onsubmit="return confirm('Terapkan brief ini ke tim produksi? Brief akan terkunci (tidak bisa diedit) dan PIC produksi langsung dapat notifikasi. Ini adalah serah-terima resmi dari Copywriter ke tim produksi.');">
                 @csrf
-                <button class="w-full bg-[#044b46] text-white text-sm font-medium py-3 rounded-lg hover:bg-[#033b37] transition-colors">
-                    Terapkan Brief ke Tim Produksi
+                <button class="w-full bg-[#044b46] text-white text-sm font-medium py-3 rounded-lg hover:bg-[#033b37] transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]">handshake</span> Terapkan Brief ke Tim Produksi
                 </button>
             </form>
 

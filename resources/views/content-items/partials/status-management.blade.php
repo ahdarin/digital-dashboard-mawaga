@@ -23,7 +23,7 @@
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Kerjakan Konten',
-                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Sedang Dikerjakan?',
+                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Sedang Dikerjakan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
                 fields: { to_status: 'in_progress' },
@@ -37,7 +37,7 @@
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Konten Telah Selesai',
-                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan?',
+                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
                 fields: { to_status: 'waiting_review' },
@@ -69,7 +69,7 @@
         <button type="button" :disabled="{{ $approveDisabled ? 'true' : 'false' }}"
             @click="confirmAction = {
                 title: 'Approve Konten',
-                message: 'Approve &quot;{{ addslashes($contentItem->title) }}&quot;? Konten akan lanjut ke tahap penjadwalan upload.',
+                message: 'Approve &quot;{{ addslashes($contentItem->title) }}&quot;? Konten akan lanjut ke tahap penjadwalan upload. Langkah ini tidak bisa dibatalkan.',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
                 fields: { to_status: 'approved' },
@@ -93,7 +93,7 @@
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }} || !scheduledUploadAt"
             @click="confirmAction = {
                 title: 'Jadwalkan Upload',
-                message: 'Jadwalkan upload untuk &quot;{{ addslashes($contentItem->title) }}&quot; pada:',
+                message: 'Jadwalkan upload untuk &quot;{{ addslashes($contentItem->title) }}&quot; pada (langkah ini tidak bisa dibatalkan):',
                 extra: new Date(scheduledUploadAt).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }),
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
@@ -108,6 +108,42 @@
         <div class="flex items-start gap-2 bg-[#f7f8fc] text-[#5c6266] text-xs p-3 rounded-lg">
             <span class="material-symbols-outlined text-[16px] shrink-0">cloud_upload</span>
             <span>Tandai upload dengan mengisi data publikasi di bagian <strong>Record Publication</strong> di bawah.</span>
+        </div>
+    @endif
+
+    {{-- Koreksi Status - khusus Manager & CEO, buat kasus status terlanjur
+         salah dipindahkan. Dicatat terpisah dari revisi biasa. --}}
+    @if (in_array(auth()->user()->role?->name, ['Manager', 'CEO']) && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
+        <div class="mt-5 pt-4 border-t border-[#f2f3f6]" x-data="{ showCorrection: false, correctTo: '', correctReason: '' }">
+            <button type="button" @click="showCorrection = !showCorrection" class="text-xs font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px]">build</span> Koreksi Status (kesalahan input)
+            </button>
+            <div x-show="showCorrection" x-cloak x-transition class="mt-3 space-y-2.5">
+                <p class="text-[11px] text-[#9aa0a4]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja PIC.</p>
+                <select x-model="correctTo" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
+                    <option value="">Pilih status yang benar...</option>
+                    @foreach (\App\Support\WorkflowTransitions::labels() as $value => $label)
+                        @if ($value !== $workflow->current_status)
+                            <option value="{{ $value }}">{{ $label }}</option>
+                        @endif
+                    @endforeach
+                </select>
+                <textarea x-model="correctReason" rows="2" placeholder="Alasan koreksi (wajib)..."
+                    class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                <button type="button" :disabled="! correctTo || ! correctReason"
+                    @click="confirmAction = {
+                        title: 'Koreksi Status',
+                        message: 'Koreksi status &quot;{{ addslashes($contentItem->title) }}&quot; jadi status yang dipilih? Ini bukan transisi produksi normal, dicatat terpisah sebagai koreksi.',
+                        formAction: '{{ route('content-items.correct-status', $contentItem) }}',
+                        method: 'PATCH',
+                        fields: { to_status: correctTo, reason: correctReason },
+                        confirmLabel: 'Ya, Koreksi',
+                        danger: true,
+                    }"
+                    class="w-full text-xs font-medium px-4 py-2.5 rounded-lg border border-[#f5d9d7] text-[#b3423e] hover:bg-[#fdf2f1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    Koreksi Status
+                </button>
+            </div>
         </div>
     @endif
 

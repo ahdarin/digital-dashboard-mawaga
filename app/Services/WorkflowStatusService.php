@@ -114,6 +114,46 @@ class WorkflowStatusService
         });
     }
 
+    /**
+     * "Koreksi Status" - khusus Manager & CEO, buat kasus status terlanjur
+     * salah dipindahkan. Beda dari transition() biasa: TIDAK terikat aturan
+     * WorkflowTransitions (bisa lompat/mundur ke status manapun), dan
+     * dicatat dengan approval_type='correction' supaya jelas ini bukan
+     * revisi biasa - jadi Team Performance bisa mengecualikannya dari
+     * hitungan revisi tim.
+     */
+    public function correctStatus(ContentItem $contentItem, string $toStatus, string $reason, User $actor): void
+    {
+        if (! in_array($actor->role?->name, ['Manager', 'CEO'], true)) {
+            throw new WorkflowTransitionException('Cuma Manager atau CEO yang bisa melakukan koreksi status.');
+        }
+
+        if (! array_key_exists($toStatus, WorkflowTransitions::labels())) {
+            throw new WorkflowTransitionException('Status tujuan tidak dikenali.');
+        }
+
+        $workflow = $contentItem->workflow;
+        $fromStatus = $workflow->current_status;
+
+        if ($fromStatus === $toStatus) {
+            throw new WorkflowTransitionException('Status tujuan sama dengan status saat ini.');
+        }
+
+        DB::transaction(function () use ($contentItem, $workflow, $fromStatus, $toStatus, $reason, $actor) {
+            $workflow->update(['current_status' => $toStatus]);
+
+            ContentStatusLog::create([
+                'content_item_id' => $contentItem->id,
+                'changed_by' => $actor->id,
+                'from_status' => $fromStatus,
+                'to_status' => $toStatus,
+                'approval_type' => 'correction',
+                'notes' => $reason,
+                'changed_at' => now(),
+            ]);
+        });
+    }
+
     public function hasUnresolvedRevisions(ContentItem $contentItem): bool
     {
         return ContentRevision::where('content_item_id', $contentItem->id)

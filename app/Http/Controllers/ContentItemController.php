@@ -72,6 +72,22 @@ class ContentItemController extends Controller
         return back()->with('status', 'Status konten berhasil diperbarui.');
     }
 
+    public function correctStatus(Request $request, ContentItem $contentItem, WorkflowStatusService $workflowStatusService)
+    {
+        $validated = $request->validate([
+            'to_status' => 'required|string',
+            'reason' => 'required|string',
+        ]);
+
+        try {
+            $workflowStatusService->correctStatus($contentItem, $validated['to_status'], $validated['reason'], $request->user());
+        } catch (WorkflowTransitionException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Status konten berhasil dikoreksi.');
+    }
+
     /**
      * Tandai footage video sudah selesai di-take di lokasi - dipakai buat
      * kasus produksi video dimana syuting baru selesai setelah status sudah
@@ -125,6 +141,17 @@ class ContentItemController extends Controller
         $contentItem->update(['content_file_link' => $validated['content_file_link'] ?? null]);
 
         return back()->with('status', 'Link konten berhasil disimpan.');
+    }
+
+    public function updateCaption(Request $request, ContentItem $contentItem)
+    {
+        $validated = $request->validate([
+            'caption_draft' => 'nullable|string',
+        ]);
+
+        $contentItem->update(['caption_draft' => $validated['caption_draft'] ?? null]);
+
+        return back()->with('status', 'Draft caption berhasil disimpan.');
     }
 
     /**

@@ -70,6 +70,33 @@
                     </div>
                 </div>
 
+                @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                    <div class="card p-5" x-data="{ editingCaption: {{ $contentItem->caption_draft ? 'false' : 'true' }} }">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-semibold text-[#14181a]">Caption / Copy</h3>
+                            @if ($contentItem->caption_draft)
+                                <button type="button" @click="editingCaption = !editingCaption" class="text-xs font-medium text-[#044b46] hover:underline">
+                                    <span x-text="editingCaption ? 'Batal' : 'Ubah'"></span>
+                                </button>
+                            @endif
+                        </div>
+                        <p class="text-xs text-[#9aa0a4] mb-3">Draft caption yang akan dibaca & disetujui klien di Portal Klien.</p>
+
+                        <div x-show="! editingCaption" x-cloak>
+                            <p class="text-sm text-[#14181a] whitespace-pre-line">{{ $contentItem->caption_draft }}</p>
+                        </div>
+
+                        <form x-show="editingCaption" x-cloak action="{{ route('content-items.caption', $contentItem) }}" method="POST" class="space-y-2">
+                            @csrf @method('PATCH')
+                            <textarea name="caption_draft" rows="3" placeholder="Tulis draft caption di sini..."
+                                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ $contentItem->caption_draft }}</textarea>
+                            <button type="submit" class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors">
+                                Simpan Caption
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
                 @unless ($workflow->current_status === 'brief_ready')
                     <div class="card p-5" x-data="{ editingLink: {{ $contentItem->content_file_link ? 'false' : 'true' }} }">
                         <div class="flex items-center justify-between mb-1">
