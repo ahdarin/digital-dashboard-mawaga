@@ -33,7 +33,7 @@
 
         <div class="flex flex-col items-end gap-2">
             @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                     @php $urgentPreselectClientId = $contentPlan->client_id; @endphp
                     @include('partials.urgent-content-modal')
 

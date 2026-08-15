@@ -54,7 +54,7 @@
                             <input type="text" name="title" required placeholder="Contoh: Dokumentasi Event Grand Opening"
                                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Tipe Konten</label>
                                 <select name="content_type_id" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">

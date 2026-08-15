@@ -95,11 +95,11 @@
                 @endif
 
                 <form x-show="editingTakeDate" action="{{ route('content-items.footage-captured', $contentItem) }}" method="POST"
-                      class="flex items-center gap-2">
+                      class="flex items-center gap-2 flex-wrap">
                     @csrf @method('PATCH')
                     <input type="datetime-local" name="footage_captured_at"
                         value="{{ ($contentItem->footage_captured_at ?? now())->format('Y-m-d\TH:i') }}" required
-                        class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                        class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                     <button type="submit"
                         class="flex items-center justify-center gap-1.5 border border-[#044b46]/30 text-[#044b46] text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#f0f5f4] transition-colors whitespace-nowrap">
                         <span class="material-symbols-outlined text-[16px]">videocam</span> Tandai Sudah Di-take
