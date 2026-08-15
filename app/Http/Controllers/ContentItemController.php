@@ -41,8 +41,9 @@ class ContentItemController extends Controller
             ->get();
 
         $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
+        $canApprove = auth()->user()->hasPermissionTo('workflow', 'approve');
 
-        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow'));
+        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow', 'canApprove'));
     }
 
     /**

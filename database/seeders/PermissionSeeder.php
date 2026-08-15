@@ -40,8 +40,8 @@ class PermissionSeeder extends Seeder
                 ['report', 'view'],
                 ['master_data', 'manage'],
                 ['settings', 'manage'],
-                ['content_plan', 'view'], ['content_plan', 'create'],
-                ['workflow', 'view'], ['workflow', 'update'],
+                ['content_plan', 'view'], ['content_plan', 'create'], ['content_plan', 'approve'],
+                ['workflow', 'view'], ['workflow', 'update'], ['workflow', 'approve'],
             ],
             'Content Creator' => [
                 ['content_plan', 'view'],
@@ -56,8 +56,8 @@ class PermissionSeeder extends Seeder
                 ['report', 'view'],
                 ['master_data', 'manage'],
                 ['settings', 'manage'],
-                ['content_plan', 'view'],
-                ['workflow', 'view'], ['workflow', 'update'],
+                ['content_plan', 'view'], ['content_plan', 'approve'],
+                ['workflow', 'view'], ['workflow', 'update'], ['workflow', 'approve'],
                 ['publishing', 'manage'],
             ],
             'Copywriter' => [
@@ -66,9 +66,6 @@ class PermissionSeeder extends Seeder
             ],
             'Client Owner' => [
                 ['workflow', 'view'], ['workflow', 'approve'], ['analytics', 'view'],
-            ],
-            'Client Member' => [
-                ['workflow', 'view'], ['analytics', 'view'],
             ],
         ];
 

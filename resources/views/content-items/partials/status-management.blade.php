@@ -48,7 +48,7 @@
             <span class="material-symbols-outlined text-[16px]">check</span> KONTEN TELAH SELESAI
         </button>
     @elseif ($workflow->current_status === 'waiting_review')
-        @php $approveDisabled = ! $canUpdateWorkflow || $hasUnresolvedRevisions; @endphp
+        @php $approveDisabled = ! $canApprove || $hasUnresolvedRevisions; @endphp
         @if ($hasUnresolvedRevisions)
             <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3">
                 <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>
@@ -64,7 +64,7 @@
                 fields: { to_status: 'approved' },
                 confirmLabel: 'Ya, Approve',
             }"
-            title="{{ $hasUnresolvedRevisions ? 'Masih ada revisi yang belum diselesaikan' : ($canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status') }}"
+            title="{{ $hasUnresolvedRevisions ? 'Masih ada revisi yang belum diselesaikan' : ($canApprove ? '' : 'Kamu tidak punya izin approve konten') }}"
             class="{{ $btnBase }} {{ $approveDisabled ? $btnDisabled : $btnEnabled }}">
             <span class="material-symbols-outlined text-[16px]">task_alt</span> APPROVE KONTEN
         </button>

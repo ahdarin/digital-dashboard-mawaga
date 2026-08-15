@@ -223,10 +223,12 @@
                 <div class="card p-5">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-semibold text-[#14181a]">PIC Assignment</h3>
-                        <button type="button" @click="showReassignModal = true"
-                                class="inline-flex items-center gap-1 bg-[#f0f5f4] text-[#044b46] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#e4ede9] transition-colors">
-                            <span class="material-symbols-outlined text-[14px]">sync_alt</span> Reassign
-                        </button>
+                        @if ($canUpdateWorkflow)
+                            <button type="button" @click="showReassignModal = true"
+                                    class="inline-flex items-center gap-1 bg-[#f0f5f4] text-[#044b46] text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#e4ede9] transition-colors">
+                                <span class="material-symbols-outlined text-[14px]">sync_alt</span> Reassign
+                            </button>
+                        @endif
                     </div>
                     <div class="space-y-3">
                         @forelse ($contentItem->assignments as $assignment)
@@ -255,6 +257,7 @@
                         'contentItem' => $contentItem,
                         'workflow' => $workflow,
                         'canUpdateWorkflow' => $canUpdateWorkflow,
+                        'canApprove' => $canApprove,
                     ])
                 @endunless
 
@@ -292,10 +295,12 @@
                                     <span class="material-symbols-outlined text-[#b8873a] text-[16px] mt-0.5">group</span>
                                     <div class="flex-1">
                                         <p class="text-xs text-[#8a6423] mb-2">PIC saat ini sedang menangani banyak task aktif. Pertimbangkan reassign ke PIC yang lebih longgar.</p>
-                                        <button type="button" @click="showReassignModal = true"
-                                                class="inline-flex items-center gap-1 bg-[#8a6423] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#735220] transition-colors">
-                                            <span class="material-symbols-outlined text-[14px]">sync_alt</span> Reassign PIC
-                                        </button>
+                                        @if ($canUpdateWorkflow)
+                                            <button type="button" @click="showReassignModal = true"
+                                                    class="inline-flex items-center gap-1 bg-[#8a6423] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#735220] transition-colors">
+                                                <span class="material-symbols-outlined text-[14px]">sync_alt</span> Reassign PIC
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             @endif

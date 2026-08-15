@@ -18,7 +18,6 @@ class RoleSeeder extends Seeder
             'SMO',
             'Copywriter',
             'Client Owner',
-            'Client Member',
         ];
 
         foreach ($roles as $name) {

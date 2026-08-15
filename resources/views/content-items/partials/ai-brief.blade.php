@@ -16,12 +16,14 @@
                     <p class="text-xs text-[#5c6266] max-w-md">Ubah ide mentah di bawah jadi brief produksi siap pakai — lengkap dengan naskah, talent, properti, dan estimasi kompleksitas teknis buat tim produksi.</p>
                 </div>
             </div>
-            <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST">
-                @csrf
-                <button class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-[#033b37] transition-colors shadow-sm whitespace-nowrap">
-                    <span class="material-symbols-outlined text-[18px]">auto_awesome</span> Buat Brief dengan AI
-                </button>
-            </form>
+            @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST">
+                    @csrf
+                    <button class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-semibold px-5 py-3 rounded-xl hover:bg-[#033b37] transition-colors shadow-sm whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[18px]">auto_awesome</span> Buat Brief dengan AI
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
 @else
@@ -51,7 +53,7 @@
                     {{ match($contentBrief->status) { 'finalized' => 'Diterapkan', 'discussing' => 'Sedang Didiskusikan', default => 'Draft' } }}
                 </span>
 
-                @if (! $contentBrief->isLocked())
+                @if (! $contentBrief->isLocked() && auth()->user()->hasPermissionTo('content_plan', 'create'))
                     <div class="flex items-center h-8 gap-2">
                         <button type="button" @click="editing = !editing"
                             class="inline-flex items-center h-8 gap-1.5 border border-[#044b46]/30 text-[#044b46] text-xs font-semibold px-3 rounded-lg hover:bg-[#f0f5f4] transition-colors leading-none">
@@ -111,7 +113,7 @@
             </div>
         @endif
 
-        @if (! $contentBrief->isLocked())
+        @if (! $contentBrief->isLocked() && auth()->user()->hasPermissionTo('content_plan', 'create'))
             <div x-show="editing" x-cloak x-transition class="mb-5 -mx-6 -mt-1 px-6 pt-5 pb-6 bg-[#fafbfc] border-y border-[#eef0f4]">
                 <form action="{{ route('content-brief.update', $contentBrief) }}" method="POST" class="space-y-5">
                     @csrf
@@ -311,7 +313,7 @@
 
         </div>{{-- /x-show="! editing" --}}
 
-        @if (! $contentBrief->isLocked())
+        @if (! $contentBrief->isLocked() && auth()->user()->hasPermissionTo('content_plan', 'create'))
             <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[#f7f8fc] border border-[#eef0f4]">
                 <span class="material-symbols-outlined text-[15px] text-[#9aa0a4] mt-0.5">info</span>
                 <p class="text-xs text-[#5c6266] leading-relaxed">
@@ -337,22 +339,26 @@
                 </form>
                 <p class="text-[11px] text-[#9aa0a4] text-center mt-1.5">Membatalkan perubahan terakhir (regenerate/edit/apply), balik ke isi sebelumnya.</p>
             @endif
-        @else
+        @elseif ($contentBrief->isLocked())
             <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[#f0f5f4] border border-[#0f7a5f]/15">
                 <span class="material-symbols-outlined text-[15px] text-[#0f7a5f] mt-0.5">check_circle</span>
                 <p class="text-xs text-[#0f7a5f] leading-relaxed">
                     Brief ini sudah <strong>diterapkan ke tim produksi</strong> dan terkunci (tidak bisa diedit) — PIC yang
-                    ditugaskan sudah menerima notifikasi. Kalau ternyata masih perlu revisi, klik
-                    <strong>"Tarik Kembali untuk Direvisi"</strong> di bawah untuk membuka brief lagi.
+                    ditugaskan sudah menerima notifikasi.
+                    @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                        Kalau ternyata masih perlu revisi, klik <strong>"Tarik Kembali untuk Direvisi"</strong> di bawah untuk membuka brief lagi.
+                    @endif
                 </p>
             </div>
 
-            <form action="{{ route('content-brief.withdraw', $contentBrief) }}" method="POST">
-                @csrf
-                <button class="w-full bg-[#f2f3f6] text-[#5c6266] text-sm font-medium py-3 rounded-lg hover:bg-[#eef0f4] transition-colors">
-                    Tarik Kembali untuk Direvisi
-                </button>
-            </form>
+            @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                <form action="{{ route('content-brief.withdraw', $contentBrief) }}" method="POST">
+                    @csrf
+                    <button class="w-full bg-[#f2f3f6] text-[#5c6266] text-sm font-medium py-3 rounded-lg hover:bg-[#eef0f4] transition-colors">
+                        Tarik Kembali untuk Direvisi
+                    </button>
+                </form>
+            @endif
         @endif
     </div>
 

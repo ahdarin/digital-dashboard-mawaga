@@ -24,7 +24,7 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        $roles = Role::whereNotIn('name', ['Client Owner', 'Client Member'])->get();
+        $roles = Role::whereNotIn('name', ['Client Owner'])->get();
 
         return view('user-management.create', compact('roles'));
     }

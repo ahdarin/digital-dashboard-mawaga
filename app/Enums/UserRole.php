@@ -11,5 +11,4 @@ enum UserRole: string
     case SMO = 'SMO';
     case Copywriter = 'Copywriter';
     case ClientOwner = 'Client Owner';
-    case ClientMember = 'Client Member';
 }

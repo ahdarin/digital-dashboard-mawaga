@@ -40,6 +40,10 @@ class WorkflowStatusService
             throw new WorkflowTransitionException('Masih ada revisi yang belum diselesaikan - selesaikan dulu sebelum approve.');
         }
 
+        if ($toStatus === 'approved' && ! $actor->hasPermissionTo('workflow', 'approve')) {
+            throw new WorkflowTransitionException('Anda tidak punya izin untuk menyetujui (approve) konten ini.');
+        }
+
         if ($toStatus === 'revision' && trim($payload['revision_note'] ?? '') === '') {
             throw new WorkflowTransitionException('Catatan revisi wajib diisi untuk memindahkan konten ke status Revision.');
         }

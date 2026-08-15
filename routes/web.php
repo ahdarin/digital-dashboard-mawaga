@@ -64,6 +64,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware('permission:workflow,view')
         ->name('content-items.show');
     Route::patch('/content-items/{contentItem}/reassign', [ContentItemController::class, 'reassign'])
+        ->middleware('permission:workflow,update')
         ->name('content-items.reassign');
     Route::patch('/content-items/{contentItem}/transition', [ContentItemController::class, 'transition'])
         ->middleware('permission:workflow,update')
@@ -78,24 +79,28 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware('permission:workflow,update')
         ->name('content-items.footage-captured.unmark');
 
-    Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
-        ->name('content-brief.generate');
     Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
+        ->middleware('permission:workflow,view')
         ->name('content-brief.show');
-    Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
-        ->name('content-brief.regenerate');
-    Route::post('/content-brief/{contentBrief}/discuss', [ContentBriefController::class, 'discuss'])
-        ->name('content-brief.discuss');
-    Route::post('/content-brief/{contentBrief}/apply', [ContentBriefController::class, 'applyChanges'])
-        ->name('content-brief.apply');
-    Route::patch('/content-brief/{contentBrief}', [ContentBriefController::class, 'updateManual'])
-        ->name('content-brief.update');
-    Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
-        ->name('content-brief.revert');
-    Route::post('/content-brief/{contentBrief}/finalize', [ContentBriefController::class, 'finalize'])
-        ->name('content-brief.finalize');
-    Route::post('/content-brief/{contentBrief}/withdraw', [ContentBriefController::class, 'withdraw'])
-        ->name('content-brief.withdraw');
+
+    Route::middleware('permission:content_plan,create')->group(function () {
+        Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
+            ->name('content-brief.generate');
+        Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
+            ->name('content-brief.regenerate');
+        Route::post('/content-brief/{contentBrief}/discuss', [ContentBriefController::class, 'discuss'])
+            ->name('content-brief.discuss');
+        Route::post('/content-brief/{contentBrief}/apply', [ContentBriefController::class, 'applyChanges'])
+            ->name('content-brief.apply');
+        Route::patch('/content-brief/{contentBrief}', [ContentBriefController::class, 'updateManual'])
+            ->name('content-brief.update');
+        Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
+            ->name('content-brief.revert');
+        Route::post('/content-brief/{contentBrief}/finalize', [ContentBriefController::class, 'finalize'])
+            ->name('content-brief.finalize');
+        Route::post('/content-brief/{contentBrief}/withdraw', [ContentBriefController::class, 'withdraw'])
+            ->name('content-brief.withdraw');
+    });
 
     Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
         ->middleware('permission:workflow,update')
@@ -170,6 +175,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::middleware('permission:content_plan,view')->group(function () {
         Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');
         Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
+    });
+
+    Route::middleware('permission:content_plan,approve')->group(function () {
         Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
         Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');
     });

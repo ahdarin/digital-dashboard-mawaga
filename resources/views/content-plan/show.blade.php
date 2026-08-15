@@ -43,7 +43,7 @@
                 </div>
             @endif
 
-            @if ($contentPlan->status === 'pending' || $contentPlan->status === 'draft')
+            @if (($contentPlan->status === 'pending' || $contentPlan->status === 'draft') && auth()->user()->hasPermissionTo('content_plan', 'approve'))
                 <div class="flex items-center gap-2">
                     <form action="{{ route('content-plan.reject', $contentPlan) }}" method="POST">
                         @csrf @method('PATCH')
