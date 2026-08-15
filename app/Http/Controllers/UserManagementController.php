@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\UserInvitationMail;
 use App\Models\Client;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class UserManagementController extends Controller
 {
@@ -39,13 +42,28 @@ class UserManagementController extends Controller
             'role_id' => 'required|exists:roles,id',
         ]);
 
-        User::create([
+        $user = User::create([
             ...$validated,
             'status' => 'invited',
         ]);
 
-        return redirect()->route('user-management.index')
-            ->with('status', 'User berhasil diundang. Mereka bisa login dengan Google menggunakan email ini.');
+        // Kegagalan kirim email (mis. SMTP belum dikonfigurasi) sengaja
+        // tidak menggagalkan pembuatan user - akun tetap bisa aktif sendiri
+        // saat pertama login Google, admin cukup diberi tahu lewat pesan
+        // flash kalau emailnya gagal terkirim.
+        $emailSent = true;
+        try {
+            Mail::to($user->email)->send(new UserInvitationMail($user->load('role')));
+        } catch (\Throwable $e) {
+            $emailSent = false;
+            Log::warning('Gagal mengirim email undangan user: '.$e->getMessage(), ['user_id' => $user->id]);
+        }
+
+        $message = $emailSent
+            ? 'User berhasil diundang. Email undangan sudah dikirim - mereka bisa login dengan Google menggunakan email ini.'
+            : 'User berhasil dibuat, tapi email undangan gagal terkirim (cek konfigurasi SMTP di .env). Beri tahu mereka secara manual untuk login dengan Google menggunakan email ini.';
+
+        return redirect()->route('user-management.index')->with('status', $message);
     }
 
     public function destroy(User $user)
