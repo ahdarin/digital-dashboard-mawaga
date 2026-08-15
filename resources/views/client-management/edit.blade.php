@@ -2,7 +2,7 @@
 @section('title', 'Edit ' . $client->brand_name)
 @section('content')
 
-<div class="p-8 max-w-2xl">
+<div class="p-4 sm:p-6 lg:p-8 max-w-2xl">
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('client-management.show', $client) }}"
@@ -69,7 +69,7 @@
                     @error('brand_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Kategori</label>
                         <select name="client_category_id" required

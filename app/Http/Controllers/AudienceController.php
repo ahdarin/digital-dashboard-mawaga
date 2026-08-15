@@ -20,17 +20,6 @@ use Illuminate\Support\Carbon;
 class AudienceController extends Controller
 {
     /**
-     * URL lama /audience - sekarang cuma alias, kontennya udah gabung
-     * jadi tab "Audience" di halaman Analytics utama (lihat
-     * AnalyticsController::index() + buildAudienceTabData()) biar client
-     * yang lagi dipilih di Analytics nggak ke-reset pas pindah ke sini.
-     */
-    public function index(Request $request)
-    {
-        return redirect()->route('analytics', array_merge(['tab' => 'audience'], $request->query()));
-    }
-
-    /**
      * KF3xx — Import Audience Data
      * Format CSV yang diharapkan (baris pertama = header):
      *

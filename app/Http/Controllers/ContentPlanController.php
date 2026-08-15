@@ -319,33 +319,4 @@ class ContentPlanController extends Controller
             ->with('status', 'Jobdesk tambahan berhasil ditambahkan ke Production Workflow.');
     }
 
-    public function calendar(Request $request)
-    {
-        $selectedClientId = $request->input('client_id');
-        $selectedTypeId = $request->input('content_type_id');
-        $month = (int) $request->input('month', now()->month);
-        $year = (int) $request->input('year', now()->year);
-
-        $items = ContentItem::with(['client', 'contentType'])
-            ->whereMonth('deadline_at', $month)
-            ->whereYear('deadline_at', $year)
-            ->when($selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
-            ->whereHas('contentType', fn ($q) => $q->whereIn('name', ['Video', 'Desain']))
-            ->when($selectedTypeId, fn ($q) => $q->where('content_type_id', $selectedTypeId))
-            ->orderBy('deadline_at')
-            ->get();
-
-        // date (Y-m-d) -> client_id -> Collection<ContentItem>
-        $itemsByDateClient = $items
-            ->groupBy(fn ($i) => $i->deadline_at->format('Y-m-d'))
-            ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
-
-        $clientOptions = Client::where('status', 'active')->get();
-        $typeOptions = ContentType::whereIn('name', ['Video', 'Desain'])->get();
-
-        return view('content-plan.calendar', compact(
-            'itemsByDateClient', 'month', 'year',
-            'clientOptions', 'typeOptions', 'selectedClientId', 'selectedTypeId'
-        ));
-    }
 }

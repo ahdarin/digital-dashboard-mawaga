@@ -63,7 +63,7 @@ class ContentRevisionController extends Controller
         $currentStatus = $contentItem->workflow->current_status;
 
         if (! in_array($currentStatus, ['waiting_review', 'revision'])) {
-            $message = 'Revisi cuma bisa ditambahkan saat status Waiting Review atau Revision.';
+            $message = 'Revisi cuma bisa ditambahkan saat status Menunggu Persetujuan atau Perlu Revisi.';
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
             }
@@ -120,6 +120,6 @@ class ContentRevisionController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', 'Revisi mulai dikerjakan, status konten dipindahkan ke In Progress.');
+        return back()->with('status', 'Revisi mulai dikerjakan, status konten dipindahkan ke Sedang Dikerjakan.');
     }
 }

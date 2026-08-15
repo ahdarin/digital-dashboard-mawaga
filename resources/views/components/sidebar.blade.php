@@ -3,6 +3,7 @@
         [
             'label' => 'Overview',
             'items' => [
+                ['label' => 'Tugas Saya', 'route' => 'profile.me', 'icon' => 'checklist', 'permission' => ['workflow', 'view']],
                 ['label' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'grid_view', 'permission' => ['dashboard', 'view']],
                 ['label' => 'Analytics', 'route' => 'analytics', 'icon' => 'monitoring', 'permission' => ['analytics', 'view']],
             ],
@@ -58,7 +59,7 @@
         ->all();
 
     $tooltipEnter = <<<'JS'
-        collapsed && (tooltip = {
+        effectiveCollapsed && (tooltip = {
             show: true,
             text: label,
             top: $event.currentTarget.getBoundingClientRect().top + $event.currentTarget.getBoundingClientRect().height / 2,
@@ -67,38 +68,64 @@
     JS;
 @endphp
 
-<aside x-data="{ collapsed: (localStorage.getItem('sidebar-collapsed') === 'true'), tooltip: { show: false, text: '', top: 0, left: 0 } }"
-    x-init="$watch('collapsed', value => { localStorage.setItem('sidebar-collapsed', value); if (!value) tooltip.show = false })"
-    :class="collapsed ? 'w-[76px]' : 'w-60'"
-    class="relative shrink-0 bg-white flex flex-col h-screen sticky top-0 border-r border-[#eef0f4] transition-[width] duration-200 ease-out"
+<div x-show="sidebarOpen" x-cloak x-transition.opacity
+    class="fixed inset-0 bg-[#14181a]/40 z-30 lg:hidden"
+    @click="sidebarOpen = false"></div>
+
+<aside x-data="{
+        collapsed: (localStorage.getItem('sidebar-collapsed') === 'true'),
+        isDesktop: window.matchMedia('(min-width: 1024px)').matches,
+        get effectiveCollapsed() { return this.collapsed && this.isDesktop },
+        tooltip: { show: false, text: '', top: 0, left: 0 },
+    }"
+    x-init="
+        window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => { isDesktop = e.matches });
+        $watch('collapsed', value => { localStorage.setItem('sidebar-collapsed', value); if (!value) tooltip.show = false });
+    "
+    :class="[effectiveCollapsed && 'lg:w-[76px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']"
+    class="fixed inset-y-0 left-0 z-40 lg:sticky lg:top-0 lg:z-auto shrink-0 w-60 bg-white flex flex-col h-screen border-r border-[#eef0f4] transition-[width,transform] duration-200 ease-out"
     style="overflow: visible;">
 
-    <button type="button" @click="collapsed = true" title="Collapse sidebar" x-show="!collapsed" x-cloak
+    <button type="button" @click="collapsed = true" title="Collapse sidebar" x-show="!effectiveCollapsed" x-cloak
         x-transition.opacity
-        class="absolute top-8 right-2 w-6 h-6 rounded-full bg-[#f2f3f6] border border-[#dadfe0] shadow-sm flex items-center justify-center text-[#5c6266] hover:bg-[#f0f5f4] hover:text-[#044b46] hover:border-[#044b46] transition-colors duration-100"
+        class="hidden lg:flex absolute top-8 right-2 w-6 h-6 rounded-full bg-[#f2f3f6] border border-[#dadfe0] shadow-sm items-center justify-center text-[#5c6266] hover:bg-[#f0f5f4] hover:text-[#044b46] hover:border-[#044b46] transition-colors duration-100"
         style="z-index: 30;">
         <span class="material-symbols-outlined text-[15px]">
             chevron_left
         </span>
     </button>
 
-    <div class="px-5 py-6 flex items-center overflow-hidden" :class="collapsed && 'px-0 justify-center'">
-        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto shrink-0" x-show="!collapsed"
+    <button type="button" @click="sidebarOpen = false" title="Close menu"
+        class="lg:hidden absolute top-6 right-3 w-8 h-8 rounded-full bg-[#f2f3f6] flex items-center justify-center text-[#5c6266]"
+        style="z-index: 30;">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+    </button>
+
+    <div class="px-5 py-6 flex items-center overflow-hidden" :class="effectiveCollapsed && 'lg:px-0 lg:justify-center'">
+        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto shrink-0" x-show="!effectiveCollapsed"
             x-cloak x-transition.opacity>
         <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-5 w-auto shrink-0 cursor-pointer hover:opacity-70 transition-opacity"
-            x-show="collapsed" x-cloak x-transition.opacity @click="collapsed = false" title="Expand sidebar">
+            x-show="effectiveCollapsed" x-cloak x-transition.opacity @click="collapsed = false" title="Expand sidebar">
     </div>
 
     <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden thin-autohide-scrollbar">
         @foreach ($menuGroups as $group)
             <div>
                 <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#9aa0a4] whitespace-nowrap"
-                    x-show="!collapsed" x-cloak x-transition.opacity>
+                    x-show="!effectiveCollapsed" x-cloak x-transition.opacity>
                     {{ $group['label'] }}
                 </p>
                 <div class="space-y-0.5">
                     @foreach ($group['items'] as $item)
-                        @php $isActive = Route::has($item['route']) && request()->routeIs($item['route']); @endphp
+                        @php
+                            $isActive = Route::has($item['route']) && request()->routeIs($item['route']);
+                            // 'profile.me' cuma redirect ke 'profile.show' milik user sendiri -
+                            // routeIs() nggak pernah match nama itu, jadi dicek manual biar
+                            // "Tugas Saya" tetap ke-highlight pas lagi buka profil sendiri.
+                            if ($item['route'] === 'profile.me') {
+                                $isActive = request()->routeIs('profile.show') && (int) request()->route('user')?->id === (int) $authUser->id;
+                            }
+                        @endphp
                         <a href="{{ Route::has($item['route']) ? route($item['route']) : '#' }}"
                             aria-label="{{ $item['label'] }}"
                             x-data="{ label: {{ Illuminate\Support\Js::from($item['label']) }} }"
@@ -106,10 +133,10 @@
                             @mouseleave="tooltip.show = false"
                             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-100
                                        {{ $isActive ? 'bg-[#f0f5f4] text-[#044b46]' : 'text-[#5c6266] hover:bg-[#f7f8fc] hover:text-[#14181a]' }}"
-                            :class="collapsed && 'justify-center px-0'">
+                            :class="effectiveCollapsed && 'justify-center px-0'">
                             <span
                                 class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[#044b46]' : 'text-[#9aa0a4]' }}">{{ $item['icon'] }}</span>
-                            <span class="whitespace-nowrap" x-show="!collapsed" x-cloak
+                            <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak
                                 x-transition.opacity>{{ $item['label'] }}</span>
                         </a>
                     @endforeach
@@ -126,9 +153,9 @@
                 @mouseenter="{{ $tooltipEnter }}"
                 @mouseleave="tooltip.show = false"
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium text-[#b3423e] hover:bg-[#fdf2f1] transition-colors duration-100"
-                :class="collapsed && 'justify-center px-0'">
+                :class="effectiveCollapsed && 'justify-center px-0'">
                 <span class="material-symbols-outlined text-[19px] shrink-0">logout</span>
-                <span class="whitespace-nowrap" x-show="!collapsed" x-cloak x-transition.opacity>Logout</span>
+                <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak x-transition.opacity>Logout</span>
             </button>
         </form>
     </div>

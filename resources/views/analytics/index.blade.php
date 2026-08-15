@@ -2,12 +2,12 @@
 @section('title', 'Content Analytics')
 @section('content')
 
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     {{-- Header --}}
-    <div class="flex items-start justify-between mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a] tracking-tight">Content Analytics</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a] tracking-tight">Content Analytics</h1>
             <p class="text-[#5c6266] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
         </div>
 
@@ -32,10 +32,10 @@
             ['key' => 'audience', 'label' => 'Audience', 'icon' => 'groups'],
         ];
     @endphp
-    <div class="flex items-center gap-1 mb-6 border-b border-[#eef0f4]">
+    <div class="flex items-center gap-1 mb-6 border-b border-[#eef0f4] overflow-x-auto thin-autohide-scrollbar">
         @foreach ($tabs as $t)
             <a href="{{ $tabHref($t['key']) }}"
-               class="text-sm font-medium px-4 py-2.5 border-b-2 -mb-px flex items-center gap-1.5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
+               class="text-sm font-medium px-4 py-2.5 border-b-2 -mb-px flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
                    {{ $activeTab === $t['key'] ? 'border-[#044b46] text-[#044b46]' : 'border-transparent text-[#5c6266] hover:text-[#14181a]' }}">
                 <span class="material-symbols-outlined text-[17px]">{{ $t['icon'] }}</span> {{ $t['label'] }}
             </a>
@@ -97,7 +97,7 @@
         @endphp
 
         {{-- Stat cards --}}
-        <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             @foreach ($stats as $stat)
                 <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
                     <div class="flex items-center justify-between mb-4">
@@ -124,7 +124,7 @@
                 <div class="rounded-2xl overflow-hidden border border-[#eef0f4] bg-white" x-data="{ loading: false }">
 
                     {{-- Header flat (bukan gradient) - konsisten sama treatment card lain --}}
-                    <div class="bg-[#f7f8fc] border-b border-[#eef0f4] px-6 py-5 flex items-center justify-between">
+                    <div class="bg-[#f7f8fc] border-b border-[#eef0f4] px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 rounded-xl bg-[#f0f5f4] flex items-center justify-center shrink-0">
                                 <span class="material-symbols-outlined text-[#044b46] text-[19px]">auto_awesome</span>
@@ -160,7 +160,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6">
+                    <div class="bg-white p-4 sm:p-6">
 
                     @if (session('ai_error'))
                         <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-lg p-4 text-sm text-[#b3423e] flex items-start gap-2.5">
@@ -221,9 +221,9 @@
                                 <p class="text-sm text-[#14181a] leading-relaxed">{{ $latestAiInsight->summary }}</p>
                             </div>
 
-                            <div class="grid grid-cols-3 gap-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                                <div class="col-span-2 space-y-5">
+                                <div class="lg:col-span-2 space-y-5">
                                     @if (! empty($latestAiInsight->top_pillars))
                                         <div>
                                             <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Top Content Pillars</p>
@@ -337,7 +337,7 @@
 
                             <p x-show="ideas.length === 0" class="text-sm text-[#9aa0a4] text-center py-10">Belum ada ide konten buat analisis ini.</p>
 
-                            <div x-show="ideas.length > 0" class="grid grid-cols-2 gap-3">
+                            <div x-show="ideas.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <template x-for="(idea, index) in ideas" :key="index">
                                     <button type="button" x-on:click="openIdea(index)"
                                             class="text-left border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
@@ -537,7 +537,7 @@
                         @php
                             $maxPlatform = max($platformBreakdown->max('value'), 1);
                         @endphp
-                        <div class="grid grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             @foreach ($platformBreakdown as $i => $row)
                                 <div class="border border-[#eef0f4] rounded-xl p-4 hover:border-[#044b46]/20 transition-colors">
                                     <div class="flex items-center gap-2 mb-3">
@@ -564,37 +564,39 @@
                     @if ($topContent->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten dengan data performa.</p>
                     @else
-                        <table class="w-full text-sm text-left">
-                            <thead>
-                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                    <th class="pb-2.5 font-medium">Konten</th>
-                                    <th class="pb-2.5 font-medium">Client</th>
-                                    <th class="pb-2.5 font-medium">Platform</th>
-                                    <th class="pb-2.5 font-medium">Views</th>
-                                    <th class="pb-2.5 font-medium">Engagement</th>
-                                    <th class="pb-2.5"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($topContent as $content)
-                                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
-                                        <td class="py-3 pr-3 font-medium text-[#14181a]">
-                                            {{ $content['title'] }}
-                                            <p class="text-xs text-[#9aa0a4] font-normal mt-0.5">{{ $content['type'] }}</p>
-                                        </td>
-                                        <td class="py-3 pr-3 text-[#5c6266]">{{ $content['client'] }}</td>
-                                        <td class="py-3 pr-3 text-[#5c6266]">{{ $content['platform'] }}</td>
-                                        <td class="py-3 pr-3 font-medium text-[#14181a] [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
-                                        <td class="py-3 pr-3">
-                                            <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
-                                        </td>
-                                        <td class="py-3 text-right">
-                                            <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[#044b46] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
-                                        </td>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                        <th class="pb-2.5 font-medium">Konten</th>
+                                        <th class="pb-2.5 font-medium">Client</th>
+                                        <th class="pb-2.5 font-medium">Platform</th>
+                                        <th class="pb-2.5 font-medium">Views</th>
+                                        <th class="pb-2.5 font-medium">Engagement</th>
+                                        <th class="pb-2.5"></th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($topContent as $content)
+                                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                                            <td class="py-3 pr-3 font-medium text-[#14181a] whitespace-nowrap">
+                                                {{ $content['title'] }}
+                                                <p class="text-xs text-[#9aa0a4] font-normal mt-0.5">{{ $content['type'] }}</p>
+                                            </td>
+                                            <td class="py-3 pr-3 text-[#5c6266] whitespace-nowrap">{{ $content['client'] }}</td>
+                                            <td class="py-3 pr-3 text-[#5c6266] whitespace-nowrap">{{ $content['platform'] }}</td>
+                                            <td class="py-3 pr-3 font-medium text-[#14181a] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
+                                            <td class="py-3 pr-3">
+                                                <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
+                                            </td>
+                                            <td class="py-3 text-right">
+                                                <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[#044b46] hover:underline whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
         </div>

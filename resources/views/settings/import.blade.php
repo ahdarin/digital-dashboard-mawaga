@@ -2,10 +2,10 @@
 @section('title', 'Import Performance Data')
 @section('content')
 
-<div x-data="importPage()" class="p-8 max-w-[1300px]">
+<div x-data="importPage()" class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
 
-    <div class="flex items-center justify-between mb-2">
-        <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Import Performance Data</h1>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Import Performance Data</h1>
         <a href="{{ route('settings.integrations') }}" class="text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1">
             Lihat Sync Log <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
         </a>
@@ -40,7 +40,7 @@
     <form action="{{ route('settings.import-performance') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
-        <div class="flex gap-6 items-start">
+        <div class="flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
 
             <div class="flex-1 min-w-0 space-y-5">
 
@@ -116,7 +116,7 @@
             </div>
 
             {{-- Instructions --}}
-            <div class="w-[300px] shrink-0 space-y-5">
+            <div class="w-full lg:w-[300px] shrink-0 space-y-5">
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-[#044b46] text-[18px]">info</span>

@@ -6,10 +6,10 @@
     $isOwnProfile = auth()->id() === $user->id;
 @endphp
 
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     {{-- Header --}}
-    <div class="flex items-center gap-4 mb-8">
+    <div class="flex items-center gap-4 mb-8 flex-wrap">
         <a href="{{ url()->previous() }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#9aa0a4] hover:text-[#14181a] transition-colors">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
@@ -33,7 +33,7 @@
     </div>
 
     {{-- Kartu Ringkasan --}}
-    <div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="card p-5">
             <p class="text-xs text-[#9aa0a4] mb-1">Active Tasks</p>
             <p class="font-display text-[26px] font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $activeCount }}</p>
@@ -52,7 +52,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {{-- Client yang ditangani --}}
         <div class="card p-5">
@@ -75,19 +75,19 @@
         </div>
 
         {{-- Task List --}}
-        <div class="col-span-2 card overflow-hidden flex flex-col">
+        <div class="lg:col-span-2 card overflow-hidden flex flex-col">
             <div class="p-5 pb-4 shrink-0">
                 <h2 class="font-display text-base font-semibold text-[#14181a]">Task ({{ $assignments->count() }})</h2>
             </div>
-            <div class="overflow-y-auto max-h-[420px] thin-autohide-scrollbar">
+            <div class="overflow-auto max-h-[420px] thin-autohide-scrollbar">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-[#f7f8fc] text-[#9aa0a4] text-[11px] uppercase tracking-wide sticky top-0 z-10">
                         <tr>
-                            <th class="px-6 py-3 font-medium">Content Item</th>
-                            <th class="px-4 py-3 font-medium">Client</th>
-                            <th class="px-4 py-3 font-medium">Status</th>
-                            <th class="px-4 py-3 font-medium">Deadline</th>
-                            <th class="px-4 py-3 font-medium">Delay Risk</th>
+                            <th class="px-6 py-3 font-medium whitespace-nowrap">Content Item</th>
+                            <th class="px-4 py-3 font-medium whitespace-nowrap">Client</th>
+                            <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                            <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                            <th class="px-4 py-3 font-medium whitespace-nowrap">Delay Risk</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,10 +104,10 @@
                             @endphp
                             <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
                                 onclick="window.location='{{ route('content-items.show', $item) }}'">
-                                <td class="px-6 py-3.5 font-medium text-[#14181a]">{{ $item->title }}</td>
-                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->client->name ?? '-' }}</td>
+                                <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $item->title }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                                 <td class="px-4 py-3.5">
-                                    <div class="flex items-center gap-1.5">
+                                    <div class="flex items-center gap-1.5 whitespace-nowrap">
                                         <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
                                             {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
                                         </span>
@@ -116,7 +116,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->deadline_at->format('d M Y') }}</td>
+                                <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->deadline_at->format('d M Y') }}</td>
                                 <td class="px-4 py-3.5">
                                     @if ($risk)
                                         <span class="text-xs font-semibold px-2.5 py-1 rounded-full"

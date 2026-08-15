@@ -21,9 +21,14 @@
 @endphp
 
 <header class="h-16 bg-white border-b border-[#eef0f4]">
-    <div class="h-full flex items-center justify-between px-6 gap-6">
+    <div class="h-full flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6">
 
-        <div x-data="topbarSearch()" @click.outside="open = false" class="relative flex-1 max-w-md">
+        <button type="button" @click="sidebarOpen = true" title="Buka menu"
+            class="lg:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#f7f8fc] transition-colors">
+            <span class="material-symbols-outlined text-[#5c6266] text-[22px]">menu</span>
+        </button>
+
+        <div x-data="topbarSearch()" @click.outside="open = false" class="relative flex-1 min-w-0 max-w-md">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa0a4] text-[19px]">search</span>
             <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="query.length >= 2 && (open = true)"
                    @keydown.escape="open = false"
@@ -72,7 +77,7 @@
                 </button>
 
                 <div x-show="open" @click.outside="open = false" x-transition x-cloak
-                     class="absolute right-0 mt-2 w-96 card z-50 overflow-hidden">
+                     class="absolute right-0 mt-2 w-[min(24rem,calc(100vw-2rem))] card z-50 overflow-hidden">
                     <div class="px-5 pt-5 pb-4">
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-display text-lg font-semibold text-[#14181a]">Notifications</h3>

@@ -2,7 +2,7 @@
 @section('title', 'Settings')
 @section('content')
 
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     <div class="mb-7">
         <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Settings</h1>
@@ -40,7 +40,7 @@
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">System Connections</h2>
             <p class="text-xs text-[#9aa0a4] mb-5">Status koneksi service pihak ketiga yang dipakai sistem ini.</p>
 
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 @foreach ($systemConnections as $conn)
                     <div class="border border-[#eef0f4] rounded-xl p-4">
                         <div class="flex items-center justify-between mb-3">
@@ -60,7 +60,7 @@
         </div>
 
         {{-- Import Performance + Analytics Integration (PRD 7.3.4) --}}
-        <div class="grid grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <a href="{{ route('settings.import') }}" class="card p-6 flex items-center justify-between hover:border-[#044b46]/30 transition-colors">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg bg-[#f0f5f4] flex items-center justify-center shrink-0">
@@ -89,7 +89,7 @@
         </div>
 
         {{-- Notifications + Anomaly Detection --}}
-        <div class="grid grid-cols-2 gap-5 items-start">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="font-display text-lg font-semibold text-[#14181a]">Notifications</h2>
@@ -102,10 +102,10 @@
                     @foreach (['Konten mendekati deadline', 'Ada revisi baru yang perlu direspons', 'Sinkronisasi data performa selesai/gagal'] as $label)
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-sm text-[#5c6266]">{{ $label }}</span>
-                            <button type="button" disabled title="Belum tersedia - pengaturan per jenis notifikasi (segera)"
-                                    class="w-10 h-[22px] rounded-full bg-[#044b46] relative cursor-not-allowed opacity-50 shrink-0">
-                                <span class="absolute top-0.5 right-0.5 w-[18px] h-[18px] rounded-full bg-white"></span>
-                            </button>
+                            <span title="Pengaturan on/off per jenis belum tersedia"
+                                  class="inline-flex items-center gap-1 text-[11px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded-full shrink-0">
+                                <span class="material-symbols-outlined text-[13px]">check_circle</span> Aktif
+                            </span>
                         </div>
                     @endforeach
                 </div>

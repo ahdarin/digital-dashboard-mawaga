@@ -88,7 +88,7 @@ class ContentItemController extends Controller
      */
     public function markFootageCaptured(Request $request, ContentItem $contentItem)
     {
-        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa ditandai selama status masih In Progress.');
+        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa ditandai selama status masih Sedang Dikerjakan.');
 
         $validated = $request->validate([
             'footage_captured_at' => 'nullable|date',
@@ -132,7 +132,7 @@ class ContentItemController extends Controller
      */
     public function unmarkFootageCaptured(Request $request, ContentItem $contentItem)
     {
-        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa dibatalkan selama status masih In Progress.');
+        abort_if($contentItem->workflow->current_status !== 'in_progress', 422, 'Cuma bisa dibatalkan selama status masih Sedang Dikerjakan.');
 
         if ($contentItem->footage_captured_at) {
             $contentItem->update(['footage_captured_at' => null]);

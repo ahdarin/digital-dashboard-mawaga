@@ -78,7 +78,7 @@
 @else
 
     {{-- Followers overview --}}
-    <div class="grid grid-cols-3 gap-5 mb-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         <div class="card p-6 bg-[#044b46] border-0">
             <div class="flex items-center gap-2 mb-4">
                 <span class="material-symbols-outlined text-white/70 text-[17px]">person</span>
@@ -95,7 +95,7 @@
             @endif
         </div>
 
-        <div class="col-span-2 card p-6">
+        <div class="lg:col-span-2 card p-6">
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Followers Growth</h2>
             <p class="text-xs text-[#9aa0a4] mb-5">Tren jumlah follower {{ $platform->name }}.</p>
 
@@ -107,7 +107,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
         {{-- Gender --}}
         <div class="card p-6">

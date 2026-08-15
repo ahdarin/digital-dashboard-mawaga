@@ -16,14 +16,14 @@ class WorkflowTransitions
     ];
 
     private static array $labels = [
-        'brief_ready'    => 'Brief Ready',
-        'in_progress'    => 'In Progress',
-        'waiting_review' => 'Waiting Review',
-        'revision'       => 'Revision',
-        'approved'       => 'Approved',
-        'scheduled'      => 'Scheduled',
-        'uploaded'       => 'Uploaded',
-        'cancelled'      => 'Cancelled',
+        'brief_ready'    => 'Siap Dikerjakan',
+        'in_progress'    => 'Sedang Dikerjakan',
+        'waiting_review' => 'Menunggu Persetujuan',
+        'revision'       => 'Perlu Revisi',
+        'approved'       => 'Disetujui',
+        'scheduled'      => 'Terjadwal Tayang',
+        'uploaded'       => 'Sudah Tayang',
+        'cancelled'      => 'Dibatalkan',
     ];
 
     public static function isValid(string $from, string $to): bool

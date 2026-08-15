@@ -1,9 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Team Performance')
 @section('content')
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="flex items-center justify-between mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
             <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Team Performance</h1>
             <p class="text-sm text-[#9aa0a4] mt-1">Beban kerja dan produktivitas tim internal</p>
@@ -22,7 +22,7 @@
     </div>
 
     {{-- Kartu Ringkasan --}}
-    <div class="grid grid-cols-3 gap-5 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
         <div class="card p-6">
             <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center mb-3">
                 <span class="material-symbols-outlined text-[#044b46] text-[18px]">groups</span>
@@ -70,7 +70,7 @@
                 @endif
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 @foreach (['high' => 'High', 'medium' => 'Medium', 'low' => 'Low'] as $level => $label)
                     @php $b = $riskAccuracy['breakdown'][$level]; @endphp
                     <div class="bg-[#f7f8fc] rounded-lg p-3">
@@ -89,7 +89,7 @@
     @if ($overloadedMembers->isNotEmpty() || $overdueMembers->isNotEmpty())
     <div class="mb-5">
         <h3 class="text-sm font-semibold text-[#14181a] mb-3">Risk Indicators</h3>
-        <div class="grid grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             @if ($overloadedMembers->isNotEmpty())
                 <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-xl p-4 flex items-start gap-3">
                     <span class="material-symbols-outlined text-[#b3423e] text-[19px]">warning</span>
@@ -121,15 +121,16 @@
     <div>
         <h3 class="text-sm font-semibold text-[#14181a] mb-3">Team Members</h3>
         <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium">Member</th>
-                        <th class="px-4 py-3 font-medium">Active Tasks</th>
-                        <th class="px-4 py-3 font-medium">Overdue</th>
-                        <th class="px-4 py-3 font-medium">Completed This Month</th>
-                        <th class="px-4 py-3 font-medium">Revision Count</th>
-                        <th class="px-4 py-3 font-medium">Avg. Delay Risk</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Member</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Active Tasks</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Overdue</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Completed This Month</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Revision Count</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Avg. Delay Risk</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -151,18 +152,18 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5 whitespace-nowrap">
                                 <span class="flex items-center gap-1.5 text-[#5c6266]">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $m['is_overloaded'] ? 'bg-[#b3423e]' : 'bg-[#044b46]' }}"></span>
                                     {{ $m['active_count'] }} Active Tasks
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5 {{ $m['overdue_count'] > 0 ? 'text-[#b3423e] font-semibold' : 'text-[#9aa0a4]' }}">
+                            <td class="px-4 py-3.5 whitespace-nowrap {{ $m['overdue_count'] > 0 ? 'text-[#b3423e] font-semibold' : 'text-[#9aa0a4]' }}">
                                 {{ $m['overdue_count'] }}
                             </td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $m['done_count'] }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $m['revision_count'] }}</td>
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $m['done_count'] }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $m['revision_count'] }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
                                 @if ($m['avg_risk_score'] !== null)
                                     <span class="text-xs font-semibold px-2 py-0.5 rounded-full
                                         {{ $m['avg_risk_score'] >= 70 ? 'bg-[#fdf2f1] text-[#b3423e]' : ($m['avg_risk_score'] >= 40 ? 'bg-[#fdf6ec] text-[#8a6423]' : 'bg-[#f0f5f4] text-[#0f7a5f]') }}">
@@ -176,6 +177,7 @@
                     @endforeach
                 </tbody>
             </table>
+          </div>
         </div>
     </div>
 </div>

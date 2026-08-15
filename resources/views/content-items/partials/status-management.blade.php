@@ -23,7 +23,7 @@
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Kerjakan Konten',
-                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke In Progress?',
+                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Sedang Dikerjakan?',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
                 fields: { to_status: 'in_progress' },
@@ -37,7 +37,7 @@
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Konten Telah Selesai',
-                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Waiting Review?',
+                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan?',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
                 fields: { to_status: 'waiting_review' },

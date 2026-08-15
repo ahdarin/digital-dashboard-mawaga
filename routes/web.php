@@ -114,8 +114,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
 
-        Route::get('/user-management/{user}/clients', [UserClientAssignmentController::class, 'edit'])
-            ->name('user-client-assignment.edit');
         Route::put('/user-management/{user}/clients', [UserClientAssignmentController::class, 'update'])
             ->name('user-client-assignment.update');
     });
@@ -137,7 +135,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::middleware('permission:analytics,view')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
-        Route::get('/analytics/table', [AnalyticsController::class, 'table'])->name('analytics.table');
         Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
         Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
         Route::get('/analytics/ai-strategy/history', [AnalyticsController::class, 'aiStrategyHistory'])->name('analytics.ai-strategy.history');
@@ -152,7 +149,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/ideas/{index}/regenerate', [AnalyticsController::class, 'regenerateContentIdea'])
             ->name('analytics.ai-strategy.ideas.regenerate');
 
-        Route::get('/audience', [AudienceController::class, 'index'])->name('audience');
         Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
     });
 
@@ -173,7 +169,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
 
     Route::middleware('permission:content_plan,view')->group(function () {
         Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');
-        Route::get('/content-plan/calendar', [ContentPlanController::class, 'calendar'])->name('content-plan.calendar');
         Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
         Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
         Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');

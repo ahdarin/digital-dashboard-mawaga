@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     <div class="mb-7">
         <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Report Generator</h1>
@@ -19,7 +19,7 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-2 gap-5 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
 
         {{-- Laporan Progres Operasional --}}
         <div class="card p-6">
@@ -117,7 +117,7 @@
 
     {{-- Riwayat --}}
     <div class="card overflow-hidden">
-        <div class="p-6 pb-0 flex items-center justify-between">
+        <div class="p-6 pb-0 flex items-center justify-between flex-wrap gap-2">
             <h3 class="font-display text-lg font-semibold text-[#14181a]">Report History</h3>
             <span class="text-xs text-[#9aa0a4]">{{ $reports->count() }} laporan</span>
         </div>
@@ -129,38 +129,40 @@
                     <p class="text-sm text-[#9aa0a4]">Belum ada laporan dibuat.</p>
                 </div>
             @else
-                <table class="w-full text-sm text-left">
-                    <thead>
-                        <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                            <th class="pb-3 pr-4 font-medium">Type</th>
-                            <th class="pb-3 pr-4 font-medium">Client</th>
-                            <th class="pb-3 pr-4 font-medium">Period</th>
-                            <th class="pb-3 pr-4 font-medium">Created</th>
-                            <th class="pb-3 pr-4"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($reports as $report)
-                            <tr class="border-t border-[#f2f3f6]">
-                                <td class="py-3 pr-4">
-                                    @if ($report->report_type === 'performance_summary')
-                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Performance</span>
-                                    @else
-                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#eef2fb] text-[#3452a8]">Progress</span>
-                                    @endif
-                                </td>
-                                <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $report->client->name ?? 'Semua Client' }}</td>
-                                <td class="py-3 pr-4 text-[#5c6266]">{{ $report->period_start->format('d M') }} - {{ $report->period_end->format('d M Y') }}</td>
-                                <td class="py-3 pr-4 text-[#9aa0a4]">{{ $report->created_at->diffForHumans() }}</td>
-                                <td class="py-3 pr-4 text-right">
-                                    <a href="{{ Storage::url($report->file_path) }}" target="_blank" class="inline-flex items-center gap-1 text-[#044b46] text-xs font-medium hover:underline">
-                                        <span class="material-symbols-outlined text-[13px]">download</span> Unduh
-                                    </a>
-                                </td>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead>
+                            <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                <th class="pb-3 pr-4 font-medium whitespace-nowrap">Type</th>
+                                <th class="pb-3 pr-4 font-medium whitespace-nowrap">Client</th>
+                                <th class="pb-3 pr-4 font-medium whitespace-nowrap">Period</th>
+                                <th class="pb-3 pr-4 font-medium whitespace-nowrap">Created</th>
+                                <th class="pb-3 pr-4"></th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($reports as $report)
+                                <tr class="border-t border-[#f2f3f6]">
+                                    <td class="py-3 pr-4 whitespace-nowrap">
+                                        @if ($report->report_type === 'performance_summary')
+                                            <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Performance</span>
+                                        @else
+                                            <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#eef2fb] text-[#3452a8]">Progress</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $report->client->name ?? 'Semua Client' }}</td>
+                                    <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $report->period_start->format('d M') }} - {{ $report->period_end->format('d M Y') }}</td>
+                                    <td class="py-3 pr-4 text-[#9aa0a4] whitespace-nowrap">{{ $report->created_at->diffForHumans() }}</td>
+                                    <td class="py-3 pr-4 text-right whitespace-nowrap">
+                                        <a href="{{ Storage::url($report->file_path) }}" target="_blank" class="inline-flex items-center gap-1 text-[#044b46] text-xs font-medium hover:underline">
+                                            <span class="material-symbols-outlined text-[13px]">download</span> Unduh
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </div>
     </div>

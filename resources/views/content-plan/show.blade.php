@@ -1,9 +1,9 @@
 @extends('layouts.app')
 @section('title', $contentPlan->client->name . ' - Content Plan')
 @section('content')
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div class="flex items-start gap-3">
             <a href="{{ route('content-plan.index') }}" title="Kembali ke daftar Content Plan"
                class="w-9 h-9 flex items-center justify-center rounded-lg border border-[#eef0f4] text-[#5c6266] shrink-0 mt-0.5">
@@ -71,7 +71,7 @@
         <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-5">{{ session('status') }}</div>
     @endif
 
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 class="font-display text-lg font-semibold text-[#14181a]">Content Items</h2>
     </div>
 
@@ -79,25 +79,26 @@
         @include('content-plan.partials.calendar-grid')
     @else
         <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium">Item Details</th>
-                        <th class="px-4 py-3 font-medium">Category</th>
-                        <th class="px-4 py-3 font-medium">Platform</th>
-                        <th class="px-4 py-3 font-medium">Timeline</th>
-                        <th class="px-4 py-3 font-medium">Assignee</th>
-                        <th class="px-6 py-3 font-medium">Status</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Item Details</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Category</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Timeline</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Assignee</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($items as $item)
                         <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors" onclick="window.location='{{ route('content-items.show', $item) }}'">
-                            <td class="px-6 py-3.5">
+                            <td class="px-6 py-3.5 whitespace-nowrap">
                                 <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
                                 <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
                             </td>
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5 whitespace-nowrap">
                                 @php
                                     $typeColor = match ($item->contentType->name ?? null) {
                                         'Video' => '#3452a8',
@@ -109,9 +110,9 @@
                                     {{ $item->contentType->name ?? '-' }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->platform->name ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->deadline_at->format('d M Y') }}</td>
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->deadline_at->format('d M Y') }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
                                 @php $pic = $item->assignments->first()?->user; @endphp
                                 @if ($pic)
                                     <span class="text-xs text-[#5c6266]">{{ $pic->name }}</span>
@@ -120,7 +121,7 @@
                                 @endif
                             </td>
                             <td class="px-6 py-3.5">
-                                <span class="text-xs px-2 py-1 rounded-full {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
                                     {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                                 </span>
                             </td>
@@ -130,6 +131,7 @@
                     @endforelse
                 </tbody>
             </table>
+          </div>
         </div>
     @endif
 </div>

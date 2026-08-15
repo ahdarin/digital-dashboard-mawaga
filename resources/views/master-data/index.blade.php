@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Master Data Settings')
 @section('content')
-<div x-data="{ showAdd: false }" class="p-8 max-w-[1300px]">
+<div x-data="{ showAdd: false }" class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
 
     <div class="mb-6">
         <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Master Data Settings</h1>
@@ -24,16 +24,16 @@
             'client-category' => 'Client Category',
         ];
     @endphp
-    <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 w-fit">
+    <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 max-w-full overflow-x-auto thin-autohide-scrollbar">
         @foreach ($tabs as $key => $label)
             <a href="{{ route('master-data.index', ['tab' => $key]) }}"
-               class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === $key ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+               class="text-sm font-medium px-4 py-2 rounded-md transition-colors shrink-0 whitespace-nowrap {{ $tab === $key ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
                 {{ $label }}
             </a>
         @endforeach
     </div>
 
-    <div class="flex items-center gap-3 mb-5">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
         <form method="GET" class="flex-1">
             <input type="hidden" name="tab" value="{{ $tab }}">
             <div class="relative max-w-sm">
@@ -49,7 +49,7 @@
     </div>
 
     <div x-show="showAdd" x-cloak class="card p-5 mb-5">
-        <form action="{{ route('master-data.store', $tab) }}" method="POST" class="flex items-center gap-3">
+        <form action="{{ route('master-data.store', $tab) }}" method="POST" class="flex flex-col sm:flex-row sm:items-center gap-3">
             @csrf
             <input type="text" name="name" required placeholder="Nama {{ $tabs[$tab] }} baru..."
                    class="flex-1 border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
@@ -58,17 +58,18 @@
     </div>
 
     <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-[#f7f8fc]">
                 <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium">Name</th>
-                    <th class="px-6 py-3 font-medium text-right">Action</th>
+                    <th class="px-6 py-3 font-medium whitespace-nowrap">Name</th>
+                    <th class="px-6 py-3 font-medium text-right whitespace-nowrap">Action</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($items as $item)
                     <tr class="border-t border-[#f2f3f6]">
-                        <td class="px-6 py-3.5 font-medium text-[#14181a]">{{ $item->name }}</td>
+                        <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $item->name }}</td>
                         <td class="px-6 py-3.5 text-right">
                             <form action="{{ route('master-data.destroy', [$tab, $item->id]) }}" method="POST" class="inline"
                                   onsubmit="return confirm('Yakin hapus {{ $item->name }}?')">
@@ -84,6 +85,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
     </div>
 </div>
 @endsection

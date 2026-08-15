@@ -2,9 +2,9 @@
 @section('title', $contentItem->title . ' — Performance')
 @section('content')
 
-<div class="p-8 max-w-6xl">
+<div class="p-4 sm:p-6 lg:p-8 max-w-6xl">
 
-    <div class="flex items-center gap-2 text-xs text-[#9aa0a4] mb-3">
+    <div class="flex flex-wrap items-center gap-2 text-xs text-[#9aa0a4] mb-3">
         <a href="{{ route('analytics') }}" class="hover:text-[#044b46] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Analytics</a>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
         <span>{{ $contentItem->client->name ?? '-' }}</span>
@@ -12,7 +12,7 @@
         <span class="text-[#5c6266] font-medium">{{ $contentItem->title }}</span>
     </div>
 
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div class="flex items-center gap-3">
             <a href="{{ route('analytics') }}" class="text-[#9aa0a4] hover:text-[#5c6266] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
                 <span class="material-symbols-outlined">arrow_back</span>
@@ -63,7 +63,7 @@
 
         <div class="lg:col-span-2 space-y-5">
 
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
                     <p class="text-xs text-[#9aa0a4] mb-1.5">Total Views</p>
                     <p class="font-display text-xl font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ number_format($totalViews) }}</p>
@@ -79,7 +79,7 @@
             </div>
 
             @if ($hasVideoMetrics)
-                <div class="grid grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div class="card p-5 bg-[#eef2fb] border-0">
                         <p class="text-xs text-[#3452a8]/70 mb-1.5">Avg. Watch Time</p>
                         <p class="text-lg font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $avgWatchTime !== null ? $avgWatchTime.'s' : '-' }}</p>
@@ -113,28 +113,30 @@
                 @if ($metrics->isEmpty())
                     <p class="text-xs text-[#9aa0a4] italic">Belum ada data metrik yang diimpor.</p>
                 @else
-                    <table class="w-full text-sm text-left">
-                        <thead>
-                            <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                <th class="pb-2 font-medium">Tanggal</th>
-                                <th class="pb-2 font-medium">Platform</th>
-                                <th class="pb-2 font-medium">Views</th>
-                                <th class="pb-2 font-medium">Engagement</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($metrics as $metric)
-                                <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
-                                    <td class="py-2.5 text-[#5c6266] [font-variant-numeric:tabular-nums]">{{ \Illuminate\Support\Carbon::parse($metric->metric_date)->translatedFormat('d M Y') }}</td>
-                                    <td class="py-2.5 text-[#5c6266]">{{ $metric->platform->name ?? '-' }}</td>
-                                    <td class="py-2.5 font-medium text-[#14181a] [font-variant-numeric:tabular-nums]">{{ number_format($metric->views) }}</td>
-                                    <td class="py-2.5">
-                                        <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] [font-variant-numeric:tabular-nums]">{{ $metric->engagement_rate }}%</span>
-                                    </td>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead>
+                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                    <th class="pb-2 font-medium">Tanggal</th>
+                                    <th class="pb-2 font-medium">Platform</th>
+                                    <th class="pb-2 font-medium">Views</th>
+                                    <th class="pb-2 font-medium">Engagement</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach ($metrics as $metric)
+                                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                                        <td class="py-2.5 text-[#5c6266] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ \Illuminate\Support\Carbon::parse($metric->metric_date)->translatedFormat('d M Y') }}</td>
+                                        <td class="py-2.5 text-[#5c6266] whitespace-nowrap">{{ $metric->platform->name ?? '-' }}</td>
+                                        <td class="py-2.5 font-medium text-[#14181a] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ number_format($metric->views) }}</td>
+                                        <td class="py-2.5">
+                                            <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $metric->engagement_rate }}%</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
             </div>
         </div>

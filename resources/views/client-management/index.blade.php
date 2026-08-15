@@ -2,11 +2,11 @@
 @section('title', 'Client Management')
 @section('content')
 
-<div class="p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="flex items-center justify-between mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Client Management</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Client Management</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola portofolio client dan paket langganan mereka.</p>
         </div>
 
@@ -22,7 +22,7 @@
     @endif
 
     {{-- Search & Filter --}}
-    <form method="GET" action="{{ route('client-management.index') }}" class="card p-4 mb-5 flex items-center gap-3">
+    <form method="GET" action="{{ route('client-management.index') }}" class="card p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
         <div class="flex-1 relative">
             <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#c3c7cb] text-[19px]">search</span>
             <input type="text" name="search" value="{{ $search }}" placeholder="Cari client, email, atau paket..."
@@ -40,16 +40,17 @@
 
     {{-- Table --}}
     <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead>
                 <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Name</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Plan</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Aset</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Owner Status</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Actions</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Client Name</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Email</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Plan</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Aset</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Owner Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right whitespace-nowrap">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,8 +71,8 @@
                                 </div>
                             </a>
                         </td>
-                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner->email ?? '-' }}</td>
-                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client->owner->email ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
                         <td class="px-6 py-3.5">
                             @if ($client->asset_link)
                                 <a href="{{ $client->asset_link }}" target="_blank" rel="noopener"
@@ -83,14 +84,14 @@
                             @endif
                         </td>
                         <td class="px-6 py-3.5">
-                            <span class="text-xs font-medium px-2.5 py-1 rounded-full
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap
                                 {{ $client->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                                 {{ $client->status === 'past_due' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
                                 {{ $client->status === 'paused' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
                                 {{ $client->status === 'past_due' ? 'Past Due' : ucfirst($client->status) }}
                             </span>
                         </td>
-                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $client->owner ? ucfirst($client->owner->status) : 'Belum ada owner' }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client->owner ? ucfirst($client->owner->status) : 'Belum ada owner' }}</td>
                         <td class="px-6 py-3.5">
                             <div class="flex items-center justify-end gap-1">
                                 <a href="{{ route('client-management.show', $client) }}"
@@ -119,10 +120,11 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
     </div>
 
     @if ($clients->total() > 0)
-        <div class="flex items-center justify-between mt-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-5">
             <p class="text-sm text-[#9aa0a4]">Showing {{ $clients->firstItem() }} to {{ $clients->lastItem() }} of {{ $clients->total() }} clients</p>
             <div class="flex items-center gap-2">{{ $clients->onEachSide(1)->links() }}</div>
         </div>

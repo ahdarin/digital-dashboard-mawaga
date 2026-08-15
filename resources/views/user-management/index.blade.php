@@ -2,11 +2,11 @@
 @section('title', 'User Management')
 @section('content')
 
-<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null }" class="p-8 max-w-[1400px]">
+<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
-    <div class="flex items-center justify-between mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">User Management</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">User Management</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola akun tim internal 523 Studio.</p>
         </div>
 
@@ -22,15 +22,16 @@
     @endif
 
     <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead>
                 <tr class="border-b border-[#f2f3f6] bg-[#f7f8fc]">
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Name</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Email</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Role</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Client Handled</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide">Status</th>
-                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right">Action</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Name</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Email</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Role</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Client Handled</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide whitespace-nowrap">Status</th>
+                    <th class="px-6 py-3.5 font-medium text-[#9aa0a4] text-[11px] uppercase tracking-wide text-right whitespace-nowrap">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,8 +49,8 @@
                                 <p class="font-medium text-[#14181a]">{{ $user->name }}</p>
                             </div>
                         </td>
-                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $user->email }}</td>
-                        <td class="px-6 py-3.5 text-[#5c6266]">{{ $user->role->name ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $user->email }}</td>
+                        <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $user->role->name ?? '-' }}</td>
                         <td class="px-6 py-3.5">
                             @if ($user->assignedClients->isEmpty())
                                 <span class="text-xs text-[#c3c7cb] italic">Belum ada client</span>
@@ -62,7 +63,7 @@
                             @endif
                         </td>
                         <td class="px-6 py-3.5">
-                            <span class="text-xs font-medium px-2.5 py-1 rounded-full
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap
                                 {{ $user->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                                 {{ $user->status === 'invited' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
                                 {{ $user->status === 'inactive' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
@@ -225,6 +226,7 @@
                 @endforelse
             </tbody>
         </table>
+      </div>
     </div>
 </div>
 @endsection

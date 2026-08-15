@@ -59,66 +59,68 @@
             $sortIcon = fn ($col) => $sort === $col ? ($dir === 'desc' ? 'arrow_downward' : 'arrow_upward') : 'unfold_more';
         @endphp
 
-        <table class="w-full text-sm text-left">
-            <thead class="bg-[#f7f8fc]">
-                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium">
-                        <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
-                            Content <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
-                        </a>
-                    </th>
-                    <th class="px-4 py-3 font-medium">Platform</th>
-                    <th class="px-4 py-3 font-medium">Type</th>
-                    <th class="px-4 py-3 font-medium">
-                        <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
-                            Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
-                        </a>
-                    </th>
-                    <th class="px-4 py-3 font-medium">
-                        <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
-                            Engagement <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('avg_engagement') }}</span>
-                        </a>
-                    </th>
-                    <th class="px-4 py-3 font-medium">
-                        <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
-                            Deadline <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('deadline_at') }}</span>
-                        </a>
-                    </th>
-                    <th class="px-4 py-3 font-medium">Status</th>
-                    <th class="px-6 py-3"></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($items as $item)
-                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
-                        <td class="px-6 py-3.5 font-medium text-[#14181a] max-w-[240px] truncate">{{ $item->title }}</td>
-                        <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->platform->name ?? '-' }}</td>
-                        <td class="px-4 py-3.5 text-[#5c6266]">{{ $item->contentType->name ?? '-' }}</td>
-                        <td class="px-4 py-3.5 font-medium text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
-                        <td class="px-4 py-3.5">
-                            @if ($item->avg_engagement !== null)
-                                <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] [font-variant-numeric:tabular-nums]">{{ round($item->avg_engagement, 2) }}%</span>
-                            @else
-                                <span class="text-[#c3c7cb]">-</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3.5 text-[#5c6266] [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') }}</td>
-                        <td class="px-4 py-3.5">
-                            @if ($item->is_posted)
-                                <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#044b46] text-white">Published</span>
-                            @elseif ($item->workflow?->is_overdue)
-                                <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf2f1] text-[#b3423e]">Overdue</span>
-                            @else
-                                <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf6ec] text-[#b8873a]">On Progress</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-3.5 text-right">
-                            <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[#044b46] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
-                        </td>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-[#f7f8fc]">
+                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">
+                            <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
+                                Content <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Type</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">
+                            <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
+                                Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">
+                            <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
+                                Engagement <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('avg_engagement') }}</span>
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">
+                            <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 hover:text-[#044b46] transition-colors">
+                                Deadline <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('deadline_at') }}</span>
+                            </a>
+                        </th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                        <th class="px-6 py-3"></th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach ($items as $item)
+                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                            <td class="px-6 py-3.5 font-medium text-[#14181a] max-w-[240px] truncate">{{ $item->title }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 font-medium text-[#14181a] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
+                                @if ($item->avg_engagement !== null)
+                                    <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] [font-variant-numeric:tabular-nums]">{{ round($item->avg_engagement, 2) }}%</span>
+                                @else
+                                    <span class="text-[#c3c7cb]">-</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap">
+                                @if ($item->is_posted)
+                                    <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#044b46] text-white">Published</span>
+                                @elseif ($item->workflow?->is_overdue)
+                                    <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf2f1] text-[#b3423e]">Overdue</span>
+                                @else
+                                    <span class="text-[10px] font-medium px-2 py-1 rounded-full bg-[#fdf6ec] text-[#b8873a]">On Progress</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-3.5 text-right whitespace-nowrap">
+                                <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[#044b46] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
 
         <div class="px-6 py-4 border-t border-[#f2f3f6]">
             {{ $items->links() }}

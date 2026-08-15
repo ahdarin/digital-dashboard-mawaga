@@ -2,7 +2,7 @@
 @section('title', 'Dashboard')
 @section('content')
 
-    <div class="p-8 max-w-[1400px]">
+    <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
         {{-- Welcome banner: sengaja dipisah dari "Overview" di bawahnya - satu-satunya
         elemen non-data di halaman ini, biar dashboard nggak kaku angka melulu. --}}
@@ -79,7 +79,7 @@
             // buru-buru kelewatan sebelum sempat kebaca.
             $marqueeDuration = max(9, min(20, (int) round(mb_strlen($dailyReminder['text']) / 6)));
         @endphp
-        <div class="mb-6 rounded-2xl bg-[#044b46] px-7 py-5 flex items-center justify-between gap-5 flex-wrap">
+        <div class="mb-6 rounded-2xl bg-[#044b46] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
             <div>
                 <p class="text-white/70 text-sm">{{ $greeting }}, {{ auth()->user()->name ?? 'Tim 523' }}</p>
                 <h2 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h2>
@@ -95,14 +95,14 @@
             </div>
         </div>
 
-        <div class="flex items-start justify-between mb-7">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-7">
             <div>
-                <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Overview</h1>
+                <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Overview</h1>
                 <p class="text-[#5c6266] text-sm mt-1">Ringkasan aktivitas tim dan klien hari ini.</p>
             </div>
 
             <div x-data="{ now: new Date() }" x-init="setInterval(() => now = new Date(), 1000)"
-                class="text-right shrink-0">
+                class="sm:text-right shrink-0">
                 <p class="text-sm text-[#5c6266]"
                     x-text="now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })">
                 </p>
@@ -111,7 +111,7 @@
             </div>
         </div>
 
-        <div class="flex gap-5 items-start">
+        <div class="flex flex-col lg:flex-row gap-5 items-stretch lg:items-start">
 
             <div class="flex-1 min-w-0 space-y-5">
 
@@ -124,7 +124,7 @@
                         ['chip' => 'bg-[#fdf2f1]', 'icon' => 'text-[#b3423e]'],
                     ];
                 @endphp
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     @foreach ($stats as $stat)
                         @php $c = $statStyles[$loop->index % 4]; @endphp
                         <div class="card p-5">
@@ -205,32 +205,34 @@
                     @if ($recentItems->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten yang tercatat.</p>
                     @else
-                        <table class="w-full text-sm text-left">
-                            <thead>
-                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                    <th class="pb-2.5 font-medium">Title</th>
-                                    <th class="pb-2.5 font-medium">Client</th>
-                                    <th class="pb-2.5 font-medium">Type</th>
-                                    <th class="pb-2.5 font-medium">Deadline</th>
-                                    <th class="pb-2.5 font-medium">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($recentItems as $item)
-                                    <tr class="border-t border-[#f2f3f6]">
-                                        <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $item['title'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $item['client'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $item['type'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">
-                                            {{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</td>
-                                        <td class="py-3 pr-4">
-                                            <span
-                                                class="text-xs px-2 py-1 rounded-full {{ $item['is_overdue'] ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">{{ $item['status'] }}</span>
-                                        </td>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                        <th class="pb-2.5 font-medium">Title</th>
+                                        <th class="pb-2.5 font-medium">Client</th>
+                                        <th class="pb-2.5 font-medium">Type</th>
+                                        <th class="pb-2.5 font-medium">Deadline</th>
+                                        <th class="pb-2.5 font-medium">Status</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($recentItems as $item)
+                                        <tr class="border-t border-[#f2f3f6]">
+                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['type'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">
+                                                {{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</td>
+                                            <td class="py-3 pr-4">
+                                                <span
+                                                    class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item['is_overdue'] ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">{{ $item['status'] }}</span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
 
@@ -246,28 +248,30 @@
                     @if ($topContent->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa konten bulan ini.</p>
                     @else
-                        <table class="w-full text-sm text-left">
-                            <thead>
-                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                    <th class="pb-2.5 font-medium">Title</th>
-                                    <th class="pb-2.5 font-medium">Client</th>
-                                    <th class="pb-2.5 font-medium">Platform</th>
-                                    <th class="pb-2.5 font-medium">Views</th>
-                                    <th class="pb-2.5 font-medium">Engagement</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($topContent as $item)
-                                    <tr class="border-t border-[#f2f3f6]">
-                                        <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $item['title'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $item['client'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $item['platform'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ number_format($item['views']) }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $item['engagement_rate'] }}%</td>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                        <th class="pb-2.5 font-medium">Title</th>
+                                        <th class="pb-2.5 font-medium">Client</th>
+                                        <th class="pb-2.5 font-medium">Platform</th>
+                                        <th class="pb-2.5 font-medium">Views</th>
+                                        <th class="pb-2.5 font-medium">Engagement</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($topContent as $item)
+                                        <tr class="border-t border-[#f2f3f6]">
+                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['platform'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ number_format($item['views']) }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['engagement_rate'] }}%</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
 
@@ -283,33 +287,35 @@
                     @if ($topClients->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa client bulan ini.</p>
                     @else
-                        <table class="w-full text-sm text-left">
-                            <thead>
-                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                    <th class="pb-2.5 font-medium">Client</th>
-                                    <th class="pb-2.5 font-medium">Views</th>
-                                    <th class="pb-2.5 font-medium">Engagement</th>
-                                    <th class="pb-2.5 font-medium">Jumlah Konten</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($topClients as $client)
-                                    <tr class="border-t border-[#f2f3f6]">
-                                        <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $client['name'] }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ number_format($client['views']) }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $client['engagement_rate'] }}%</td>
-                                        <td class="py-3 pr-4 text-[#5c6266]">{{ $client['content_count'] }}</td>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead>
+                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                        <th class="pb-2.5 font-medium">Client</th>
+                                        <th class="pb-2.5 font-medium">Views</th>
+                                        <th class="pb-2.5 font-medium">Engagement</th>
+                                        <th class="pb-2.5 font-medium">Jumlah Konten</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($topClients as $client)
+                                        <tr class="border-t border-[#f2f3f6]">
+                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $client['name'] }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ number_format($client['views']) }}</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $client['engagement_rate'] }}%</td>
+                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $client['content_count'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 </div>
 
             </div>
 
             {{-- Kolom kanan --}}
-            <div class="w-[320px] shrink-0 flex flex-col gap-5">
+            <div class="w-full lg:w-[320px] shrink-0 flex flex-col gap-5">
 
                 <div class="card p-6 flex flex-col">
                     <div class="flex items-center justify-between mb-4">

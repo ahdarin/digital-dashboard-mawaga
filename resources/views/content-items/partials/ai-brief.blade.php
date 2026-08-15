@@ -117,8 +117,8 @@
                     @csrf
                     @method('PATCH')
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="col-span-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2">
                             <label class="block text-[10px] font-semibold text-[#9aa0a4] uppercase mb-1.5">Hook / Judul Brief</label>
                             <input type="text" name="hook_title" value="{{ $contentBrief->hook_title }}" required
                                 class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
@@ -202,7 +202,7 @@
         <h3 class="font-display text-lg font-semibold text-[#14181a] mb-4">{{ $contentBrief->hook_title }}</h3>
 
         {{-- Jadwal & platform - ringkas, 3 kolom sejajar --}}
-        <div class="grid grid-cols-3 gap-4 pb-4 mb-4 border-b border-[#f2f3f6]">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 mb-4 border-b border-[#f2f3f6]">
             <div>
                 <p class="flex items-center gap-1 text-[10px] text-[#9aa0a4] uppercase font-semibold mb-1">
                     <span class="material-symbols-outlined text-[13px]">event</span> Start
@@ -265,7 +265,7 @@
         </div>
 
         {{-- Kebutuhan produksi --}}
-        <div class="grid grid-cols-2 gap-4 pb-5 mb-5 border-b border-[#f2f3f6]">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-5 mb-5 border-b border-[#f2f3f6]">
             <div>
                 <p class="flex items-center gap-1 text-[10px] text-[#9aa0a4] uppercase font-semibold mb-1">
                     <span class="material-symbols-outlined text-[13px]">groups</span> Talent
@@ -288,7 +288,7 @@
             </div>
             <p class="text-xs text-[#5c6266] mb-4">Dipakai modul Delay Risk Insight untuk menilai risiko keterlambatan.</p>
 
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 @if ($contentBrief->estimated_duration_seconds)
                     <div><span class="text-[#9aa0a4]">Durasi:</span> {{ $contentBrief->estimated_duration_seconds }} detik</div>
                 @endif

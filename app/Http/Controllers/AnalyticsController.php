@@ -242,18 +242,6 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * KF3xx — Performance Table
-     * URL lama /analytics/table - sekarang cuma alias, kontennya udah
-     * gabung jadi tab di halaman Analytics utama (lihat index() +
-     * buildTableTabData()) biar client & filter yang lagi dipilih nggak
-     * ke-reset pas pindah dari Analytics ke sini.
-     */
-    public function table(Request $request)
-    {
-        return redirect()->route('analytics', array_merge(['tab' => 'table'], $request->query()));
-    }
-
-    /**
      * Data buat tab "Performance Table" di halaman Analytics - list semua
      * content item milik 1 client, lengkap dengan agregat metrik-nya
      * (total views, avg engagement), sortable & filterable.

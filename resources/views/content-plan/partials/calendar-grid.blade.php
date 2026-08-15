@@ -72,7 +72,7 @@
                 </button>
 
                 <div x-show="open" x-cloak x-on:click.outside="open = false" x-transition
-                    class="absolute z-20 mt-2 w-72 bg-white rounded-xl border border-[#eef0f4] shadow-lg p-4">
+                    class="absolute z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-xl border border-[#eef0f4] shadow-lg p-4">
 
                     {{-- Dropdown bulan & tahun — ganti langsung, tanpa navigasi panah --}}
                     <form method="GET" class="flex items-center gap-2 mb-3">
@@ -161,6 +161,8 @@
     </div>
 
     <div class="card p-5">
+      <div class="overflow-x-auto">
+        <div class="min-w-[700px]">
         <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#9aa0a4] uppercase mb-2">
             @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $d)
                 <div>{{ $d }}</div>
@@ -251,5 +253,7 @@
                 </div>
             @endfor
         </div>
+        </div>
+      </div>
     </div>
 </div>

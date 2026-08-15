@@ -7,9 +7,9 @@
         $statusLabels = \App\Support\WorkflowTransitions::labels();
     @endphp
 
-    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-8 max-w-6xl">
+    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-4 sm:p-6 lg:p-8 max-w-6xl">
 
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div class="flex items-center gap-3">
                 <a href="{{ url()->previous() }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined">arrow_back</span>
@@ -51,7 +51,7 @@
                     <h3 class="text-sm font-semibold text-[#14181a] mb-3">Initial Brief</h3>
                     <p class="text-sm text-[#5c6266] whitespace-pre-line mb-4">
                         {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
-                    <div class="grid grid-cols-2 gap-4 text-xs">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div>
                             <p class="text-[#9aa0a4] uppercase font-medium mb-1">Platform</p>
                             <p class="text-[#5c6266]">{{ $contentItem->platform->name ?? '-' }}</p>
@@ -118,7 +118,7 @@
                                     <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
                                         @click="confirmAction = {
                                             title: 'Kerjakan Revisi',
-                                            message: 'Mulai kerjakan revisi ini? Status konten akan berpindah ke In Progress, dan semua revisi yang masih open ikut mulai dikerjakan bareng.',
+                                            message: 'Mulai kerjakan revisi ini? Status konten akan berpindah ke Sedang Dikerjakan, dan semua revisi yang masih terbuka ikut mulai dikerjakan bareng.',
                                             formAction: '{{ route('content-revision.start-work', [$contentItem, $revision]) }}',
                                             method: 'PATCH',
                                             confirmLabel: 'Ya, Kerjakan',
@@ -150,7 +150,7 @@
                                 class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Kirim</button>
                         </form>
                     @else
-                        <p class="text-[11px] text-[#9aa0a4] italic">Catatan revisi cuma bisa ditambahkan saat status Waiting Review atau Revision.</p>
+                        <p class="text-[11px] text-[#9aa0a4] italic">Catatan revisi cuma bisa ditambahkan saat status Menunggu Persetujuan atau Perlu Revisi.</p>
                     @endif
                 </div>
 
@@ -180,7 +180,7 @@
                         @endunless
                         <form action="{{ route('content-publication.store', $contentItem) }}" method="POST" class="space-y-3">
                             @csrf
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Platform</label>
                                     <div class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-[#f7f8fc] text-[#5c6266]">

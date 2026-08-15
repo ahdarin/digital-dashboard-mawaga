@@ -114,7 +114,8 @@
         })();
     </script>
 
-    <div class="flex min-h-screen">
+    <div class="flex min-h-screen" x-data="{ sidebarOpen: false }"
+        x-init="$watch('sidebarOpen', value => { document.documentElement.style.overflow = value ? 'hidden' : '' })">
 
         @auth
             <x-sidebar />
@@ -127,7 +128,7 @@
                 </div>
             @endauth
 
-            <main class="flex-1">
+            <main class="flex-1 min-w-0">
                 @yield('content')
             </main>
         </div>

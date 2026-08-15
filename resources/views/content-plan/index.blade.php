@@ -1,12 +1,12 @@
 @extends('layouts.app')
 @section('title', 'Content Plan Bulanan')
 @section('content')
-<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-8 max-w-[1400px]">
+<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
 
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-            <h1 class="font-display text-[32px] font-semibold text-[#14181a]">Monthly Content Plan</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Monthly Content Plan</h1>
             <p class="text-[#5c6266] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
@@ -25,7 +25,7 @@
     @endif
 
     {{-- Filter — TETAP, plus toggle Table/Calendar di ujung kanan --}}
-    <form method="GET" class="flex items-center gap-3 mb-6">
+    <form method="GET" class="flex items-center gap-3 mb-6 flex-wrap">
         <input type="hidden" name="view" value="{{ $view }}">
 
         <select name="client_id" onchange="this.form.submit()" class="border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
@@ -46,7 +46,7 @@
         </select>
 
         {{-- Toggle Table / Calendar --}}
-        <div class="flex items-center bg-[#f2f3f6] rounded-lg p-1 ml-auto">
+        <div class="flex items-center bg-[#f2f3f6] rounded-lg p-1 sm:ml-auto">
             <a href="{{ request()->fullUrlWithQuery(['view' => 'table']) }}"
                class="text-xs font-medium px-3 py-1.5 rounded-md {{ $view === 'table' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">
                 <span class="material-symbols-outlined text-[15px] align-middle">table_rows</span> Table
@@ -59,7 +59,7 @@
     </form>
 
     {{-- Target cards — TETAP --}}
-    <div class="grid grid-cols-2 gap-5 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
         <div class="card p-6">
             <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Content Target vs Realization</p>
             <p class="font-display text-3xl font-semibold text-[#14181a] mb-3">{{ $realizedContent }} <span class="text-lg text-[#9aa0a4] font-normal">/ {{ $targetContent }}</span></p>
@@ -92,24 +92,25 @@
     @else
 
         <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium">Client</th>
-                        <th class="px-4 py-3 font-medium">Month/Year</th>
-                        <th class="px-4 py-3 font-medium">Item Count</th>
-                        <th class="px-4 py-3 font-medium">Status</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Client</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Month/Year</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Item Count</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
                         <th class="px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($plans as $plan)
                         <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors" onclick="window.location='{{ route('content-plan.show', $plan) }}'">
-                            <td class="px-6 py-3.5 font-medium text-[#14181a]">{{ $plan->client->name ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ \Carbon\Carbon::create()->month($plan->month)->translatedFormat('F') }} {{ $plan->year }}</td>
-                            <td class="px-4 py-3.5 text-[#5c6266]">{{ $plan->content_items_count }}</td>
+                            <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $plan->client->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ \Carbon\Carbon::create()->month($plan->month)->translatedFormat('F') }} {{ $plan->year }}</td>
+                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $plan->content_items_count }}</td>
                             <td class="px-4 py-3.5">
-                                <span class="text-xs px-2.5 py-1 rounded-full
+                                <span class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap
                                     {{ $plan->status === 'approved' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
                                     {{ $plan->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}
                                     {{ $plan->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
@@ -126,6 +127,7 @@
                     @endforelse
                 </tbody>
             </table>
+          </div>
         </div>
 
         <div class="mt-5">{{ $plans->links() }}</div>
@@ -165,7 +167,7 @@
                         </select>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Bulan</label>
                             <select name="month" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">

@@ -2,23 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
 use App\Models\User;
 use App\Models\UserClientAssignment;
 use Illuminate\Http\Request;
 
 class UserClientAssignmentController extends Controller
 {
-    public function edit(User $user)
-    {
-        $this->authorizeManage();
-
-        $allClients = Client::where('status', 'active')->get();
-        $assignedClientIds = $user->assignedClients()->pluck('clients.id')->toArray();
-
-        return view('user-client-assignment.edit', compact('user', 'allClients', 'assignedClientIds'));
-    }
-
     public function update(Request $request, User $user)
     {
         $this->authorizeManage();

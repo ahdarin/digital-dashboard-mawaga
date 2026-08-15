@@ -2,9 +2,9 @@
 @section('title', $client->brand_name)
 @section('content')
 
-<div class="p-8 max-w-[1300px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
 
-    <div class="flex items-center justify-between mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
         <div class="flex items-center gap-4">
             <a href="{{ route('client-management.index') }}"
                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#5c6266] transition-colors shrink-0">
@@ -41,11 +41,11 @@
         <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-6">{{ session('status') }}</div>
     @endif
 
-    <div class="flex gap-5 items-start">
+    <div class="flex flex-col lg:flex-row gap-5 items-stretch lg:items-start">
 
         <div class="flex-1 min-w-0 space-y-5">
 
-            <div class="grid grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div class="card p-6">
                     <p class="text-sm text-[#5c6266] mb-2">Total Content Plan</p>
                     <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $planCount }}</p>
@@ -62,36 +62,38 @@
                 @if ($recentContentItems->isEmpty())
                     <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten untuk client ini.</p>
                 @else
-                    <table class="w-full text-sm text-left">
-                        <thead>
-                            <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                <th class="pb-2.5 font-medium">Title</th>
-                                <th class="pb-2.5 font-medium">Type</th>
-                                <th class="pb-2.5 font-medium">Deadline</th>
-                                <th class="pb-2.5 font-medium">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($recentContentItems as $item)
-                                <tr class="border-t border-[#f2f3f6]">
-                                    <td class="py-3 pr-4 font-medium text-[#14181a]">{{ $item->title }}</td>
-                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $item->contentType->name ?? '-' }}</td>
-                                    <td class="py-3 pr-4 text-[#5c6266]">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
-                                    <td class="py-3 pr-4">
-                                        <span class="text-xs px-2 py-1 rounded-full {{ ($item->workflow->is_overdue ?? false) ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
-                                            {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
-                                        </span>
-                                    </td>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead>
+                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                    <th class="pb-2.5 font-medium whitespace-nowrap">Title</th>
+                                    <th class="pb-2.5 font-medium whitespace-nowrap">Type</th>
+                                    <th class="pb-2.5 font-medium whitespace-nowrap">Deadline</th>
+                                    <th class="pb-2.5 font-medium whitespace-nowrap">Status</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach ($recentContentItems as $item)
+                                    <tr class="border-t border-[#f2f3f6]">
+                                        <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item->title }}</td>
+                                        <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
+                                        <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
+                                        <td class="py-3 pr-4">
+                                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ ($item->workflow->is_overdue ?? false) ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                                {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
             </div>
 
         </div>
 
-        <div class="w-[320px] shrink-0 space-y-5">
+        <div class="w-full lg:w-[320px] shrink-0 space-y-5">
 
             <div class="card p-6">
                 <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Owner Account</h2>

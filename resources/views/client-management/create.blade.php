@@ -2,7 +2,7 @@
 @section('title', 'Tambah Client Baru')
 @section('content')
 
-<div x-data="{ brandName: '{{ old('brand_name') }}', ownerName: '{{ old('owner_name') }}', logoPreview: null }" class="p-8 max-w-[1200px]">
+<div x-data="{ brandName: '{{ old('brand_name') }}', ownerName: '{{ old('owner_name') }}', logoPreview: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1200px]">
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('client-management.index') }}"
@@ -32,7 +32,7 @@
     <form action="{{ route('client-management.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
-        <div class="flex gap-6 items-start">
+        <div class="flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
 
             <div class="flex-1 min-w-0 space-y-5">
 
@@ -139,7 +139,7 @@
                             @error('owner_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Email Owner <span class="text-[#b3423e]">*</span></label>
                                 <input type="email" name="owner_email" value="{{ old('owner_email') }}" required placeholder="owner@brand.com"
@@ -167,7 +167,7 @@
             </div>
 
             {{-- Preview panel --}}
-            <div class="w-[280px] shrink-0 sticky top-6 space-y-5">
+            <div class="w-full lg:w-[280px] shrink-0 lg:sticky lg:top-6 space-y-5">
                 <div class="card p-6">
                     <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-4">Preview</p>
 

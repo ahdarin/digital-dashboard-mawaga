@@ -51,7 +51,7 @@
                 <a href="{{ route('client.approval.show', $item) }}"
                    class="block bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold text-[#b8873a] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Waiting Review</span>
+                        <span class="text-[10px] font-bold text-[#b8873a] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
                         <span class="text-[10px] text-[#9aa0a4]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
                     </div>
                     <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
