@@ -3,7 +3,7 @@
 @section('title', 'Produksi')
 
 @section('content')
-<div class="flex flex-col {{ $tab === 'board' ? 'h-[calc(100vh-64px)]' : '' }}">
+<div class="flex flex-col {{ ($tab === 'board' && ($view ?? 'board') === 'board') ? 'h-[calc(100vh-64px)]' : '' }}">
 
     <header class="px-4 sm:px-6 lg:px-8 pt-5 flex-shrink-0">
         <div class="flex items-center justify-between mb-4">
@@ -67,6 +67,15 @@
                     <span class="material-symbols-outlined text-[17px]">sort</span>
                     Risiko Tertinggi
                 </button>
+            @else
+                @php $statusLabels = \App\Support\WorkflowTransitions::labels(); @endphp
+                <select name="status" form="filter-form" onchange="this.form.submit()"
+                        class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
+                    <option value="">Semua Status</option>
+                    @foreach ($statuses as $status)
+                        <option value="{{ $status }}" {{ $selectedStatus === $status ? 'selected' : '' }}>{{ $statusLabels[$status] ?? $status }}</option>
+                    @endforeach
+                </select>
             @endif
 
             <div class="relative">
@@ -128,15 +137,18 @@
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}"
-                             class="bg-white p-3.5 rounded-lg border shadow-sm hover:shadow-md transition-shadow {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
+                             class="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
 
+                            @if ($item->is_urgent)
+                                <div class="bg-[#b3423e] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[12px] shrink-0">bolt</span>
+                                    <span>Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan</span>
+                                </div>
+                            @endif
+
+                            <div class="p-3.5">
                             <div class="flex justify-between items-start gap-1 flex-wrap mb-2">
                                 <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded">{{ $item->contentType->name ?? '-' }}</span>
-                                @if ($item->is_urgent)
-                                    <span class="text-[10px] text-white font-semibold flex items-center gap-1 bg-[#b3423e] px-2 py-0.5 rounded whitespace-nowrap">
-                                        <span class="material-symbols-outlined text-[12px]">bolt</span> Jobdesk Tambahan
-                                    </span>
-                                @endif
                                 @if ($isOverdue)
                                     <span class="text-[10px] text-[#b3423e] font-semibold flex items-center gap-1 bg-[#fdf2f1] px-2 py-0.5 rounded">
                                         <span class="material-symbols-outlined text-[12px]">warning</span> Overdue
@@ -244,6 +256,7 @@
                             </div>
                             <div class="mt-2.5 pt-2 border-t border-[#f2f3f6] text-right">
                                 <a href="{{ route('content-items.show', $item) }}" class="text-xs text-[#044b46] font-medium hover:underline">Lihat Detail →</a>
+                            </div>
                             </div>
                         </div>
                     @empty

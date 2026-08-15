@@ -128,6 +128,12 @@ class ClientManagementController extends Controller
     {
         $this->authorizeManage();
 
+        // Kalau client belum punya owner, ketiga field owner jadi
+        // "all-or-nothing" (required bareng-bareng) - biar bisa langsung
+        // dibuatkan akun ownernya dari sini juga, bukan cuma edit yang
+        // sudah ada.
+        $hasOwner = (bool) $client->owner;
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'brand_name' => 'required|string|max:255',
@@ -137,12 +143,13 @@ class ClientManagementController extends Controller
             'remove_logo' => 'nullable|boolean',
             'color' => 'nullable|string|max:7',
             'asset_link' => 'nullable|url|max:255',
-            'owner_name' => 'nullable|string|max:255',
+            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_email,owner_phone|string|max:255',
             'owner_email' => [
-                'nullable', 'email',
+                $hasOwner ? 'nullable' : 'nullable|required_with:owner_name,owner_phone',
+                'email',
                 Rule::unique('users', 'email')->ignore($client->owner?->id),
             ],
-            'owner_phone' => 'nullable|string',
+            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name,owner_email|string',
         ]);
 
         DB::transaction(function () use ($validated, $client, $request) {
@@ -175,6 +182,17 @@ class ClientManagementController extends Controller
                     'phone_number' => filled($validated['owner_phone'] ?? null)
                         ? PhoneNumberNormalizer::normalize($validated['owner_phone'])
                         : $client->owner->phone_number,
+                ]);
+            } elseif (! $client->owner && filled($validated['owner_name'] ?? null)) {
+                $ownerRole = Role::firstOrCreate(['name' => 'Client Owner']);
+
+                User::create([
+                    'role_id' => $ownerRole->id,
+                    'client_id' => $client->id,
+                    'name' => $validated['owner_name'],
+                    'email' => $validated['owner_email'],
+                    'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
+                    'status' => 'invited',
                 ]);
             }
         });

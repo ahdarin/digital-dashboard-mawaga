@@ -2,7 +2,7 @@
 @section('title', $contentItem->title . ' — Performance')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-6xl">
+<div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
 
     <div class="flex flex-wrap items-center gap-2 text-xs text-[#9aa0a4] mb-3">
         <a href="{{ route('analytics') }}" class="hover:text-[#044b46] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Analytics</a>

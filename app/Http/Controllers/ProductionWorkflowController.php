@@ -97,6 +97,13 @@ class ProductionWorkflowController extends Controller
         $sortKey = $sortKeys[$sortColumn] ?? $sortKeys['deadline'];
         $listItems = ($sortDir === 'desc' ? $allItems->sortByDesc($sortKey) : $allItems->sortBy($sortKey))->values();
 
+        // Filter status cuma buat tampilan List - Kanban sudah tersegmentasi
+        // per kolom status jadi filter ini nggak relevan di sana.
+        $selectedStatus = $request->input('status');
+        if ($selectedStatus) {
+            $listItems = $listItems->filter(fn ($item) => $item->workflow->current_status === $selectedStatus)->values();
+        }
+
         // Daftar client untuk dropdown filter (hanya yang relevan buat user ini)
         $clientOptions = $user->canSeeAllClients()
             ? \App\Models\Client::where('status', 'active')->get()
@@ -113,6 +120,7 @@ class ProductionWorkflowController extends Controller
             'clientOptions' => $clientOptions,
             'selectedClientId' => $request->input('client_id'),
             'selectedMonth' => $request->input('month'),
+            'selectedStatus' => $selectedStatus,
             'canUpdateWorkflow' => $user->hasPermissionTo('workflow', 'update'),
             'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
             'contentTypeOptions' => \App\Models\ContentType::all(),

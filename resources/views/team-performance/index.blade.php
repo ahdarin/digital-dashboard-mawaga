@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Performa Tim')
 @section('content')
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="mb-7">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Performa Tim</h1>

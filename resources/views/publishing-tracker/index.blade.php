@@ -2,7 +2,7 @@
 @section('title', 'Publishing Tracker')
 @section('content')
     <div x-data="{ search: '', matches(...fields) { if (!this.search) return true; const s = this.search.toLowerCase(); return fields.some(f => f.toLowerCase().includes(s)); } }"
-        class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+        class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
             <div>
                 <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Publishing Tracker</h1>
@@ -36,7 +36,7 @@
         </div>
 
         <div class="card overflow-hidden">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden sm:block">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -79,6 +79,49 @@
                     @endforelse
                 </tbody>
             </table>
+          </div>
+
+          {{-- Mobile accordion --}}
+          <div class="sm:hidden p-3.5 space-y-3">
+              @forelse ($publications as $pub)
+                  <div x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
+                      class="card p-3.5" x-data="{ open: false }">
+                      <div class="flex items-start gap-2">
+                          <a href="{{ route('content-items.show', $pub->contentItem) }}" class="flex-1 min-w-0 font-medium text-[#14181a] text-sm hover:underline">
+                              {{ $pub->contentItem->title }}
+                          </a>
+                          <button type="button" @click.stop="open = !open" class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#9aa0a4]">
+                              <span class="material-symbols-outlined text-[19px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                          </button>
+                      </div>
+                      <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                          <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266] whitespace-nowrap">{{ $pub->platform->name ?? '-' }}</span>
+                          <span class="text-xs text-[#5c6266] whitespace-nowrap">{{ $pub->published_at->format('d M Y, H:i') }}</span>
+                      </div>
+                      <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                          <div class="flex items-center justify-between text-xs">
+                              <span class="text-[#9aa0a4]">Client</span>
+                              <span class="text-[#14181a] font-medium">{{ $pub->contentItem->client->name ?? '-' }}</span>
+                          </div>
+                          <div class="flex items-center justify-between text-xs">
+                              <span class="text-[#9aa0a4]">Uploaded By</span>
+                              <span class="text-[#14181a] font-medium">{{ $pub->publishedBy->name ?? '-' }}</span>
+                          </div>
+                          @if ($pub->post_url)
+                              <a href="{{ $pub->post_url }}" target="_blank" @click.stop
+                                  class="flex items-center justify-center gap-1.5 w-full bg-[#044b46] text-white text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#033b37] transition-colors">
+                                  <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Post
+                              </a>
+                          @endif
+                          <a href="{{ route('content-items.show', $pub->contentItem) }}"
+                              class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">
+                              Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                          </a>
+                      </div>
+                  </div>
+              @empty
+                  <p class="px-2 py-10 text-center text-[#9aa0a4] text-sm">Belum ada konten yang dipublikasikan.</p>
+              @endforelse
           </div>
         </div>
 

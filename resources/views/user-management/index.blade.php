@@ -2,7 +2,7 @@
 @section('title', 'Kelola Pengguna')
 @section('content')
 
-<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
@@ -11,7 +11,7 @@
         </div>
 
         <button type="button" @click="showCreateModal = true"
-           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+           class="self-start flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">person_add</span>
             Undang User
         </button>
@@ -21,7 +21,7 @@
         <div class="bg-[#f0f5f4] text-[#044b46] text-sm p-3.5 rounded-lg mb-5">{{ session('status') }}</div>
     @endif
 
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead>
@@ -231,6 +231,83 @@
             </tbody>
         </table>
       </div>
+    </div>
+
+    {{-- Mobile accordion list --}}
+    <div class="sm:hidden space-y-3">
+        @forelse ($users as $user)
+            <div class="card p-3.5" x-data="{ open: false }">
+                <div class="flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-full bg-[#044b46] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                            @if ($user->avatar_url)
+                                <img src="{{ $user->avatar_url }}" referrerpolicy="no-referrer" class="w-full h-full object-cover">
+                            @else
+                                {{ strtoupper(substr($user->name, 0, 1)) }}
+                            @endif
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-medium text-[#14181a] truncate">{{ $user->name }}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs text-[#5c6266]">{{ $user->role->name ?? '-' }}</span>
+                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap
+                                    {{ $user->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                    {{ $user->status === 'invited' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
+                                    {{ $user->status === 'inactive' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
+                                    {{ match($user->status) { 'active' => 'Aktif', 'invited' => 'Diundang', 'inactive' => 'Nonaktif', default => ucfirst($user->status) } }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined text-[#9aa0a4] transition-transform shrink-0" :class="open && 'rotate-180'">expand_more</span>
+                </div>
+
+                <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Email</span>
+                        <span class="text-[#14181a] font-medium truncate ml-3">{{ $user->email }}</span>
+                    </div>
+
+                    <div class="text-xs">
+                        <span class="text-[#9aa0a4] block mb-1.5">Client Ditangani</span>
+                        @if ($user->assignedClients->isEmpty())
+                            <span class="text-xs text-[#c3c7cb] italic">Belum ada client ditangani</span>
+                        @else
+                            <div class="flex flex-wrap gap-1">
+                                @foreach ($user->assignedClients as $client)
+                                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f2f3f6] text-[#5c6266]">{{ $client->name }}</span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-1">
+                        <button type="button" @click="openAssign = {{ $user->id }}"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f2f3f6] hover:text-[#044b46] transition-colors" title="Assign Klien">
+                            <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
+                        </button>
+
+                        @if ($user->status === 'inactive')
+                            <button type="button" @click="confirmActivate = {{ $user->id }}"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#f0f5f4] hover:text-[#0f7a5f] transition-colors" title="Aktifkan">
+                                <span class="material-symbols-outlined text-[17px]">restart_alt</span>
+                            </button>
+                        @else
+                            <button type="button" @click="confirmDeactivate = {{ $user->id }}"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[#9aa0a4] hover:bg-[#fdf2f1] hover:text-[#b3423e] transition-colors" title="Nonaktifkan">
+                                <span class="material-symbols-outlined text-[17px]">toggle_off</span>
+                            </button>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="card p-8 text-center">
+                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">group_add</span>
+                <p class="text-sm text-[#9aa0a4]">Belum ada user internal.</p>
+                <button type="button" @click="showCreateModal = true" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Undang user pertama</button>
+            </div>
+        @endforelse
     </div>
 
     {{-- Modal Undang User --}}

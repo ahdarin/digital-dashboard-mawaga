@@ -2,7 +2,7 @@
 @section('title', 'Dashboard')
 @section('content')
 
-    <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+    <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
         <div class="mb-7">
             <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Dashboard</h1>
@@ -22,10 +22,10 @@
                         ['chip' => 'bg-[#fdf2f1]', 'icon' => 'text-[#b3423e]'],
                     ];
                 @endphp
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     @foreach ($stats as $stat)
                         @php $c = $statStyles[$loop->index % 4]; @endphp
-                        <div class="card p-5">
+                        <div class="card p-3.5 sm:p-5">
                             <div class="flex items-center gap-3 mb-4">
                                 <div class="w-9 h-9 rounded-lg {{ $c['chip'] }} flex items-center justify-center">
                                     <span
@@ -103,7 +103,7 @@
                     @if ($recentItems->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten yang tercatat.</p>
                     @else
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
                                 <thead>
                                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -131,6 +131,35 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        {{-- Mobile accordion list --}}
+                        <div class="sm:hidden divide-y divide-[#f2f3f6]">
+                            @foreach ($recentItems as $item)
+                                <div x-data="{ open: false }">
+                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                        <p class="text-sm font-medium text-[#14181a] truncate">{{ $item['title'] }}</p>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item['is_overdue'] ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">{{ $item['status'] }}</span>
+                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                        </div>
+                                    </div>
+                                    <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Client</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['client'] }}</span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Tipe</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['type'] }}</span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Deadline</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     @endif
                 </div>
 
@@ -146,7 +175,7 @@
                     @if ($topContent->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa konten bulan ini.</p>
                     @else
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
                                 <thead>
                                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -170,6 +199,38 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        {{-- Mobile accordion list --}}
+                        <div class="sm:hidden divide-y divide-[#f2f3f6]">
+                            @foreach ($topContent as $item)
+                                <div x-data="{ open: false }">
+                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                        <p class="text-sm font-medium text-[#14181a] truncate">{{ $item['title'] }}</p>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="flex items-center gap-1 text-xs font-medium text-[#5c6266] whitespace-nowrap">
+                                                <span class="material-symbols-outlined text-[14px] text-[#9aa0a4]">visibility</span>
+                                                {{ number_format($item['views']) }}
+                                            </span>
+                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                        </div>
+                                    </div>
+                                    <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Client</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['client'] }}</span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Platform</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['platform'] }}</span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Engagement</span>
+                                            <span class="text-[#14181a] text-right">{{ $item['engagement_rate'] }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                     @endif
                 </div>
 
@@ -185,7 +246,7 @@
                     @if ($topClients->isEmpty())
                         <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa client bulan ini.</p>
                     @else
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
                                 <thead>
                                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -206,6 +267,34 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                        </div>
+
+                        {{-- Mobile accordion list --}}
+                        <div class="sm:hidden divide-y divide-[#f2f3f6]">
+                            @foreach ($topClients as $client)
+                                <div x-data="{ open: false }">
+                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                        <p class="text-sm font-medium text-[#14181a] truncate">{{ $client['name'] }}</p>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="flex items-center gap-1 text-xs font-medium text-[#5c6266] whitespace-nowrap">
+                                                <span class="material-symbols-outlined text-[14px] text-[#9aa0a4]">visibility</span>
+                                                {{ number_format($client['views']) }}
+                                            </span>
+                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                        </div>
+                                    </div>
+                                    <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Engagement</span>
+                                            <span class="text-[#14181a] text-right">{{ $client['engagement_rate'] }}%</span>
+                                        </div>
+                                        <div class="flex justify-between gap-3">
+                                            <span class="text-[#9aa0a4]">Jumlah Konten</span>
+                                            <span class="text-[#14181a] text-right">{{ $client['content_count'] }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     @endif
                 </div>

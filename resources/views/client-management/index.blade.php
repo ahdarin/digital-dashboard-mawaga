@@ -2,7 +2,7 @@
 @section('title', 'Kelola Klien')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
@@ -11,7 +11,7 @@
         </div>
 
         <a href="{{ route('client-management.create') }}"
-           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+           class="self-start flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
             <span class="material-symbols-outlined text-[17px]">person_add</span>
             Tambah Klien
         </a>
@@ -39,7 +39,7 @@
     </form>
 
     {{-- Table --}}
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead>
@@ -110,6 +110,77 @@
             </tbody>
         </table>
       </div>
+    </div>
+
+    {{-- Mobile accordion list --}}
+    <div class="sm:hidden space-y-3">
+        @forelse ($clients as $client)
+            <div class="card p-3.5" x-data="{ open: false }">
+                <div class="flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[#f0f5f4]' : 'bg-[#044b46] text-white' }}">
+                            @if ($client->logo_url)
+                                <img src="{{ $client->logo_url }}" class="w-full h-full object-cover">
+                            @else
+                                {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
+                            @endif
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-medium text-[#14181a] truncate">{{ $client->brand_name }}</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap
+                                    {{ $client->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                    {{ $client->status === 'past_due' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
+                                    {{ $client->status === 'paused' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
+                                    {{ match($client->status) { 'active' => 'Aktif', 'past_due' => 'Jatuh Tempo', 'paused' => 'Dijeda', default => ucfirst($client->status) } }}
+                                </span>
+                                <span class="text-xs text-[#9aa0a4] truncate">{{ $client->activePackage->package_name_snapshot ?? '-' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="shrink-0 w-8 h-8 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[#9aa0a4] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                    </span>
+                </div>
+
+                <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Email</span>
+                        <span class="text-[#14181a] font-medium truncate ml-3">{{ $client->owner->email ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Aset</span>
+                        @if ($client->asset_link)
+                            <a href="{{ $client->asset_link }}" target="_blank" rel="noopener" @click.stop
+                               class="inline-flex items-center gap-1 text-[#044b46] hover:underline" title="{{ $client->asset_link }}">
+                                <span class="material-symbols-outlined text-[15px]">folder_open</span>
+                            </a>
+                        @else
+                            <span class="text-[#c3c7cb]">-</span>
+                        @endif
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Status Owner</span>
+                        <span class="text-[#14181a] font-medium">{{ $client->owner ? match($client->owner->status) { 'active' => 'Aktif', 'invited' => 'Diundang', 'inactive' => 'Nonaktif', default => ucfirst($client->owner->status) } : 'Belum ada owner' }}</span>
+                    </div>
+                    <a href="{{ route('client-management.show', $client) }}"
+                        class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">
+                        Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                    </a>
+                </div>
+            </div>
+        @empty
+            <div class="card p-8 text-center">
+                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">apartment</span>
+                @if ($search || $status !== 'all')
+                    <p class="text-sm text-[#9aa0a4]">Tidak ada client yang cocok dengan filter ini.</p>
+                    <a href="{{ route('client-management.index') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Reset filter</a>
+                @else
+                    <p class="text-sm text-[#9aa0a4]">Belum ada client.</p>
+                    <a href="{{ route('client-management.create') }}" class="text-xs text-[#044b46] font-medium hover:underline mt-1 inline-block">Tambah client pertama</a>
+                @endif
+            </div>
+        @endforelse
     </div>
 
     @if ($clients->total() > 0)

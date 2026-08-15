@@ -2,7 +2,7 @@
 @section('title', 'Edit ' . $client->brand_name)
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-2xl">
+<div class="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('client-management.show', $client) }}"
@@ -118,32 +118,35 @@
                 Owner Account
             </p>
 
-            @if ($client->owner)
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama Owner</label>
-                        <input type="text" name="owner_name" value="{{ old('owner_name', $client->owner->name) }}"
-                               class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
-                        @error('owner_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Email Owner</label>
-                        <input type="email" name="owner_email" value="{{ old('owner_email', $client->owner->email) }}"
-                               class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
-                        @error('owner_email') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nomor WhatsApp</label>
-                        <input type="tel" name="owner_phone" value="{{ old('owner_phone', $client->owner->phone_number) }}"
-                               class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
-                        @error('owner_phone') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
-                    </div>
+            @unless ($client->owner)
+                <div class="bg-[#f0f5f4] rounded-lg px-3.5 py-3 flex items-start gap-2 mb-4">
+                    <span class="material-symbols-outlined text-[#044b46] text-[15px] mt-0.5">info</span>
+                    <p class="text-xs text-[#044b46]">Client ini belum punya akun owner. Isi ketiga field di bawah untuk langsung membuatkannya.</p>
                 </div>
-            @else
-                <p class="text-sm text-[#9aa0a4]">Client ini belum punya akun owner. Tambahkan lewat fitur terpisah.</p>
-            @endif
+            @endunless
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama Owner {{ $client->owner ? '' : '*' }}</label>
+                    <input type="text" name="owner_name" value="{{ old('owner_name', $client->owner->name ?? '') }}"
+                           class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                    @error('owner_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Email Owner {{ $client->owner ? '' : '*' }}</label>
+                    <input type="email" name="owner_email" value="{{ old('owner_email', $client->owner->email ?? '') }}"
+                           class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                    @error('owner_email') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nomor WhatsApp {{ $client->owner ? '' : '*' }}</label>
+                    <input type="tel" name="owner_phone" value="{{ old('owner_phone', $client->owner->phone_number ?? '') }}"
+                           class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                    @error('owner_phone') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
+                </div>
+            </div>
         </div>
 
         <div class="flex items-center gap-3">

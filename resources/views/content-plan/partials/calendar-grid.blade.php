@@ -64,7 +64,55 @@
         @endforeach
     </div>
 
-    <div class="card p-5">
+    {{-- Grid bulan penuh (7 kolom) nggak muat di layar sempit walau dikasih
+         overflow-x-auto - user cuma lihat 1-2 hari lalu mentok tanpa ada
+         petunjuk visual buat scroll, keliatan "kepotong". Di mobile diganti
+         agenda list vertikal per hari (cuma hari yang ada isinya) - lebih
+         gampang di-scan lewat scroll biasa, tanpa scroll horizontal. --}}
+    <div class="sm:hidden space-y-3">
+        @php
+            $agendaDays = collect(range(1, $daysInMonth))
+                ->map(fn ($d) => \Carbon\Carbon::create($year, $month, $d))
+                ->filter(fn ($date) => $itemsByDateClient->get($date->format('Y-m-d'), collect())->isNotEmpty());
+        @endphp
+
+        @forelse ($agendaDays as $date)
+            @php $dateKey = $date->format('Y-m-d'); @endphp
+            <div class="card p-4">
+                <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
+                <div class="flex flex-col gap-1.5">
+                    @foreach ($itemsByDateClient->get($dateKey, collect()) as $clientId => $clientItems)
+                        @php
+                            $client = $clientItems->first()->client;
+                            $color = $client->color ?? $fallbackColor($clientId);
+                        @endphp
+                        @foreach ($clientItems as $item)
+                            <a href="{{ route('content-items.show', $item) }}"
+                                class="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 hover:opacity-80 transition-opacity"
+                                style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
+                                <div class="min-w-0">
+                                    <span class="text-xs font-semibold block truncate" style="color: {{ $color }}">{{ $client->name }}</span>
+                                    <span class="text-[11px] text-[#5c6266] truncate block">{{ $item->title }}</span>
+                                </div>
+                                <span title="{{ $item->contentType->name ?? '-' }}"
+                                    class="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+                                    style="background-color: {{ $color }}">
+                                    {{ $typeBadge($item->contentType->name ?? null) }}
+                                </span>
+                            </a>
+                        @endforeach
+                    @endforeach
+                </div>
+            </div>
+        @empty
+            <div class="card p-6 text-center">
+                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">event_busy</span>
+                <p class="text-sm text-[#9aa0a4]">Tidak ada konten terjadwal bulan ini.</p>
+            </div>
+        @endforelse
+    </div>
+
+    <div class="card p-5 hidden sm:block">
       <div class="overflow-x-auto">
         <div class="min-w-[700px]">
         <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#9aa0a4] uppercase mb-2">

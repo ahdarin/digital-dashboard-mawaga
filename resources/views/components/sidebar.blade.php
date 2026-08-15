@@ -77,7 +77,11 @@
     }"
     x-init="
         window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => { isDesktop = e.matches });
-        $watch('collapsed', value => { localStorage.setItem('sidebar-collapsed', value); if (!value) tooltip.show = false });
+        $watch('collapsed', value => {
+            localStorage.setItem('sidebar-collapsed', value);
+            document.documentElement.classList.toggle('sidebar-collapsed', value);
+            if (!value) tooltip.show = false;
+        });
     "
     :class="[effectiveCollapsed && 'lg:w-[76px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']"
     class="fixed inset-y-0 left-0 z-40 lg:sticky lg:top-0 lg:z-auto shrink-0 w-60 bg-white flex flex-col h-screen border-r border-[#eef0f4] transition-[width,transform] duration-200 ease-out"

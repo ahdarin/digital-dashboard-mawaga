@@ -14,7 +14,7 @@
     };
 @endphp
 <div class="px-4 sm:px-6 lg:px-8 pb-8">
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden hidden sm:block">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
@@ -41,29 +41,48 @@
                             $riskColor = $risk ? ($riskColors[$risk->risk_level] ?? $riskColors['low']) : null;
                         @endphp
                         <tr x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                            class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors"
+                            class="border-t border-[#f2f3f6] cursor-pointer transition-colors {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}"
                             onclick="window.location='{{ route('content-items.show', $item) }}'">
-                            <td class="px-6 py-3.5">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
-                                    @if ($item->is_urgent)
-                                        <span class="text-[9px] text-white font-semibold flex items-center gap-0.5 bg-[#b3423e] px-1.5 py-0.5 rounded whitespace-nowrap">
-                                            <span class="material-symbols-outlined text-[10px]">bolt</span> Tambahan
-                                        </span>
-                                    @endif
-                                </div>
+                            <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
+                                @if ($item->is_urgent)
+                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-[#b3423e] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
+                                        <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
+                                    </div>
+                                @endif
+                                <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
-                            <td class="px-4 py-3.5">
+                            <td class="px-4 py-3.5" onclick="event.stopPropagation()">
                                 <div class="flex items-center gap-1.5 whitespace-nowrap">
                                     <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
                                         {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
                                     </span>
-                                    @if ($isOverdue)
-                                        <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#fdf2f1] text-[#b3423e]">Overdue</span>
-                                    @endif
                                 </div>
+
+                                @if (($item->contentType->name ?? '') === 'Video' && $item->workflow->current_status === 'in_progress')
+                                    <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mt-1.5 w-[180px]">
+                                        @if ($item->footage_captured_at)
+                                            <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                                                <span class="flex items-center gap-1 whitespace-nowrap">
+                                                    <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                                </span>
+                                                <button type="button" x-on:click.stop="unmarkFootageCaptured({{ $item->id }}, $event)"
+                                                    class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
+                                            </div>
+                                        @else
+                                            <div class="flex items-center gap-1">
+                                                <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
+                                                    x-on:click.stop x-on:mousedown.stop
+                                                    class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                                <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
+                                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                                    <span class="material-symbols-outlined text-[15px]">videocam</span>
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</td>
                             <td class="px-4 py-3.5 whitespace-nowrap {{ $isOverdue ? 'text-[#b3423e] font-semibold' : 'text-[#5c6266]' }}">{{ $item->deadline_at->format('d M Y') }}</td>
@@ -90,5 +109,106 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    {{-- Mobile accordion cards - sama koleksi data, hanya tampil di bawah sm --}}
+    <div class="sm:hidden space-y-3">
+        @forelse ($listItems as $item)
+            @php
+                $isOverdue = $item->workflow->is_overdue;
+                $risk = $item->latestDelayRisk;
+                $riskColors = [
+                    'high' => ['bg' => '#fdf2f1', 'text' => '#b3423e'],
+                    'medium' => ['bg' => '#fdf6ec', 'text' => '#8a6423'],
+                    'low' => ['bg' => '#f0f5f4', 'text' => '#0f7a5f'],
+                ];
+                $riskColor = $risk ? ($riskColors[$risk->risk_level] ?? $riskColors['low']) : null;
+            @endphp
+            <div x-data="{ open: false }"
+                x-show="matchesSearch('{{ addslashes($item->title) }}')"
+                class="card p-3.5 {{ $isOverdue ? 'bg-[#fdf2f1]' : '' }}">
+                <div class="flex items-start justify-between gap-2 cursor-pointer" @click="open = !open">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            @if ($item->is_urgent)
+                                <span class="text-[9px] font-bold uppercase tracking-wide text-white bg-[#b3423e] px-1.5 py-0.5 rounded">Tambahan</span>
+                            @endif
+                            <p class="font-medium text-[#14181a] truncate">{{ $item->title }}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                                {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
+                            </span>
+                            @if ($risk)
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-full"
+                                      style="background-color: {{ $riskColor['bg'] }}; color: {{ $riskColor['text'] }};"
+                                      title="{{ $risk->top_factor }}">
+                                    {{ $risk->risk_score }}%
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#9aa0a4]">
+                        <span class="material-symbols-outlined text-[20px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                    </span>
+                </div>
+
+                <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2" @click.stop>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#9aa0a4]">Info Penugasan</p>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Client</span>
+                        <span class="text-[#14181a] font-medium">{{ $item->client->name ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Tipe</span>
+                        <span class="text-[#14181a] font-medium">{{ $item->contentType->name ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">PIC</span>
+                        <span class="text-[#14181a] font-medium">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</span>
+                    </div>
+
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#9aa0a4] pt-1">Jadwal</p>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Deadline</span>
+                        <span class="{{ $isOverdue ? 'text-[#b3423e] font-semibold' : 'text-[#14181a] font-medium' }}">{{ $item->deadline_at->format('d M Y') }}</span>
+                    </div>
+
+                    @if (($item->contentType->name ?? '') === 'Video' && $item->workflow->current_status === 'in_progress')
+                        <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade pt-1">
+                            @if ($item->footage_captured_at)
+                                <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                                    <span class="flex items-center gap-1 whitespace-nowrap">
+                                        <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take
+                                    </span>
+                                    <button type="button" x-on:click.stop="unmarkFootageCaptured({{ $item->id }}, $event)"
+                                        class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
+                                </div>
+                            @else
+                                <div class="flex items-center gap-1">
+                                    <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
+                                        x-on:click.stop x-on:mousedown.stop
+                                        class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                    <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
+                                        class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                        <span class="material-symbols-outlined text-[15px]">videocam</span>
+                                    </button>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    <a href="{{ route('content-items.show', $item) }}"
+                        class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">
+                        Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                    </a>
+                </div>
+            </div>
+        @empty
+            <div class="card p-8 text-center">
+                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">checklist</span>
+                <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang cocok dengan filter ini.</p>
+            </div>
+        @endforelse
     </div>
 </div>

@@ -43,7 +43,7 @@
     <h3 class="text-sm font-semibold text-[#14181a] mb-3">
         Absensi — {{ $date->translatedFormat('l, d F Y') }}
     </h3>
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-[#f7f8fc]">
@@ -90,6 +90,45 @@
         </table>
       </div>
     </div>
+
+    {{-- Mobile accordion list --}}
+    <div class="sm:hidden space-y-3">
+        @forelse ($attendanceRecords as $r)
+            <div class="card p-3.5" x-data="{ open: false }">
+                <div class="flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                    <div class="flex items-center gap-3 min-w-0">
+                        @if ($r['user']->avatar_url)
+                            <img src="{{ $r['user']->avatar_url }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover shrink-0">
+                        @else
+                            <div class="w-8 h-8 rounded-full bg-[#044b46] text-white text-xs font-semibold flex items-center justify-center shrink-0">
+                                {{ strtoupper(substr($r['user']->name, 0, 1)) }}
+                            </div>
+                        @endif
+                        <div class="min-w-0">
+                            <p class="font-medium text-[#14181a] truncate">{{ $r['user']->name }}</p>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full inline-block mt-1 {{ $badgeClasses[$r['status']] ?? 'bg-[#f2f3f6] text-[#5c6266]' }}">
+                                {{ $r['status'] }}
+                            </span>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined text-[#9aa0a4] transition-transform shrink-0" :class="open && 'rotate-180'">expand_more</span>
+                </div>
+
+                <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Check-in</span>
+                        <span class="text-[#14181a] font-medium">{{ $r['attendance']?->check_in_at?->format('H:i') ?? '-' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Check-out</span>
+                        <span class="text-[#14181a] font-medium">{{ $r['attendance']?->check_out_at?->format('H:i') ?? '-' }}</span>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="card p-6 text-center text-sm text-[#9aa0a4]">Tidak ada personel internal.</div>
+        @endforelse
+    </div>
 </div>
 
 {{-- Ringkasan Bulanan --}}
@@ -97,7 +136,7 @@
     <h3 class="text-sm font-semibold text-[#14181a] mb-3">
         Ringkasan — {{ $month->translatedFormat('F Y') }}
     </h3>
-    <div class="card overflow-hidden">
+    <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-[#f7f8fc]">
@@ -128,5 +167,40 @@
             </tbody>
         </table>
       </div>
+    </div>
+
+    {{-- Mobile accordion list --}}
+    <div class="sm:hidden space-y-3">
+        @forelse ($monthlySummary as $s)
+            <div class="card p-3.5" x-data="{ open: false }">
+                <div class="flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                    <div class="min-w-0">
+                        <p class="font-medium text-[#14181a] truncate">{{ $s['user']->name }}</p>
+                        <div class="flex items-center gap-3 mt-1 text-xs">
+                            <span class="text-[#9aa0a4]">Hadir: <span class="text-[#5c6266] font-medium">{{ $s['hadir'] }}</span></span>
+                            <span class="{{ $s['telat'] > 0 ? 'text-[#8a6423] font-semibold' : 'text-[#9aa0a4]' }}">Telat: {{ $s['telat'] }}</span>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined text-[#9aa0a4] transition-transform shrink-0" :class="open && 'rotate-180'">expand_more</span>
+                </div>
+
+                <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Hari Kerja</span>
+                        <span class="text-[#14181a] font-medium">{{ $s['total_workdays'] }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Tidak Hadir</span>
+                        <span class="{{ $s['tidak_hadir'] > 0 ? 'text-[#b3423e] font-semibold' : 'text-[#9aa0a4]' }}">{{ $s['tidak_hadir'] }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-[#9aa0a4]">Lupa Check-Out</span>
+                        <span class="{{ $s['lupa_checkout'] > 0 ? 'text-[#8a6423] font-semibold' : 'text-[#9aa0a4]' }}">{{ $s['lupa_checkout'] }}</span>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="card p-6 text-center text-sm text-[#9aa0a4]">Tidak ada personel internal.</div>
+        @endforelse
     </div>
 </div>

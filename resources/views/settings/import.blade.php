@@ -2,7 +2,7 @@
 @section('title', 'Import Data Performa')
 @section('content')
 
-<div x-data="importPage()" class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
+<div x-data="importPage()" class="p-4 sm:p-6 lg:p-8 max-w-[1300px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Import Data Performa</h1>

@@ -2,7 +2,7 @@
 @section('title', 'Settings')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="mb-7">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Pengaturan</h1>
@@ -61,20 +61,21 @@
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">System Connections</h2>
             <p class="text-xs text-[#9aa0a4] mb-5">Status koneksi service pihak ketiga yang dipakai sistem ini.</p>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
                 @foreach ($systemConnections as $conn)
-                    <div class="border border-[#eef0f4] rounded-xl p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center">
-                                <span class="material-symbols-outlined text-[#044b46] text-[18px]">{{ $conn['icon'] }}</span>
+                    <div class="border border-[#eef0f4] rounded-xl p-2.5 sm:p-4">
+                        <div class="flex items-center justify-between mb-2 sm:mb-3">
+                            <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[#044b46] text-[14px] sm:text-[18px]">{{ $conn['icon'] }}</span>
                             </div>
-                            <span class="text-[10px] font-medium px-2 py-1 rounded-full
+                            <span class="text-[8px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full whitespace-nowrap
                                 {{ $conn['connected'] ? 'bg-[#f0f5f4] text-[#0f7a5f]' : 'bg-[#fdf2f1] text-[#b3423e]' }}">
-                                {{ $conn['connected'] ? 'Configured' : 'Not Configured' }}
+                                <span class="sm:hidden">{{ $conn['connected'] ? 'OK' : 'Off' }}</span>
+                                <span class="hidden sm:inline">{{ $conn['connected'] ? 'Configured' : 'Not Configured' }}</span>
                             </span>
                         </div>
-                        <p class="text-sm font-medium text-[#14181a]">{{ $conn['label'] }}</p>
-                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $conn['description'] }}</p>
+                        <p class="text-[11px] sm:text-sm font-medium text-[#14181a] truncate">{{ $conn['label'] }}</p>
+                        <p class="text-[10px] sm:text-xs text-[#9aa0a4] mt-0.5 hidden sm:block">{{ $conn['description'] }}</p>
                     </div>
                 @endforeach
             </div>

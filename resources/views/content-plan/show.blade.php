@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', $contentPlan->client->name . ' - Content Plan')
 @section('content')
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div class="flex items-start gap-3">
@@ -92,7 +92,7 @@
     @if ($view === 'calendar')
         @include('content-plan.partials.calendar-grid')
     @else
-        <div class="card overflow-hidden">
+        <div class="card overflow-hidden hidden sm:block">
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
@@ -146,6 +146,64 @@
                 </tbody>
             </table>
           </div>
+        </div>
+
+        {{-- Mobile accordion cards - sama koleksi data, hanya tampil di bawah sm --}}
+        <div class="sm:hidden space-y-3">
+            @forelse ($items as $item)
+                @php
+                    $typeColor = match ($item->contentType->name ?? null) {
+                        'Video' => '#3452a8',
+                        'Desain' => '#b3427e',
+                        default => '#9aa0a4',
+                    };
+                    $pic = $item->assignments->first()?->user;
+                @endphp
+                <div x-data="{ open: false }" class="card p-3.5">
+                    <div class="flex items-start justify-between gap-2 cursor-pointer" @click="open = !open">
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-[#14181a] truncate">{{ $item->title }}</p>
+                            <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                            <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                    {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
+                                </span>
+                                <span class="text-xs text-[#5c6266]">{{ $item->deadline_at->format('d M Y') }}</span>
+                            </div>
+                        </div>
+                        <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#9aa0a4]">
+                            <span class="material-symbols-outlined text-[20px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                        </span>
+                    </div>
+
+                    <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-[#9aa0a4]">Kategori</span>
+                            <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
+                                {{ $item->contentType->name ?? '-' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-[#9aa0a4]">Platform</span>
+                            <span class="text-[#14181a] font-medium">{{ $item->platform->name ?? '-' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-[#9aa0a4]">Penanggung Jawab</span>
+                            @if ($pic)
+                                <span class="text-[#14181a] font-medium">{{ $pic->name }}</span>
+                            @else
+                                <span class="text-[#c3c7cb] italic">Belum ada</span>
+                            @endif
+                        </div>
+                        <a href="{{ route('content-items.show', $item) }}"
+                            class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">
+                            Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                        </a>
+                    </div>
+                </div>
+            @empty
+                <div class="card p-8 text-center text-[#9aa0a4] text-sm">Belum ada content item. Klik "Tambah Content Item" buat mulai.</div>
+            @endforelse
         </div>
     @endif
 </div>

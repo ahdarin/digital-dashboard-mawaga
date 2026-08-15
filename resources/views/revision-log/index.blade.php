@@ -2,7 +2,7 @@
 @section('title', 'Revision Log')
 @section('content')
     <div x-data="{ search: '', matches(...fields) { if (!this.search) return true; const s = this.search.toLowerCase(); return fields.some(f => f.toLowerCase().includes(s)); } }"
-        class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+        class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
             <div>
                 <h1 class="font-display text-[28px] font-semibold text-[#14181a]">Revision Log</h1>
@@ -36,7 +36,7 @@
         </div>
 
         <div class="card overflow-hidden">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto hidden sm:block">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-[#f7f8fc]">
                         <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -78,6 +78,45 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            {{-- Mobile accordion --}}
+            <div class="sm:hidden p-3.5 space-y-3">
+                @forelse ($revisions as $revision)
+                    @php $revStatusStyle = $revisionStatusStyles[$revision->status] ?? $revisionStatusStyles['resolved']; @endphp
+                    <div x-show="matches('{{ addslashes($revision->contentItem->title) }}', '{{ addslashes($revision->contentItem->client->name ?? '') }}', '{{ addslashes($revision->revision_note) }}')"
+                        class="card p-3.5" x-data="{ open: false }">
+                        <div class="flex items-start gap-2 cursor-pointer" @click="open = !open">
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-[#14181a] text-sm">{{ $revision->contentItem->title }}</p>
+                                <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap {{ $revStatusStyle['bg'] }} {{ $revStatusStyle['text'] }}">{{ $revStatusStyle['label'] }}</span>
+                                    <span class="text-xs text-[#5c6266] whitespace-nowrap">Revisi #{{ $revision->revision_round }}</span>
+                                </div>
+                            </div>
+                            <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#9aa0a4]">
+                                <span class="material-symbols-outlined text-[19px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                            </div>
+                        </div>
+                        <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#9aa0a4]">Client</span>
+                                <span class="text-[#14181a] font-medium">{{ $revision->contentItem->client->name ?? '-' }}</span>
+                            </div>
+                            <div class="text-xs">
+                                <span class="text-[#9aa0a4] block mb-1">Notes</span>
+                                <span class="text-[#14181a] font-medium whitespace-pre-line">{{ $revision->revision_note }}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#9aa0a4]">Requested By</span>
+                                <span class="text-[#14181a] font-medium">{{ $revision->requestedBy->name ?? '-' }}</span>
+                            </div>
+                            <a href="{{ route('content-items.show', $revision->contentItem) }}" class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span></a>
+                        </div>
+                    </div>
+                @empty
+                    <p class="px-2 py-10 text-center text-[#9aa0a4] text-sm">Tidak ada revisi ditemukan.</p>
+                @endforelse
             </div>
         </div>
 

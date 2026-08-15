@@ -78,9 +78,9 @@
         <p class="text-white/70 text-sm">{{ $greeting }}, {{ auth()->user()->name ?? 'Tim 523' }}</p>
         <h2 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h2>
     </div>
-    <div class="flex items-center gap-2.5 bg-white/10 rounded-full pl-3.5 pr-4 py-2 shrink-0">
+    <div class="flex items-center gap-2.5 bg-white/10 rounded-full pl-3.5 pr-4 py-2 w-full sm:w-auto sm:shrink-0">
         <span class="material-symbols-outlined text-white text-[18px] shrink-0">{{ $dailyReminder['icon'] }}</span>
-        <div class="w-56 sm:w-72 overflow-hidden">
+        <div class="flex-1 min-w-0 sm:flex-none sm:w-72 overflow-hidden">
             <div class="marquee-track" style="--marquee-duration: {{ $marqueeDuration }}s">
                 <p class="text-sm text-white/90 whitespace-nowrap pr-12">{{ $dailyReminder['text'] }}</p>
                 <p class="text-sm text-white/90 whitespace-nowrap pr-12" aria-hidden="true">{{ $dailyReminder['text'] }}</p>
@@ -90,7 +90,7 @@
 </div>
 
 <div x-data="{ now: new Date() }" x-init="setInterval(() => now = new Date(), 1000)"
-    class="flex items-start justify-between mb-6 flex-wrap gap-3">
+    class="flex items-start justify-between mb-6 ml-3 flex-wrap gap-3">
     <div class="shrink-0">
         <p class="text-sm text-[#5c6266]"
             x-text="now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"></p>

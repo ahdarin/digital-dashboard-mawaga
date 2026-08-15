@@ -3,16 +3,17 @@
     $unreadCount = $notifications->where('is_read', false)->count();
 
     $typeMeta = [
-        'mention' => ['icon' => 'alternate_email', 'bg' => 'bg-[#f0f5f4]', 'color' => 'text-[#044b46]'],
         'ai_insight' => ['icon' => 'auto_awesome', 'bg' => 'bg-[#f0f5f4]', 'color' => 'text-[#044b46]'],
         'task' => ['icon' => 'assignment', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
         'system' => ['icon' => 'cloud_done', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
+        'plan_submitted' => ['icon' => 'fact_check', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
+        'client_approved' => ['icon' => 'thumb_up', 'bg' => 'bg-[#f0f5f4]', 'color' => 'text-[#044b46]'],
         'deadline_reminder' => ['icon' => 'schedule', 'bg' => 'bg-[#eef2fb]', 'color' => 'text-[#3452a8]'],
         'overdue_reminder' => ['icon' => 'warning', 'bg' => 'bg-[#fdf2f1]', 'color' => 'text-[#b3423e]'],
         'delay_risk_alert' => ['icon' => 'report', 'bg' => 'bg-[#fdf2f1]', 'color' => 'text-[#b3423e]'],
     ];
 
-    $tabs = ['all' => 'All', 'delay_risk_alert' => 'Risk Alerts', 'task' => 'Tasks', 'ai_insight' => 'AI Insights', 'mention' => 'Mentions'];
+    $tabs = ['all' => 'All', 'delay_risk_alert' => 'Risk Alerts', 'task' => 'Tasks', 'ai_insight' => 'AI Insights'];
 
     $tabCounts = collect($tabs)->mapWithKeys(function ($label, $key) use ($notifications) {
         $scoped = $key === 'all' ? $notifications : $notifications->where('type', $key);
@@ -80,25 +81,25 @@
                      class="absolute right-0 mt-2 w-[min(24rem,calc(100vw-2rem))] card z-50 overflow-hidden">
                     <div class="px-5 pt-5 pb-4">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-display text-lg font-semibold text-[#14181a]">Notifications</h3>
+                            <h3 class="font-display text-lg font-semibold text-[#14181a] leading-none">Notifications</h3>
                             <div class="flex items-center gap-3">
                                 @if ($unreadCount > 0)
-                                    <form action="{{ route('notifications.mark-all-read') }}" method="POST">
+                                    <form action="{{ route('notifications.mark-all-read') }}" method="POST" class="leading-none">
                                         @csrf
                                         @method('PATCH')
-                                        <button type="submit" class="text-xs font-medium text-[#044b46] hover:underline">Tandai semua dibaca</button>
+                                        <button type="submit" class="text-xs font-medium text-[#044b46] hover:underline leading-none">Tandai semua dibaca</button>
                                     </form>
                                 @endif
-                                <button @click="open = false" type="button" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                                <button @click="open = false" type="button" class="flex items-center text-[#9aa0a4] hover:text-[#5c6266]">
                                     <span class="material-symbols-outlined text-[18px]">close</span>
                                 </button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1.5 flex-wrap">
+                        <div class="flex items-center gap-1.5 overflow-x-auto thin-autohide-scrollbar -mx-1 px-1">
                             @foreach ($tabs as $key => $label)
                                 <button @click="tab = '{{ $key }}'" type="button"
                                         :class="tab === '{{ $key }}' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#5c6266] hover:bg-[#eef0f4]'"
-                                        class="text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5">
+                                        class="text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                     {{ $label }}
                                     @if ($tabCounts[$key]['unread'] > 0)
                                         <span :class="tab === '{{ $key }}' ? 'bg-white/25 text-white' : 'bg-[#eef0f4] text-[#5c6266]'"

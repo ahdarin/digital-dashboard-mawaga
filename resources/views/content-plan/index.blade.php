@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Content Plan Bulanan')
 @section('content')
-<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
@@ -56,23 +56,23 @@
     </form>
 
     {{-- Target cards — TETAP --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
-        <div class="card p-6">
-            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Content Target vs Realization</p>
-            <p class="font-display text-3xl font-semibold text-[#14181a] mb-3">{{ $realizedContent }} <span class="text-lg text-[#9aa0a4] font-normal">/ {{ $targetContent }}</span></p>
+    <div class="grid grid-cols-2 gap-3 sm:gap-5 mb-6">
+        <div class="card p-3.5 sm:p-6">
+            <p class="text-[10px] sm:text-xs font-medium text-[#9aa0a4] uppercase mb-1.5 sm:mb-2">Content Target vs Realization</p>
+            <p class="font-display text-xl sm:text-3xl font-semibold text-[#14181a] mb-2 sm:mb-3">{{ $realizedContent }} <span class="text-sm sm:text-lg text-[#9aa0a4] font-normal">/ {{ $targetContent }}</span></p>
             @php $pct = $targetContent > 0 ? min(100, round($realizedContent / $targetContent * 100, 1)) : 0; @endphp
-            <div class="flex items-center justify-between text-xs text-[#9aa0a4] mb-1.5">
+            <div class="flex items-center justify-between text-[10px] sm:text-xs text-[#9aa0a4] mb-1 sm:mb-1.5">
                 <span>Overall Progress</span><span>{{ $pct }}%</span>
             </div>
             <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
                 <div class="h-full bg-[#044b46] rounded-full" style="width: {{ $pct }}%"></div>
             </div>
         </div>
-        <div class="card p-6">
-            <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-2">Design Target vs Realization</p>
-            <p class="font-display text-3xl font-semibold text-[#14181a] mb-3">{{ $realizedDesign }} <span class="text-lg text-[#9aa0a4] font-normal">/ {{ $targetDesign }}</span></p>
+        <div class="card p-3.5 sm:p-6">
+            <p class="text-[10px] sm:text-xs font-medium text-[#9aa0a4] uppercase mb-1.5 sm:mb-2">Design Target vs Realization</p>
+            <p class="font-display text-xl sm:text-3xl font-semibold text-[#14181a] mb-2 sm:mb-3">{{ $realizedDesign }} <span class="text-sm sm:text-lg text-[#9aa0a4] font-normal">/ {{ $targetDesign }}</span></p>
             @php $pctD = $targetDesign > 0 ? min(100, round($realizedDesign / $targetDesign * 100, 1)) : 0; @endphp
-            <div class="flex items-center justify-between text-xs text-[#9aa0a4] mb-1.5">
+            <div class="flex items-center justify-between text-[10px] sm:text-xs text-[#9aa0a4] mb-1 sm:mb-1.5">
                 <span>Overall Progress</span><span>{{ $pctD }}%</span>
             </div>
             <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
@@ -89,7 +89,7 @@
     @else
 
         <div class="card overflow-hidden">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto hidden sm:block">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -135,6 +135,50 @@
                     @endforelse
                 </tbody>
             </table>
+          </div>
+
+          {{-- Mobile accordion list --}}
+          <div class="sm:hidden divide-y divide-[#f2f3f6]">
+            @forelse ($plans as $plan)
+                <div x-data="{ open: false }" class="px-4">
+                    <div class="py-3.5 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-[#14181a] truncate">{{ $plan->client->name ?? '-' }}</p>
+                            <p class="text-xs text-[#9aa0a4] mt-0.5">{{ \Carbon\Carbon::create()->month($plan->month)->translatedFormat('F') }} {{ $plan->year }}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs px-2.5 py-1 rounded-full whitespace-nowrap
+                                {{ $plan->status === 'approved' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                {{ $plan->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}
+                                {{ $plan->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
+                                {{ $plan->status === 'rejected' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}">
+                                {{ $plan->status === 'pending' ? 'Diajukan' : ($plan->status === 'draft' ? 'Draf' : ($plan->status === 'rejected' ? 'Ditolak' : 'Disetujui')) }}
+                            </span>
+                            @if ($plan->status === 'approved' && $plan->created_by === $plan->approved_by)
+                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-[#fdf6ec] text-[#8a6423] uppercase" title="Pembuat rencana ini juga yang menyetujuinya">Sendiri</span>
+                            @endif
+                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                        </div>
+                    </div>
+                    <div x-show="open" x-cloak x-transition class="pb-4 -mt-1 space-y-2 text-sm">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-[#9aa0a4]">Jumlah Item</span>
+                            <span class="text-[#14181a] text-right">{{ $plan->content_items_count }}</span>
+                        </div>
+                        <a href="{{ route('content-plan.show', $plan) }}" class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors">
+                            Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                        </a>
+                    </div>
+                </div>
+            @empty
+                <div class="px-6 py-12 text-center">
+                    <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">event_note</span>
+                    <p class="text-sm text-[#9aa0a4]">Belum ada content plan untuk periode ini.</p>
+                    @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                        <button type="button" @click="showCreateModal = true" class="text-xs text-[#044b46] font-medium hover:underline mt-1">Buat Content Plan Baru</button>
+                    @endif
+                </div>
+            @endforelse
           </div>
         </div>
 

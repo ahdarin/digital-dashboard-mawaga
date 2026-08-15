@@ -103,9 +103,6 @@
             animation: marquee-scroll linear infinite;
             animation-duration: var(--marquee-duration, 14s);
         }
-        .marquee-track:hover {
-            animation-play-state: paused;
-        }
         @keyframes marquee-scroll {
             from { transform: translateX(0); }
             to { transform: translateX(-50%); }
@@ -115,9 +112,25 @@
                 animation: none;
             }
         }
+
+        /* Lebar sidebar collapsed diterapkan lewat class di <html> yang
+           di-set sinkron sebelum Alpine jalan (lihat script di awal body) -
+           tanpa ini, sidebar sempat kerender lebar penuh dulu baru menyusut
+           begitu Alpine attach, keliatan "flick" tiap pindah halaman. */
+        @media (min-width: 1024px) {
+            html.sidebar-collapsed aside {
+                width: 76px !important;
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen">
+
+    <script>
+        if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            document.documentElement.classList.add('sidebar-collapsed');
+        }
+    </script>
 
     <div id="top-loading-bar"></div>
     <script>
@@ -293,7 +306,7 @@
 
         <div class="flex-1 flex flex-col min-w-0">
             @auth
-                <div class="sticky top-0 z-10">
+                <div class="sticky top-0 z-30">
                     <x-topbar />
                 </div>
             @endauth

@@ -71,7 +71,7 @@
             <p class="text-xs text-[#c3c7cb] mt-1">Riwayat muncul di sini begitu ada import CSV performa atau sinkronisasi API.</p>
         </div>
     @else
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto hidden sm:block">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
                     <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -103,6 +103,43 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+
+        {{-- Mobile accordion list --}}
+        <div class="sm:hidden divide-y divide-[#f2f3f6]">
+            @foreach ($syncLogs as $log)
+                <div x-data="{ open: false }" class="px-4">
+                    <div class="py-3.5 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-[#14181a] truncate">{{ $log->client->name ?? '-' }}</p>
+                            <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $log->created_at->format('d M Y, H:i') }}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap
+                                {{ $log->status === 'success' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
+                                {{ $log->status === 'failed' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
+                                {{ $log->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}">
+                                {{ ucfirst($log->status) }}
+                            </span>
+                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                        </div>
+                    </div>
+                    <div x-show="open" x-cloak x-transition class="pb-4 -mt-1 space-y-2 text-sm">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-[#9aa0a4]">Platform</span>
+                            <span class="text-[#14181a] text-right">{{ $log->platform->name ?? 'Campuran' }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-[#9aa0a4]">Source Type</span>
+                            <span class="text-[#14181a] text-right">{{ $sourceTypeLabels[$log->source_type] ?? \Illuminate\Support\Str::headline($log->source_type) }}</span>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <span class="text-[#9aa0a4]">Imported By</span>
+                            <span class="text-[#14181a] text-right">{{ $log->importedBy->name ?? '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
         </div>
 
         <div class="px-6 py-4 border-t border-[#f2f3f6]">{{ $syncLogs->links() }}</div>

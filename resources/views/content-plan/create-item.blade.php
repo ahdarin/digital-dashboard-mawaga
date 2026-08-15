@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Tambah Content Item')
 @section('content')
-<div class="p-4 sm:p-6 lg:p-8 max-w-2xl">
+<div class="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali ke Content Plan"

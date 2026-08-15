@@ -2,7 +2,7 @@
 @section('title', 'Tambah Client Baru')
 @section('content')
 
-<div x-data="{ brandName: '{{ old('brand_name') }}', ownerName: '{{ old('owner_name') }}', logoPreview: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1200px]">
+<div x-data="{ brandName: '{{ old('brand_name') }}', ownerName: '{{ old('owner_name') }}', logoPreview: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto">
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('client-management.index') }}"

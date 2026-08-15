@@ -2,7 +2,7 @@
 @section('title', 'Performa Konten')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7">
@@ -32,11 +32,11 @@
             ['key' => 'audience', 'label' => 'Audience', 'icon' => 'groups'],
         ];
     @endphp
-    <div class="flex items-center gap-1 mb-6 border-b border-[#eef0f4] overflow-x-auto thin-autohide-scrollbar">
+    <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit overflow-x-auto thin-autohide-scrollbar">
         @foreach ($tabs as $t)
             <a href="{{ $tabHref($t['key']) }}"
-               class="text-sm font-medium px-4 py-2.5 border-b-2 -mb-px flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
-                   {{ $activeTab === $t['key'] ? 'border-[#044b46] text-[#044b46]' : 'border-transparent text-[#5c6266] hover:text-[#14181a]' }}">
+               class="text-sm font-medium px-4 py-2 rounded-md flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
+                   {{ $activeTab === $t['key'] ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
                 <span class="material-symbols-outlined text-[17px]">{{ $t['icon'] }}</span> {{ $t['label'] }}
             </a>
         @endforeach

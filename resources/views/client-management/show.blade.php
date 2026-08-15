@@ -2,7 +2,7 @@
 @section('title', $client->brand_name)
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1300px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1300px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
         <div class="flex items-center gap-4">

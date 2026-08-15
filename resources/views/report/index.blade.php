@@ -2,7 +2,7 @@
 @section('title', 'Report Generator')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="mb-7">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Report Generator</h1>
@@ -126,7 +126,7 @@
                     <p class="text-sm text-[#9aa0a4]">Belum ada laporan dibuat.</p>
                 </div>
             @else
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto hidden sm:block">
                     <table class="w-full text-sm text-left">
                         <thead>
                             <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
@@ -159,6 +159,36 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                {{-- Mobile accordion --}}
+                <div class="sm:hidden space-y-3">
+                    @foreach ($reports as $report)
+                        <div class="card p-3.5" x-data="{ open: false }">
+                            <div class="flex items-start gap-2 cursor-pointer" @click="open = !open">
+                                <div class="flex-1 min-w-0">
+                                    @if ($report->report_type === 'performance_summary')
+                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Performance</span>
+                                    @else
+                                        <span class="text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#eef2fb] text-[#3452a8]">Progress</span>
+                                    @endif
+                                    <p class="font-medium text-[#14181a] text-sm mt-1.5">{{ $report->client->name ?? 'Semua Client' }}</p>
+                                    <p class="text-xs text-[#5c6266] mt-0.5">{{ $report->period_start->format('d M') }} - {{ $report->period_end->format('d M Y') }}</p>
+                                </div>
+                                <span class="material-symbols-outlined text-[19px] text-[#9aa0a4] transition-transform shrink-0" :class="open && 'rotate-180'">expand_more</span>
+                            </div>
+                            <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="text-[#9aa0a4]">Created</span>
+                                    <span class="text-[#14181a] font-medium">{{ $report->created_at->diffForHumans() }}</span>
+                                </div>
+                                <a href="{{ Storage::url($report->file_path) }}" target="_blank" @click.stop
+                                   class="flex items-center justify-center gap-1.5 w-full bg-[#f0f5f4] text-[#044b46] text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#e2ece9] transition-colors">
+                                    <span class="material-symbols-outlined text-[15px]">download</span> Unduh
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             @endif
         </div>

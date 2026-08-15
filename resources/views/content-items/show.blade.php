@@ -5,13 +5,24 @@
     @php
         $workflow = $contentItem->workflow;
         $statusLabels = \App\Support\WorkflowTransitions::labels();
+
+        // url()->previous() ikut Referer header - kalau halaman ini
+        // di-reload (misal abis generate AI brief lalu redirect balik ke
+        // sini), Referer-nya jadi halaman ini sendiri, bikin tombol back
+        // looping ke diri sendiri. Fallback ke Produksi kalau ketauan
+        // previous = halaman sekarang.
+        $backUrl = url()->previous();
+        $backPath = parse_url($backUrl, PHP_URL_PATH) ?? '';
+        if (trim($backPath, '/') === trim(request()->path(), '/')) {
+            $backUrl = route('production-workflow.index');
+        }
     @endphp
 
-    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-4 sm:p-6 lg:p-8 max-w-6xl">
+    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
 
         <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div class="flex items-center gap-3">
-                <a href="{{ url()->previous() }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                <a href="{{ $backUrl }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </a>
                 <div>
