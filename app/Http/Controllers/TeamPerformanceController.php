@@ -45,7 +45,35 @@ class TeamPerformanceController extends Controller
             ->where('status', 'active')
             ->with(['role', 'assignments.contentItem.workflow']);
 
-        $members = $membersQuery->get()->map(function ($user) {
+        $allUsers = $membersQuery->get();
+
+        // Kumpulkan seluruh content_item_id lintas user dulu, biar revision
+        // count dan delay risk score bisa diambil lewat 2 query agregat
+        // total (bukan 2 query per user - dulu O(n) query terhadap jumlah
+        // staf, sekarang tetap O(1) berapa pun jumlah anggota tim).
+        $allContentItemIds = $allUsers
+            ->flatMap(fn ($user) => $user->assignments
+                ->filter(fn ($a) => $a->contentItem && $a->contentItem->workflow)
+                ->pluck('content_item_id'))
+            ->unique()
+            ->values();
+
+        $revisionCountByItem = ContentRevision::whereIn('content_item_id', $allContentItemIds)
+            ->selectRaw('content_item_id, count(*) as cnt')
+            ->groupBy('content_item_id')
+            ->pluck('cnt', 'content_item_id');
+
+        $riskScoreByItem = DelayRiskScore::whereIn('content_item_id', $allContentItemIds)
+            ->whereIn('id', function ($query) use ($allContentItemIds) {
+                // ambil skor TERBARU per content item (bukan semua histori)
+                $query->selectRaw('MAX(id)')
+                    ->from('delay_risk_scores')
+                    ->whereIn('content_item_id', $allContentItemIds)
+                    ->groupBy('content_item_id');
+            })
+            ->pluck('risk_score', 'content_item_id');
+
+        $members = $allUsers->map(function ($user) use ($revisionCountByItem, $riskScoreByItem) {
             $assignments = $user->assignments
                 ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
 
@@ -61,24 +89,19 @@ class TeamPerformanceController extends Controller
                 fn($a) => $a->contentItem->workflow->current_status === 'uploaded'
             )->count();
 
-            $revisionCount = ContentRevision::whereIn(
-                'content_item_id',
-                $assignments->pluck('content_item_id')
-            )->count();
+            $revisionCount = $assignments
+                ->pluck('content_item_id')
+                ->sum(fn ($id) => $revisionCountByItem[$id] ?? 0);
 
             $activeContentItemIds = $assignments
                 ->filter(fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses))
                 ->pluck('content_item_id');
 
-            $avgRiskScore = DelayRiskScore::whereIn('content_item_id', $activeContentItemIds)
-                ->whereIn('id', function ($query) use ($activeContentItemIds) {
-                    // ambil skor TERBARU per content item (bukan semua histori)
-                    $query->selectRaw('MAX(id)')
-                        ->from('delay_risk_scores')
-                        ->whereIn('content_item_id', $activeContentItemIds)
-                        ->groupBy('content_item_id');
-                })
-                ->avg('risk_score');
+            $activeRiskScores = $activeContentItemIds
+                ->map(fn ($id) => $riskScoreByItem[$id] ?? null)
+                ->filter(fn ($score) => $score !== null);
+
+            $avgRiskScore = $activeRiskScores->isNotEmpty() ? $activeRiskScores->avg() : null;
 
             return [
                 'user' => $user,

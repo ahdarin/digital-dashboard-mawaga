@@ -30,12 +30,14 @@ class NextStepsService
                     'icon' => 'fact_check',
                     'label' => "{$pendingPlans} rencana konten menunggu persetujuanmu",
                     'route' => route('content-plan.index'),
+                    'priority' => 80,
                 ];
             }
         }
 
         if ($user->hasPermissionTo('workflow', 'approve')) {
-            $clientApprovedCount = ContentWorkflow::where('current_status', 'waiting_review')
+            $clientApprovedCount = ContentWorkflow::whereHas('contentItem')
+                ->where('current_status', 'waiting_review')
                 ->whereNotNull('client_reviewed_at')
                 ->when(
                     ! $user->canSeeAllClients(),
@@ -49,6 +51,7 @@ class NextStepsService
                     'icon' => 'check_circle',
                     'label' => "{$clientApprovedCount} konten sudah disetujui klien, menunggu pengecekanmu",
                     'route' => route('production-workflow.index'),
+                    'priority' => 80,
                 ];
             }
         }
@@ -66,12 +69,14 @@ class NextStepsService
                     'icon' => 'edit_note',
                     'label' => "{$unfinishedBriefs} brief belum diterapkan ke tim produksi",
                     'route' => route('profile.me'),
+                    'priority' => 50,
                 ];
             }
         }
 
         if ($user->hasPermissionTo('workflow', 'update')) {
-            $overdueCount = ContentWorkflow::where('current_pic_id', $user->id)
+            $overdueCount = ContentWorkflow::whereHas('contentItem')
+                ->where('current_pic_id', $user->id)
                 ->where('is_overdue', true)
                 ->count();
             if ($overdueCount > 0) {
@@ -79,10 +84,12 @@ class NextStepsService
                     'icon' => 'schedule',
                     'label' => "{$overdueCount} task kamu sudah lewat deadline",
                     'route' => route('profile.me'),
+                    'priority' => 100,
                 ];
             }
 
-            $unresolvedRevisions = ContentWorkflow::where('current_pic_id', $user->id)
+            $unresolvedRevisions = ContentWorkflow::whereHas('contentItem')
+                ->where('current_pic_id', $user->id)
                 ->where('current_status', 'revision')
                 ->count();
             if ($unresolvedRevisions > 0) {
@@ -90,9 +97,21 @@ class NextStepsService
                     'icon' => 'rate_review',
                     'label' => "{$unresolvedRevisions} konten kamu perlu direvisi",
                     'route' => route('production-workflow.index'),
+                    'priority' => 90,
                 ];
             }
         }
+
+        if (empty($steps)) {
+            return [[
+                'icon' => 'task_alt',
+                'label' => 'Tidak ada langkah berikutnya saat ini',
+                'route' => route('profile.me'),
+                'priority' => 0,
+            ]];
+        }
+
+        usort($steps, fn ($a, $b) => $b['priority'] <=> $a['priority']);
 
         return array_slice($steps, 0, 3);
     }

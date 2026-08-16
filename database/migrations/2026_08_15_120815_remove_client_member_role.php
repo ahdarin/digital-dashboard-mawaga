@@ -1,8 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -11,19 +10,29 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $role = \App\Models\Role::where('name', 'Client Member')->first();
+        $roleId = DB::table('roles')->where('name', 'Client Member')->value('id');
 
-        if ($role) {
-            $role->permissions()->detach();
-            $role->delete();
+        if ($roleId) {
+            DB::table('role_permissions')->where('role_id', $roleId)->delete();
+            DB::table('roles')->where('id', $roleId)->delete();
         }
     }
 
     /**
-     * Reverse the migrations.
+     * Reverse the migrations. Nggak reversible dengan aman - permission
+     * set aslinya udah dihapus dari PermissionSeeder juga di commit yang
+     * sama, jadi tidak ada sumber kebenaran buat merekonstruksinya. Baris
+     * role-nya dikembalikan (biar FK yang mungkin masih menunjuk ke role
+     * ini nggak orphan), tapi tanpa permission apa pun terpasang.
      */
     public function down(): void
     {
-        \App\Models\Role::firstOrCreate(['name' => 'Client Member']);
+        if (! DB::table('roles')->where('name', 'Client Member')->exists()) {
+            DB::table('roles')->insert([
+                'name' => 'Client Member',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 };

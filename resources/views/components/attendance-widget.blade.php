@@ -1,9 +1,11 @@
+{{-- ARCH-03: data absensi hari ini (isWorkday/attendance/lateMinutes)
+     di-fetch di HomeController dan dikirim ke sini lewat prop, bukan
+     query langsung dari view - biar controller yang pegang kendali data
+     yang dirender, dan komponen ini aman dipakai di dalam loop tanpa
+     jadi N+1 senyap. --}}
+@props(['isWorkday' => true, 'attendance' => null, 'lateMinutes' => 0])
 @php
     $attendanceService = app(\App\Services\AttendanceService::class);
-    $now = \Illuminate\Support\Carbon::now();
-    $isWorkday = $attendanceService->isWorkday($now);
-    $attendance = $attendanceService->today(auth()->user());
-    $lateMinutes = $attendance ? $attendanceService->lateMinutes($attendance) : 0;
 @endphp
 <div class="shrink-0 text-right">
     @if (! $isWorkday)

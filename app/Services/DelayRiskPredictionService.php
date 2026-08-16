@@ -170,7 +170,33 @@ class DelayRiskPredictionService
             return [];
         }
 
-        return json_decode($result->output(), true) ?? [];
+        $decoded = json_decode($result->output(), true) ?? [];
+
+        return $this->filterValidResults($decoded);
+    }
+
+    /**
+     * Payload dari script Python tidak divalidasi di sisi PHP - kalau risk_level
+     * yang dikembalikan bukan salah satu bucket yang dikenal, dia bisa dipakai
+     * langsung sebagai array key (lihat DelayRiskAccuracyService::calculate())
+     * dan mengotori struktur breakdown. Buang hasil yang tidak valid, jangan
+     * dipercaya begitu saja - konsisten dengan pola log+skip di atas kalau
+     * script/model gagal.
+     */
+    private function filterValidResults(array $results): array
+    {
+        $allowedRiskLevels = ['high', 'medium', 'low'];
+
+        return array_values(array_filter($results, function ($item) use ($allowedRiskLevels) {
+            if (! is_array($item) || ! isset($item['risk_level']) || ! in_array($item['risk_level'], $allowedRiskLevels, true)) {
+                Log::warning('Delay Risk prediction script mengembalikan risk_level tidak valid, skor dilewati', [
+                    'content_item_id' => $item['content_item_id'] ?? null,
+                    'risk_level' => $item['risk_level'] ?? null,
+                ]);
+                return false;
+            }
+            return true;
+        }));
     }
 
     private function guessTopFactor(array $features, ?array $previousFeatures = null): string

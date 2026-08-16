@@ -93,7 +93,11 @@ class AudienceController extends Controller
                 $skippedRows[] = "Baris {$rowNumber}: kolom platform kosong";
                 continue;
             }
-            $platform = Platform::firstOrCreate(['name' => $platformName]);
+            $platform = Platform::where('name', $platformName)->first();
+            if (! $platform) {
+                $skippedRows[] = "Baris {$rowNumber}: platform '{$platformName}' tidak dikenali";
+                continue;
+            }
             $platformIdsUsed[$platform->id] = true;
 
             try {

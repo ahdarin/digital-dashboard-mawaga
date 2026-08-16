@@ -35,7 +35,7 @@
                 <span class="material-symbols-outlined text-[#044b46] text-[17px]">upload_file</span>
             </div>
             <div>
-                <p class="text-sm font-medium text-[#14181a]">Import Audience Data (CSV)</p>
+                <p class="text-sm font-medium text-[#14181a]">Import Data Audiens (CSV)</p>
                 <p class="text-xs text-[#767c80]">Followers, gender, usia, dan top lokasi untuk {{ $client->name ?? '' }}.</p>
             </div>
         </summary>
@@ -72,7 +72,7 @@
             <span class="material-symbols-outlined text-[#8a6423] text-[26px]">database</span>
         </div>
         <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Belum ada data audience untuk {{ $client->name }}</h2>
-        <p class="text-sm text-[#5c6266] max-w-sm">Buka panel "Import Audience Data" di atas buat upload CSV-nya.</p>
+        <p class="text-sm text-[#5c6266] max-w-sm">Buka panel "Import Data Audiens" di atas buat upload CSV-nya.</p>
     </div>
 
 @else
@@ -137,7 +137,7 @@
 
         {{-- Age --}}
         <div class="card p-6">
-            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Age Range</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Rentang Usia</h2>
             @if (empty($ageBreakdown))
                 <p class="text-sm text-[#767c80] text-center py-8">Belum ada data.</p>
             @else
@@ -159,7 +159,7 @@
 
         {{-- Top Locations --}}
         <div class="card p-6">
-            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Top Locations</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Lokasi Teratas</h2>
             @if ($topLocations->isEmpty())
                 <p class="text-sm text-[#767c80] text-center py-8">Belum ada data.</p>
             @else
@@ -186,7 +186,7 @@
     {{-- Active hours --}}
     <div class="card p-6 mt-5">
         <div class="flex items-center justify-between mb-1">
-            <h2 class="font-display text-base font-semibold text-[#14181a]">Audience Active Hours</h2>
+            <h2 class="font-display text-base font-semibold text-[#14181a]">Jam Aktif Audiens</h2>
             @if ($peakHour && $peakHour['value'] > 0)
                 <span class="badge badge-success">Paling aktif: {{ $peakHour['label'] }}</span>
             @endif

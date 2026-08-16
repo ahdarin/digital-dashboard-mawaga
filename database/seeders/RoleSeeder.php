@@ -26,20 +26,23 @@ class RoleSeeder extends Seeder
             ]);
         }
 
-        // Manager Demo
-        $managerRole = Role::where('name', 'Manager')->first();
+        // Manager Demo (local/dev only — seeded account has a known password,
+        // so it must never be created in staging/production environments)
+        if (app()->environment('local')) {
+            $managerRole = Role::where('name', 'Manager')->first();
 
-        User::firstOrCreate(
-            [
-                'email' => 'admin@523studio.test',
-            ],
-            [
-                'role_id' => $managerRole->id,
-                'name' => 'Manager Demo',
-                'password' => bcrypt('password'),
-                'status' => 'active',
-            ]
-        );
+            User::firstOrCreate(
+                [
+                    'email' => 'admin@523studio.test',
+                ],
+                [
+                    'role_id' => $managerRole->id,
+                    'name' => 'Manager Demo',
+                    'password' => bcrypt('password'),
+                    'status' => 'active',
+                ]
+            );
+        }
 
         // CEO
         $ceoRole = Role::where('name', 'CEO')->first();

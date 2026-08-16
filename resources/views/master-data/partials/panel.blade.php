@@ -1,9 +1,9 @@
 @php
     $mdTabs = [
-        'content-pillar' => 'Content Pillar',
-        'content-type' => 'Content Type',
+        'content-pillar' => 'Pilar Konten',
+        'content-type' => 'Tipe Konten',
         'platform' => 'Platform',
-        'client-category' => 'Client Category',
+        'client-category' => 'Kategori Klien',
     ];
 @endphp
 <div x-data="{ showAdd: false }">

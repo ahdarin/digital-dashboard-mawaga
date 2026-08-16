@@ -56,7 +56,7 @@
         <div class="grid grid-cols-1 gap-3">
             @foreach ($stats as $stat)
                 @continue($stat['label'] === 'Platforms Tracked')
-                <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] flex items-center justify-between">
+                <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] flex items-center justify-between">
                     <div>
                         <p class="text-xs text-[#767c80] mb-1">{{ $stat['label'] }}</p>
                         <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $stat['value'] }}</p>
@@ -72,12 +72,12 @@
             @endforeach
         </div>
 
-        <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
+        <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
             <p class="text-sm font-semibold text-[#14181a] mb-3">Views Trend</p>
             <x-trend-chart :trend="$trend" />
         </div>
 
-        <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
+        <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
             <p class="text-sm font-semibold text-[#14181a] mb-3">Traffic per Platform</p>
             @if ($platformBreakdown->isEmpty())
                 <p class="text-sm text-[#767c80] text-center py-6">Belum ada data pada periode ini.</p>
@@ -99,7 +99,7 @@
             @endif
         </div>
 
-        <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
+        <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
             <p class="text-sm font-semibold text-[#14181a] mb-3">Top Performing Content</p>
             @if ($topContent->isEmpty())
                 <p class="text-sm text-[#767c80] text-center py-6">Belum ada data pada periode ini.</p>

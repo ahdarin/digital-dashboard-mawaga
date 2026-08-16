@@ -11,7 +11,7 @@
             </a>
             <div>
                 <p class="text-xs text-[#767c80] mb-1">
-                    <a href="{{ route('content-plan.index') }}" class="hover:text-[#044b46]">Content Plan</a> /
+                    <a href="{{ route('content-plan.index') }}" class="hover:text-[#044b46]">Rencana Konten</a> /
                     {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}
                 </p>
                 <div class="flex items-center gap-3">
@@ -74,9 +74,9 @@
 
             <div class="flex items-center h-9 bg-[#f2f3f6] rounded-lg p-1">
                 <a href="{{ route('content-plan.show', ['contentPlan' => $contentPlan, 'view' => 'table']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'table' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Table</a>
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'table' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Tabel</a>
                 <a href="{{ route('content-plan.show', ['contentPlan' => $contentPlan, 'view' => 'calendar']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'calendar' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Calendar</a>
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'calendar' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Kalender</a>
             </div>
         </div>
     </div>

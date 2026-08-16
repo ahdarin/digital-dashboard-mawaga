@@ -28,8 +28,7 @@ class ClientMagicLinkController extends Controller
         $normalizedPhone = PhoneNumberNormalizer::normalize($validated['phone_number']);
 
         \Log::info('Client magic link request received', [
-            'input_phone' => $validated['phone_number'],
-            'normalized_phone' => $normalizedPhone,
+            'normalized_phone' => '****' . substr($normalizedPhone, -4),
             'ip' => $request->ip(),
         ]);
 
@@ -40,7 +39,7 @@ class ClientMagicLinkController extends Controller
 
         if ($recentToken) {
             \Log::warning('Magic link blocked by rate limiter', [
-                'phone' => $normalizedPhone,
+                'phone' => '****' . substr($normalizedPhone, -4),
             ]);
 
             return back()->with(
@@ -59,7 +58,7 @@ class ClientMagicLinkController extends Controller
         if (!$user || !in_array($user->status, ['active', 'invited'])) {
 
             \Log::warning('Magic link request rejected', [
-                'phone' => $normalizedPhone,
+                'phone' => '****' . substr($normalizedPhone, -4),
                 'user_found' => $user ? true : false,
                 'status' => $user?->status,
             ]);
@@ -69,8 +68,6 @@ class ClientMagicLinkController extends Controller
 
         \Log::info('Client found', [
             'user_id' => $user->id,
-            'name' => $user->name,
-            'phone' => $user->phone_number,
             'status' => $user->status,
         ]);
 
@@ -95,7 +92,8 @@ class ClientMagicLinkController extends Controller
         // masih berlaku 10 menit. Siapa pun yang baca laravel.log bisa
         // login sebagai client ini kalau token-nya ikut kelogging.
         \Log::info('Sending WhatsApp via Fonnte', [
-            'target' => $user->phone_number,
+            'user_id' => $user->id,
+            'target' => '****' . substr($user->phone_number, -4),
         ]);
 
         try {

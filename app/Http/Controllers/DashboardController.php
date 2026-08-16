@@ -29,8 +29,13 @@ class DashboardController extends Controller
         $contentLastMonth = ContentItem::whereBetween('deadline_at', [$startOfLastMonth, $endOfLastMonth])->count();
         $contentChange = $this->percentChange($contentLastMonth, $contentThisMonth);
 
-        $overdueCount = ContentWorkflow::where('is_overdue', true)->count();
-        $totalWorkflow = ContentWorkflow::count();
+        $overdueCount = ContentWorkflow::whereHas('contentItem')
+            ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
+            ->where('is_overdue', true)
+            ->count();
+        $totalWorkflow = ContentWorkflow::whereHas('contentItem')
+            ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
+            ->count();
         $overdueRate = $totalWorkflow > 0 ? round(($overdueCount / $totalWorkflow) * 100, 1) : 0;
 
         $activeClients = Client::where('status', 'active')->count();
@@ -39,11 +44,14 @@ class DashboardController extends Controller
         $activeTeam = User::whereNull('client_id')->where('status', 'active')->count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
-        $viewsThisMonth = (int) ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])->sum('views');
-        $viewsLastMonth = (int) ContentMetric::whereBetween('metric_date', [$startOfLastMonth, $endOfLastMonth])->sum('views');
+        $viewsThisMonth = (int) ContentMetric::whereHas('contentItem')
+            ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])->sum('views');
+        $viewsLastMonth = (int) ContentMetric::whereHas('contentItem')
+            ->whereBetween('metric_date', [$startOfLastMonth, $endOfLastMonth])->sum('views');
         $viewsChange = $this->percentChange($viewsLastMonth, $viewsThisMonth);
 
-        $uploadedThisMonth = ContentWorkflow::where('current_status', 'uploaded')
+        $uploadedThisMonth = ContentWorkflow::whereHas('contentItem')
+            ->where('current_status', 'uploaded')
             ->whereBetween('updated_at', [$startOfThisMonth, $endOfThisMonth])
             ->count();
 
@@ -113,10 +121,11 @@ class DashboardController extends Controller
 
         $trendEnd = Carbon::now()->endOfDay();
         $trendStart = Carbon::now()->subDays($period - 1)->startOfDay();
-        $trendMetrics = ContentMetric::whereBetween('metric_date', [$trendStart, $trendEnd])->get();
+        $trendMetrics = ContentMetric::whereHas('contentItem')->whereBetween('metric_date', [$trendStart, $trendEnd])->get();
         $viewsTrend = $analyticsSummaryService->buildTrend($trendMetrics, $trendStart, $trendEnd, $period);
 
         $attentionItems = ContentWorkflow::with(['contentItem.client', 'currentPic'])
+            ->whereHas('contentItem')
             ->where('is_overdue', true)
             ->oldest('updated_at')
             ->take(4)
@@ -151,7 +160,8 @@ class DashboardController extends Controller
             });
 
         // --- Tambahan: teaser Analytics (org-wide, bulan berjalan) ---
-        $monthMetrics = ContentMetric::whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
+        $monthMetrics = ContentMetric::whereHas('contentItem')
+            ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
             ->with('contentItem.client', 'contentItem.platform')
             ->get();
 

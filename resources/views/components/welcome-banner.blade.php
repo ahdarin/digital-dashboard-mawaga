@@ -1,5 +1,6 @@
 {{-- Welcome banner - dipakai di Beranda (landing page semua user internal).
      Satu-satunya elemen non-data di halaman ini, biar nggak kaku angka melulu. --}}
+@props(['isWorkday' => true, 'attendance' => null, 'lateMinutes' => 0])
 @php
     $greetingHour = now()->hour;
     // Satu sumber kebenaran buat "jam berapa sekarang" - dipakai bareng
@@ -97,5 +98,5 @@
         <p class="font-display text-2xl font-semibold text-[#14181a]"
             x-text="now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })"></p>
     </div>
-    <x-attendance-widget />
+    <x-attendance-widget :is-workday="$isWorkday" :attendance="$attendance" :late-minutes="$lateMinutes" />
 </div>

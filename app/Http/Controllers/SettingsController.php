@@ -189,7 +189,13 @@ class SettingsController extends Controller
 
             $data = array_combine($header, array_pad($row, count($header), null));
 
-            $platform = Platform::firstOrCreate(['name' => trim($data['platform'] ?? '')]);
+            $platform = Platform::where('name', trim($data['platform'] ?? ''))->first();
+
+            if (! $platform) {
+                $skippedRows[] = "Baris {$rowNumber}: platform '".trim($data['platform'] ?? '-')."' tidak dikenali";
+                continue;
+            }
+
             $platformIdsUsed[$platform->id] = true;
 
             $contentItem = ContentItem::where('client_id', $client->id)

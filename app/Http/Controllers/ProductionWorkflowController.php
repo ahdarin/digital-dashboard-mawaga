@@ -88,7 +88,15 @@ class ProductionWorkflowController extends Controller
             'type' => fn ($item) => strtolower($item->contentType->name ?? ''),
             // Bukan alfabet - urut sesuai tahapan workflow yang sudah
             // disusun (brief_ready -> ... -> cancelled), sesuai statuses.
-            'status' => fn ($item) => array_search($item->workflow->current_status, $this->statuses),
+            // array_search() balikin `false` (bukan -1/null) kalau status-nya tidak
+            // dikenal - di sort comparator `false` ke-cast jadi 0, jadi status asing
+            // malah nongol di paling atas (posisi brief_ready). Pakai `!== false` di
+            // sini, BUKAN `?: PHP_INT_MAX`, karena brief_ready sendiri index-nya 0
+            // (falsy) - short-circuit `?:` bakal salah nganggep itu "tidak ketemu".
+            'status' => function ($item) {
+                $index = array_search($item->workflow->current_status, $this->statuses);
+                return $index !== false ? $index : PHP_INT_MAX;
+            },
             'pic' => fn ($item) => strtolower($item->workflow->currentPic->name ?? ''),
             'deadline' => fn ($item) => $item->deadline_at,
             'risk' => fn ($item) => $item->latestDelayRisk->risk_score ?? -1,

@@ -39,8 +39,8 @@
         <p class="text-sm text-[#767c80] py-2">Belum ada cukup data (butuh konten yang sudah upload dan pernah dapat skor risiko).</p>
     @else
         <div class="flex items-baseline gap-2 mb-4">
-            @if ($riskAccuracy['high_risk_accuracy'] !== null)
-                <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $riskAccuracy['high_risk_accuracy'] }}%</p>
+            @if ($riskAccuracy['high_risk_precision'] !== null)
+                <p class="font-display text-2xl font-semibold text-[#14181a]">{{ $riskAccuracy['high_risk_precision'] }}%</p>
                 <p class="text-xs text-[#5c6266]">dari konten yang diprediksi <strong>High Risk</strong> benar-benar terlambat</p>
             @else
                 <p class="text-sm text-[#767c80]">Belum ada konten dengan prediksi High Risk yang sudah selesai upload.</p>

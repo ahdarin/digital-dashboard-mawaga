@@ -168,7 +168,7 @@
                     <div class="flex items-center justify-between mb-1">
                         <h2 class="font-display text-lg font-semibold text-[#14181a]">Konten Berperforma Terbaik</h2>
                         <a href="{{ Route::has('analytics') ? route('analytics') : '#' }}"
-                            class="text-sm font-medium text-[#044b46] hover:underline">Lihat Analytics</a>
+                            class="text-sm font-medium text-[#044b46] hover:underline">Lihat Performa</a>
                     </div>
                     <p class="text-xs text-[#767c80] mb-4">Konten dengan views tertinggi bulan ini, lintas semua client.</p>
 
@@ -401,10 +401,10 @@
                         <p class="text-sm text-[#767c80] mt-3">Belum ada cukup data (butuh konten yang sudah upload dan pernah
                             dapat skor risiko).</p>
                     @else
-                        @if ($riskAccuracy['high_risk_accuracy'] !== null)
+                        @if ($riskAccuracy['high_risk_precision'] !== null)
                             <div class="flex items-baseline gap-2 mt-3">
                                 <p class="font-display text-2xl font-semibold text-[#14181a]">
-                                    {{ $riskAccuracy['high_risk_accuracy'] }}%</p>
+                                    {{ $riskAccuracy['high_risk_precision'] }}%</p>
                                 <p class="text-xs text-[#5c6266]">prediksi <strong>High Risk</strong> benar-benar terlambat</p>
                             </div>
                         @else

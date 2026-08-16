@@ -28,8 +28,8 @@
         $tabHref = fn (string $tab) => route('analytics', array_filter(['tab' => $tab, 'client_id' => $selectedClientId]));
         $tabs = [
             ['key' => 'overview', 'label' => 'Analytics', 'icon' => 'monitoring'],
-            ['key' => 'table', 'label' => 'Performance Table', 'icon' => 'table_rows'],
-            ['key' => 'audience', 'label' => 'Audience', 'icon' => 'groups'],
+            ['key' => 'table', 'label' => 'Tabel Performa', 'icon' => 'table_rows'],
+            ['key' => 'audience', 'label' => 'Audiens', 'icon' => 'groups'],
         ];
     @endphp
     <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit overflow-x-auto thin-autohide-scrollbar">
@@ -58,7 +58,7 @@
             <select name="period" onchange="this.form.submit()"
                     class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
                 <option value="7" {{ $period === 7 ? 'selected' : '' }}>Last 7 Days</option>
-                <option value="30" {{ $period === 30 ? 'selected' : '' }}>Last 30 Days</option>
+                <option value="30" {{ $period === 30 ? 'selected' : '' }}>30 Hari Terakhir</option>
                 <option value="90" {{ $period === 90 ? 'selected' : '' }}>Last 90 Days</option>
             </select>
         @endif
@@ -519,7 +519,7 @@
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-1">
                         <span class="material-symbols-outlined text-[#767c80] text-[18px]">show_chart</span>
-                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Views Over Time</h2>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Views dari Waktu ke Waktu</h2>
                     </div>
                     <p class="text-xs text-[#767c80] mb-5 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
                     <x-trend-chart :trend="$trend" />
@@ -565,7 +565,7 @@
                     @if ($topContent->isEmpty())
                         <p class="text-sm text-[#767c80] py-6 text-center">Belum ada konten dengan data performa.</p>
                     @else
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
                                 <thead class="bg-[#f7f8fc]">
                                     <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
@@ -597,6 +597,41 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                        </div>
+
+                        {{-- Mobile accordion - sama koleksi data, hanya tampil di bawah sm --}}
+                        <div class="sm:hidden space-y-3">
+                            @foreach ($topContent as $content)
+                                <div class="card p-3.5" x-data="{ open: false }">
+                                    <button type="button" class="w-full text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-medium text-[#14181a] text-sm truncate">{{ $content['title'] }}</p>
+                                            <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                                                <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}% Engagement</span>
+                                                <span class="text-xs text-[#5c6266] whitespace-nowrap">{{ $content['client'] }} &middot; {{ $content['platform'] }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#767c80]">
+                                            <span class="material-symbols-outlined text-[19px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
+                                        </div>
+                                    </button>
+
+                                    <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-[#767c80]">Tipe</span>
+                                            <span class="text-[#14181a] font-medium">{{ $content['type'] }}</span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-[#767c80]">Views</span>
+                                            <span class="text-[#14181a] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</span>
+                                        </div>
+                                        <a href="{{ route('analytics.show', $content['id']) }}"
+                                            class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] rounded-lg py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                            Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     @endif
                 </div>

@@ -5,7 +5,7 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
 
     <div class="flex items-center gap-2 text-xs text-[#767c80] mb-3">
-        <a href="{{ route('analytics', ['client_id' => $client->id]) }}" class="hover:text-[#044b46] font-medium">Analytics</a>
+        <a href="{{ route('analytics', ['client_id' => $client->id]) }}" class="hover:text-[#044b46] font-medium">Performa</a>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
         <span>{{ $client->name }}</span>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>

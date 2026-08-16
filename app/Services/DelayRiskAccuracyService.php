@@ -27,13 +27,19 @@ class DelayRiskAccuracyService
             'low' => ['total' => 0, 'late' => 0],
         ];
 
-        $firstUploadedLogs = ContentStatusLog::where('to_status', 'uploaded')
+        $firstUploadedLogs = ContentStatusLog::whereHas('contentItem')
+            ->where('to_status', 'uploaded')
             ->orderBy('changed_at')
             ->get()
             ->unique('content_item_id');
 
         if ($firstUploadedLogs->isEmpty()) {
-            return ['breakdown' => $breakdown, 'total_evaluated' => 0, 'high_risk_accuracy' => null];
+            return [
+                'breakdown' => $breakdown,
+                'total_evaluated' => 0,
+                'high_risk_precision' => null,
+                'high_risk_recall' => null,
+            ];
         }
 
         $items = ContentItem::whereIn('id', $firstUploadedLogs->pluck('content_item_id'))
@@ -65,12 +71,23 @@ class DelayRiskAccuracyService
         }
 
         $totalEvaluated = array_sum(array_column($breakdown, 'total'));
+        $totalLate = array_sum(array_column($breakdown, 'late'));
 
         return [
             'breakdown' => $breakdown,
             'total_evaluated' => $totalEvaluated,
-            'high_risk_accuracy' => $breakdown['high']['total'] > 0
+            // Precision: dari yang diprediksi High Risk, berapa persen yang benar-benar
+            // terlambat. Ini BUKAN "akurasi" - false negative (item diprediksi
+            // medium/low tapi ternyata telat) tidak masuk hitungan ini, lihat
+            // high_risk_recall untuk sisi sebaliknya.
+            'high_risk_precision' => $breakdown['high']['total'] > 0
                 ? round($breakdown['high']['late'] / $breakdown['high']['total'] * 100)
+                : null,
+            // Recall: dari SEMUA konten yang ternyata telat (di semua bucket risiko),
+            // berapa persen yang sebelumnya sudah diprediksi High Risk. Melengkapi
+            // precision di atas supaya false negative kelihatan juga.
+            'high_risk_recall' => $totalLate > 0
+                ? round($breakdown['high']['late'] / $totalLate * 100)
                 : null,
         ];
     }

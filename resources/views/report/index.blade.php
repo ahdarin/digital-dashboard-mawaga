@@ -5,8 +5,8 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="mb-7">
-        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Report Generator</h1>
-        <p class="text-[#5c6266] text-sm mt-1">Generate laporan progres operasional atau performa konten, siap dikirim ke client.</p>
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Laporan</h1>
+        <p class="text-[#5c6266] text-sm mt-1">Generate laporan progres operasional atau performa konten, siap dikirim ke klien.</p>
     </div>
 
     @if (session('status'))
@@ -77,9 +77,9 @@
             <form action="{{ route('report.generate-performance') }}" method="POST" class="space-y-4">
                 @csrf
                 <div>
-                    <label for="performance_client_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Client <span class="text-[#b3423e]">*</span></label>
+                    <label for="performance_client_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Klien <span class="text-[#b3423e]">*</span></label>
                     <select id="performance_client_id" name="client_id" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
-                        <option value="">Pilih client...</option>
+                        <option value="">Pilih klien...</option>
                         @foreach ($clientOptions as $client)
                             <option value="{{ $client->id }}">{{ $client->name }}</option>
                         @endforeach
@@ -115,7 +115,7 @@
     {{-- Riwayat --}}
     <div class="card overflow-hidden">
         <div class="p-6 pb-0 flex items-center justify-between flex-wrap gap-2">
-            <h2 class="font-display text-lg font-semibold text-[#14181a]">Report History</h2>
+            <h2 class="font-display text-lg font-semibold text-[#14181a]">Riwayat Laporan</h2>
             <span class="text-xs text-[#767c80]">{{ $reports->count() }} laporan</span>
         </div>
 

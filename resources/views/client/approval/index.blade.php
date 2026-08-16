@@ -41,7 +41,7 @@
 
     <div class="p-5">
         @if (session('status'))
-            <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-xl mb-4 font-medium">{{ session('status') }}</div>
+            <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-2xl mb-4 font-medium">{{ session('status') }}</div>
         @endif
 
         <p class="text-sm text-[#5c6266] mb-4">{{ $pendingItems->count() }} konten menunggu persetujuan Anda</p>
@@ -49,7 +49,7 @@
         <div class="space-y-3">
             @forelse ($pendingItems as $item)
                 <a href="{{ route('client.approval.show', $item) }}"
-                   class="block bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
+                   class="block bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
                         <span class="text-[10px] font-bold text-[#8a6423] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
                         <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
@@ -70,7 +70,7 @@
             <p class="text-xs font-semibold text-[#767c80] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
             <div class="space-y-3">
                 @foreach ($reviewedItems as $item)
-                    <div class="bg-white rounded-xl border border-[#eef0f4] p-4 opacity-70">
+                    <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 opacity-70">
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-[10px] font-bold text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded uppercase">Sudah Anda Setujui</span>
                             <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>

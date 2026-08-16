@@ -5,7 +5,7 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
 
     <div class="flex flex-wrap items-center gap-2 text-xs text-[#767c80] mb-3">
-        <a href="{{ route('analytics') }}" class="hover:text-[#044b46] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Analytics</a>
+        <a href="{{ route('analytics') }}" class="hover:text-[#044b46] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Performa</a>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
         <span>{{ $contentItem->client->name ?? '-' }}</span>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
@@ -68,7 +68,7 @@
                     <p class="font-display text-xl font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ number_format($totalViews) }}</p>
                 </div>
                 <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
-                    <p class="text-xs text-[#767c80] mb-1.5">Avg. Engagement</p>
+                    <p class="text-xs text-[#767c80] mb-1.5">Rata-rata Engagement</p>
                     <p class="font-display text-xl font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $avgEngagement }}%</p>
                 </div>
                 <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
@@ -80,11 +80,11 @@
             @if ($hasVideoMetrics)
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div class="card p-5 bg-[#eef2fb] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Avg. Watch Time</p>
+                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Rata-rata Watch Time</p>
                         <p class="text-lg font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $avgWatchTime !== null ? $avgWatchTime.'s' : '-' }}</p>
                     </div>
                     <div class="card p-5 bg-[#eef2fb] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Completion Rate</p>
+                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Tingkat Penyelesaian</p>
                         <p class="text-lg font-semibold text-[#14181a] [font-variant-numeric:tabular-nums]">{{ $avgCompletionRate !== null ? $avgCompletionRate.'%' : '-' }}</p>
                     </div>
                     <div class="card p-5 bg-[#eef2fb] border-0">
