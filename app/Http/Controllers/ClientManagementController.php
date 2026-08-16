@@ -218,7 +218,10 @@ class ClientManagementController extends Controller
             if ($client->logo_path) {
                 Storage::disk('public')->delete($client->logo_path);
             }
-            $client->owner?->delete();
+            // Hapus SEMUA user milik client ini (owner + staf tambahan), bukan cuma
+            // owner - kalau tidak, user selain owner jadi punya client_id=NULL lewat
+            // FK ON DELETE SET NULL, yang di sistem ini berarti "staf internal".
+            $client->users()->delete();
             $client->packages()->delete();
             $client->delete();
         });

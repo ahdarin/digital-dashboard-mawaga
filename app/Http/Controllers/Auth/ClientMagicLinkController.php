@@ -84,7 +84,6 @@ class ClientMagicLinkController extends Controller
 
         \Log::info('Magic token created', [
             'user_id' => $user->id,
-            'token_preview' => substr($rawToken, 0, 4) . '****',
             'expires_at' => now()->addMinutes(10)->toDateTimeString(),
         ]);
 
@@ -92,10 +91,11 @@ class ClientMagicLinkController extends Controller
 
         $message = "Halo {$user->name}, klik link berikut untuk masuk ke Dashboard 523 Studio (berlaku 10 menit):\n{$link}";
 
+        // Jangan log $message/$link - keduanya berisi token login mentah yang
+        // masih berlaku 10 menit. Siapa pun yang baca laravel.log bisa
+        // login sebagai client ini kalau token-nya ikut kelogging.
         \Log::info('Sending WhatsApp via Fonnte', [
             'target' => $user->phone_number,
-            'message' => $message,
-            'link' => $link,
         ]);
 
         try {
@@ -134,7 +134,6 @@ class ClientMagicLinkController extends Controller
     public function verify(Request $request, string $token)
     {
         \Log::info('Magic link verification started', [
-            'token_preview' => substr($token, 0, 4) . '****',
             'ip' => $request->ip(),
         ]);
 
@@ -194,7 +193,6 @@ class ClientMagicLinkController extends Controller
 
         \Log::info('Client login successful', [
             'user_id' => $user->id,
-            'session_id' => $request->session()->getId(),
         ]);
 
         AuthAuditLog::create([

@@ -6,6 +6,7 @@ use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
+use App\Support\WorkflowTransitions;
 use Illuminate\Support\Collection;
 
 /**
@@ -15,7 +16,7 @@ use Illuminate\Support\Collection;
  */
 class UserWorkSummaryService
 {
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
     public function isCopywriter(User $user): bool
     {

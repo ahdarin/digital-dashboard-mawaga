@@ -45,7 +45,7 @@ class SearchController extends Controller
             'id' => $client->id,
             'title' => $client->name,
             'subtitle' => $client->brand_name && $client->brand_name !== $client->name ? $client->brand_name : null,
-            'url' => route('client-onboarding.show', $client),
+            'url' => route('client-management.show', $client),
         ])->all();
     }
 

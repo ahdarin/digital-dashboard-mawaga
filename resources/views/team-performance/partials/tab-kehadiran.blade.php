@@ -9,6 +9,7 @@
         'Lupa Check-Out' => 'bg-[#fdf6ec] text-[#8a6423]',
         'Tidak Hadir' => 'bg-[#fdf2f1] text-[#b3423e]',
         'Belum Check-In' => 'bg-[#f2f3f6] text-[#5c6266]',
+        'Belum Datang' => 'bg-[#f2f3f6] text-[#5c6266]',
         'Libur' => 'bg-[#f2f3f6] text-[#9aa0a4]',
     ];
 @endphp

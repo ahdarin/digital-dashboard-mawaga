@@ -99,7 +99,7 @@
                             <div class="absolute inset-0 bg-[#14181a]/40" @click="openAssign = null"></div>
 
                             <div x-show="openAssign === {{ $user->id }}" x-transition
-                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
                                         <h3 class="font-display text-lg font-semibold text-[#14181a]">Assign Klien</h3>
@@ -153,7 +153,7 @@
                             <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmDeactivate = null"></div>
 
                             <div x-show="confirmDeactivate === {{ $user->id }}" x-transition
-                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
                                         <h3 class="font-display text-lg font-semibold text-[#14181a]">Nonaktifkan User</h3>
@@ -190,7 +190,7 @@
                             <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmActivate = null"></div>
 
                             <div x-show="confirmActivate === {{ $user->id }}" x-transition
-                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                                     <div>
                                         <h3 class="font-display text-lg font-semibold text-[#14181a]">Aktifkan User</h3>
@@ -316,7 +316,7 @@
         <div class="absolute inset-0 bg-[#14181a]/40" @click="showCreateModal = false"></div>
 
         <div x-show="showCreateModal" x-transition
-             class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+             class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                 <h3 class="font-display text-lg font-semibold text-[#14181a]">Undang User Baru</h3>
                 <button type="button" @click="showCreateModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">

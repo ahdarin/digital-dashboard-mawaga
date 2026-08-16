@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
     public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService)
     {

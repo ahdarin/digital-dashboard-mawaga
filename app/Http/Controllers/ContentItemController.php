@@ -8,11 +8,12 @@ use App\Models\ContentItemAssignment;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
 use App\Services\WorkflowStatusService;
+use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 
 class ContentItemController extends Controller
 {
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
     public function show(ContentItem $contentItem)
     {

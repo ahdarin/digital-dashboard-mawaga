@@ -414,7 +414,7 @@
             <div class="absolute inset-0 bg-[#14181a]/40" @click="showReassignModal = false"></div>
 
             <div x-show="showReassignModal" x-transition
-                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                     <div>
                         <h3 class="font-display text-lg font-semibold text-[#14181a]">Ganti Penanggung Jawab</h3>
@@ -473,7 +473,7 @@
             <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmAction = null"></div>
 
             <div x-show="confirmAction" x-transition
-                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+                 class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                     <div>
                         <h3 class="font-display text-lg font-semibold text-[#14181a]" x-text="confirmAction?.title"></h3>

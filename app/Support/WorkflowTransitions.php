@@ -4,6 +4,12 @@ namespace App\Support;
 
 class WorkflowTransitions
 {
+    // Status yang dianggap "selesai" - konten di status ini tidak lagi
+    // dihitung sebagai pekerjaan aktif maupun bisa ditandai overdue.
+    // approved/scheduled SENGAJA tidak termasuk - kalau deadline-nya lewat
+    // sebelum benar-benar tayang, itu tetap dianggap terlambat.
+    public const DONE_STATUSES = ['uploaded', 'cancelled'];
+
     private static array $allowed = [
         'brief_ready'    => ['in_progress', 'cancelled'],
         'in_progress'    => ['waiting_review', 'cancelled'],

@@ -22,9 +22,12 @@ class Role extends Model
 
     public function hasPermission(string $module, string $action): bool
     {
-        return $this->permissions()
-            ->where('module', $module)
-            ->where('action', $action)
-            ->exists();
+        // Akses lewat property (bukan permissions()) biar relasinya cuma
+        // di-query sekali per instance Role lalu di-cache Eloquent - sidebar
+        // manggil ini banyak kali per render, dulu tiap panggilan bikin
+        // query baru ke role_permissions.
+        return $this->permissions->contains(
+            fn (Permission $permission) => $permission->module === $module && $permission->action === $action
+        );
     }
 }

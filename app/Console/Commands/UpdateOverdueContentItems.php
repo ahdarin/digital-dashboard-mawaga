@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\ContentWorkflow;
+use App\Support\WorkflowTransitions;
 use Illuminate\Console\Command;
 
 class UpdateOverdueContentItems extends Command
@@ -10,8 +11,11 @@ class UpdateOverdueContentItems extends Command
     protected $signature = 'workflow:update-overdue';
     protected $description = 'Menandai content item sebagai overdue jika deadline sudah lewat dan belum selesai';
 
-    // Status yang dianggap "selesai", tidak perlu ditandai overdue lagi
-    private array $doneStatuses = ['approved', 'scheduled', 'uploaded', 'cancelled'];
+    // Status yang dianggap "selesai" - approved/scheduled SENGAJA tidak
+    // termasuk, karena kalau deadline lewat sebelum benar-benar tayang itu
+    // tetap dianggap terlambat (disamakan dengan WorkflowTransitions::DONE_STATUSES
+    // yang dipakai semua pembaca flag ini, biar tidak ada lagi definisi ganda).
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
     public function handle(): void
     {

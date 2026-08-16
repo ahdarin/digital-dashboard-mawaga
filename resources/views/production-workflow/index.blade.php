@@ -211,8 +211,8 @@
                                     <span class="text-xs">{{ $item->deadline_at->format('M d') }}</span>
                                 </div>
 
-                                <div class="relative" x-data="{ open: false }">
-                                    <div class="flex items-center -space-x-2 cursor-pointer" x-on:mouseenter="open = true" x-on:mouseleave="open = false">
+                                <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false">
+                                    <div class="flex items-center -space-x-2 cursor-pointer" x-on:mouseenter="open = true" x-on:mouseleave="open = false" x-on:click.stop="open = !open">
                                         @forelse ($item->assignments->take(3) as $assignment)
                                             @if ($assignment->user->avatar_url)
                                                 <img src="{{ $assignment->user->avatar_url }}" referrerpolicy="no-referrer" class="w-6 h-6 rounded-full ring-2 ring-white object-cover">
@@ -282,7 +282,7 @@
     {{-- Modal drag-drop: waiting_review -> revision butuh catatan revisi dulu --}}
     <div x-show="revisionModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="revisionModal = null"></div>
-        <div x-show="revisionModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div x-show="revisionModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                 <div>
                     <h3 class="font-display text-lg font-semibold text-[#14181a]">Tambah Catatan Revisi</h3>
@@ -312,7 +312,7 @@
     {{-- Modal drag-drop: scheduled -> uploaded butuh data publikasi dulu --}}
     <div x-show="publicationModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="publicationModal = null"></div>
-        <div x-show="publicationModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div x-show="publicationModal" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                 <div>
                     <h3 class="font-display text-lg font-semibold text-[#14181a]">Catat Publikasi</h3>

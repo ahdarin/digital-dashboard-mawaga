@@ -12,13 +12,14 @@ use App\Models\DelayRiskScore;
 use App\Models\Notification;
 use App\Models\User;
 use App\Support\ContentComplexityCalculator;
+use App\Support\WorkflowTransitions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Carbon;
 
 class DelayRiskPredictionService
 {
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
     /**
      * @return int Jumlah item yang berhasil dapat skor baru (dipakai RecomputeDelayRiskScores

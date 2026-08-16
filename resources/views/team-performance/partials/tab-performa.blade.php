@@ -79,7 +79,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($members as $m)
+                @forelse ($members as $m)
                     <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors"
                         onclick="window.location='{{ route('profile.show', $m['user']) }}'">
                         <td class="px-6 py-3.5">
@@ -119,7 +119,11 @@
                             @endif
                         </td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada personel internal aktif.</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
       </div>
@@ -127,7 +131,7 @@
 
     {{-- Mobile accordion list --}}
     <div class="sm:hidden space-y-3">
-        @foreach ($members as $m)
+        @forelse ($members as $m)
             <div class="card p-3.5" x-data="{ open: false }">
                 <div class="flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
                     <div class="flex items-center gap-3 min-w-0">
@@ -180,6 +184,8 @@
                     </a>
                 </div>
             </div>
-        @endforeach
+        @empty
+            <div class="card p-6 text-center text-sm text-[#9aa0a4]">Belum ada personel internal aktif.</div>
+        @endforelse
     </div>
 </div>

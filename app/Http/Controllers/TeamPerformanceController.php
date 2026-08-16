@@ -8,12 +8,13 @@ use App\Models\User;
 use App\Models\DelayRiskScore;
 use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
+use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class TeamPerformanceController extends Controller
 {
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
     private int $overloadThreshold = 5;
 
     public function index(Request $request, AttendanceService $attendanceService)

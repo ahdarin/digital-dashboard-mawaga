@@ -1,3 +1,5 @@
+<!DOCTYPE html>
+<html lang="id">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -168,7 +170,7 @@
         x-show="show" x-cloak x-transition
         class="fixed inset-0 z-[100] flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="show = false"></div>
-        <div x-show="show" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <div x-show="show" x-transition class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
             <p class="text-sm text-[#14181a] leading-relaxed mb-5" x-text="message"></p>
             <div class="flex items-center gap-3">
                 <button type="button" @click="confirm()"
@@ -319,3 +321,4 @@
     </div>
 
 </body>
+</html>

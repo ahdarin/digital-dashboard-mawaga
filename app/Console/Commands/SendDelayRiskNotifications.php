@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ContentItem;
 use App\Models\Notification;
 use App\Services\NotificationService;
+use App\Support\WorkflowTransitions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -13,7 +14,7 @@ class SendDelayRiskNotifications extends Command
     protected $signature = 'workflow:send-delay-risk-notifications';
     protected $description = 'Kirim notifikasi H-7/5/3/1 sebelum deadline dan reminder harian untuk item overdue';
 
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
     private array $reminderDays = [7, 5, 3, 1];
 
     public function handle(): void

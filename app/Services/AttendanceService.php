@@ -37,7 +37,7 @@ class AttendanceService
     public function today(User $user): ?Attendance
     {
         return Attendance::where('user_id', $user->id)
-            ->whereDate('date', Carbon::now()->toDateString())
+            ->where('date', Carbon::now()->toDateString())
             ->first();
     }
 
@@ -99,7 +99,12 @@ class AttendanceService
             return 0;
         }
 
-        return $this->shiftStart($attendance->check_in_at->copy())->diffInMinutes($attendance->check_in_at);
+        // diffInMinutes() balikin float bertanda di Carbon 3 - dibulatkan dan
+        // dipaksa absolute biar cocok sama tipe int yang dideklarasikan, dan
+        // nggak ada lagi E_DEPRECATED senyap tiap check-in yang bawa detik.
+        return (int) round(
+            $this->shiftStart($attendance->check_in_at)->diffInMinutes($attendance->check_in_at, absolute: true)
+        );
     }
 
     public function formatMinutes(int $minutes): string
@@ -123,6 +128,10 @@ class AttendanceService
     {
         if (! $this->isWorkday($date)) {
             return 'Libur';
+        }
+
+        if ($date->isFuture()) {
+            return 'Belum Datang';
         }
 
         if (! $attendance || ! $attendance->check_in_at) {
@@ -152,7 +161,7 @@ class AttendanceService
     public function dailyRecords(Carbon $date): \Illuminate\Support\Collection
     {
         $users = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
-        $attendances = Attendance::whereDate('date', $date->toDateString())->get()->keyBy('user_id');
+        $attendances = Attendance::where('date', $date->toDateString())->get()->keyBy('user_id');
 
         return $users->map(function ($user) use ($date, $attendances) {
             $attendance = $attendances->get($user->id);
@@ -198,7 +207,15 @@ class AttendanceService
                 $attendance = $userAttendances->get($dateString);
 
                 if (! $attendance || ! $attendance->check_in_at) {
-                    $tidakHadir++;
+                    // Jangan hitung hari ini "tidak hadir" kalau jam pulang
+                    // belum lewat - biar konsisten dengan status di tabel
+                    // Absensi Harian di halaman yang sama ("Belum Check-In").
+                    $isTodayBeforeShiftEnd = $dateString === Carbon::now()->toDateString()
+                        && Carbon::now()->lt($this->shiftEnd(Carbon::now()));
+
+                    if (! $isTodayBeforeShiftEnd) {
+                        $tidakHadir++;
+                    }
                     continue;
                 }
 

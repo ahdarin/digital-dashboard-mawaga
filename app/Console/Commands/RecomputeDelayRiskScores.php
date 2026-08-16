@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
 use App\Services\NotificationService;
+use App\Support\WorkflowTransitions;
 use Illuminate\Console\Command;
 
 class RecomputeDelayRiskScores extends Command
@@ -15,7 +16,7 @@ class RecomputeDelayRiskScores extends Command
     protected $signature = 'workflow:recompute-delay-risk';
     protected $description = 'Hitung ulang skor Delay Risk untuk semua content item aktif';
 
-    private array $doneStatuses = ['uploaded', 'cancelled'];
+    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
     private const PIPELINE_ALERT_TITLE = 'Prediksi AI Delay Risk Bermasalah';
 
     public function handle(DelayRiskPredictionService $service): void
