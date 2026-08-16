@@ -39,7 +39,7 @@
                             <p class="text-xs font-medium flex items-center gap-1
                                     {{ $stat['trend'] === 'up' ? 'text-[#0f7a5f]' : '' }}
                                     {{ $stat['trend'] === 'down' ? 'text-[#b3423e]' : '' }}
-                                    {{ $stat['trend'] === 'flat' ? 'text-[#9aa0a4]' : '' }}">
+                                    {{ $stat['trend'] === 'flat' ? 'text-[#767c80]' : '' }}">
                                 @if ($stat['trend'] === 'up')
                                     <span class="material-symbols-outlined text-[13px]">trending_up</span>
                                 @elseif ($stat['trend'] === 'down')
@@ -56,7 +56,7 @@
                 {{-- Performance chart --}}
                 <div class="card p-6">
                     <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Performa Konten</h2>
-                    <p class="text-xs text-[#9aa0a4] mb-6">Jumlah konten berdasarkan deadline, 7 bulan terakhir</p>
+                    <p class="text-xs text-[#767c80] mb-6">Jumlah konten berdasarkan deadline, 7 bulan terakhir</p>
 
                     @php
                         $max = max(collect($performance)->max('value'), 1);
@@ -66,10 +66,10 @@
                     <div class="flex items-end justify-between gap-4 h-48">
                         @foreach ($performance as $i => $bar)
                             <div class="flex-1 flex flex-col items-center gap-2.5">
-                                <span class="text-xs font-medium text-[#9aa0a4]">{{ $bar['value'] }}</span>
+                                <span class="text-xs font-medium text-[#767c80]">{{ $bar['value'] }}</span>
                                 <div class="w-full max-w-12 rounded-t-[3px] transition-all duration-300 {{ $i === $peak && $bar['value'] > 0 ? 'bg-[#044b46]' : 'bg-[#dbe6e4]' }}"
                                     style="height: {{ max(($bar['value'] / $max) * 100, 3) }}%"></div>
-                                <span class="text-xs text-[#9aa0a4]">{{ $bar['label'] }}</span>
+                                <span class="text-xs text-[#767c80]">{{ $bar['label'] }}</span>
                             </div>
                         @endforeach
                     </div>
@@ -88,7 +88,7 @@
                             </select>
                         </form>
                     </div>
-                    <p class="text-xs text-[#9aa0a4] mb-5">Total views seluruh konten, {{ $period }} hari terakhir.</p>
+                    <p class="text-xs text-[#767c80] mb-5">Total views seluruh konten, {{ $period }} hari terakhir.</p>
                     <x-trend-chart :trend="$viewsTrend" />
                 </div>
 
@@ -101,30 +101,30 @@
                     </div>
 
                     @if ($recentItems->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten yang tercatat.</p>
+                        <p class="text-sm text-[#767c80] py-6 text-center">Belum ada konten yang tercatat.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
-                                <thead>
-                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                        <th class="pb-2.5 font-medium">Judul</th>
-                                        <th class="pb-2.5 font-medium">Client</th>
-                                        <th class="pb-2.5 font-medium">Tipe</th>
-                                        <th class="pb-2.5 font-medium">Deadline</th>
-                                        <th class="pb-2.5 font-medium">Status</th>
+                                <thead class="bg-[#f7f8fc]">
+                                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($recentItems as $item)
                                         <tr class="border-t border-[#f2f3f6]">
-                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['type'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">
+                                            <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item['type'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">
                                                 {{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</td>
-                                            <td class="py-3 pr-4">
+                                            <td class="px-4 py-3.5">
                                                 <span
-                                                    class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item['is_overdue'] ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">{{ $item['status'] }}</span>
+                                                    class="badge {{ $item['is_overdue'] ? 'badge-danger' : 'badge-success' }}">{{ $item['status'] }}</span>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -136,24 +136,24 @@
                         <div class="sm:hidden divide-y divide-[#f2f3f6]">
                             @foreach ($recentItems as $item)
                                 <div x-data="{ open: false }">
-                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                    <button type="button" class="w-full text-left py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                                         <p class="text-sm font-medium text-[#14181a] truncate">{{ $item['title'] }}</p>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item['is_overdue'] ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">{{ $item['status'] }}</span>
-                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                            <span class="badge {{ $item['is_overdue'] ? 'badge-danger' : 'badge-success' }}">{{ $item['status'] }}</span>
+                                            <span class="material-symbols-outlined text-[#767c80] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
                                         </div>
-                                    </div>
+                                    </button>
                                     <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Client</span>
+                                            <span class="text-[#767c80]">Klien</span>
                                             <span class="text-[#14181a] text-right">{{ $item['client'] }}</span>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Tipe</span>
+                                            <span class="text-[#767c80]">Tipe</span>
                                             <span class="text-[#14181a] text-right">{{ $item['type'] }}</span>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Deadline</span>
+                                            <span class="text-[#767c80]">Deadline</span>
                                             <span class="text-[#14181a] text-right">{{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</span>
                                         </div>
                                     </div>
@@ -170,30 +170,30 @@
                         <a href="{{ Route::has('analytics') ? route('analytics') : '#' }}"
                             class="text-sm font-medium text-[#044b46] hover:underline">Lihat Analytics</a>
                     </div>
-                    <p class="text-xs text-[#9aa0a4] mb-4">Konten dengan views tertinggi bulan ini, lintas semua client.</p>
+                    <p class="text-xs text-[#767c80] mb-4">Konten dengan views tertinggi bulan ini, lintas semua client.</p>
 
                     @if ($topContent->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa konten bulan ini.</p>
+                        <p class="text-sm text-[#767c80] py-6 text-center">Belum ada data performa konten bulan ini.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
-                                <thead>
-                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                        <th class="pb-2.5 font-medium">Judul</th>
-                                        <th class="pb-2.5 font-medium">Client</th>
-                                        <th class="pb-2.5 font-medium">Platform</th>
-                                        <th class="pb-2.5 font-medium">Views</th>
-                                        <th class="pb-2.5 font-medium">Engagement</th>
+                                <thead class="bg-[#f7f8fc]">
+                                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Views</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Engagement</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($topContent as $item)
                                         <tr class="border-t border-[#f2f3f6]">
-                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['platform'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ number_format($item['views']) }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item['engagement_rate'] }}%</td>
+                                            <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $item['title'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item['client'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item['platform'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ number_format($item['views']) }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item['engagement_rate'] }}%</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -204,27 +204,27 @@
                         <div class="sm:hidden divide-y divide-[#f2f3f6]">
                             @foreach ($topContent as $item)
                                 <div x-data="{ open: false }">
-                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                    <button type="button" class="w-full text-left py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                                         <p class="text-sm font-medium text-[#14181a] truncate">{{ $item['title'] }}</p>
                                         <div class="flex items-center gap-2 shrink-0">
                                             <span class="flex items-center gap-1 text-xs font-medium text-[#5c6266] whitespace-nowrap">
-                                                <span class="material-symbols-outlined text-[14px] text-[#9aa0a4]">visibility</span>
+                                                <span class="material-symbols-outlined text-[14px] text-[#767c80]">visibility</span>
                                                 {{ number_format($item['views']) }}
                                             </span>
-                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                            <span class="material-symbols-outlined text-[#767c80] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
                                         </div>
-                                    </div>
+                                    </button>
                                     <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Client</span>
+                                            <span class="text-[#767c80]">Klien</span>
                                             <span class="text-[#14181a] text-right">{{ $item['client'] }}</span>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Platform</span>
+                                            <span class="text-[#767c80]">Platform</span>
                                             <span class="text-[#14181a] text-right">{{ $item['platform'] }}</span>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Engagement</span>
+                                            <span class="text-[#767c80]">Engagement</span>
                                             <span class="text-[#14181a] text-right">{{ $item['engagement_rate'] }}%</span>
                                         </div>
                                     </div>
@@ -241,28 +241,28 @@
                         <a href="{{ Route::has('client-management.index') ? route('client-management.index') : '#' }}"
                             class="text-sm font-medium text-[#044b46] hover:underline">Lihat semua client</a>
                     </div>
-                    <p class="text-xs text-[#9aa0a4] mb-4">Client dengan performa views tertinggi bulan ini.</p>
+                    <p class="text-xs text-[#767c80] mb-4">Client dengan performa views tertinggi bulan ini.</p>
 
                     @if ($topClients->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada data performa client bulan ini.</p>
+                        <p class="text-sm text-[#767c80] py-6 text-center">Belum ada data performa client bulan ini.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
                             <table class="w-full text-sm text-left">
-                                <thead>
-                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                        <th class="pb-2.5 font-medium">Client</th>
-                                        <th class="pb-2.5 font-medium">Views</th>
-                                        <th class="pb-2.5 font-medium">Engagement</th>
-                                        <th class="pb-2.5 font-medium">Jumlah Konten</th>
+                                <thead class="bg-[#f7f8fc]">
+                                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Views</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Engagement</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Jumlah Konten</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($topClients as $client)
                                         <tr class="border-t border-[#f2f3f6]">
-                                            <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $client['name'] }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ number_format($client['views']) }}</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $client['engagement_rate'] }}%</td>
-                                            <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $client['content_count'] }}</td>
+                                            <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $client['name'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ number_format($client['views']) }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client['engagement_rate'] }}%</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client['content_count'] }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -273,23 +273,23 @@
                         <div class="sm:hidden divide-y divide-[#f2f3f6]">
                             @foreach ($topClients as $client)
                                 <div x-data="{ open: false }">
-                                    <div class="py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                                    <button type="button" class="w-full text-left py-3 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                                         <p class="text-sm font-medium text-[#14181a] truncate">{{ $client['name'] }}</p>
                                         <div class="flex items-center gap-2 shrink-0">
                                             <span class="flex items-center gap-1 text-xs font-medium text-[#5c6266] whitespace-nowrap">
-                                                <span class="material-symbols-outlined text-[14px] text-[#9aa0a4]">visibility</span>
+                                                <span class="material-symbols-outlined text-[14px] text-[#767c80]">visibility</span>
                                                 {{ number_format($client['views']) }}
                                             </span>
-                                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                                            <span class="material-symbols-outlined text-[#767c80] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
                                         </div>
-                                    </div>
+                                    </button>
                                     <div x-show="open" x-cloak x-transition class="pb-3 -mt-1 space-y-2 text-sm">
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Engagement</span>
+                                            <span class="text-[#767c80]">Engagement</span>
                                             <span class="text-[#14181a] text-right">{{ $client['engagement_rate'] }}%</span>
                                         </div>
                                         <div class="flex justify-between gap-3">
-                                            <span class="text-[#9aa0a4]">Jumlah Konten</span>
+                                            <span class="text-[#767c80]">Jumlah Konten</span>
                                             <span class="text-[#14181a] text-right">{{ $client['content_count'] }}</span>
                                         </div>
                                     </div>
@@ -316,10 +316,10 @@
                                     <span class="w-1.5 h-1.5 rounded-full bg-[#044b46] mt-1.5 shrink-0"></span>
                                     {{ $insight['title'] }}
                                 </p>
-                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $insight['description'] }}</p>
+                                <p class="text-xs text-[#767c80] mt-1 pl-3.5">{{ $insight['description'] }}</p>
                             </div>
                         @empty
-                            <p class="text-sm text-[#9aa0a4] text-center py-4">Belum cukup data untuk insight.</p>
+                            <p class="text-sm text-[#767c80] text-center py-4">Belum cukup data untuk insight.</p>
                         @endforelse
                     </div>
                 </div>
@@ -337,13 +337,13 @@
                                     <span class="w-1.5 h-1.5 rounded-full bg-[#b3423e] mt-1.5 shrink-0"></span>
                                     {{ $item['title'] }}
                                 </p>
-                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
+                                <p class="text-xs text-[#767c80] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
                                     {{ $item['pic'] }} &middot; {{ $item['status'] }}</p>
                             </div>
                         @empty
                             <div class="text-center py-8">
                                 <span class="material-symbols-outlined text-[#0f7a5f] text-[28px]">check_circle</span>
-                                <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada item overdue. Semua on track.</p>
+                                <p class="text-sm text-[#767c80] mt-2">Tidak ada item overdue. Semua on track.</p>
                             </div>
                         @endforelse
                     </div>
@@ -360,7 +360,7 @@
                         <h2 class="font-display text-base font-semibold text-[#14181a]">Risiko Tinggi (Prediksi AI)</h2>
                         <span class="material-symbols-outlined text-[#b3423e] text-[18px]">report</span>
                     </div>
-                    <p class="text-xs text-[#9aa0a4] mb-4">Belum overdue, tapi diprediksi berisiko terlambat — cegah sebelum
+                    <p class="text-xs text-[#767c80] mb-4">Belum overdue, tapi diprediksi berisiko terlambat — cegah sebelum
                         kejadian.</p>
 
                     <div class="space-y-3 flex-1">
@@ -375,14 +375,14 @@
                                     <span
                                         class="text-xs font-semibold text-[#b3423e] shrink-0">{{ $item['risk_score'] }}%</span>
                                 </div>
-                                <p class="text-xs text-[#9aa0a4] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
+                                <p class="text-xs text-[#767c80] mt-1 pl-3.5">{{ $item['client'] }} &middot; Penanggung Jawab:
                                     {{ $item['pic'] }}</p>
-                                <p class="text-xs text-[#9aa0a4] pl-3.5">{{ $item['top_factor'] }}</p>
+                                <p class="text-xs text-[#767c80] pl-3.5">{{ $item['top_factor'] }}</p>
                             </a>
                         @empty
                             <div class="text-center py-8">
                                 <span class="material-symbols-outlined text-[#0f7a5f] text-[28px]">verified</span>
-                                <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada item risiko tinggi saat ini.</p>
+                                <p class="text-sm text-[#767c80] mt-2">Tidak ada item risiko tinggi saat ini.</p>
                             </div>
                         @endforelse
                     </div>
@@ -398,7 +398,7 @@
                     </div>
 
                     @if ($riskAccuracy['total_evaluated'] === 0)
-                        <p class="text-sm text-[#9aa0a4] mt-3">Belum ada cukup data (butuh konten yang sudah upload dan pernah
+                        <p class="text-sm text-[#767c80] mt-3">Belum ada cukup data (butuh konten yang sudah upload dan pernah
                             dapat skor risiko).</p>
                     @else
                         @if ($riskAccuracy['high_risk_accuracy'] !== null)
@@ -408,7 +408,7 @@
                                 <p class="text-xs text-[#5c6266]">prediksi <strong>High Risk</strong> benar-benar terlambat</p>
                             </div>
                         @else
-                            <p class="text-sm text-[#9aa0a4] mt-3">Belum ada konten dengan prediksi High Risk yang sudah selesai
+                            <p class="text-sm text-[#767c80] mt-3">Belum ada konten dengan prediksi High Risk yang sudah selesai
                                 upload.</p>
                         @endif
                     @endif

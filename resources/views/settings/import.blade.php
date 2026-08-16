@@ -45,8 +45,8 @@
             <div class="flex-1 min-w-0 space-y-5">
 
                 <div class="mb-1">
-                    <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Client <span class="text-[#b3423e]">*</span></label>
-                    <select name="client_id" required class="w-full max-w-sm border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                    <label for="client_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Klien <span class="text-[#b3423e]">*</span></label>
+                    <select id="client_id" name="client_id" required class="w-full max-w-sm border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
                         <option value="">Pilih client tujuan data ini...</option>
                         @foreach ($clientOptions as $c)
                             <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -65,14 +65,14 @@
                         <span class="material-symbols-outlined text-[#044b46] text-[26px]">cloud_upload</span>
                     </div>
                     <p class="font-display text-lg font-semibold text-[#14181a] mb-1">Tarik &amp; lepas file di sini</p>
-                    <p class="text-sm text-[#9aa0a4] mb-4">atau</p>
+                    <p class="text-sm text-[#767c80] mb-4">atau</p>
 
-                    <label class="cursor-pointer inline-block bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                    <label class="cursor-pointer btn-primary">
                         Pilih File
                         <input type="file" name="file" accept=".csv,.txt" required class="hidden" x-on:change="handleFile($event.target.files[0])">
                     </label>
 
-                    <p class="text-xs text-[#9aa0a4] mt-4">Supports .csv, maksimal 5MB</p>
+                    <p class="text-xs text-[#767c80] mt-4">Supports .csv, maksimal 5MB</p>
 
                     <p x-show="fileName" x-cloak class="text-sm font-medium text-[#044b46] mt-4 flex items-center gap-2">
                         <span class="material-symbols-outlined text-[17px]">description</span>
@@ -83,13 +83,13 @@
                 {{-- Preview --}}
                 <div class="card overflow-hidden" x-show="previewRows.length > 0" x-cloak>
                     <div class="p-5 pb-3 flex items-center justify-between">
-                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Data Preview</h3>
-                        <span class="text-xs px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266]">Sample (First 5 Rows)</span>
+                        <h2 class="font-display text-lg font-semibold text-[#14181a]">Data Preview</h2>
+                        <span class="badge badge-neutral">Sample (First 5 Rows)</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
                             <thead>
-                                <tr class="bg-[#f7f8fc] text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                                <tr class="bg-[#f7f8fc] text-[#767c80] text-[11px] uppercase tracking-wide">
                                     <template x-for="col in previewHeader" :key="col">
                                         <th class="px-5 py-2.5 font-medium" x-text="col"></th>
                                     </template>
@@ -109,7 +109,7 @@
                 </div>
 
                 <button type="submit" :disabled="!fileName"
-                        class="bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        class="btn-primary">
                     Konfirmasi Import
                 </button>
 
@@ -120,12 +120,12 @@
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-[#044b46] text-[18px]">info</span>
-                        <h3 class="font-display text-base font-semibold text-[#14181a]">Instructions</h3>
+                        <h2 class="font-display text-base font-semibold text-[#14181a]">Instructions</h2>
                     </div>
                     <p class="text-sm text-[#5c6266] mb-4">Data kamu harus sesuai skema standar berikut sebelum diproses.</p>
 
                     <div class="bg-[#f7f8fc] rounded-lg p-4">
-                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-2.5">Required Columns</p>
+                        <p class="text-xs font-semibold text-[#767c80] uppercase mb-2.5">Required Columns</p>
                         <ul class="text-xs text-[#5c6266] space-y-1.5">
                             <li><strong class="text-[#14181a]">content_title</strong> (persis judul konten)</li>
                             <li><strong class="text-[#14181a]">platform</strong> (Instagram, TikTok, dst)</li>
@@ -133,7 +133,7 @@
                             <li><strong class="text-[#14181a]">views</strong> (angka)</li>
                             <li><strong class="text-[#14181a]">engagement_rate</strong> (angka, %)</li>
                         </ul>
-                        <p class="text-[11px] text-[#9aa0a4] mt-3">Opsional: reach, impressions, likes, comments, profile_visit. Khusus Reels/TikTok: watch_time_avg, completion_rate, shares, saves.</p>
+                        <p class="text-[11px] text-[#767c80] mt-3">Opsional: reach, impressions, likes, comments, profile_visit. Khusus Reels/TikTok: watch_time_avg, completion_rate, shares, saves.</p>
                     </div>
 
                     <button type="button" x-on:click="downloadTemplate()" class="mt-4 text-sm font-medium text-[#044b46] hover:underline flex items-center gap-1.5">

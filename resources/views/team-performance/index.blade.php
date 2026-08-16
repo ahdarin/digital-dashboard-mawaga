@@ -10,11 +10,11 @@
 
     <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit">
         <a href="{{ route('team-performance.index', ['tab' => 'performa']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'performa' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'performa' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
             Performa
         </a>
         <a href="{{ route('team-performance.index', ['tab' => 'kehadiran']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'kehadiran' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'kehadiran' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
             Kehadiran
         </a>
     </div>

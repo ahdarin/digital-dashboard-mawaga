@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'internal' => \App\Http\Middleware\EnsureInternalUser::class,
             'client.user' => \App\Http\Middleware\EnsureClientUser::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
+            'client.scope' => \App\Http\Middleware\EnsureClientScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

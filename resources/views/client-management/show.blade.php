@@ -12,7 +12,7 @@
             </a>
             <div class="rounded-xl bg-[#f0f5f4] text-[#044b46] flex items-center justify-center text-lg font-semibold shrink-0 overflow-hidden" style="width:52px;height:52px">
                 @if ($client->logo_url)
-                    <img src="{{ $client->logo_url }}" class="w-full h-full object-cover">
+                    <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                 @else
                     {{ strtoupper(substr($client->brand_name, 0, 1)) }}
                 @endif
@@ -20,19 +20,19 @@
             <div>
                 <div class="flex items-center gap-2.5">
                     <h1 class="font-display text-2xl font-semibold text-[#14181a]">{{ $client->brand_name }}</h1>
-                    <span class="text-xs font-medium px-2.5 py-1 rounded-full
-                        {{ $client->status === 'active' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
-                        {{ $client->status === 'past_due' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
-                        {{ $client->status === 'paused' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}">
+                    <span class="badge
+                        {{ $client->status === 'active' ? 'badge-success' : '' }}
+                        {{ $client->status === 'past_due' ? 'badge-danger' : '' }}
+                        {{ $client->status === 'paused' ? 'badge-neutral' : '' }}">
                         {{ $client->status === 'past_due' ? 'Past Due' : ucfirst($client->status) }}
                     </span>
                 </div>
-                <p class="text-sm text-[#9aa0a4] mt-0.5">{{ $client->name }} &middot; {{ $client->category->name ?? '-' }}</p>
+                <p class="text-sm text-[#767c80] mt-0.5">{{ $client->name }} &middot; {{ $client->category->name ?? '-' }}</p>
             </div>
         </div>
 
         <a href="{{ route('client-management.edit', $client) }}"
-           class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors shrink-0">
+           class="btn-primary shrink-0">
             <span class="material-symbols-outlined text-[17px]">edit</span> Edit Client
         </a>
     </div>
@@ -60,26 +60,26 @@
                 <h2 class="font-display text-lg font-semibold text-[#14181a] mb-4">Recent Content</h2>
 
                 @if ($recentContentItems->isEmpty())
-                    <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten untuk client ini.</p>
+                    <p class="text-sm text-[#767c80] py-6 text-center">Belum ada konten untuk client ini.</p>
                 @else
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
-                            <thead>
-                                <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                    <th class="pb-2.5 font-medium whitespace-nowrap">Title</th>
-                                    <th class="pb-2.5 font-medium whitespace-nowrap">Type</th>
-                                    <th class="pb-2.5 font-medium whitespace-nowrap">Deadline</th>
-                                    <th class="pb-2.5 font-medium whitespace-nowrap">Status</th>
+                            <thead class="bg-[#f7f8fc]">
+                                <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                                    <th class="px-6 py-3 font-medium whitespace-nowrap">Title</th>
+                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Type</th>
+                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($recentContentItems as $item)
                                     <tr class="border-t border-[#f2f3f6]">
-                                        <td class="py-3 pr-4 font-medium text-[#14181a] whitespace-nowrap">{{ $item->title }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
-                                        <td class="py-3 pr-4 text-[#5c6266] whitespace-nowrap">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
-                                        <td class="py-3 pr-4">
-                                            <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ ($item->workflow->is_overdue ?? false) ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                        <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">{{ $item->title }}</td>
+                                        <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
+                                        <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
+                                        <td class="px-4 py-3.5">
+                                            <span class="badge {{ ($item->workflow->is_overdue ?? false) ? 'badge-danger' : 'badge-success' }}">
                                                 {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
                                             </span>
                                         </td>
@@ -105,7 +105,7 @@
                         </div>
                         <div>
                             <p class="text-sm font-medium text-[#14181a]">{{ $client->owner->name }}</p>
-                            <p class="text-xs text-[#9aa0a4]">{{ ucfirst($client->owner->status) }}</p>
+                            <p class="text-xs text-[#767c80]">{{ ucfirst($client->owner->status) }}</p>
                         </div>
                     </div>
 
@@ -118,7 +118,7 @@
                         </div>
                     </div>
                 @else
-                    <p class="text-sm text-[#9aa0a4]">Belum ada akun owner terdaftar.</p>
+                    <p class="text-sm text-[#767c80]">Belum ada akun owner terdaftar.</p>
                 @endif
             </div>
 
@@ -134,7 +134,7 @@
                             {{ optional($client->activePackage->end_date)->translatedFormat('d M Y') ?? 'Berjalan' }}</p>
                     </div>
                 @else
-                    <p class="text-sm text-[#9aa0a4]">Belum ada paket aktif.</p>
+                    <p class="text-sm text-[#767c80]">Belum ada paket aktif.</p>
                 @endif
             </div>
 
@@ -149,7 +149,7 @@
                         <span class="material-symbols-outlined text-[14px] ml-auto">open_in_new</span>
                     </a>
                 @else
-                    <p class="text-sm text-[#9aa0a4]">Belum ada link aset. <a href="{{ route('client-management.edit', $client) }}" class="text-[#044b46] hover:underline">Tambahkan di Edit Client</a>.</p>
+                    <p class="text-sm text-[#767c80]">Belum ada link aset. <a href="{{ route('client-management.edit', $client) }}" class="text-[#044b46] hover:underline">Tambahkan di Edit Client</a>.</p>
                 @endif
             </div>
 
@@ -159,7 +159,7 @@
                       onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="w-full bg-[#fdf2f1] text-[#b3423e] text-sm font-medium py-2.5 rounded-lg hover:bg-[#fbe2e0] transition-colors">
+                    <button type="submit" class="btn-danger w-full">
                         Hapus Client
                     </button>
                 </form>

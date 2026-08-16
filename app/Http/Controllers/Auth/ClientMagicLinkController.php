@@ -188,7 +188,9 @@ class ClientMagicLinkController extends Controller
             ]);
         }
 
-        Auth::login($user, remember: true);
+        // Sengaja BUKAN remember-me - portal approval klien sesekali dibuka,
+        // sesi ikut umur browser aja, bukan disimpan bertahun-tahun.
+        Auth::login($user);
         $request->session()->regenerate();
 
         \Log::info('Client login successful', [

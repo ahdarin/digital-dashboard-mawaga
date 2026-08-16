@@ -4,7 +4,7 @@
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
 
-    <div class="flex items-center gap-2 text-xs text-[#9aa0a4] mb-3">
+    <div class="flex items-center gap-2 text-xs text-[#767c80] mb-3">
         <a href="{{ route('analytics', ['client_id' => $client->id]) }}" class="hover:text-[#044b46] font-medium">Analytics</a>
         <span class="material-symbols-outlined text-[13px]">chevron_right</span>
         <span>{{ $client->name }}</span>
@@ -13,7 +13,7 @@
     </div>
 
     <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('analytics', ['client_id' => $client->id]) }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
+        <a href="{{ route('analytics', ['client_id' => $client->id]) }}" class="text-[#767c80] hover:text-[#5c6266]">
             <span class="material-symbols-outlined">arrow_back</span>
         </a>
         <div>
@@ -55,11 +55,10 @@
                             </span>
 
                             @if ($i === 0)
-                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#eef2fb] text-[#3452a8]">Terbaru</span>
+                                <span class="badge badge-info">Terbaru</span>
                             @endif
 
-                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full
-                                {{ $insight->status === 'completed' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : 'bg-[#fdf2f1] text-[#b3423e]' }}">
+                            <span class="badge {{ $insight->status === 'completed' ? 'badge-success' : 'badge-danger' }}">
                                 {{ $insight->status === 'completed' ? 'Berhasil' : 'Gagal' }}
                             </span>
 
@@ -71,12 +70,12 @@
                             @endif
                         </div>
 
-                        <span class="text-xs text-[#9aa0a4] shrink-0">{{ $insight->created_at->translatedFormat('d M Y, H:i') }}</span>
+                        <span class="text-xs text-[#767c80] shrink-0">{{ $insight->created_at->translatedFormat('d M Y, H:i') }}</span>
                     </div>
 
                     @if ($insight->status === 'completed')
                         <p class="text-sm text-[#14181a] leading-relaxed mb-3">{{ Str::limit($insight->summary, 220) }}</p>
-                        <p class="text-xs text-[#9aa0a4] mb-4">
+                        <p class="text-xs text-[#767c80] mb-4">
                             {{ count($insight->action_items ?? []) }} action item &middot;
                             {{ count($insight->content_ideas ?? []) }} ide konten &middot;
                             digenerate oleh {{ $insight->generatedBy->name ?? '-' }}
@@ -86,7 +85,7 @@
                             @if (! $insight->applied_at)
                                 <form action="{{ route('analytics.ai-strategy.apply', $insight) }}" method="POST">
                                     @csrf
-                                    <button type="submit" class="text-xs font-medium bg-[#044b46] text-white px-3.5 py-2 rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-1.5">
+                                    <button type="submit" class="btn-primary">
                                         <span class="material-symbols-outlined text-[14px]">bolt</span>
                                         Terapkan ke Content Plan
                                     </button>
@@ -95,7 +94,7 @@
                                 <form action="{{ route('analytics.ai-strategy.revert', $insight) }}" method="POST"
                                       onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
                                     @csrf
-                                    <button type="submit" class="text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] transition-colors flex items-center gap-1.5">
+                                    <button type="submit" class="btn-danger">
                                         <span class="material-symbols-outlined text-[14px]">undo</span>
                                         Tarik Kembali
                                     </button>

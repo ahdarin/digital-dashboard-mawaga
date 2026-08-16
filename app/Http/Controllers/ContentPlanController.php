@@ -10,23 +10,31 @@ use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Platform;
 use App\Models\User;
+use App\Rules\AssignedClient;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class ContentPlanController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
         $selectedClientId = $request->input('client_id');
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
         $view = $request->input('view', 'table'); // table | calendar
 
+        // Batasi hanya client yang di-assign, kecuali CEO/Manager - samakan
+        // dengan pola scoping di ProductionWorkflowController.
+        $assignedClientIds = $user->canSeeAllClients() ? null : $user->assignedClients()->pluck('clients.id');
+
         // ---- Data untuk Table View (logic lama, tidak berubah) ----
         $plans = ContentPlan::with(['client', 'clientPackage'])
             ->withCount('contentItems')
             ->when($selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
+            ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
             ->where('month', $month)
             ->where('year', $year)
             ->latest()
@@ -40,7 +48,9 @@ class ContentPlanController extends Controller
             ->whereHas('contentType', fn ($q) => $q->where('name', 'Desain'))
             ->count();
 
-        $clientOptions = Client::where('status', 'active')->with('activePackage')->get();
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->with('activePackage')->get()
+            : $user->assignedClients()->where('status', 'active')->with('activePackage')->get();
 
         // ---- Data untuk Calendar View ----
         $itemsByDateClient = collect();
@@ -58,6 +68,8 @@ class ContentPlanController extends Controller
                 ->whereHas('contentType', function ($q) use ($allowedTypes) {
                     $q->whereIn('name', $allowedTypes);
                 })
+
+                ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
 
                 ->when($selectedClientId, function ($q) use ($selectedClientId) {
                     $q->where('client_id', $selectedClientId);
@@ -109,7 +121,7 @@ class ContentPlanController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020',
         ]);
@@ -225,7 +237,7 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => 'required|exists:users,id',
+            'pic_id' => ['required', Rule::exists('users', 'id')->whereNull('client_id')->where('status', 'active')],
             'estimated_duration_seconds' => 'nullable|integer',
             'estimated_slide_count' => 'nullable|integer',
         ]);
@@ -273,13 +285,13 @@ class ContentPlanController extends Controller
     public function quickCreateUrgent(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'title' => 'required|string|max:255',
             'brief' => 'nullable|string',
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => 'nullable|exists:users,id',
+            'pic_id' => ['nullable', Rule::exists('users', 'id')->whereNull('client_id')->where('status', 'active')],
         ]);
 
         $client = Client::findOrFail($validated['client_id']);

@@ -114,6 +114,8 @@ class ContentRevisionController extends Controller
      */
     public function startWork(Request $request, ContentItem $contentItem, ContentRevision $revision, WorkflowStatusService $workflowStatusService)
     {
+        abort_unless($revision->content_item_id === $contentItem->id, 404);
+
         try {
             $workflowStatusService->transition($contentItem, 'in_progress', [], $request->user());
         } catch (WorkflowTransitionException $e) {

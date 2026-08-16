@@ -14,7 +14,7 @@
         <div class="flex items-center gap-1">
             @if ($selectedClientId && $activeTab === 'overview')
                 <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
-                   class="text-sm font-medium text-white bg-[#044b46] hover:bg-[#033b37] active:scale-[0.98] flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all ml-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                   class="btn-primary ml-1">
                     <span class="material-symbols-outlined text-[17px]">download</span> Export
                 </a>
             @endif
@@ -36,7 +36,7 @@
         @foreach ($tabs as $t)
             <a href="{{ $tabHref($t['key']) }}"
                class="text-sm font-medium px-4 py-2 rounded-md flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]
-                   {{ $activeTab === $t['key'] ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+                   {{ $activeTab === $t['key'] ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
                 <span class="material-symbols-outlined text-[17px]">{{ $t['icon'] }}</span> {{ $t['label'] }}
             </a>
         @endforeach
@@ -48,7 +48,7 @@
 
         <select name="client_id" onchange="this.form.submit()"
                 class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="">Pilih Client...</option>
+            <option value="">Pilih Klien...</option>
             @foreach ($clientOptions as $client)
                 <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
             @endforeach
@@ -102,11 +102,11 @@
                 <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-[13px] text-[#5c6266]">{{ $stat['label'] }}</span>
-                        <span class="material-symbols-outlined text-[#c3c7cb] text-[18px]">{{ $stat['icon'] }}</span>
+                        <span class="material-symbols-outlined text-[#767c80] text-[18px]">{{ $stat['icon'] }}</span>
                     </div>
                     <p class="font-display text-[26px] font-semibold text-[#14181a] mb-2 [font-variant-numeric:tabular-nums]">{{ $stat['value'] }}</p>
                     <p class="text-xs flex items-center gap-1
-                        {{ $stat['trend'] === 'up' ? 'text-[#0f7a5f]' : ($stat['trend'] === 'down' ? 'text-[#b3423e]' : 'text-[#9aa0a4]') }}">
+                        {{ $stat['trend'] === 'up' ? 'text-[#0f7a5f]' : ($stat['trend'] === 'down' ? 'text-[#b3423e]' : 'text-[#767c80]') }}">
                         @if ($stat['trend'] === 'up')
                             <span class="material-symbols-outlined text-[13px]">trending_up</span>
                         @elseif ($stat['trend'] === 'down')
@@ -138,7 +138,7 @@
                         <div class="flex items-center gap-4 shrink-0">
                             @if ($latestAiInsight)
                                 <a href="{{ route('analytics.ai-strategy.history', ['client_id' => $selectedClientId]) }}"
-                                   class="text-xs font-medium text-[#9aa0a4] hover:text-[#044b46] flex items-center gap-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
+                                   class="text-xs font-medium text-[#767c80] hover:text-[#044b46] flex items-center gap-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
                                     <span class="material-symbols-outlined text-[15px]">history</span> Riwayat
                                 </a>
                             @endif
@@ -146,7 +146,7 @@
                             @csrf
                             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
                             <button type="submit" :disabled="loading"
-                                    class="text-sm font-medium bg-[#044b46] text-white px-4 py-2.5 rounded-lg hover:bg-[#033b37] active:scale-[0.98] transition-all disabled:opacity-60 flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                    class="btn-primary">
                                 <span x-show="!loading" class="flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[16px]">{{ $latestAiInsight ? 'refresh' : 'bolt' }}</span>
                                     {{ $latestAiInsight ? 'Generate Ulang' : 'Generate Analisis' }}
@@ -173,7 +173,7 @@
                                 <span class="material-symbols-outlined text-[#044b46] text-[22px]">insights</span>
                             </div>
                             <p class="text-sm font-medium text-[#14181a] mb-1">Belum ada analisis buat client ini</p>
-                            <p class="text-xs text-[#9aa0a4] max-w-xs">Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.</p>
+                            <p class="text-xs text-[#767c80] max-w-xs">Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.</p>
                         </div>
                     @elseif ($latestAiInsight->status === 'failed')
                         <div class="bg-[#fdf2f1] border border-[#f5d9d7] rounded-lg p-4 text-sm text-[#b3423e] flex items-start gap-2.5">
@@ -196,17 +196,17 @@
                         {{-- Tab nav --}}
                         <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-5 w-fit">
                             <button type="button" x-on:click="tab = 'ringkasan'"
-                                    :class="tab === 'ringkasan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    :class="tab === 'ringkasan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]'"
                                     class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200">
                                 Ringkasan
                             </button>
                             <button type="button" x-on:click="tab = 'ide'"
-                                    :class="tab === 'ide' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    :class="tab === 'ide' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]'"
                                     class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200">
                                 Ide Konten ({{ count($latestAiInsight->content_ideas ?? []) }})
                             </button>
                             <button type="button" x-on:click="tab = 'diskusi'"
-                                    :class="tab === 'diskusi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]'"
+                                    :class="tab === 'diskusi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]'"
                                     class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200 flex items-center gap-1.5">
                                 Diskusi
                                 <span x-show="messages.filter(m => m.role !== 'system').length > 0" x-cloak
@@ -226,7 +226,7 @@
                                 <div class="lg:col-span-2 space-y-5">
                                     @if (! empty($latestAiInsight->top_pillars))
                                         <div>
-                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Top Content Pillars</p>
+                                            <p class="text-xs font-semibold text-[#767c80] uppercase tracking-wide mb-3">Top Content Pillars</p>
                                             <div class="space-y-2">
                                                 @php $rankStyles = ['bg-[#044b46]', 'bg-[#5c6266]', 'bg-[#9aa0a4]']; @endphp
                                                 @foreach ($latestAiInsight->top_pillars as $i => $pillar)
@@ -244,7 +244,7 @@
 
                                     @if (! empty($latestAiInsight->action_items))
                                         <div>
-                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Action Items</p>
+                                            <p class="text-xs font-semibold text-[#767c80] uppercase tracking-wide mb-3">Action Items</p>
                                             <ul class="space-y-2.5">
                                                 @foreach ($latestAiInsight->action_items as $item)
                                                     <li class="flex items-start gap-2.5 text-sm text-[#14181a]">
@@ -262,7 +262,7 @@
                                 <div class="space-y-5">
                                     @if (! empty($latestAiInsight->suggested_split))
                                         <div class="bg-[#f7f8fc] rounded-xl p-4">
-                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-3">Suggested Split</p>
+                                            <p class="text-xs font-semibold text-[#767c80] uppercase tracking-wide mb-3">Suggested Split</p>
                                             <div class="space-y-3">
                                                 @foreach ($latestAiInsight->suggested_split as $i => $row)
                                                     <div>
@@ -284,11 +284,11 @@
 
                                     @if ($latestAiInsight->data_completeness_percent !== null)
                                         <div class="border border-[#eef0f4] rounded-xl p-4">
-                                            <p class="text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Kelengkapan Data</p>
+                                            <p class="text-xs font-semibold text-[#767c80] uppercase tracking-wide mb-2">Kelengkapan Data</p>
                                             <div class="flex items-end gap-2 mb-2">
                                                 <span class="font-display text-2xl font-semibold text-[#14181a] leading-none [font-variant-numeric:tabular-nums]">{{ $latestAiInsight->data_completeness_percent }}%</span>
                                                 @if ($latestAiInsight->data_completeness_percent < 60)
-                                                    <span class="text-[10px] text-[#b8873a] font-medium mb-0.5">Data agak tipis</span>
+                                                    <span class="text-[10px] text-[#8a6423] font-medium mb-0.5">Data agak tipis</span>
                                                 @endif
                                             </div>
                                             <div class="w-full h-1.5 rounded-full bg-[#f2f3f6] overflow-hidden">
@@ -300,7 +300,7 @@
                                 </div>
                             </div>
 
-                            <p class="text-[11px] text-[#c3c7cb] mt-5 pt-4 border-t border-[#f2f3f6]">
+                            <p class="text-[11px] text-[#767c80] mt-5 pt-4 border-t border-[#f2f3f6]">
                                 Digenerate {{ $latestAiInsight->created_at->diffForHumans() }} oleh {{ $latestAiInsight->generatedBy->name ?? '-' }}
                                 @if ($latestAiInsight->applied_at)
                                     &middot; Diterapkan {{ $latestAiInsight->applied_at->diffForHumans() }}
@@ -313,7 +313,7 @@
                             @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
                                 <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST" class="mb-4">
                                     @csrf
-                                    <button type="submit" class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-3 rounded-xl hover:bg-[#033b37] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                    <button type="submit" class="btn-primary w-full">
                                         <span class="material-symbols-outlined text-[16px]">bolt</span>
                                         Terapkan Semua Ide Ini ke Content Plan
                                     </button>
@@ -327,7 +327,7 @@
                                     <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
                                           onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
                                         @csrf
-                                        <button type="submit" class="text-xs font-medium text-[#b3423e] border border-[#f5d9d7] px-3.5 py-2 rounded-lg hover:bg-[#fdf2f1] active:scale-[0.98] transition-all flex items-center gap-1.5 shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b3423e]">
+                                        <button type="submit" class="btn-danger shrink-0">
                                             <span class="material-symbols-outlined text-[14px]">undo</span>
                                             Tarik Kembali
                                         </button>
@@ -335,23 +335,23 @@
                                 </div>
                             @endif
 
-                            <p x-show="ideas.length === 0" class="text-sm text-[#9aa0a4] text-center py-10">Belum ada ide konten buat analisis ini.</p>
+                            <p x-show="ideas.length === 0" class="text-sm text-[#767c80] text-center py-10">Belum ada ide konten buat analisis ini.</p>
 
                             <div x-show="ideas.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <template x-for="(idea, index) in ideas" :key="index">
                                     <button type="button" x-on:click="openIdea(index)"
                                             class="text-left border border-[#eef0f4] rounded-lg p-3.5 hover:border-[#044b46]/20 hover:bg-[#fafcfb] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
                                         <div class="flex items-center justify-between gap-2 mb-1.5">
-                                            <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46] inline-block" x-text="idea.pillar ?? '-'"></span>
+                                            <span class="badge badge-success inline-block" x-text="idea.pillar ?? '-'"></span>
                                             <span x-show="idea.predicted_score !== null && idea.predicted_score !== undefined"
-                                                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+                                                  class="badge shrink-0"
                                                   :class="scoreBadgeClass(idea.predicted_label)"
                                                   :title="scoreLabelText(idea.predicted_label) + ' — berdasarkan performa historis pillar & platform ini'"
                                                   x-text="idea.predicted_score + '%'"></span>
                                         </div>
                                         <p class="text-sm font-semibold text-[#14181a]" x-text="idea.title ?? '-'"></p>
                                         <p class="text-xs text-[#5c6266] mt-1 leading-relaxed" x-text="idea.brief ?? '-'"></p>
-                                        <p class="text-[10px] text-[#9aa0a4] mt-2 flex items-center gap-2">
+                                        <p class="text-[10px] text-[#767c80] mt-2 flex items-center gap-2">
                                             <span x-show="idea.type" x-text="idea.type"></span>
                                             <span x-show="idea.type && idea.platform">&middot;</span>
                                             <span x-show="idea.platform" x-text="idea.platform"></span>
@@ -363,17 +363,17 @@
 
                         {{-- ===== TAB: DISKUSI ===== --}}
                         <div x-show="tab === 'diskusi'" x-cloak>
-                            <p class="text-xs text-[#9aa0a4] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli. Ngobrol di sini belum ngubah apapun; kalau AI setuju sama masukan lo, klik "Perbarui Analisis dari Diskusi Ini" di bawah biar beneran diterapkan.</p>
+                            <p class="text-xs text-[#767c80] mb-3">Kasih masukan, koreksi, atau tanya soal analisis ini — AI bakal jawab tetap ngerujuk ke data asli. Ngobrol di sini belum ngubah apapun; kalau AI setuju sama masukan lo, klik "Perbarui Analisis dari Diskusi Ini" di bawah biar beneran diterapkan.</p>
 
                             <div class="space-y-3 mb-3 max-h-96 overflow-y-auto" x-ref="messageList">
                                 <template x-for="msg in messages" :key="msg.id ?? msg.message + msg.time">
                                     <div>
-                                        <p x-show="msg.role === 'system'" x-cloak class="text-center text-[11px] text-[#9aa0a4] italic" x-text="msg.message"></p>
+                                        <p x-show="msg.role === 'system'" x-cloak class="text-center text-[11px] text-[#767c80] italic" x-text="msg.message"></p>
                                         <div x-show="msg.role !== 'system'" x-cloak class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
                                             <div class="max-w-[85%] rounded-xl px-3.5 py-2.5"
                                                  :class="msg.role === 'user' ? 'bg-[#044b46] text-white' : 'bg-[#f7f8fc] text-[#14181a]'">
                                                 <p class="text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.message"></p>
-                                                <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[#9aa0a4]'" x-text="msg.time"></p>
+                                                <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[#767c80]'" x-text="msg.time"></p>
                                             </div>
                                         </div>
                                     </div>
@@ -381,7 +381,7 @@
 
                                 <div x-show="messages.length === 0" x-cloak class="text-center py-8">
                                     <span class="material-symbols-outlined text-[#d4d7db] text-[22px] mb-2 block">forum</span>
-                                    <p class="text-xs text-[#9aa0a4]">Belum ada diskusi. Tulis pertanyaan/masukan di bawah.</p>
+                                    <p class="text-xs text-[#767c80]">Belum ada diskusi. Tulis pertanyaan/masukan di bawah.</p>
                                 </div>
 
                                 <div x-show="sending" x-cloak class="flex justify-start">
@@ -408,7 +408,7 @@
                             </form>
 
                             @if ($latestAiInsight->applied_at)
-                                <p class="text-xs text-[#9aa0a4] text-center bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
+                                <p class="text-xs text-[#767c80] text-center bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
                                     Analisis ini sudah diterapkan ke Content Plan, jadi nggak bisa diperbarui dari diskusi lagi (draft yang udah dibuat bisa nggak nyambung lagi).
                                     <button type="button" x-on:click="tab = 'ide'" class="text-[#044b46] font-medium hover:underline">Tarik kembali dulu</button>
                                     kalau mau update berdasarkan diskusi ini.
@@ -435,46 +435,47 @@
                                  x-transition:enter="transition ease-out duration-200"
                                  x-transition:enter-start="opacity-0 scale-95"
                                  x-transition:enter-end="opacity-100 scale-100"
+                                 role="dialog" aria-modal="true" aria-labelledby="idea-detail-modal-title" x-trap="selectedIndex !== null"
                                  class="relative bg-white rounded-2xl border border-[#eef0f4] shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
 
                                 <template x-if="selectedIdea">
                                     <div class="p-6">
                                         <div class="flex items-start justify-between gap-3 mb-4">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#f0f5f4] text-[#044b46]" x-text="selectedIdea.pillar ?? '-'"></span>
+                                                <span class="badge badge-success" x-text="selectedIdea.pillar ?? '-'"></span>
                                                 <span x-show="selectedIdea.predicted_score !== null && selectedIdea.predicted_score !== undefined"
-                                                      class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                      class="badge"
                                                       :class="scoreBadgeClass(selectedIdea.predicted_label)"
                                                       x-text="scoreLabelText(selectedIdea.predicted_label) + ' (' + selectedIdea.predicted_score + '%)'"></span>
                                             </div>
                                             <button type="button" x-on:click="closeIdea()"
-                                                    class="text-[#9aa0a4] hover:text-[#14181a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
+                                                    class="text-[#767c80] hover:text-[#14181a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">
                                                 <span class="material-symbols-outlined text-[20px]">close</span>
                                             </button>
                                         </div>
 
-                                        <p class="font-display text-lg font-semibold text-[#14181a] leading-snug mb-2" x-text="selectedIdea.title ?? '-'"></p>
+                                        <p id="idea-detail-modal-title" class="font-display text-lg font-semibold text-[#14181a] leading-snug mb-2" x-text="selectedIdea.title ?? '-'"></p>
                                         <p class="text-sm text-[#5c6266] leading-relaxed mb-4" x-text="selectedIdea.brief ?? '-'"></p>
 
                                         <div class="flex items-center gap-2 mb-5">
-                                            <span x-show="selectedIdea.type" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266] flex items-center gap-1">
+                                            <span x-show="selectedIdea.type" class="badge badge-neutral">
                                                 <span class="material-symbols-outlined text-[13px]">design_services</span>
                                                 <span x-text="selectedIdea.type"></span>
                                             </span>
-                                            <span x-show="selectedIdea.platform" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#f2f3f6] text-[#5c6266] flex items-center gap-1">
+                                            <span x-show="selectedIdea.platform" class="badge badge-neutral">
                                                 <span class="material-symbols-outlined text-[13px]">hub</span>
                                                 <span x-text="selectedIdea.platform"></span>
                                             </span>
                                         </div>
 
                                         @if ($latestAiInsight->applied_at)
-                                            <p class="text-xs text-[#9aa0a4] bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
+                                            <p class="text-xs text-[#767c80] bg-[#f7f8fc] rounded-lg px-3.5 py-2.5 leading-relaxed">
                                                 Analisis ini udah diterapkan ke Content Plan, jadi ide di sini nggak bisa di-regenerate lagi (draft yang udah dibuat bisa nggak nyambung lagi). Tarik kembali dulu kalau mau ubah ide.
                                             </p>
                                         @else
                                             <div class="border-t border-[#f2f3f6] pt-4">
-                                                <label class="block text-[11px] font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Ganti Kategori (opsional)</label>
-                                                <select x-model="editPillar" :disabled="regenerating"
+                                                <label for="regenerate_idea_pillar" class="block text-[11px] font-semibold text-[#767c80] uppercase tracking-wide mb-2">Ganti Kategori (opsional)</label>
+                                                <select id="regenerate_idea_pillar" x-model="editPillar" :disabled="regenerating"
                                                         class="w-full text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 bg-white mb-3 focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60 transition-shadow">
                                                     <template x-for="pillar in pillarOptions" :key="pillar">
                                                         <option :value="pillar" x-text="pillar"></option>
@@ -484,7 +485,7 @@
                                                 <p x-show="regenError" x-cloak class="text-xs text-[#b3423e] mb-2" x-text="regenError"></p>
 
                                                 <button type="button" x-on:click="regenerateIdea()" :disabled="regenerating"
-                                                        class="w-full text-sm font-medium bg-[#044b46] text-white px-4 py-2.5 rounded-lg hover:bg-[#033b37] active:scale-[0.98] disabled:opacity-60 transition-all flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                                                        class="btn-primary w-full">
                                                     <span x-show="!regenerating" class="flex items-center gap-1.5">
                                                         <span class="material-symbols-outlined text-[16px]">refresh</span>
                                                         <span x-text="editPillar === selectedIdea.pillar ? 'Cari Alternatif Lain' : 'Regenerate dengan Kategori Baru'"></span>
@@ -494,7 +495,7 @@
                                                         Nyari alternatif...
                                                     </span>
                                                 </button>
-                                                <p class="text-[11px] text-[#9aa0a4] mt-2 leading-relaxed">AI bakal bikin ide baru buat kategori ini, mempertimbangkan semua ide lain yang udah ada biar nggak duplikat &amp; beban kerja tim tetap seimbang.</p>
+                                                <p class="text-[11px] text-[#767c80] mt-2 leading-relaxed">AI bakal bikin ide baru buat kategori ini, mempertimbangkan semua ide lain yang udah ada biar nggak duplikat &amp; beban kerja tim tetap seimbang.</p>
                                             </div>
                                         @endif
                                     </div>
@@ -510,29 +511,29 @@
 
                 {{-- Divider zona: dari "AI insight" pindah ke "raw metrics" --}}
                 <div class="flex items-center gap-3 pt-2">
-                    <span class="text-[11px] font-semibold text-[#9aa0a4] uppercase tracking-wider whitespace-nowrap">Performance Details</span>
+                    <span class="text-[11px] font-semibold text-[#767c80] uppercase tracking-wider whitespace-nowrap">Performance Details</span>
                     <div class="flex-1 h-px bg-[#eef0f4]"></div>
                 </div>
 
                 {{-- Trend chart --}}
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">show_chart</span>
+                        <span class="material-symbols-outlined text-[#767c80] text-[18px]">show_chart</span>
                         <h2 class="font-display text-lg font-semibold text-[#14181a]">Views Over Time</h2>
                     </div>
-                    <p class="text-xs text-[#9aa0a4] mb-5 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
+                    <p class="text-xs text-[#767c80] mb-5 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
                     <x-trend-chart :trend="$trend" />
                 </div>
 
                 {{-- Traffic per Platform - sekarang full width, bukan sidebar sempit --}}
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-5">
-                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">hub</span>
+                        <span class="material-symbols-outlined text-[#767c80] text-[18px]">hub</span>
                         <h2 class="font-display text-lg font-semibold text-[#14181a]">Traffic per Platform</h2>
                     </div>
 
                     @if ($platformBreakdown->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] text-center py-6">Belum ada data.</p>
+                        <p class="text-sm text-[#767c80] text-center py-6">Belum ada data.</p>
                     @else
                         @php
                             $maxPlatform = max($platformBreakdown->max('value'), 1);
@@ -557,39 +558,39 @@
                 {{-- Top performing content --}}
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
-                        <span class="material-symbols-outlined text-[#9aa0a4] text-[18px]">military_tech</span>
+                        <span class="material-symbols-outlined text-[#767c80] text-[18px]">military_tech</span>
                         <h2 class="font-display text-lg font-semibold text-[#14181a]">Konten Berperforma Terbaik</h2>
                     </div>
 
                     @if ($topContent->isEmpty())
-                        <p class="text-sm text-[#9aa0a4] py-6 text-center">Belum ada konten dengan data performa.</p>
+                        <p class="text-sm text-[#767c80] py-6 text-center">Belum ada konten dengan data performa.</p>
                     @else
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm text-left">
-                                <thead>
-                                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                                        <th class="pb-2.5 font-medium">Konten</th>
-                                        <th class="pb-2.5 font-medium">Client</th>
-                                        <th class="pb-2.5 font-medium">Platform</th>
-                                        <th class="pb-2.5 font-medium">Views</th>
-                                        <th class="pb-2.5 font-medium">Engagement</th>
-                                        <th class="pb-2.5"></th>
+                                <thead class="bg-[#f7f8fc]">
+                                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Konten</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Views</th>
+                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Engagement</th>
+                                        <th class="px-6 py-3"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($topContent as $content)
                                         <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
-                                            <td class="py-3 pr-3 font-medium text-[#14181a] whitespace-nowrap">
+                                            <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
                                                 {{ $content['title'] }}
-                                                <p class="text-xs text-[#9aa0a4] font-normal mt-0.5">{{ $content['type'] }}</p>
+                                                <p class="text-xs text-[#767c80] font-normal mt-0.5">{{ $content['type'] }}</p>
                                             </td>
-                                            <td class="py-3 pr-3 text-[#5c6266] whitespace-nowrap">{{ $content['client'] }}</td>
-                                            <td class="py-3 pr-3 text-[#5c6266] whitespace-nowrap">{{ $content['platform'] }}</td>
-                                            <td class="py-3 pr-3 font-medium text-[#14181a] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
-                                            <td class="py-3 pr-3">
-                                                <span class="text-xs px-2 py-1 rounded-full bg-[#f0f5f4] text-[#044b46] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $content['client'] }}</td>
+                                            <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $content['platform'] }}</td>
+                                            <td class="px-4 py-3.5 font-medium text-[#14181a] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
+                                            <td class="px-4 py-3.5">
+                                                <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
                                             </td>
-                                            <td class="py-3 text-right">
+                                            <td class="px-6 py-3.5 text-right">
                                                 <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[#044b46] hover:underline whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46] rounded">Detail</a>
                                             </td>
                                         </tr>
@@ -627,10 +628,10 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         },
         scoreBadgeClass(label) {
             return {
-                high: 'bg-[#f0f5f4] text-[#0f7a5f]',
-                medium: 'bg-[#fdf6ec] text-[#8a6423]',
-                low: 'bg-[#f2f3f6] text-[#5c6266]',
-            }[label] ?? 'bg-[#f2f3f6] text-[#9aa0a4]';
+                high: 'badge-success',
+                medium: 'badge-warning',
+                low: 'badge-neutral',
+            }[label] ?? 'badge-neutral';
         },
         scoreLabelText(label) {
             return { high: 'Potensi Tinggi', medium: 'Potensi Sedang', low: 'Potensi Rendah' }[label] ?? '';

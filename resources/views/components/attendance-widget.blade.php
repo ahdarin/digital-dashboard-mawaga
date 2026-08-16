@@ -13,7 +13,7 @@
     @elseif (! $attendance || ! $attendance->check_in_at)
         <form action="{{ route('attendance.check-in') }}" method="POST">
             @csrf
-            <button type="submit" class="bg-[#044b46] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-2">
+            <button type="submit" class="btn-primary">
                 <span class="material-symbols-outlined text-[18px]">login</span> Check In
             </button>
         </form>
@@ -33,7 +33,7 @@
             <span class="material-symbols-outlined text-[18px]">check_circle</span>
             {{ $attendance->check_in_at->format('H:i') }} - {{ $attendance->check_out_at->format('H:i') }}
         </div>
-        <p class="text-xs text-[#9aa0a4] mt-1.5">Absensi hari ini selesai</p>
+        <p class="text-xs text-[#767c80] mt-1.5">Absensi hari ini selesai</p>
         @if ($lateMinutes > 0)
             <p class="text-xs text-[#b3423e] font-medium mt-0.5">Anda telat {{ $attendanceService->formatMinutes($lateMinutes) }}</p>
         @endif

@@ -291,24 +291,4 @@ class SettingsController extends Controller
 
         return view('settings.import', compact('clientOptions'));
     }
-
-    /**
-     * PRD 7.3.4 — "Analytics Integration Settings" + "Sync Log" sebagai
-     * halaman tersendiri: status koneksi API per platform, dan riwayat
-     * lengkap semua proses import/sync (bukan cuma yang nyangkut di 1
-     * konten kayak di halaman Content Detail).
-     */
-    public function integrationsPage(Request $request)
-    {
-        $integrations = $this->buildIntegrationStatus();
-
-        $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
-            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
-            ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
-
-        return view('settings.integrations', compact('integrations', 'syncLogs'));
-    }
 }

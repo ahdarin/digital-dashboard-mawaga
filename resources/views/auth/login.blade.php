@@ -19,7 +19,7 @@
 </head>
 <body class="min-h-screen antialiased">
 
-    <a href="{{ url('/') }}" class="fixed top-6 left-6 md:top-8 md:left-8 z-20 flex items-center justify-center w-10 h-10 rounded-full text-[#9aa0a4] hover:text-[#14181a] hover:bg-white transition-colors group">
+    <a href="{{ url('/') }}" class="fixed top-6 left-6 md:top-8 md:left-8 z-20 flex items-center justify-center w-10 h-10 rounded-full text-[#767c80] hover:text-[#14181a] hover:bg-white transition-colors group">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
@@ -56,7 +56,7 @@
                 </a>
             </div>
 
-            <p class="text-center text-xs text-[#9aa0a4] mt-8">&copy; {{ date('Y') }} 523 Studio</p>
+            <p class="text-center text-xs text-[#767c80] mt-8">&copy; {{ date('Y') }} 523 Studio</p>
         </div>
     </div>
 

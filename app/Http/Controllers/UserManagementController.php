@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
@@ -31,7 +32,13 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'role_id' => 'required|exists:roles,id',
+            // Client Owner sengaja dikecualikan dari dropdown (lihat index()
+            // di atas) - dikunci juga di validasi biar nggak bisa dikirim
+            // manual lewat request langsung.
+            'role_id' => [
+                'required',
+                Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner')),
+            ],
         ]);
 
         $user = User::create([
@@ -62,6 +69,12 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
+        // Halaman ini cuma buat kelola staf internal - binding User polos
+        // tanpa scope bisa saja diarahkan ke akun client kalau ID-nya
+        // ditebak/dikirim manual.
+        abort_if($user->isClientUser(), 404);
+        abort_if($user->id === auth()->id(), 422, 'Anda tidak bisa menonaktifkan akun sendiri.');
+
         $user->update(['status' => 'inactive']);
 
         return back()->with('status', 'User dinonaktifkan.');
@@ -70,6 +83,8 @@ class UserManagementController extends Controller
     public function activate(User $user)
     {
         $this->authorizeManage();
+
+        abort_if($user->isClientUser(), 404);
 
         $user->update(['status' => 'active']);
 

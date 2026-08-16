@@ -24,7 +24,7 @@
         <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto">
         <div>
             <h1 class="font-display text-base font-semibold text-[#14181a] leading-tight">523 Studio</h1>
-            <p class="text-xs text-[#9aa0a4] leading-tight">Approval Queue</p>
+            <p class="text-xs text-[#767c80] leading-tight">Approval Queue</p>
         </div>
     </header>
 
@@ -34,7 +34,7 @@
             Approval
         </a>
         <a href="{{ route('client.analytics') }}"
-           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[#9aa0a4] hover:text-[#14181a] transition-colors">
+           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[#767c80] hover:text-[#14181a] transition-colors">
             Analytics
         </a>
     </nav>
@@ -51,32 +51,32 @@
                 <a href="{{ route('client.approval.show', $item) }}"
                    class="block bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold text-[#b8873a] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
-                        <span class="text-[10px] text-[#9aa0a4]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
+                        <span class="text-[10px] font-bold text-[#8a6423] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
+                        <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
                     </div>
                     <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
-                    <p class="text-xs text-[#9aa0a4] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
+                    <p class="text-xs text-[#767c80] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
                 </a>
             @empty
                 <div class="text-center py-16">
                     <span class="material-symbols-outlined text-[#d4d7db] text-[32px] mb-2 block">task_alt</span>
-                    <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang perlu ditinjau saat ini.</p>
-                    <p class="text-xs text-[#c3c7cb] mt-1">Konten baru akan muncul di sini begitu tim selesai mengerjakannya.</p>
+                    <p class="text-sm text-[#767c80]">Tidak ada konten yang perlu ditinjau saat ini.</p>
+                    <p class="text-xs text-[#767c80] mt-1">Konten baru akan muncul di sini begitu tim selesai mengerjakannya.</p>
                 </div>
             @endforelse
         </div>
 
         @if ($reviewedItems->isNotEmpty())
-            <p class="text-xs font-semibold text-[#9aa0a4] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
+            <p class="text-xs font-semibold text-[#767c80] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
             <div class="space-y-3">
                 @foreach ($reviewedItems as $item)
                     <div class="bg-white rounded-xl border border-[#eef0f4] p-4 opacity-70">
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-[10px] font-bold text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded uppercase">Sudah Anda Setujui</span>
-                            <span class="text-[10px] text-[#9aa0a4]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
+                            <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
                         </div>
                         <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
-                        <p class="text-xs text-[#9aa0a4] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }} · Menunggu pengecekan tim internal</p>
+                        <p class="text-xs text-[#767c80] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }} · Menunggu pengecekan tim internal</p>
                     </div>
                 @endforeach
             </div>

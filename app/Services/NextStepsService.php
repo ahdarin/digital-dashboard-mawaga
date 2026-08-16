@@ -19,7 +19,12 @@ class NextStepsService
         $steps = [];
 
         if ($user->hasPermissionTo('content_plan', 'approve')) {
-            $pendingPlans = ContentPlan::where('status', 'pending')->count();
+            $pendingPlans = ContentPlan::where('status', 'pending')
+                ->when(
+                    ! $user->canSeeAllClients(),
+                    fn ($q) => $q->whereIn('client_id', $user->assignedClients()->pluck('clients.id'))
+                )
+                ->count();
             if ($pendingPlans > 0) {
                 $steps[] = [
                     'icon' => 'fact_check',
@@ -32,6 +37,12 @@ class NextStepsService
         if ($user->hasPermissionTo('workflow', 'approve')) {
             $clientApprovedCount = ContentWorkflow::where('current_status', 'waiting_review')
                 ->whereNotNull('client_reviewed_at')
+                ->when(
+                    ! $user->canSeeAllClients(),
+                    fn ($q) => $q->whereHas('contentItem', fn ($ci) => $ci->whereIn(
+                        'client_id', $user->assignedClients()->pluck('clients.id')
+                    ))
+                )
                 ->count();
             if ($clientApprovedCount > 0) {
                 $steps[] = [
@@ -45,6 +56,10 @@ class NextStepsService
         if ($user->role?->name === 'Copywriter') {
             $unfinishedBriefs = ContentItem::whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
                 ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', ['uploaded', 'cancelled']))
+                ->when(
+                    ! $user->canSeeAllClients(),
+                    fn ($q) => $q->whereIn('client_id', $user->assignedClients()->pluck('clients.id'))
+                )
                 ->count();
             if ($unfinishedBriefs > 0) {
                 $steps[] = [

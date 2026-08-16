@@ -16,17 +16,16 @@
                     <div class="w-9 h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center">
                         <span class="material-symbols-outlined text-[#044b46] text-[18px]">hub</span>
                     </div>
-                    <span class="text-[10px] font-medium px-2 py-1 rounded-full
-                        {{ $row['connected'] ? 'bg-[#f0f5f4] text-[#0f7a5f]' : 'bg-[#fdf2f1] text-[#b3423e]' }}">
+                    <span class="badge {{ $row['connected'] ? 'badge-success' : 'badge-danger' }}">
                         {{ $row['connected'] ? 'Active' : 'Disconnected' }}
                     </span>
                 </div>
                 <p class="text-sm font-medium text-[#14181a]">{{ $row['platform'] }}</p>
-                <p class="text-xs text-[#9aa0a4] mt-0.5 mb-3">
+                <p class="text-xs text-[#767c80] mt-0.5 mb-3">
                     {{ $row['connected'] ? 'Last sync: '.$row['updated_at']?->diffForHumans() : 'Belum terhubung' }}
                 </p>
                 <button type="button" disabled title="Belum tersedia - nunggu App Review Meta/TikTok kelar dulu"
-                        class="text-xs font-medium text-[#c3c7cb] cursor-not-allowed">
+                        class="text-xs font-medium text-[#767c80] cursor-not-allowed">
                     {{ $row['connected'] ? 'Manage' : 'Reconnect' }} <span class="text-[10px]">(segera)</span>
                 </button>
             </div>
@@ -51,7 +50,7 @@
             <input type="text" name="date" value="{{ request('date') }}" data-flatpickr="date" data-autosubmit="true" autocomplete="off"
                    class="text-sm border border-[#eef0f4] rounded-lg px-3 py-2 focus:outline-none focus:border-[#044b46]/40">
             @if (request('status') || request('date'))
-                <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-xs text-[#9aa0a4] hover:text-[#5c6266]">Reset</a>
+                <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-xs text-[#767c80] hover:text-[#5c6266]">Reset</a>
             @endif
         </form>
     </div>
@@ -67,16 +66,16 @@
     @if ($syncLogs->isEmpty())
         <div class="px-6 py-12 text-center">
             <span class="material-symbols-outlined text-[#d4d7db] text-[26px] mb-2 block">history</span>
-            <p class="text-sm text-[#9aa0a4]">Belum ada riwayat sinkronisasi/import.</p>
-            <p class="text-xs text-[#c3c7cb] mt-1">Riwayat muncul di sini begitu ada import CSV performa atau sinkronisasi API.</p>
+            <p class="text-sm text-[#767c80]">Belum ada riwayat sinkronisasi/import.</p>
+            <p class="text-xs text-[#767c80] mt-1">Riwayat muncul di sini begitu ada import CSV performa atau sinkronisasi API.</p>
         </div>
     @else
         <div class="overflow-x-auto hidden sm:block">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
-                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium whitespace-nowrap">Date</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Client</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Source Type</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Imported By</th>
@@ -92,10 +91,10 @@
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $sourceTypeLabels[$log->source_type] ?? \Illuminate\Support\Str::headline($log->source_type) }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $log->importedBy->name ?? '-' }}</td>
                             <td class="px-6 py-3.5">
-                                <span class="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap
-                                    {{ $log->status === 'success' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
-                                    {{ $log->status === 'failed' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
-                                    {{ $log->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}">
+                                <span class="badge
+                                    {{ $log->status === 'success' ? 'badge-success' : '' }}
+                                    {{ $log->status === 'failed' ? 'badge-danger' : '' }}
+                                    {{ $log->status === 'pending' ? 'badge-warning' : '' }}">
                                     {{ ucfirst($log->status) }}
                                 </span>
                             </td>
@@ -109,32 +108,32 @@
         <div class="sm:hidden divide-y divide-[#f2f3f6]">
             @foreach ($syncLogs as $log)
                 <div x-data="{ open: false }" class="px-4">
-                    <div class="py-3.5 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open">
+                    <button type="button" class="w-full text-left py-3.5 flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-[#14181a] truncate">{{ $log->client->name ?? '-' }}</p>
-                            <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $log->created_at->format('d M Y, H:i') }}</p>
+                            <p class="text-xs text-[#767c80] mt-0.5">{{ $log->created_at->format('d M Y, H:i') }}</p>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
-                            <span class="text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap
-                                {{ $log->status === 'success' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
-                                {{ $log->status === 'failed' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}
-                                {{ $log->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}">
+                            <span class="badge
+                                {{ $log->status === 'success' ? 'badge-success' : '' }}
+                                {{ $log->status === 'failed' ? 'badge-danger' : '' }}
+                                {{ $log->status === 'pending' ? 'badge-warning' : '' }}">
                                 {{ ucfirst($log->status) }}
                             </span>
-                            <span class="material-symbols-outlined text-[#9aa0a4] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
+                            <span class="material-symbols-outlined text-[#767c80] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
                         </div>
-                    </div>
+                    </button>
                     <div x-show="open" x-cloak x-transition class="pb-4 -mt-1 space-y-2 text-sm">
                         <div class="flex justify-between gap-3">
-                            <span class="text-[#9aa0a4]">Platform</span>
+                            <span class="text-[#767c80]">Platform</span>
                             <span class="text-[#14181a] text-right">{{ $log->platform->name ?? 'Campuran' }}</span>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <span class="text-[#9aa0a4]">Source Type</span>
+                            <span class="text-[#767c80]">Source Type</span>
                             <span class="text-[#14181a] text-right">{{ $sourceTypeLabels[$log->source_type] ?? \Illuminate\Support\Str::headline($log->source_type) }}</span>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <span class="text-[#9aa0a4]">Imported By</span>
+                            <span class="text-[#767c80]">Imported By</span>
                             <span class="text-[#14181a] text-right">{{ $log->importedBy->name ?? '-' }}</span>
                         </div>
                     </div>

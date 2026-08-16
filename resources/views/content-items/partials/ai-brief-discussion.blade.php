@@ -8,7 +8,7 @@
             <span class="material-symbols-outlined text-[#044b46] text-[15px]">forum</span>
             <h3 class="text-sm font-semibold text-[#14181a]">Diskusi Brief AI</h3>
         </div>
-        <p class="text-xs text-[#9aa0a4] mb-4">
+        <p class="text-xs text-[#767c80] mb-4">
             Kasih masukan atau minta perubahan — AI usulkan revisi field yang relevan,
             terapkan lewat tombol di bawah tiap balasan.
         </p>
@@ -39,10 +39,20 @@
                     </div>
                 </div>
             </template>
+
+            <div x-show="loading" x-cloak class="flex justify-start">
+                <div class="bg-[#f2f3f6] rounded-lg px-3 py-2.5">
+                    <div class="flex gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:0ms"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:150ms"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#9aa0a4] animate-bounce" style="animation-delay:300ms"></span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         @if ($contentBrief->isLocked())
-            <div class="bg-[#f2f3f6] rounded-lg p-3 text-center text-xs text-[#9aa0a4]">
+            <div class="bg-[#f2f3f6] rounded-lg p-3 text-center text-xs text-[#767c80]">
                 Brief ini sudah diterapkan ke tim produksi, jadi tidak bisa didiskusikan lagi
                 (biar tidak membingungkan Penanggung Jawab yang sedang mengerjakan).
                 Tarik kembali dulu kalau mau revisi.
@@ -74,6 +84,9 @@
                 this.inputMessage = '';
                 this.messages.push({ role: 'user', content: text });
                 this.loading = true;
+                this.$nextTick(() => {
+                    this.$refs.chatBox.scrollTop = this.$refs.chatBox.scrollHeight;
+                });
 
                 try {
                     const res = await fetch(`/content-brief/${this.briefId}/discuss`, {
@@ -120,7 +133,7 @@
                 }
 
                 document.body.appendChild(form);
-                form.submit();
+                form.requestSubmit();
             }
         }
     }

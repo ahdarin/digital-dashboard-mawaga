@@ -1,15 +1,12 @@
 @php
     $hasUnresolvedRevisions = $contentItem->revisions->whereIn('status', ['open', 'in_progress'])->isNotEmpty();
-    $btnBase = 'w-full text-sm font-medium px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5';
-    $btnEnabled = 'bg-[#044b46] text-white hover:bg-[#033b37]';
-    $btnDisabled = 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed';
 @endphp
 
 <div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
         <h3 class="text-sm font-semibold text-[#14181a]">Status Management</h3>
     </div>
-    <p class="text-xs text-[#9aa0a4] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
+    <p class="text-xs text-[#767c80] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
 
     @unless ($canUpdateWorkflow)
         <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3.5">
@@ -30,7 +27,7 @@
                 confirmLabel: 'Ya, Kerjakan',
             }"
             title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
-            class="{{ $btnBase }} {{ $canUpdateWorkflow ? $btnEnabled : $btnDisabled }}">
+            class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">play_arrow</span> KERJAKAN KONTEN
         </button>
     @elseif ($workflow->current_status === 'in_progress')
@@ -44,7 +41,7 @@
                 confirmLabel: 'Ya, Selesai',
             }"
             title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
-            class="{{ $btnBase }} {{ $canUpdateWorkflow ? $btnEnabled : $btnDisabled }}">
+            class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">check</span> KONTEN TELAH SELESAI
         </button>
     @elseif ($workflow->current_status === 'waiting_review')
@@ -76,7 +73,7 @@
                 confirmLabel: 'Ya, Approve',
             }"
             title="{{ $hasUnresolvedRevisions ? 'Masih ada revisi yang belum diselesaikan' : ($canApprove ? '' : 'Kamu tidak punya izin approve konten') }}"
-            class="{{ $btnBase }} {{ $approveDisabled ? $btnDisabled : $btnEnabled }}">
+            class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">task_alt</span> APPROVE KONTEN
         </button>
     @elseif ($workflow->current_status === 'revision')
@@ -86,9 +83,9 @@
         </div>
     @elseif ($workflow->current_status === 'approved')
         <div class="mb-3">
-            <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
-            <input type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
-                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[#f7f8fc] disabled:text-[#c3c7cb]">
+            <label for="scheduled_upload_at" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
+            <input id="scheduled_upload_at" type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
+                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[#f7f8fc] disabled:text-[#767c80]">
         </div>
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }} || !scheduledUploadAt"
             @click="confirmAction = {
@@ -100,8 +97,7 @@
                 fields: { to_status: 'scheduled', scheduled_upload_at: scheduledUploadAt },
                 confirmLabel: 'Ya, Jadwalkan',
             }"
-            :class="(({{ $canUpdateWorkflow ? 'true' : 'false' }} && scheduledUploadAt) ? '{{ $btnEnabled }}' : '{{ $btnDisabled }}')"
-            class="{{ $btnBase }}">
+            class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">event_available</span> JADWALKAN UPLOAD
         </button>
     @elseif ($workflow->current_status === 'scheduled')
@@ -119,7 +115,7 @@
                 <span class="material-symbols-outlined text-[15px]">build</span> Koreksi Status (kesalahan input)
             </button>
             <div x-show="showCorrection" x-cloak x-transition class="mt-3 space-y-2.5">
-                <p class="text-[11px] text-[#9aa0a4]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja Penanggung Jawab.</p>
+                <p class="text-[11px] text-[#767c80]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja Penanggung Jawab.</p>
                 <select x-model="correctTo" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
                     <option value="">Pilih status yang benar...</option>
                     @foreach (\App\Support\WorkflowTransitions::labels() as $value => $label)
@@ -140,7 +136,7 @@
                         confirmLabel: 'Ya, Koreksi',
                         danger: true,
                     }"
-                    class="w-full text-xs font-medium px-4 py-2.5 rounded-lg border border-[#f5d9d7] text-[#b3423e] hover:bg-[#fdf2f1] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    class="btn-danger w-full">
                     Koreksi Status
                 </button>
             </div>
@@ -164,8 +160,7 @@
                     danger: true,
                 }"
                 title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
-                class="w-full text-sm font-medium px-4 py-2.5 rounded-lg border transition-colors flex items-center justify-center gap-1.5
-                    {{ $canUpdateWorkflow ? 'border-[#f5d9d7] text-[#b3423e] hover:bg-[#fdf2f1]' : 'border-[#eef0f4] text-[#c3c7cb] cursor-not-allowed' }}">
+                class="btn-danger w-full">
                 <span class="material-symbols-outlined text-[16px]">cancel</span> Batalkan Konten
             </button>
         </div>

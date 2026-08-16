@@ -29,7 +29,7 @@
     <div class="flex items-center gap-6 mb-4 flex-wrap">
 
         <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-[#9aa0a4]">Tipe:</span>
+            <span class="text-xs font-medium text-[#767c80]">Tipe:</span>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
                {{ ($selectedType ?? 'all') === 'all' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
@@ -79,7 +79,7 @@
         @forelse ($agendaDays as $date)
             @php $dateKey = $date->format('Y-m-d'); @endphp
             <div class="card p-4">
-                <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
+                <p class="text-xs font-semibold text-[#767c80] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
                 <div class="flex flex-col gap-1.5">
                     @foreach ($itemsByDateClient->get($dateKey, collect()) as $clientId => $clientItems)
                         @php
@@ -107,7 +107,7 @@
         @empty
             <div class="card p-6 text-center">
                 <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">event_busy</span>
-                <p class="text-sm text-[#9aa0a4]">Tidak ada konten terjadwal bulan ini.</p>
+                <p class="text-sm text-[#767c80]">Tidak ada konten terjadwal bulan ini.</p>
             </div>
         @endforelse
     </div>
@@ -115,7 +115,7 @@
     <div class="card p-5 hidden sm:block">
       <div class="overflow-x-auto">
         <div class="min-w-[700px]">
-        <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#9aa0a4] uppercase mb-2">
+        <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#767c80] uppercase mb-2">
             @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $d)
                 <div>{{ $d }}</div>
             @endforeach
@@ -136,7 +136,7 @@
 
                 <div class="border border-[#f2f3f6] rounded-lg p-2 min-h-[100px] flex flex-col gap-1">
 
-                    <p class="text-xs text-[#9aa0a4] mb-0.5">{{ $day }}</p>
+                    <p class="text-xs text-[#767c80] mb-0.5">{{ $day }}</p>
 
                     @foreach ($visibleGroups as $clientId => $clientItems)
                         @php

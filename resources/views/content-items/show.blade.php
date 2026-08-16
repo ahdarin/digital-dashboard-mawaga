@@ -22,14 +22,14 @@
 
         <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div class="flex items-center gap-3">
-                <a href="{{ $backUrl }}" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                <a href="{{ $backUrl }}" class="text-[#767c80] hover:text-[#5c6266]">
                     <span class="material-symbols-outlined">arrow_back</span>
                 </a>
                 <div>
-                    <p class="text-xs text-[#9aa0a4]">{{ $contentItem->client->name ?? '-' }} / Item #{{ $contentItem->id }}
+                    <p class="text-xs text-[#767c80]">{{ $contentItem->client->name ?? '-' }} / Item #{{ $contentItem->id }}
                     </p>
                     <div class="flex items-center gap-2">
-                        <h2 class="font-display text-xl font-semibold text-[#14181a]">{{ $contentItem->title }}</h2>
+                        <h1 class="font-display text-xl font-semibold text-[#14181a]">{{ $contentItem->title }}</h1>
                         @if ($contentItem->is_urgent)
                             <span class="flex items-center gap-1 text-[10px] font-semibold text-white bg-[#b3423e] px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
                                 <span class="material-symbols-outlined text-[12px]">bolt</span> Jobdesk Tambahan
@@ -40,11 +40,11 @@
             </div>
             <div class="flex items-center gap-2">
                 @if ($workflow->client_reviewed_at && $workflow->current_status === 'waiting_review')
-                    <span class="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#0f7a5f]">
+                    <span class="badge badge-success">
                         <span class="material-symbols-outlined text-[14px]">check_circle</span> Klien Setuju
                     </span>
                 @endif
-                <span class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                <span class="badge badge-success">
                     {{ $statusLabels[$workflow->current_status] ?? $workflow->current_status }}
                 </span>
             </div>
@@ -71,11 +71,11 @@
                         {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div>
-                            <p class="text-[#9aa0a4] uppercase font-medium mb-1">Platform</p>
+                            <p class="text-[#767c80] uppercase font-medium mb-1">Platform</p>
                             <p class="text-[#5c6266]">{{ $contentItem->platform->name ?? '-' }}</p>
                         </div>
                         <div>
-                            <p class="text-[#9aa0a4] uppercase font-medium mb-1">Deadline</p>
+                            <p class="text-[#767c80] uppercase font-medium mb-1">Deadline</p>
                             <p class="text-[#5c6266]">{{ $contentItem->deadline_at->format('d M Y, H:i') }}</p>
                         </div>
                     </div>
@@ -91,7 +91,7 @@
                                 </button>
                             @endif
                         </div>
-                        <p class="text-xs text-[#9aa0a4] mb-3">Draft caption yang akan dibaca & disetujui klien di Portal Klien.</p>
+                        <p class="text-xs text-[#767c80] mb-3">Draft caption yang akan dibaca & disetujui klien di Portal Klien.</p>
 
                         <div x-show="! editingCaption" x-cloak>
                             <p class="text-sm text-[#14181a] whitespace-pre-line">{{ $contentItem->caption_draft }}</p>
@@ -101,7 +101,7 @@
                             @csrf @method('PATCH')
                             <textarea name="caption_draft" rows="3" placeholder="Tulis draft caption di sini..."
                                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ $contentItem->caption_draft }}</textarea>
-                            <button type="submit" class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors">
+                            <button type="submit" class="btn-primary">
                                 Simpan Caption
                             </button>
                         </form>
@@ -118,7 +118,7 @@
                                 </button>
                             @endif
                         </div>
-                        <p class="text-xs text-[#9aa0a4] mb-3">Link file hasil produksi (Google Drive/Canva/dsb) - diisi setelah konten selesai diedit, supaya bisa direview sebelum upload. Beda dengan Link Post di Record Publication (itu link postingan yang sudah live).</p>
+                        <p class="text-xs text-[#767c80] mb-3">Link file hasil produksi (Google Drive/Canva/dsb) - diisi setelah konten selesai diedit, supaya bisa direview sebelum upload. Beda dengan Link Post di Record Publication (itu link postingan yang sudah live).</p>
 
                         <div x-show="! editingLink" x-cloak class="flex items-center gap-2">
                             <a href="{{ $contentItem->content_file_link }}" target="_blank"
@@ -130,7 +130,7 @@
                             <input type="url" name="content_file_link" value="{{ $contentItem->content_file_link }}"
                                 placeholder="https://drive.google.com/..."
                                 class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-                            <button type="submit" class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] transition-colors whitespace-nowrap">
+                            <button type="submit" class="btn-primary whitespace-nowrap">
                                 Simpan
                             </button>
                         </form>
@@ -170,7 +170,7 @@
                                         }"
                                         title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
                                         class="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg transition-colors
-                                            {{ $canUpdateWorkflow ? 'bg-[#044b46] text-white hover:bg-[#033b37]' : 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed' }}">
+                                            {{ $canUpdateWorkflow ? 'bg-[#044b46] text-white hover:bg-[#033b37]' : 'bg-[#f2f3f6] text-[#767c80] cursor-not-allowed' }}">
                                         <span class="material-symbols-outlined text-[13px]">build</span> Kerjakan Revisi
                                     </button>
                                 @elseif ($revision->status === 'in_progress')
@@ -182,7 +182,7 @@
                                 @endif
                             </div>
                         @empty
-                            <p class="text-xs text-[#9aa0a4] italic">Belum ada revisi.</p>
+                            <p class="text-xs text-[#767c80] italic">Belum ada revisi.</p>
                         @endforelse
                     </div>
 
@@ -192,10 +192,10 @@
                             <input type="text" name="revision_note" required placeholder="Tulis catatan revisi..."
                                 class="flex-1 border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                             <button type="submit"
-                                class="bg-[#044b46] text-white text-xs font-medium px-4 py-2 rounded-lg hover:bg-[#033b37]">Kirim</button>
+                                class="btn-primary">Kirim</button>
                         </form>
                     @else
-                        <p class="text-[11px] text-[#9aa0a4] italic">Catatan revisi cuma bisa ditambahkan saat status Menunggu Persetujuan atau Perlu Revisi.</p>
+                        <p class="text-[11px] text-[#767c80] italic">Catatan revisi cuma bisa ditambahkan saat status Menunggu Persetujuan atau Perlu Revisi.</p>
                     @endif
                 </div>
 
@@ -227,33 +227,32 @@
                             @csrf
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Platform</label>
+                                    <label class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Platform</label>
                                     <div class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-[#f7f8fc] text-[#5c6266]">
                                         {{ $contentItem->platform->name ?? '-' }}
                                     </div>
                                     <input type="hidden" name="platform_id" value="{{ $contentItem->platform_id }}">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Tanggal
+                                    <label for="published_at" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Tanggal
                                         Publish</label>
-                                    <input type="text" name="published_at" required data-flatpickr="datetime" autocomplete="off"
+                                    <input id="published_at" type="text" name="published_at" required data-flatpickr="datetime" autocomplete="off"
                                         class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Link Post</label>
-                                <input type="url" name="post_url" placeholder="https://..."
+                                <label for="post_url" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Link Post</label>
+                                <input id="post_url" type="url" name="post_url" placeholder="https://..."
                                     class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                             </div>
                             <div>
-                                <label class="block text-[10px] font-medium text-[#9aa0a4] uppercase mb-1">Caption Final</label>
-                                <textarea name="caption_final" rows="2"
+                                <label for="caption_final" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Caption Final</label>
+                                <textarea id="caption_final" name="caption_final" rows="2"
                                     class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                             </div>
                             <button type="submit" @disabled(! $canPublish)
                                 title="{{ $canPublish ? '' : 'Hanya SMO yang bisa mencatat data publikasi' }}"
-                                class="text-xs font-medium px-4 py-2 rounded-lg transition-colors
-                                    {{ $canPublish ? 'bg-[#044b46] text-white hover:bg-[#033b37]' : 'bg-[#f2f3f6] text-[#c3c7cb] cursor-not-allowed' }}">
+                                class="btn-primary">
                                 Simpan &amp; Tandai Uploaded</button>
                         </form>
                     </div>
@@ -279,7 +278,7 @@
                         @forelse ($contentItem->assignments as $assignment)
                             <div class="flex items-center gap-2">
                                 @if ($assignment->user->avatar_url)
-                                    <img src="{{ $assignment->user->avatar_url }}" class="w-8 h-8 rounded-full object-cover">
+                                    <img src="{{ $assignment->user->avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover">
                                 @else
                                     <div
                                         class="w-8 h-8 rounded-full bg-[#044b46] text-white text-xs font-semibold flex items-center justify-center">
@@ -287,12 +286,12 @@
                                 @endif
                                 <div>
                                     <p class="text-xs font-medium text-[#14181a]">{{ $assignment->user->name }}</p>
-                                    <p class="text-[10px] text-[#9aa0a4]">
+                                    <p class="text-[10px] text-[#767c80]">
                                         {{ ucwords(str_replace('_', ' ', $assignment->assignment_role)) }}</p>
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-[#9aa0a4] italic">Belum ada Penanggung Jawab.</p>
+                            <p class="text-xs text-[#767c80] italic">Belum ada Penanggung Jawab.</p>
                         @endforelse
                     </div>
                 </div>
@@ -337,7 +336,7 @@
 
                             @if ($latestRisk->top_factor && str_contains($latestRisk->top_factor, 'Beban kerja'))
                                 <div class="bg-[#fdf6ec] rounded-lg p-3 mb-3 flex items-start gap-2.5">
-                                    <span class="material-symbols-outlined text-[#b8873a] text-[16px] mt-0.5">group</span>
+                                    <span class="material-symbols-outlined text-[#8a6423] text-[16px] mt-0.5">group</span>
                                     <div class="flex-1">
                                         <p class="text-xs text-[#8a6423] mb-2">Penanggung Jawab saat ini sedang menangani banyak task aktif. Pertimbangkan reassign ke yang lebih longgar.</p>
                                         @if ($canUpdateWorkflow)
@@ -350,7 +349,7 @@
                                 </div>
                             @endif
 
-                            <p class="text-[10px] text-[#9aa0a4]">
+                            <p class="text-[10px] text-[#767c80]">
                                 Dihitung {{ $latestRisk->created_at->diffForHumans() }}
                             </p>
 
@@ -362,12 +361,12 @@
                                     ]);
                                 @endphp
                                 <div class="mt-4 pt-4 border-t border-[#eef0f4]">
-                                    <p class="text-[10px] font-semibold text-[#9aa0a4] uppercase mb-2">Tren Skor Risiko</p>
+                                    <p class="text-[10px] font-semibold text-[#767c80] uppercase mb-2">Tren Skor Risiko</p>
                                     <x-trend-chart :trend="$riskTrend" :show-total="false" />
                                 </div>
                             @endif
 
-                            <p class="text-[10px] text-[#c3c7cb] mt-2 italic">
+                            <p class="text-[10px] text-[#767c80] mt-2 italic">
                                 Skor ini estimasi otomatis (bukan keputusan final), gunakan sebagai sinyal awal untuk prioritas.
                             </p>
                         </div>
@@ -393,15 +392,15 @@
                                             <span
                                                 class="font-medium text-[#14181a]">{{ $statusLabels[$log->to_status] ?? $log->to_status }}</span>
                                         </p>
-                                        <p class="text-[10px] text-[#9aa0a4]">{{ $log->changedBy->name ?? '-' }} ·
+                                        <p class="text-[10px] text-[#767c80]">{{ $log->changedBy->name ?? '-' }} ·
                                             {{ $log->changed_at->format('d M, H:i') }}</p>
                                         @if ($log->notes)
-                                            <p class="text-[10px] text-[#9aa0a4] italic mt-0.5">{{ $log->notes }}</p>
+                                            <p class="text-[10px] text-[#767c80] italic mt-0.5">{{ $log->notes }}</p>
                                         @endif
                                     </div>
                                 </div>
                             @empty
-                                <p class="text-xs text-[#9aa0a4] italic">Belum ada histori.</p>
+                                <p class="text-xs text-[#767c80] italic">Belum ada histori.</p>
                             @endforelse
                         </div>
                     </div>
@@ -410,17 +409,19 @@
 
         {{-- Modal Ganti Penanggung Jawab --}}
         <div x-show="showReassignModal" x-cloak
+             x-on:keydown.escape.window="showReassignModal = false"
              class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="absolute inset-0 bg-[#14181a]/40" @click="showReassignModal = false"></div>
 
             <div x-show="showReassignModal" x-transition
+                 role="dialog" aria-modal="true" aria-labelledby="reassign-pic-modal-title" x-trap="showReassignModal"
                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                     <div>
-                        <h3 class="font-display text-lg font-semibold text-[#14181a]">Ganti Penanggung Jawab</h3>
-                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $contentItem->title }}</p>
+                        <h3 id="reassign-pic-modal-title" class="font-display text-lg font-semibold text-[#14181a]">Ganti Penanggung Jawab</h3>
+                        <p class="text-xs text-[#767c80] mt-0.5">{{ $contentItem->title }}</p>
                     </div>
-                    <button type="button" @click="showReassignModal = false" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                    <button type="button" @click="showReassignModal = false" class="text-[#767c80] hover:text-[#5c6266]">
                         <span class="material-symbols-outlined text-[19px]">close</span>
                     </button>
                 </div>
@@ -428,8 +429,8 @@
                 <form action="{{ route('content-items.reassign', $contentItem) }}" method="POST">
                     @csrf @method('PATCH')
                     <div class="px-6 py-5">
-                        <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-3">Pilih Penanggung Jawab Baru</p>
-                        <p class="text-[11px] text-[#9aa0a4] mb-3">Diurutkan dari yang task aktifnya paling sedikit.</p>
+                        <p class="text-xs font-semibold text-[#767c80] uppercase mb-3">Pilih Penanggung Jawab Baru</p>
+                        <p class="text-[11px] text-[#767c80] mb-3">Diurutkan dari yang task aktifnya paling sedikit.</p>
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">
                             @foreach ($reassignCandidates as $candidate)
@@ -440,11 +441,10 @@
                                                class="border-[#dadfe0] text-[#044b46] focus:ring-[#044b46]">
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium text-[#14181a] truncate">{{ $candidate->name }}</p>
-                                            <p class="text-xs text-[#9aa0a4]">{{ $candidate->role->name ?? '-' }}</p>
+                                            <p class="text-xs text-[#767c80]">{{ $candidate->role->name ?? '-' }}</p>
                                         </div>
                                     </div>
-                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0
-                                        {{ $candidate->active_task_count > 8 ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#0f7a5f]' }}">
+                                    <span class="badge {{ $candidate->active_task_count > 8 ? 'badge-danger' : 'badge-success' }} shrink-0">
                                         {{ $candidate->active_task_count }} task aktif
                                     </span>
                                 </label>
@@ -453,10 +453,10 @@
                     </div>
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
-                        <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                        <button type="submit" class="btn-primary">
                             Simpan
                         </button>
-                        <button type="button" @click="showReassignModal = false" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                        <button type="button" @click="showReassignModal = false" class="btn-secondary">
                             Batal
                         </button>
                     </div>
@@ -469,17 +469,19 @@
              Upload, Batalkan Konten) dan tombol Kerjakan Revisi, biar nggak
              ada 6 blok modal yang isinya nyaris sama persis berulang-ulang. --}}
         <div x-show="confirmAction" x-cloak
+             x-on:keydown.escape.window="confirmAction = null"
              class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmAction = null"></div>
 
             <div x-show="confirmAction" x-transition
+                 role="dialog" aria-modal="true" aria-labelledby="confirm-action-modal-title" x-trap="!!confirmAction"
                  class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
                     <div>
-                        <h3 class="font-display text-lg font-semibold text-[#14181a]" x-text="confirmAction?.title"></h3>
-                        <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $contentItem->title }}</p>
+                        <h3 id="confirm-action-modal-title" class="font-display text-lg font-semibold text-[#14181a]" x-text="confirmAction?.title"></h3>
+                        <p class="text-xs text-[#767c80] mt-0.5">{{ $contentItem->title }}</p>
                     </div>
-                    <button type="button" @click="confirmAction = null" class="text-[#9aa0a4] hover:text-[#5c6266]">
+                    <button type="button" @click="confirmAction = null" class="text-[#767c80] hover:text-[#5c6266]">
                         <span class="material-symbols-outlined text-[19px]">close</span>
                     </button>
                 </div>
@@ -493,8 +495,8 @@
 
                     <template x-if="confirmAction?.withNotes">
                         <div class="mt-3">
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5" x-text="confirmAction?.notesLabel"></label>
-                            <textarea x-model="confirmNotes" rows="2" placeholder="Tulis alasan..."
+                            <label for="confirm-action-notes" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5" x-text="confirmAction?.notesLabel"></label>
+                            <textarea id="confirm-action-notes" x-model="confirmNotes" rows="2" placeholder="Tulis alasan..."
                                 class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                         </div>
                     </template>
@@ -519,10 +521,9 @@
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
                         <button type="submit"
-                            :class="confirmAction?.danger ? 'bg-[#b3423e] text-white hover:bg-[#9c3733]' : 'bg-[#044b46] text-white hover:bg-[#033b37]'"
-                            class="text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+                            :class="confirmAction?.danger ? 'btn-danger' : 'btn-primary'"
                             x-text="confirmAction?.confirmLabel || 'Ya, Lanjutkan'"></button>
-                        <button type="button" @click="confirmAction = null" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">
+                        <button type="button" @click="confirmAction = null" class="btn-secondary">
                             Batal
                         </button>
                     </div>

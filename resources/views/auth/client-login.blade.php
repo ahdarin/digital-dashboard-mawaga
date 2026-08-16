@@ -19,7 +19,7 @@
 </head>
 <body class="min-h-screen antialiased">
 
-    <a href="{{ url('/') }}" class="fixed top-6 left-6 md:top-8 md:left-8 z-20 flex items-center justify-center w-10 h-10 rounded-full text-[#9aa0a4] hover:text-[#14181a] hover:bg-white transition-colors group">
+    <a href="{{ url('/') }}" class="fixed top-6 left-6 md:top-8 md:left-8 z-20 flex items-center justify-center w-10 h-10 rounded-full text-[#767c80] hover:text-[#14181a] hover:bg-white transition-colors group">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
@@ -53,8 +53,8 @@
                 <form action="{{ route('client.login.request') }}" method="POST" class="space-y-5">
                     @csrf
                     <div>
-                        <label class="block text-xs font-semibold text-[#9aa0a4] uppercase tracking-wide mb-2">Nomor WhatsApp</label>
-                        <input type="tel" name="phone_number" required
+                        <label for="phone_number" class="block text-xs font-semibold text-[#767c80] uppercase tracking-wide mb-2">Nomor WhatsApp</label>
+                        <input id="phone_number" type="tel" name="phone_number" required
                                placeholder="08xxxxxxxxxx"
                                value="{{ old('phone_number') }}"
                                class="w-full bg-[#f7f8fc] border border-[#eef0f4] text-[#14181a] rounded-xl py-3.5 px-4 focus:outline-none focus:ring-4 focus:ring-[#044b46]/10 focus:border-[#044b46]/40 transition-all">
@@ -70,7 +70,7 @@
                 </form>
             </div>
 
-            <p class="text-center text-xs text-[#9aa0a4] mt-8">&copy; {{ date('Y') }} 523 Studio</p>
+            <p class="text-center text-xs text-[#767c80] mt-8">&copy; {{ date('Y') }} 523 Studio</p>
         </div>
     </div>
 

@@ -36,7 +36,7 @@
             </div>
             <div>
                 <p class="text-sm font-medium text-[#14181a]">Import Audience Data (CSV)</p>
-                <p class="text-xs text-[#9aa0a4]">Followers, gender, usia, dan top lokasi untuk {{ $client->name ?? '' }}.</p>
+                <p class="text-xs text-[#767c80]">Followers, gender, usia, dan top lokasi untuk {{ $client->name ?? '' }}.</p>
             </div>
         </summary>
 
@@ -47,7 +47,7 @@
             <div class="flex items-center gap-3 flex-wrap">
                 <input type="file" name="file" accept=".csv,.txt" required
                        class="text-sm border border-[#eef0f4] rounded-lg px-3.5 py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-[#f0f5f4] file:text-[#044b46] file:text-xs file:font-medium">
-                <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#033b37] active:scale-[0.98] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#044b46]">
+                <button type="submit" class="btn-primary">
                     Upload &amp; Import
                 </button>
             </div>
@@ -58,7 +58,7 @@
                     platform,snapshot_date,follower_count,gender_male_pct,age_13_17_pct,age_18_24_pct,age_25_34_pct,age_35_44_pct,age_45_plus_pct,location_1,location_1_pct,location_2,location_2_pct,location_3,location_3_pct<br>
                     Instagram,2026-07-01,15230,42,5,30,40,15,10,Jakarta,35,Bandung,20,Surabaya,15
                 </div>
-                <p class="text-[11px] text-[#9aa0a4] mt-1.5">
+                <p class="text-[11px] text-[#767c80] mt-1.5">
                     gender_female_pct dihitung otomatis (100 - male). Kolom yang nggak diisi nggak menimpa data lama.
                 </p>
             </details>
@@ -69,7 +69,7 @@
 @if (! empty($noInsightData))
     <div class="card p-16 flex flex-col items-center justify-center text-center">
         <div class="w-14 h-14 rounded-full bg-[#fdf6ec] flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-[#b8873a] text-[26px]">database</span>
+            <span class="material-symbols-outlined text-[#8a6423] text-[26px]">database</span>
         </div>
         <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1.5">Belum ada data audience untuk {{ $client->name }}</h2>
         <p class="text-sm text-[#5c6266] max-w-sm">Buka panel "Import Audience Data" di atas buat upload CSV-nya.</p>
@@ -97,10 +97,10 @@
 
         <div class="lg:col-span-2 card p-6">
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">Followers Growth</h2>
-            <p class="text-xs text-[#9aa0a4] mb-5">Tren jumlah follower {{ $platform->name }}.</p>
+            <p class="text-xs text-[#767c80] mb-5">Tren jumlah follower {{ $platform->name }}.</p>
 
             @if ($followerTrend->isEmpty())
-                <p class="text-sm text-[#9aa0a4] text-center py-12">Belum ada histori followers pada periode ini.</p>
+                <p class="text-sm text-[#767c80] text-center py-12">Belum ada histori followers pada periode ini.</p>
             @else
                 <x-trend-chart :trend="$followerTrend" />
             @endif
@@ -113,7 +113,7 @@
         <div class="card p-6">
             <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Gender</h2>
             @if (empty($genderBreakdown))
-                <p class="text-sm text-[#9aa0a4] text-center py-8">Belum ada data.</p>
+                <p class="text-sm text-[#767c80] text-center py-8">Belum ada data.</p>
             @else
                 @php
                     $genderColors = ['male' => '#3452a8', 'female' => '#b3427e', 'other' => '#9aa0a4'];
@@ -139,7 +139,7 @@
         <div class="card p-6">
             <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Age Range</h2>
             @if (empty($ageBreakdown))
-                <p class="text-sm text-[#9aa0a4] text-center py-8">Belum ada data.</p>
+                <p class="text-sm text-[#767c80] text-center py-8">Belum ada data.</p>
             @else
                 <div class="space-y-3.5">
                     @foreach ($ageBreakdown as $range => $value)
@@ -161,14 +161,14 @@
         <div class="card p-6">
             <h2 class="font-display text-base font-semibold text-[#14181a] mb-4">Top Locations</h2>
             @if ($topLocations->isEmpty())
-                <p class="text-sm text-[#9aa0a4] text-center py-8">Belum ada data.</p>
+                <p class="text-sm text-[#767c80] text-center py-8">Belum ada data.</p>
             @else
                 <div class="space-y-3.5">
                     @foreach ($topLocations->take(5) as $i => $loc)
                         <div>
                             <div class="flex items-center justify-between mb-1.5 text-sm">
                                 <span class="text-[#5c6266] flex items-center gap-2">
-                                    <span class="w-4 h-4 rounded-full bg-[#f7f0e0] text-[#b8873a] text-[9px] font-semibold flex items-center justify-center">{{ $i + 1 }}</span>
+                                    <span class="w-4 h-4 rounded-full bg-[#f7f0e0] text-[#8a6423] text-[9px] font-semibold flex items-center justify-center">{{ $i + 1 }}</span>
                                     {{ $loc['city'] }}
                                 </span>
                                 <span class="font-medium text-[#14181a]">{{ $loc['percentage'] }}%</span>
@@ -188,13 +188,13 @@
         <div class="flex items-center justify-between mb-1">
             <h2 class="font-display text-base font-semibold text-[#14181a]">Audience Active Hours</h2>
             @if ($peakHour && $peakHour['value'] > 0)
-                <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">Paling aktif: {{ $peakHour['label'] }}</span>
+                <span class="badge badge-success">Paling aktif: {{ $peakHour['label'] }}</span>
             @endif
         </div>
-        <p class="text-xs text-[#9aa0a4] mb-5">Sebaran aktivitas audience per jam, berdasarkan snapshot terakhir.</p>
+        <p class="text-xs text-[#767c80] mb-5">Sebaran aktivitas audience per jam, berdasarkan snapshot terakhir.</p>
 
         @if (collect($activeHours)->sum('value') === 0)
-            <p class="text-sm text-[#9aa0a4] text-center py-12">Belum ada data jam aktif.</p>
+            <p class="text-sm text-[#767c80] text-center py-12">Belum ada data jam aktif.</p>
         @else
             <x-trend-chart :trend="$activeHours" />
         @endif

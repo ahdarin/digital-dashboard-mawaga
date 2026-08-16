@@ -12,15 +12,15 @@
     {{-- Tab switcher --}}
     <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit">
         <a href="{{ route('settings') }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'umum' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'umum' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
             Umum
         </a>
         <a href="{{ route('settings', ['tab' => 'data-pilihan']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'data-pilihan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'data-pilihan' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
             Master Data
         </a>
         <a href="{{ route('settings', ['tab' => 'integrasi']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'integrasi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'integrasi' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
             Integrasi
         </a>
     </div>
@@ -41,7 +41,7 @@
 
             <div class="flex items-center gap-4">
                 @if ($user->avatar_url)
-                    <img src="{{ $user->avatar_url }}" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover">
+                    <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover">
                 @else
                     <div class="w-12 h-12 rounded-full bg-[#044b46] text-white text-base font-semibold flex items-center justify-center">
                         {{ strtoupper(substr($user->name, 0, 1)) }}
@@ -50,7 +50,7 @@
                 <div>
                     <p class="text-sm font-semibold text-[#14181a]">{{ $user->name }}</p>
                     <p class="text-sm text-[#5c6266]">{{ $user->email }}</p>
-                    <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $user->role->name ?? '-' }}</p>
+                    <p class="text-xs text-[#767c80] mt-0.5">{{ $user->role->name ?? '-' }}</p>
                 </div>
             </div>
         </div>
@@ -59,7 +59,7 @@
              dipakai sistem (Google Sign-In, WhatsApp/Fonnte, Gemini AI) --}}
         <div class="card p-6">
             <h2 class="font-display text-lg font-semibold text-[#14181a] mb-1">System Connections</h2>
-            <p class="text-xs text-[#9aa0a4] mb-5">Status koneksi service pihak ketiga yang dipakai sistem ini.</p>
+            <p class="text-xs text-[#767c80] mb-5">Status koneksi service pihak ketiga yang dipakai sistem ini.</p>
 
             <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
                 @foreach ($systemConnections as $conn)
@@ -68,14 +68,13 @@
                             <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-[#f0f5f4] flex items-center justify-center">
                                 <span class="material-symbols-outlined text-[#044b46] text-[14px] sm:text-[18px]">{{ $conn['icon'] }}</span>
                             </div>
-                            <span class="text-[8px] sm:text-[10px] font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full whitespace-nowrap
-                                {{ $conn['connected'] ? 'bg-[#f0f5f4] text-[#0f7a5f]' : 'bg-[#fdf2f1] text-[#b3423e]' }}">
+                            <span class="badge {{ $conn['connected'] ? 'badge-success' : 'badge-danger' }}">
                                 <span class="sm:hidden">{{ $conn['connected'] ? 'OK' : 'Off' }}</span>
                                 <span class="hidden sm:inline">{{ $conn['connected'] ? 'Configured' : 'Not Configured' }}</span>
                             </span>
                         </div>
                         <p class="text-[11px] sm:text-sm font-medium text-[#14181a] truncate">{{ $conn['label'] }}</p>
-                        <p class="text-[10px] sm:text-xs text-[#9aa0a4] mt-0.5 hidden sm:block">{{ $conn['description'] }}</p>
+                        <p class="text-[10px] sm:text-xs text-[#767c80] mt-0.5 hidden sm:block">{{ $conn['description'] }}</p>
                     </div>
                 @endforeach
             </div>
@@ -90,10 +89,10 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-[#14181a]">Import Data Performa</p>
-                        <p class="text-xs text-[#9aa0a4]">Upload CSV metrik performa konten manual.</p>
+                        <p class="text-xs text-[#767c80]">Upload CSV metrik performa konten manual.</p>
                     </div>
                 </div>
-                <span class="material-symbols-outlined text-[#c3c7cb] text-[19px] shrink-0">chevron_right</span>
+                <span class="material-symbols-outlined text-[#767c80] text-[19px] shrink-0">chevron_right</span>
             </a>
 
             <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="card p-6 flex items-center justify-between hover:border-[#044b46]/30 transition-colors">
@@ -103,10 +102,10 @@
                     </div>
                     <div>
                         <p class="text-sm font-semibold text-[#14181a]">Analytics Integration &amp; Sync Log</p>
-                        <p class="text-xs text-[#9aa0a4]">Status koneksi API per platform dan riwayat sinkronisasi.</p>
+                        <p class="text-xs text-[#767c80]">Status koneksi API per platform dan riwayat sinkronisasi.</p>
                     </div>
                 </div>
-                <span class="material-symbols-outlined text-[#c3c7cb] text-[19px] shrink-0">chevron_right</span>
+                <span class="material-symbols-outlined text-[#767c80] text-[19px] shrink-0">chevron_right</span>
             </a>
         </div>
 
@@ -115,9 +114,9 @@
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="font-display text-lg font-semibold text-[#14181a]">Notifications</h2>
-                    <span class="text-[10px] font-medium text-[#9aa0a4] bg-[#f2f3f6] px-2 py-1 rounded-full">Semua aktif</span>
+                    <span class="badge badge-neutral">Semua aktif</span>
                 </div>
-                <p class="text-xs text-[#9aa0a4] mb-4 -mt-1">
+                <p class="text-xs text-[#767c80] mb-4 -mt-1">
                     Semua notifikasi di bawah ini otomatis aktif buat akunmu. Pengaturan on/off per jenis belum tersedia.
                 </p>
                 <div class="space-y-3.5">
@@ -125,7 +124,7 @@
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-sm text-[#5c6266]">{{ $label }}</span>
                             <span title="Pengaturan on/off per jenis belum tersedia"
-                                  class="inline-flex items-center gap-1 text-[11px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded-full shrink-0">
+                                  class="badge badge-success shrink-0">
                                 <span class="material-symbols-outlined text-[13px]">check_circle</span> Aktif
                             </span>
                         </div>

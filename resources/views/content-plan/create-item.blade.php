@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Tambah Content Item')
+@section('title', 'Tambah Konten')
 @section('content')
 <div class="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
@@ -9,8 +9,8 @@
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <div>
-            <p class="text-xs text-[#9aa0a4]">{{ $contentPlan->client->name }} / {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}</p>
-            <h1 class="font-display text-2xl font-semibold text-[#14181a]">Tambah Content Item</h1>
+            <p class="text-xs text-[#767c80]">{{ $contentPlan->client->name }} / {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}</p>
+            <h1 class="font-display text-2xl font-semibold text-[#14181a]">Tambah Konten</h1>
         </div>
     </div>
 
@@ -36,86 +36,95 @@
         @csrf
 
         <div>
-            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Judul Konten <span class="text-[#b3423e]">*</span></label>
-            <input type="text" name="title" required value="{{ old('title') }}" placeholder="Tips Memilih Warna Cat Rumah"
-                   class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40">
+            <label for="title" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Judul Konten <span class="text-[#b3423e]">*</span></label>
+            <input id="title" type="text" name="title" required value="{{ old('title') }}" placeholder="Tips Memilih Warna Cat Rumah"
+                   class="input placeholder:text-[#c3c7cb] {{ $errors->has('title') ? 'input-error' : '' }}">
+            @error('title') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Brief Konten</label>
-            <textarea name="brief" rows="4" placeholder="Tuliskan brief detail, hook, dan poin utama konten..."
-                      class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40">{{ old('brief') }}</textarea>
+            <label for="brief" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Brief Konten</label>
+            <textarea id="brief" name="brief" rows="4" placeholder="Tuliskan brief detail, hook, dan poin utama konten..."
+                      class="input placeholder:text-[#c3c7cb] {{ $errors->has('brief') ? 'input-error' : '' }}">{{ old('brief') }}</textarea>
+            @error('brief') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Content Pillar</label>
-                <select name="content_pillar_id" class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                <label for="content_pillar_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Content Pillar</label>
+                <select id="content_pillar_id" name="content_pillar_id" class="input {{ $errors->has('content_pillar_id') ? 'input-error' : '' }}">
                     <option value="">Pilih Pillar...</option>
-                    @foreach ($pillars as $p) <option value="{{ $p->id }}">{{ $p->name }}</option> @endforeach
+                    @foreach ($pillars as $p) <option value="{{ $p->id }}" {{ (string) old('content_pillar_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option> @endforeach
                 </select>
+                @error('content_pillar_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Jenis Konten</label>
-                <select name="content_type_id"
+                <label for="content_type_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Jenis Konten</label>
+                <select id="content_type_id" name="content_type_id"
                         x-on:change="contentTypeName = $event.target.selectedOptions[0]?.dataset.name || ''"
-                        class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                        class="input {{ $errors->has('content_type_id') ? 'input-error' : '' }}">
                     <option value="">Pilih Jenis...</option>
                     @foreach ($types as $t)
                         <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) old('content_type_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
                     @endforeach
                 </select>
+                @error('content_type_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Platform</label>
-                <select name="platform_id" class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                <label for="platform_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Platform</label>
+                <select id="platform_id" name="platform_id" class="input {{ $errors->has('platform_id') ? 'input-error' : '' }}">
                     <option value="">Pilih Platform...</option>
-                    @foreach ($platforms as $p) <option value="{{ $p->id }}">{{ $p->name }}</option> @endforeach
+                    @foreach ($platforms as $p) <option value="{{ $p->id }}" {{ (string) old('platform_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option> @endforeach
                 </select>
+                @error('platform_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Deadline Produksi <span class="text-[#b3423e]">*</span></label>
-                <input type="text" name="deadline_at" required value="{{ old('deadline_at') }}" data-flatpickr="datetime" autocomplete="off"
-                       class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                <label for="deadline_at" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Deadline Produksi <span class="text-[#b3423e]">*</span></label>
+                <input id="deadline_at" type="text" name="deadline_at" required value="{{ old('deadline_at') }}" data-flatpickr="datetime" autocomplete="off"
+                       class="input {{ $errors->has('deadline_at') ? 'input-error' : '' }}">
+                @error('deadline_at') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Penanggung Jawab <span class="text-[#b3423e]">*</span></label>
-                <select name="pic_id" required class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+                <label for="pic_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Penanggung Jawab <span class="text-[#b3423e]">*</span></label>
+                <select id="pic_id" name="pic_id" required class="input {{ $errors->has('pic_id') ? 'input-error' : '' }}">
                     <option value="">Pilih Penanggung Jawab...</option>
-                    @foreach ($picOptions as $pic) <option value="{{ $pic->id }}">{{ $pic->name }}</option> @endforeach
+                    @foreach ($picOptions as $pic) <option value="{{ $pic->id }}" {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option> @endforeach
                 </select>
+                @error('pic_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div x-show="contentTypeName === 'Video'" x-cloak>
-            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Estimasi Durasi Video</label>
-            <select name="estimated_duration_seconds" class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+            <label for="estimated_duration_seconds" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Estimasi Durasi Video</label>
+            <select id="estimated_duration_seconds" name="estimated_duration_seconds" class="input {{ $errors->has('estimated_duration_seconds') ? 'input-error' : '' }}">
                 <option value="">Pilih Estimasi...</option>
                 <option value="25" {{ (string) old('estimated_duration_seconds') === '25' ? 'selected' : '' }}>Pendek (&lt;30 detik)</option>
                 <option value="35" {{ (string) old('estimated_duration_seconds') === '35' ? 'selected' : '' }}>Sedang (31-40 detik)</option>
                 <option value="60" {{ (string) old('estimated_duration_seconds') === '60' ? 'selected' : '' }}>Panjang (41 detik ke atas)</option>
             </select>
-            <p class="text-[11px] text-[#9aa0a4] mt-1">Dipakai buat hitung skor Delay Risk.</p>
+            @error('estimated_duration_seconds') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+            <p class="text-[11px] text-[#767c80] mt-1">Dipakai buat hitung skor Delay Risk.</p>
         </div>
         <div x-show="contentTypeName === 'Desain'" x-cloak>
-            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Estimasi Jumlah Slide</label>
-            <select name="estimated_slide_count" class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40">
+            <label for="estimated_slide_count" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Estimasi Jumlah Slide</label>
+            <select id="estimated_slide_count" name="estimated_slide_count" class="input {{ $errors->has('estimated_slide_count') ? 'input-error' : '' }}">
                 <option value="">Pilih Estimasi...</option>
                 <option value="1" {{ (string) old('estimated_slide_count') === '1' ? 'selected' : '' }}>Single (1 slide)</option>
                 <option value="3" {{ (string) old('estimated_slide_count') === '3' ? 'selected' : '' }}>Beberapa (2-4 slide)</option>
                 <option value="6" {{ (string) old('estimated_slide_count') === '6' ? 'selected' : '' }}>Banyak (5+ slide)</option>
             </select>
-            <p class="text-[11px] text-[#9aa0a4] mt-1">Dipakai buat hitung skor Delay Risk.</p>
+            @error('estimated_slide_count') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+            <p class="text-[11px] text-[#767c80] mt-1">Dipakai buat hitung skor Delay Risk.</p>
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit" class="bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors flex items-center gap-2">
+            <button type="submit" class="btn-primary">
                 <span class="material-symbols-outlined text-[17px]">save</span> Simpan Item
             </button>
-            <a href="{{ route('content-plan.show', $contentPlan) }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a]">Batal</a>
+            <a href="{{ route('content-plan.show', $contentPlan) }}" class="btn-secondary">Batal</a>
         </div>
     </form>
 </div>

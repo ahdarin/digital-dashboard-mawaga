@@ -7,6 +7,7 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\Platform;
 use App\Models\AiStrategyInsight;
+use App\Rules\AssignedClient;
 use App\Services\AiStrategyService;
 use App\Services\AnalyticsSummaryService;
 use App\Services\PicAssignmentService;
@@ -34,8 +35,15 @@ class AnalyticsController extends Controller
             $activeTab = 'overview';
         }
 
+        $user = $request->user();
         $selectedClientId = $request->input('client_id');
-        $clientOptions = Client::where('status', 'active')->get();
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
+
+        if ($selectedClientId) {
+            $this->assertClientAccessible((int) $selectedClientId);
+        }
 
         // Sengaja: kalau belum pilih client, JANGAN agregat semua client
         // sekaligus (biar nggak "ramai" dan lambat) - tampilkan empty
@@ -203,6 +211,8 @@ class AnalyticsController extends Controller
         if (!$selectedClientId) {
             return back()->with('export_error', 'Pilih client dulu sebelum export.');
         }
+
+        $this->assertClientAccessible((int) $selectedClientId);
 
         $client = Client::findOrFail($selectedClientId);
 
@@ -392,7 +402,7 @@ class AnalyticsController extends Controller
     public function generateAiStrategy(Request $request, AiStrategyService $aiStrategyService)
     {
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
         ]);
 
         $client = Client::findOrFail($validated['client_id']);

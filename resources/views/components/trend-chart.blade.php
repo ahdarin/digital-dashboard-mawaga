@@ -24,18 +24,18 @@
     @if ($total === 0)
         <div class="flex flex-col items-center justify-center py-16 text-center">
             <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2">show_chart</span>
-            <p class="text-sm text-[#9aa0a4]">Belum ada data metrik pada periode ini.</p>
+            <p class="text-sm text-[#767c80]">Belum ada data metrik pada periode ini.</p>
         </div>
     @else
         <div class="flex items-baseline gap-6 mb-5">
             @if ($showTotal)
                 <div>
-                    <p class="text-[11px] text-[#9aa0a4] mb-0.5">Total</p>
+                    <p class="text-[11px] text-[#767c80] mb-0.5">Total</p>
                     <p class="font-display text-xl font-semibold text-[#14181a]">{{ number_format($total) }}</p>
                 </div>
             @endif
             <div>
-                <p class="text-[11px] text-[#9aa0a4] mb-0.5">Rata-rata</p>
+                <p class="text-[11px] text-[#767c80] mb-0.5">Rata-rata</p>
                 <p class="font-display text-xl font-semibold text-[#14181a]">{{ $compact(round($avg)) }}</p>
             </div>
         </div>
@@ -43,7 +43,7 @@
         <div class="flex gap-2">
             <div class="flex flex-col justify-between text-right shrink-0 pb-6" style="height: 180px">
                 @foreach ($gridLines as $g)
-                    <span class="text-[10px] text-[#c3c7cb]">{{ $compact($max * $g) }}</span>
+                    <span class="text-[10px] text-[#767c80]">{{ $compact($max * $g) }}</span>
                 @endforeach
             </div>
 
@@ -72,7 +72,7 @@
                     <div class="flex gap-1.5 mt-2">
                         @foreach ($trendItems as $i => $point)
                             <div class="shrink-0 text-center" style="width: {{ $barWidth }}px">
-                                <span class="text-[10px] text-[#9aa0a4] whitespace-nowrap">
+                                <span class="text-[10px] text-[#767c80] whitespace-nowrap">
                                     {{ $point['label'] }}
                                 </span>
                             </div>

@@ -10,17 +10,17 @@
                 <span class="material-symbols-outlined text-[20px]">arrow_back</span>
             </a>
             <div>
-                <p class="text-xs text-[#9aa0a4] mb-1">
+                <p class="text-xs text-[#767c80] mb-1">
                     <a href="{{ route('content-plan.index') }}" class="hover:text-[#044b46]">Content Plan</a> /
                     {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}
                 </p>
                 <div class="flex items-center gap-3">
                     <h1 class="font-display text-2xl font-semibold text-[#14181a]">{{ $contentPlan->client->name }}</h1>
-                    <span class="text-xs px-2.5 py-1 rounded-full
-                        {{ $contentPlan->status === 'approved' ? 'bg-[#f0f5f4] text-[#0f7a5f]' : '' }}
-                        {{ $contentPlan->status === 'draft' ? 'bg-[#f2f3f6] text-[#9aa0a4]' : '' }}
-                        {{ $contentPlan->status === 'pending' ? 'bg-[#fdf6ec] text-[#b8873a]' : '' }}
-                        {{ $contentPlan->status === 'rejected' ? 'bg-[#fdf2f1] text-[#b3423e]' : '' }}">
+                    <span class="badge
+                        {{ $contentPlan->status === 'approved' ? 'badge-success' : '' }}
+                        {{ $contentPlan->status === 'draft' ? 'badge-neutral' : '' }}
+                        {{ $contentPlan->status === 'pending' ? 'badge-warning' : '' }}
+                        {{ $contentPlan->status === 'rejected' ? 'badge-danger' : '' }}">
                         {{ $contentPlan->status === 'pending' ? 'Diajukan' : ($contentPlan->status === 'draft' ? 'Draf' : ($contentPlan->status === 'rejected' ? 'Ditolak' : 'Disetujui')) }}
                     </span>
                     @if ($contentPlan->status === 'approved' && $contentPlan->created_by === $contentPlan->approved_by)
@@ -29,7 +29,7 @@
                         </span>
                     @endif
                 </div>
-                <p class="text-xs text-[#9aa0a4] mt-1">
+                <p class="text-xs text-[#767c80] mt-1">
                     Target: {{ $contentPlan->clientPackage->monthly_content_quota ?? 0 }} Content /
                     {{ $contentPlan->clientPackage->monthly_design_quota ?? 0 }} Design
                 </p>
@@ -42,8 +42,8 @@
                     @php $urgentPreselectClientId = $contentPlan->client_id; @endphp
                     @include('partials.urgent-content-modal')
 
-                    <a href="{{ route('content-plan.items.create', $contentPlan) }}" class="flex items-center h-9 gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 rounded-lg hover:bg-[#033b37] transition-colors whitespace-nowrap">
-                        <span class="material-symbols-outlined text-[16px]">add</span> Tambah Content Item
+                    <a href="{{ route('content-plan.items.create', $contentPlan) }}" class="btn-primary whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[16px]">add</span> Tambah Konten
                     </a>
                 </div>
             @endif
@@ -51,7 +51,7 @@
             @if ($contentPlan->status === 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
                 <form action="{{ route('content-plan.submit', $contentPlan) }}" method="POST">
                     @csrf @method('PATCH')
-                    <button class="flex items-center gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                    <button class="btn-primary">
                         <span class="material-symbols-outlined text-[16px]">send</span> Ajukan Rencana
                     </button>
                 </form>
@@ -61,11 +61,11 @@
                 <div class="flex items-center gap-2">
                     <form action="{{ route('content-plan.reject', $contentPlan) }}" method="POST">
                         @csrf @method('PATCH')
-                        <button class="text-sm font-medium text-[#b3423e] px-4 py-2.5 hover:bg-[#fdf2f1] rounded-lg transition-colors">Reject</button>
+                        <button class="btn-danger">Reject</button>
                     </form>
                     <form action="{{ route('content-plan.approve', $contentPlan) }}" method="POST">
                         @csrf @method('PATCH')
-                        <button class="flex items-center gap-1.5 bg-[#044b46] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                        <button class="btn-primary">
                             <span class="material-symbols-outlined text-[16px]">check</span> Approve Plan
                         </button>
                     </form>
@@ -74,9 +74,9 @@
 
             <div class="flex items-center h-9 bg-[#f2f3f6] rounded-lg p-1">
                 <a href="{{ route('content-plan.show', ['contentPlan' => $contentPlan, 'view' => 'table']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'table' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">Table</a>
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'table' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Table</a>
                 <a href="{{ route('content-plan.show', ['contentPlan' => $contentPlan, 'view' => 'calendar']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'calendar' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#9aa0a4]' }}">Calendar</a>
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'calendar' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">Calendar</a>
             </div>
         </div>
     </div>
@@ -86,7 +86,7 @@
     @endif
 
     <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 class="font-display text-lg font-semibold text-[#14181a]">Content Items</h2>
+        <h2 class="font-display text-lg font-semibold text-[#14181a]">Konten</h2>
     </div>
 
     @if ($view === 'calendar')
@@ -96,7 +96,7 @@
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
-                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
+                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
                         <th class="px-6 py-3 font-medium whitespace-nowrap">Detail Item</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Kategori</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
@@ -107,10 +107,10 @@
                 </thead>
                 <tbody>
                     @forelse ($items as $item)
-                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] cursor-pointer transition-colors" onclick="window.location='{{ route('content-items.show', $item) }}'">
+                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
                             <td class="px-6 py-3.5 whitespace-nowrap">
-                                <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
-                                <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                                <a href="{{ route('content-items.show', $item) }}" class="font-medium text-[#14181a] hover:underline">{{ $item->title }}</a>
+                                <p class="text-xs text-[#767c80] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
                             </td>
                             <td class="px-4 py-3.5 whitespace-nowrap">
                                 @php
@@ -131,17 +131,17 @@
                                 @if ($pic)
                                     <span class="text-xs text-[#5c6266]">{{ $pic->name }}</span>
                                 @else
-                                    <span class="text-xs text-[#c3c7cb] italic">Belum ada Penanggung Jawab</span>
+                                    <span class="text-xs text-[#767c80] italic">Belum ada Penanggung Jawab</span>
                                 @endif
                             </td>
                             <td class="px-6 py-3.5">
-                                <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                <span class="badge {{ $item->workflow?->is_overdue ? 'badge-danger' : 'badge-success' }}">
                                     {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                                 </span>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="px-6 py-10 text-center text-[#9aa0a4] text-sm">Belum ada content item. Klik "Tambah Content Item" buat mulai.</td></tr>
+                        <tr><td colspan="6" class="px-6 py-10 text-center text-[#767c80] text-sm">Belum ada content item. Klik "Tambah Konten" buat mulai.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -160,39 +160,39 @@
                     $pic = $item->assignments->first()?->user;
                 @endphp
                 <div x-data="{ open: false }" class="card p-3.5">
-                    <div class="flex items-start justify-between gap-2 cursor-pointer" @click="open = !open">
+                    <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                         <div class="min-w-0 flex-1">
                             <p class="font-medium text-[#14181a] truncate">{{ $item->title }}</p>
-                            <p class="text-xs text-[#9aa0a4] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                            <p class="text-xs text-[#767c80] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
                             <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                <span class="text-xs px-2 py-1 rounded-full whitespace-nowrap {{ $item->workflow?->is_overdue ? 'bg-[#fdf2f1] text-[#b3423e]' : 'bg-[#f0f5f4] text-[#044b46]' }}">
+                                <span class="badge {{ $item->workflow?->is_overdue ? 'badge-danger' : 'badge-success' }}">
                                     {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                                 </span>
                                 <span class="text-xs text-[#5c6266]">{{ $item->deadline_at->format('d M Y') }}</span>
                             </div>
                         </div>
-                        <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#9aa0a4]">
+                        <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#767c80]">
                             <span class="material-symbols-outlined text-[20px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
                         </span>
-                    </div>
+                    </button>
 
                     <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-[#9aa0a4]">Kategori</span>
+                            <span class="text-[#767c80]">Kategori</span>
                             <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
                                 {{ $item->contentType->name ?? '-' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-[#9aa0a4]">Platform</span>
+                            <span class="text-[#767c80]">Platform</span>
                             <span class="text-[#14181a] font-medium">{{ $item->platform->name ?? '-' }}</span>
                         </div>
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-[#9aa0a4]">Penanggung Jawab</span>
+                            <span class="text-[#767c80]">Penanggung Jawab</span>
                             @if ($pic)
                                 <span class="text-[#14181a] font-medium">{{ $pic->name }}</span>
                             @else
-                                <span class="text-[#c3c7cb] italic">Belum ada</span>
+                                <span class="text-[#767c80] italic">Belum ada</span>
                             @endif
                         </div>
                         <a href="{{ route('content-items.show', $item) }}"
@@ -202,7 +202,7 @@
                     </div>
                 </div>
             @empty
-                <div class="card p-8 text-center text-[#9aa0a4] text-sm">Belum ada content item. Klik "Tambah Content Item" buat mulai.</div>
+                <div class="card p-8 text-center text-[#767c80] text-sm">Belum ada content item. Klik "Tambah Konten" buat mulai.</div>
             @endforelse
         </div>
     @endif

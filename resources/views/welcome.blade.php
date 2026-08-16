@@ -75,7 +75,7 @@
 
         {{-- Footer --}}
         <footer class="px-6 md:px-10 py-6 text-center md:text-left">
-            <p class="text-xs text-[#9aa0a4]">&copy; {{ date('Y') }} 523 Studio</p>
+            <p class="text-xs text-[#767c80]">&copy; {{ date('Y') }} 523 Studio</p>
         </footer>
     </div>
 

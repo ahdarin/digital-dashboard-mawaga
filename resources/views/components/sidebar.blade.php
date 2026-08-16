@@ -112,7 +112,7 @@
     <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden thin-autohide-scrollbar">
         @foreach ($menuGroups as $group)
             <div>
-                <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#9aa0a4] whitespace-nowrap"
+                <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#767c80] whitespace-nowrap"
                     x-show="!effectiveCollapsed" x-cloak x-transition.opacity>
                     {{ $group['label'] }}
                 </p>
@@ -130,7 +130,7 @@
                                        {{ $isActive ? 'bg-[#f0f5f4] text-[#044b46]' : 'text-[#5c6266] hover:bg-[#f7f8fc] hover:text-[#14181a]' }}"
                             :class="effectiveCollapsed && 'justify-center px-0'">
                             <span
-                                class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[#044b46]' : 'text-[#9aa0a4]' }}">{{ $item['icon'] }}</span>
+                                class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[#044b46]' : 'text-[#767c80]' }}">{{ $item['icon'] }}</span>
                             <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak
                                 x-transition.opacity>{{ $item['label'] }}</span>
                         </a>

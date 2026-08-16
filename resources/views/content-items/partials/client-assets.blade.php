@@ -13,7 +13,7 @@
     @else
         <div class="text-center py-4">
             <span class="material-symbols-outlined text-[#d4d7db] text-[26px] mb-1.5 block">folder_off</span>
-            <p class="text-xs text-[#9aa0a4] mb-3">Belum ada link aset untuk client ini.</p>
+            <p class="text-xs text-[#767c80] mb-3">Belum ada link aset untuk client ini.</p>
             @if ($client)
                 <a href="{{ route('client-management.edit', $client) }}"
                    class="text-xs font-medium text-[#044b46] hover:underline">Tambahkan di halaman Edit Client →</a>

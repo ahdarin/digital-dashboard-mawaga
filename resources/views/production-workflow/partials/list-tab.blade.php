@@ -18,14 +18,14 @@
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-[#f7f8fc]">
-                    <tr class="text-[#9aa0a4] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">{!! $sortLink('title', 'Content Item') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('client', 'Client') !!}</th>
+                    <tr class="text-[#767c80] text-[11px] uppercase tracking-wide">
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">{!! $sortLink('title', 'Konten') !!}</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('client', 'Klien') !!}</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('type', 'Tipe') !!}</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('status', 'Status') !!}</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('pic', 'Penanggung Jawab') !!}</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('deadline', 'Deadline') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('risk', 'Delay Risk') !!}</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('risk', 'Risiko Terlambat') !!}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -33,29 +33,28 @@
                         @php
                             $isOverdue = $item->workflow->is_overdue;
                             $risk = $item->latestDelayRisk;
-                            $riskColors = [
-                                'high' => ['bg' => '#fdf2f1', 'text' => '#b3423e'],
-                                'medium' => ['bg' => '#fdf6ec', 'text' => '#8a6423'],
-                                'low' => ['bg' => '#f0f5f4', 'text' => '#0f7a5f'],
+                            $riskBadgeClasses = [
+                                'high' => 'badge-danger',
+                                'medium' => 'badge-warning',
+                                'low' => 'badge-success',
                             ];
-                            $riskColor = $risk ? ($riskColors[$risk->risk_level] ?? $riskColors['low']) : null;
+                            $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
                         <tr x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                            class="border-t border-[#f2f3f6] cursor-pointer transition-colors {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}"
-                            onclick="window.location='{{ route('content-items.show', $item) }}'">
+                            class="border-t border-[#f2f3f6] transition-colors {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}">
                             <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
                                 @if ($item->is_urgent)
                                     <div class="absolute left-0 top-0 bottom-0 w-5 bg-[#b3423e] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
                                         <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
                                     </div>
                                 @endif
-                                <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
+                                <a href="{{ route('content-items.show', $item) }}" class="font-medium text-[#14181a] hover:underline">{{ $item->title }}</a>
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
                             <td class="px-4 py-3.5" onclick="event.stopPropagation()">
                                 <div class="flex items-center gap-1.5 whitespace-nowrap">
-                                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                                    <span class="badge badge-success">
                                         {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
                                     </span>
                                 </div>
@@ -88,13 +87,14 @@
                             <td class="px-4 py-3.5 whitespace-nowrap {{ $isOverdue ? 'text-[#b3423e] font-semibold' : 'text-[#5c6266]' }}">{{ $item->deadline_at->format('d M Y') }}</td>
                             <td class="px-4 py-3.5">
                                 @if ($risk)
-                                    <span class="text-xs font-semibold px-2.5 py-1 rounded-full"
-                                          style="background-color: {{ $riskColor['bg'] }}; color: {{ $riskColor['text'] }};"
-                                          title="{{ $risk->top_factor }}">
+                                    <span class="badge {{ $riskBadgeClass }} font-semibold" title="{{ $risk->top_factor }}">
                                         {{ $risk->risk_score }}%
                                     </span>
+                                    @if ($risk->top_factor)
+                                        <p class="text-[10px] text-[#767c80] mt-1 max-w-[160px] truncate">{{ $risk->top_factor }}</p>
+                                    @endif
                                 @else
-                                    <span class="text-xs text-[#c3c7cb]">-</span>
+                                    <span class="text-xs text-[#767c80]">-</span>
                                 @endif
                             </td>
                         </tr>
@@ -102,7 +102,7 @@
                         <tr>
                             <td colspan="7" class="px-6 py-12 text-center">
                                 <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">checklist</span>
-                                <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang cocok dengan filter ini.</p>
+                                <p class="text-sm text-[#767c80]">Tidak ada konten yang cocok dengan filter ini.</p>
                             </td>
                         </tr>
                     @endforelse
@@ -117,17 +117,17 @@
             @php
                 $isOverdue = $item->workflow->is_overdue;
                 $risk = $item->latestDelayRisk;
-                $riskColors = [
-                    'high' => ['bg' => '#fdf2f1', 'text' => '#b3423e'],
-                    'medium' => ['bg' => '#fdf6ec', 'text' => '#8a6423'],
-                    'low' => ['bg' => '#f0f5f4', 'text' => '#0f7a5f'],
+                $riskBadgeClasses = [
+                    'high' => 'badge-danger',
+                    'medium' => 'badge-warning',
+                    'low' => 'badge-success',
                 ];
-                $riskColor = $risk ? ($riskColors[$risk->risk_level] ?? $riskColors['low']) : null;
+                $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
             @endphp
             <div x-data="{ open: false }"
                 x-show="matchesSearch('{{ addslashes($item->title) }}')"
                 class="card p-3.5 {{ $isOverdue ? 'bg-[#fdf2f1]' : '' }}">
-                <div class="flex items-start justify-between gap-2 cursor-pointer" @click="open = !open">
+                <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             @if ($item->is_urgent)
@@ -136,41 +136,45 @@
                             <p class="font-medium text-[#14181a] truncate">{{ $item->title }}</p>
                         </div>
                         <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-[#f0f5f4] text-[#044b46]">
+                            <span class="badge badge-success">
                                 {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
                             </span>
                             @if ($risk)
-                                <span class="text-xs font-semibold px-2.5 py-1 rounded-full"
-                                      style="background-color: {{ $riskColor['bg'] }}; color: {{ $riskColor['text'] }};"
-                                      title="{{ $risk->top_factor }}">
+                                <span class="badge {{ $riskBadgeClass }} font-semibold" title="{{ $risk->top_factor }}">
                                     {{ $risk->risk_score }}%
                                 </span>
                             @endif
                         </div>
                     </div>
-                    <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#9aa0a4]">
+                    <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#767c80]">
                         <span class="material-symbols-outlined text-[20px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
                     </span>
-                </div>
+                </button>
 
                 <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2" @click.stop>
-                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#9aa0a4]">Info Penugasan</p>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#767c80]">Info Penugasan</p>
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[#9aa0a4]">Client</span>
+                        <span class="text-[#767c80]">Klien</span>
                         <span class="text-[#14181a] font-medium">{{ $item->client->name ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[#9aa0a4]">Tipe</span>
+                        <span class="text-[#767c80]">Tipe</span>
                         <span class="text-[#14181a] font-medium">{{ $item->contentType->name ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[#9aa0a4]">PIC</span>
+                        <span class="text-[#767c80]">Penanggung Jawab</span>
                         <span class="text-[#14181a] font-medium">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</span>
                     </div>
+                    @if ($risk && $risk->top_factor)
+                        <div class="flex items-center justify-between text-xs gap-3">
+                            <span class="text-[#767c80] shrink-0">Faktor Risiko</span>
+                            <span class="text-[#14181a] font-medium text-right">{{ $risk->top_factor }}</span>
+                        </div>
+                    @endif
 
-                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#9aa0a4] pt-1">Jadwal</p>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-[#767c80] pt-1">Jadwal</p>
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[#9aa0a4]">Deadline</span>
+                        <span class="text-[#767c80]">Deadline</span>
                         <span class="{{ $isOverdue ? 'text-[#b3423e] font-semibold' : 'text-[#14181a] font-medium' }}">{{ $item->deadline_at->format('d M Y') }}</span>
                     </div>
 
@@ -207,7 +211,7 @@
         @empty
             <div class="card p-8 text-center">
                 <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">checklist</span>
-                <p class="text-sm text-[#9aa0a4]">Tidak ada konten yang cocok dengan filter ini.</p>
+                <p class="text-sm text-[#767c80]">Tidak ada konten yang cocok dengan filter ini.</p>
             </div>
         @endforelse
     </div>

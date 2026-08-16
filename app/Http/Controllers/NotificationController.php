@@ -31,7 +31,7 @@ class NotificationController extends Controller
         }
 
         if ($notification->related_type === AnalyticsSyncLog::class) {
-            return redirect()->route('settings.integrations');
+            return redirect()->route('settings', ['tab' => 'integrasi']);
         }
 
         return back();

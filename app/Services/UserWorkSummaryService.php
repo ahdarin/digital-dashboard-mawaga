@@ -25,13 +25,19 @@ class UserWorkSummaryService
 
     /**
      * Copywriter tidak jadi PIC produksi, jadi ringkasannya bukan papan
-     * produksi biasa - melainkan antrean brief yang belum final.
+     * produksi biasa - melainkan antrean brief yang belum final. Dibatasi
+     * ke client yang ada di roster $user (bukan global) - konsisten sama
+     * scoping di Produksi/Content Plan dkk.
      */
     public function copywriterQueue(User $user): Collection
     {
         return ContentItem::with(['client', 'contentType', 'contentBriefDraft', 'workflow'])
             ->whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
             ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses))
+            ->when(
+                ! $user->canSeeAllClients(),
+                fn ($q) => $q->whereIn('client_id', $user->assignedClients()->pluck('clients.id'))
+            )
             ->orderBy('deadline_at')
             ->get();
     }

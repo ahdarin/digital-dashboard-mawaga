@@ -76,7 +76,7 @@
 <div class="mb-6 rounded-2xl bg-[#044b46] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
     <div>
         <p class="text-white/70 text-sm">{{ $greeting }}, {{ auth()->user()->name ?? 'Tim 523' }}</p>
-        <h2 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h2>
+        <h1 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h1>
     </div>
     <div class="flex items-center gap-2.5 bg-white/10 rounded-full pl-3.5 pr-4 py-2 w-full sm:w-auto sm:shrink-0">
         <span class="material-symbols-outlined text-white text-[18px] shrink-0">{{ $dailyReminder['icon'] }}</span>

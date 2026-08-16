@@ -61,61 +61,69 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('dashboard');
 
     Route::get('/content-items/{contentItem}', [ContentItemController::class, 'show'])
-        ->middleware('permission:workflow,view')
+        ->middleware(['permission:workflow,view', 'client.scope:contentItem'])
         ->name('content-items.show');
     Route::patch('/content-items/{contentItem}/reassign', [ContentItemController::class, 'reassign'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.reassign');
     Route::patch('/content-items/{contentItem}/transition', [ContentItemController::class, 'transition'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.transition');
     Route::patch('/content-items/{contentItem}/correct-status', [ContentItemController::class, 'correctStatus'])
-        ->middleware('permission:workflow,approve')
+        ->middleware(['permission:workflow,approve', 'client.scope:contentItem'])
         ->name('content-items.correct-status');
     Route::patch('/content-items/{contentItem}/content-link', [ContentItemController::class, 'updateContentLink'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.content-link');
     Route::patch('/content-items/{contentItem}/caption', [ContentItemController::class, 'updateCaption'])
-        ->middleware('permission:content_plan,create')
+        ->middleware(['permission:content_plan,create', 'client.scope:contentItem'])
         ->name('content-items.caption');
     Route::patch('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'markFootageCaptured'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.footage-captured');
     Route::delete('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'unmarkFootageCaptured'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.footage-captured.unmark');
 
     Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
-        ->middleware('permission:workflow,view')
+        ->middleware(['permission:workflow,view', 'client.scope:contentBrief,contentItem.client_id'])
         ->name('content-brief.show');
 
     Route::middleware('permission:content_plan,create')->group(function () {
         Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
+            ->middleware('client.scope:contentItem')
             ->name('content-brief.generate');
         Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.regenerate');
         Route::post('/content-brief/{contentBrief}/discuss', [ContentBriefController::class, 'discuss'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.discuss');
         Route::post('/content-brief/{contentBrief}/apply', [ContentBriefController::class, 'applyChanges'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.apply');
         Route::patch('/content-brief/{contentBrief}', [ContentBriefController::class, 'updateManual'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.update');
         Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.revert');
         Route::post('/content-brief/{contentBrief}/finalize', [ContentBriefController::class, 'finalize'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.finalize');
         Route::post('/content-brief/{contentBrief}/withdraw', [ContentBriefController::class, 'withdraw'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.withdraw');
     });
 
     Route::post('/production-workflow/{contentItem}/revisions', [ContentRevisionController::class, 'store'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-revision.store');
     Route::patch('/production-workflow/{contentItem}/revisions/{revision}/start-work', [ContentRevisionController::class, 'startWork'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-revision.start-work');
     Route::post('/production-workflow/{contentItem}/publications', [ContentPublicationController::class, 'store'])
-        ->middleware('permission:publishing,manage')
+        ->middleware(['permission:publishing,manage', 'client.scope:contentItem'])
         ->name('content-publication.store');
 
     Route::middleware('permission:user_management,manage')->group(function () {
@@ -145,18 +153,25 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::middleware('permission:analytics,view')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
-        Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])->name('analytics.show');
+        Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])
+            ->middleware('client.scope:contentItem')
+            ->name('analytics.show');
         Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
         Route::get('/analytics/ai-strategy/history', [AnalyticsController::class, 'aiStrategyHistory'])->name('analytics.ai-strategy.history');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/apply', [AnalyticsController::class, 'applyAiStrategy'])
+            ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.apply');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/revert', [AnalyticsController::class, 'revertAiStrategy'])
+            ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.revert');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/chat', [AnalyticsController::class, 'sendChatMessage'])
+            ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.chat');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/refine', [AnalyticsController::class, 'refineFromDiscussion'])
+            ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.refine');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/ideas/{index}/regenerate', [AnalyticsController::class, 'regenerateContentIdea'])
+            ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.ideas.regenerate');
 
         Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
@@ -172,29 +187,40 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
         Route::post('/settings/import-performance', [SettingsController::class, 'importPerformance'])->name('settings.import-performance');
         Route::get('/settings/import', [SettingsController::class, 'importPage'])->name('settings.import');
-        Route::get('/settings/integrations', [SettingsController::class, 'integrationsPage'])->name('settings.integrations');
         Route::post('/settings/detect-anomalies', [SettingsController::class, 'runAnomalyDetection'])
             ->name('settings.detect-anomalies');
     });
 
     Route::middleware('permission:content_plan,view')->group(function () {
         Route::get('/content-plan', [ContentPlanController::class, 'index'])->name('content-plan.index');
-        Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])->name('content-plan.show');
+        Route::get('/content-plan/{contentPlan}', [ContentPlanController::class, 'show'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.show');
     });
 
     Route::middleware('permission:content_plan,create')->group(function () {
-        Route::patch('/content-plan/{contentPlan}/submit', [ContentPlanController::class, 'submit'])->name('content-plan.submit');
+        Route::patch('/content-plan/{contentPlan}/submit', [ContentPlanController::class, 'submit'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.submit');
     });
 
     Route::middleware('permission:content_plan,approve')->group(function () {
-        Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])->name('content-plan.approve');
-        Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])->name('content-plan.reject');
+        Route::patch('/content-plan/{contentPlan}/approve', [ContentPlanController::class, 'approve'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.approve');
+        Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.reject');
     });
 
     Route::middleware('permission:content_plan,create')->group(function () {
         Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
-        Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])->name('content-plan.items.create');
-        Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])->name('content-plan.items.store');
+        Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.items.create');
+        Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.items.store');
         Route::post('/content-items/urgent', [ContentPlanController::class, 'quickCreateUrgent'])->name('content-items.quick-urgent');
     });
 

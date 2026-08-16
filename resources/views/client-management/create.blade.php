@@ -11,7 +11,7 @@
         </a>
         <div>
             <h1 class="font-display text-2xl font-semibold text-[#14181a]">Tambah Client Baru</h1>
-            <p class="text-sm text-[#9aa0a4] mt-0.5">Buat profil client sekaligus akun Owner-nya dalam satu langkah.</p>
+            <p class="text-sm text-[#767c80] mt-0.5">Buat profil client sekaligus akun Owner-nya dalam satu langkah.</p>
         </div>
     </div>
 
@@ -42,52 +42,52 @@
                         <div class="w-7 h-7 rounded-lg bg-[#044b46] text-white flex items-center justify-center text-xs font-semibold shrink-0">1</div>
                         <div>
                             <p class="text-sm font-semibold text-[#14181a]">Company Information</p>
-                            <p class="text-xs text-[#9aa0a4]">Data dasar client dan kategorinya</p>
+                            <p class="text-xs text-[#767c80]">Data dasar client dan kategorinya</p>
                         </div>
                     </div>
 
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Logo Brand</label>
+                            <label for="logo" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Logo Brand</label>
                             <div class="flex items-center gap-4">
                                 <div class="w-16 h-16 rounded-xl bg-[#f0f5f4] border border-[#eef0f4] flex items-center justify-center overflow-hidden shrink-0">
                                     <template x-if="logoPreview">
-                                        <img :src="logoPreview" class="w-full h-full object-cover">
+                                        <img :src="logoPreview" alt="" class="w-full h-full object-cover">
                                     </template>
                                     <template x-if="!logoPreview">
-                                        <span class="material-symbols-outlined text-[#c3c7cb] text-[26px]">image</span>
+                                        <span class="material-symbols-outlined text-[#767c80] text-[26px]">image</span>
                                     </template>
                                 </div>
                                 <div>
                                     <label class="cursor-pointer inline-block text-sm font-medium text-[#044b46] bg-[#f0f5f4] hover:bg-[#e4ede9] px-3.5 py-2 rounded-lg">
                                         <span>Pilih File</span>
-                                        <input type="file" name="logo" accept="image/*" class="hidden"
+                                        <input id="logo" type="file" name="logo" accept="image/*" class="hidden"
                                                x-on:change="const f = $event.target.files[0]; if (f) logoPreview = URL.createObjectURL(f)">
                                     </label>
-                                    <p class="text-[11px] text-[#9aa0a4] mt-1.5">PNG/JPG, maks 2MB. Opsional — kalau kosong, dipakai inisial nama brand.</p>
+                                    <p class="text-[11px] text-[#767c80] mt-1.5">PNG/JPG, maks 2MB. Opsional — kalau kosong, dipakai inisial nama brand.</p>
                                 </div>
                             </div>
                             @error('logo') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama Perusahaan <span class="text-[#b3423e]">*</span></label>
-                            <input type="text" name="name" value="{{ old('name') }}" required placeholder="PT Contoh Sejahtera"
+                            <label for="name" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Nama Perusahaan <span class="text-[#b3423e]">*</span></label>
+                            <input id="name" type="text" name="name" value="{{ old('name') }}" required placeholder="PT Contoh Sejahtera"
                                    class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('name') border-[#e39a96] @enderror">
                             @error('name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama Brand <span class="text-[#b3423e]">*</span></label>
-                            <input type="text" name="brand_name" x-model="brandName" required placeholder="Contoh Coffee"
+                            <label for="brand_name" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Nama Brand <span class="text-[#b3423e]">*</span></label>
+                            <input id="brand_name" type="text" name="brand_name" x-model="brandName" required placeholder="Contoh Coffee"
                                    class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('brand_name') border-[#e39a96] @enderror">
-                            <p class="text-xs text-[#9aa0a4] mt-1.5">Nama ini yang akan tampil di seluruh dashboard &amp; laporan.</p>
+                            <p class="text-xs text-[#767c80] mt-1.5">Nama ini yang akan tampil di seluruh dashboard &amp; laporan.</p>
                             @error('brand_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Kategori Client <span class="text-[#b3423e]">*</span></label>
-                            <select name="client_category_id" required
+                            <label for="client_category_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Kategori Client <span class="text-[#b3423e]">*</span></label>
+                            <select id="client_category_id" name="client_category_id" required
                                     class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 @error('client_category_id') border-[#e39a96] @enderror">
                                 <option value="">-- Pilih Kategori --</option>
                                 @foreach ($categories as $category)
@@ -97,20 +97,20 @@
                             @error('client_category_id') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Warna Penanda (Kalender)</label>
+                            <label for="color" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Warna Penanda (Kalender)</label>
                             <div class="flex items-center gap-3">
-                            <input type="color" name="color" value="{{ old('color', '#044b46') }}"
+                            <input id="color" type="color" name="color" value="{{ old('color', '#044b46') }}"
                             class="h-10 w-14 rounded-lg cursor-pointer border border-[#eef0f4]">
-                            <p class="text-xs text-[#9aa0a4]">Dipakai sebagai warna penanda deadline client ini di Content Plan Calendar.</p>
+                            <p class="text-xs text-[#767c80]">Dipakai sebagai warna penanda deadline client ini di Content Plan Calendar.</p>
                     </div>
                     @error('color') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
 
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Link Aset (Google Drive)</label>
-                            <input type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
+                            <label for="asset_link" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Link Aset (Google Drive)</label>
+                            <input id="asset_link" type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
                                    class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[#e39a96] @enderror">
-                            <p class="text-xs text-[#9aa0a4] mt-1.5">Opsional. Link folder aset konten/desain client, tampil di tiap content item-nya.</p>
+                            <p class="text-xs text-[#767c80] mt-1.5">Opsional. Link folder aset konten/desain client, tampil di tiap content item-nya.</p>
                             @error('asset_link') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
                     </div>
@@ -122,7 +122,7 @@
                         <div class="w-7 h-7 rounded-lg bg-[#044b46] text-white flex items-center justify-center text-xs font-semibold shrink-0">2</div>
                         <div>
                             <p class="text-sm font-semibold text-[#14181a]">Owner Account (Client Owner)</p>
-                            <p class="text-xs text-[#9aa0a4]">Akun ini yang login ke dashboard client</p>
+                            <p class="text-xs text-[#767c80]">Akun ini yang login ke dashboard client</p>
                         </div>
                     </div>
 
@@ -133,23 +133,23 @@
 
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nama Owner <span class="text-[#b3423e]">*</span></label>
-                            <input type="text" name="owner_name" x-model="ownerName" required placeholder="Nama lengkap penanggung jawab"
+                            <label for="owner_name" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Nama Owner <span class="text-[#b3423e]">*</span></label>
+                            <input id="owner_name" type="text" name="owner_name" x-model="ownerName" required placeholder="Nama lengkap penanggung jawab"
                                    class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('owner_name') border-[#e39a96] @enderror">
                             @error('owner_name') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Email Owner <span class="text-[#b3423e]">*</span></label>
-                                <input type="email" name="owner_email" value="{{ old('owner_email') }}" required placeholder="owner@brand.com"
+                                <label for="owner_email" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Email Owner <span class="text-[#b3423e]">*</span></label>
+                                <input id="owner_email" type="email" name="owner_email" value="{{ old('owner_email') }}" required placeholder="owner@brand.com"
                                        class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('owner_email') border-[#e39a96] @enderror">
                                 @error('owner_email') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                             </div>
 
                             <div>
-                                <label class="block text-xs font-medium text-[#9aa0a4] uppercase mb-1.5">Nomor WhatsApp <span class="text-[#b3423e]">*</span></label>
-                                <input type="tel" name="owner_phone" value="{{ old('owner_phone') }}" required placeholder="08xxxxxxxxxx"
+                                <label for="owner_phone" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Nomor WhatsApp <span class="text-[#b3423e]">*</span></label>
+                                <input id="owner_phone" type="tel" name="owner_phone" value="{{ old('owner_phone') }}" required placeholder="08xxxxxxxxxx"
                                        class="w-full border border-[#eef0f4] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[#c3c7cb] focus:outline-none focus:border-[#044b46]/40 @error('owner_phone') border-[#e39a96] @enderror">
                                 @error('owner_phone') <p class="text-[#b3423e] text-xs mt-1.5">{{ $message }}</p> @enderror
                             </div>
@@ -158,10 +158,10 @@
                 </div>
 
                 <div class="flex items-center gap-3 pb-2">
-                    <button type="submit" class="flex items-center gap-2 bg-[#044b46] text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-[#033b37] transition-colors">
+                    <button type="submit" class="btn-primary">
                         <span class="material-symbols-outlined text-[17px]">check</span> Simpan Client
                     </button>
-                    <a href="{{ route('client-management.index') }}" class="text-sm font-medium text-[#9aa0a4] px-4 py-2.5 hover:text-[#14181a] transition-colors">Batal</a>
+                    <a href="{{ route('client-management.index') }}" class="btn-secondary">Batal</a>
                 </div>
 
             </div>
@@ -169,12 +169,12 @@
             {{-- Preview panel --}}
             <div class="w-full lg:w-[280px] shrink-0 lg:sticky lg:top-6 space-y-5">
                 <div class="card p-6">
-                    <p class="text-xs font-medium text-[#9aa0a4] uppercase mb-4">Preview</p>
+                    <p class="text-xs font-medium text-[#767c80] uppercase mb-4">Preview</p>
 
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-11 h-11 rounded-full bg-[#f0f5f4] text-[#044b46] flex items-center justify-center text-base font-semibold shrink-0 overflow-hidden">
                             <template x-if="logoPreview">
-                                <img :src="logoPreview" class="w-full h-full object-cover">
+                                <img :src="logoPreview" alt="" class="w-full h-full object-cover">
                             </template>
                             <template x-if="!logoPreview">
                                 <span x-text="brandName ? brandName.charAt(0).toUpperCase() : '?'"></span>
@@ -182,12 +182,12 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-[#14181a] truncate" x-text="brandName || 'Nama Brand'"></p>
-                            <p class="text-xs text-[#9aa0a4]">Client baru</p>
+                            <p class="text-xs text-[#767c80]">Client baru</p>
                         </div>
                     </div>
 
                     <div class="border-t border-[#eef0f4] pt-4">
-                        <p class="text-xs text-[#9aa0a4] mb-1">Owner</p>
+                        <p class="text-xs text-[#767c80] mb-1">Owner</p>
                         <p class="text-sm font-medium text-[#14181a]" x-text="ownerName || '-'"></p>
                     </div>
                 </div>

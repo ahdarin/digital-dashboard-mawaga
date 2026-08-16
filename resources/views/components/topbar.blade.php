@@ -30,7 +30,7 @@
         </button>
 
         <div x-data="topbarSearch()" @click.outside="open = false" class="relative flex-1 min-w-0 max-w-md">
-            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#9aa0a4] text-[19px]">search</span>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767c80] text-[19px]">search</span>
             <input type="text" x-model="query" @input.debounce.300ms="search()" @focus="query.length >= 2 && (open = true)"
                    @keydown.escape="open = false"
                    placeholder="Cari proyek, konten, atau client..." autocomplete="off"
@@ -39,10 +39,10 @@
             <div x-show="open" x-cloak x-transition
                  class="absolute left-0 right-0 mt-2 card z-50 max-h-[26rem] overflow-y-auto">
                 <template x-if="loading">
-                    <div class="p-4 text-center text-sm text-[#9aa0a4]">Mencari...</div>
+                    <div class="p-4 text-center text-sm text-[#767c80]">Mencari...</div>
                 </template>
                 <template x-if="!loading && results.length === 0">
-                    <div class="p-4 text-center text-sm text-[#9aa0a4]">Tidak ada hasil untuk "<span x-text="query"></span>"</div>
+                    <div class="p-4 text-center text-sm text-[#767c80]">Tidak ada hasil untuk "<span x-text="query"></span>"</div>
                 </template>
                 <template x-if="!loading && results.length > 0">
                     <div class="py-1.5">
@@ -54,7 +54,7 @@
                                     <p class="text-sm font-medium text-[#14181a] truncate" x-text="result.title"></p>
                                     <div class="flex items-center gap-1.5 mt-1">
                                         <span class="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" :class="categoryBadgeClass(result.type)" x-text="categoryLabel(result.type)"></span>
-                                        <span x-show="result.subtitle" class="text-[11px] text-[#9aa0a4] truncate" x-text="result.subtitle"></span>
+                                        <span x-show="result.subtitle" class="text-[11px] text-[#767c80] truncate" x-text="result.subtitle"></span>
                                     </div>
                                 </div>
                             </a>
@@ -90,7 +90,7 @@
                                         <button type="submit" class="text-xs font-medium text-[#044b46] hover:underline leading-none">Tandai semua dibaca</button>
                                     </form>
                                 @endif
-                                <button @click="open = false" type="button" class="flex items-center text-[#9aa0a4] hover:text-[#5c6266]">
+                                <button @click="open = false" type="button" class="flex items-center text-[#767c80] hover:text-[#5c6266]">
                                     <span class="material-symbols-outlined text-[18px]">close</span>
                                 </button>
                             </div>
@@ -126,7 +126,7 @@
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-start justify-between gap-2">
                                             <p class="text-sm font-medium text-[#14181a]">{{ $notif->title }}</p>
-                                            <span class="text-[10px] text-[#9aa0a4] shrink-0 whitespace-nowrap">{{ $notif->created_at->diffForHumans() }}</span>
+                                            <span class="text-[10px] text-[#767c80] shrink-0 whitespace-nowrap">{{ $notif->created_at->diffForHumans() }}</span>
                                         </div>
                                         @if ($notif->body)
                                             <p class="text-xs text-[#5c6266] mt-0.5 line-clamp-2">{{ $notif->body }}</p>
@@ -137,14 +137,14 @@
                         @empty
                             <div class="text-center py-10">
                                 <span class="material-symbols-outlined text-[#d4d7db] text-[28px]">notifications_off</span>
-                                <p class="text-sm text-[#9aa0a4] mt-2">Belum ada notifikasi.</p>
+                                <p class="text-sm text-[#767c80] mt-2">Belum ada notifikasi.</p>
                             </div>
                         @endforelse
 
                         @if ($notifications->isNotEmpty())
                             <div x-show="tabCounts[tab].total === 0" x-cloak class="text-center py-10">
                                 <span class="material-symbols-outlined text-[#d4d7db] text-[28px]">filter_alt_off</span>
-                                <p class="text-sm text-[#9aa0a4] mt-2">Tidak ada notifikasi di kategori ini.</p>
+                                <p class="text-sm text-[#767c80] mt-2">Tidak ada notifikasi di kategori ini.</p>
                             </div>
                         @endif
                     </div>
@@ -153,7 +153,7 @@
 
             <a href="{{ route('profile.show', auth()->id()) }}" class="flex items-center gap-2.5 pl-3 border-l border-[#eef0f4]">
                 @if (auth()->user()->avatar_url)
-                    <img src="{{ auth()->user()->avatar_url }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover">
+                    <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name ?? 'User' }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover">
                 @else
                     <div class="w-8 h-8 rounded-full bg-[#044b46] text-white flex items-center justify-center text-xs font-semibold">
                         {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
@@ -161,7 +161,7 @@
                 @endif
                 <div class="hidden md:block leading-tight">
                     <p class="text-[13px] font-medium text-[#14181a]">{{ auth()->user()->name ?? 'User' }}</p>
-                    <p class="text-[11px] text-[#9aa0a4]">{{ auth()->user()->role->name ?? '-' }}</p>
+                    <p class="text-[11px] text-[#767c80]">{{ auth()->user()->role->name ?? '-' }}</p>
                 </div>
             </a>
         </div>
@@ -199,7 +199,7 @@
                     });
             },
             categoryLabel(type) {
-                return { client: 'Client', user: 'User', content: 'Konten' }[type] ?? type;
+                return { client: 'Klien', user: 'User', content: 'Konten' }[type] ?? type;
             },
             categoryIcon(type) {
                 return { client: 'apartment', user: 'person', content: 'description' }[type] ?? 'circle';
@@ -209,7 +209,7 @@
                     client: 'text-[#3452a8]',
                     user: 'text-[#8a6423]',
                     content: 'text-[#044b46]',
-                }[type] ?? 'text-[#9aa0a4]';
+                }[type] ?? 'text-[#767c80]';
             },
             categoryBadgeClass(type) {
                 return {

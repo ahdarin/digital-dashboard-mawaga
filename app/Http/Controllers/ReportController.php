@@ -7,7 +7,9 @@ use App\Models\ContentItem;
 use App\Models\GeneratedReport;
 use App\Models\ContentMetric;
 use App\Models\Platform;
+use App\Rules\AssignedClient;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ContentReportExport;
 use App\Exports\PerformanceReportExport;
@@ -34,8 +36,18 @@ class ReportController extends Controller
 
     public function generate(Request $request)
     {
+        // client_id boleh kosong HANYA buat CEO/Manager (ekspor lintas
+        // semua client yang mereka pegang) - role lain wajib pilih salah
+        // satu client, dan harus client yang memang ada di roster-nya.
+        $user = $request->user();
+
         $validated = $request->validate([
-            'client_id' => 'nullable|exists:clients,id',
+            'client_id' => [
+                Rule::requiredIf(! $user->canSeeAllClients()),
+                'nullable',
+                'exists:clients,id',
+                new AssignedClient,
+            ],
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
             'format' => 'required|in:pdf,excel',
@@ -138,7 +150,7 @@ class ReportController extends Controller
     public function generatePerformance(Request $request)
     {
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
             'format' => 'required|in:pdf,excel',

@@ -21,13 +21,13 @@
 <body class="min-h-screen" x-data="{ showRevisionForm: false }">
 
     <header class="bg-white border-b border-[#eef0f4] px-5 py-4 sticky top-0 z-10 flex items-center gap-3">
-        <a href="{{ route('client.approval.index') }}" class="text-[#9aa0a4] hover:text-[#14181a] transition-colors">
+        <a href="{{ route('client.approval.index') }}" class="text-[#767c80] hover:text-[#14181a] transition-colors">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
         </a>
         <div>
-            <p class="text-xs text-[#9aa0a4]">{{ $contentItem->contentType->name ?? '-' }}</p>
+            <p class="text-xs text-[#767c80]">{{ $contentItem->contentType->name ?? '-' }}</p>
             <h1 class="font-display text-base font-semibold text-[#14181a]">{{ $contentItem->title }}</h1>
         </div>
     </header>
@@ -42,17 +42,17 @@
         @endif
 
         <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
-            <p class="text-xs font-semibold text-[#9aa0a4] uppercase mb-2">Caption / Copy</p>
+            <p class="text-xs font-semibold text-[#767c80] uppercase mb-2">Caption / Copy</p>
             <p class="text-sm text-[#14181a] whitespace-pre-line">{{ $contentItem->caption_draft ?: 'Belum ada draft caption.' }}</p>
         </div>
 
         <div class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] grid grid-cols-2 gap-4 text-xs">
             <div>
-                <p class="text-[#9aa0a4] uppercase font-semibold mb-1">Platform</p>
+                <p class="text-[#767c80] uppercase font-semibold mb-1">Platform</p>
                 <p class="text-[#14181a]">{{ $contentItem->platform->name ?? '-' }}</p>
             </div>
             <div>
-                <p class="text-[#9aa0a4] uppercase font-semibold mb-1">Deadline</p>
+                <p class="text-[#767c80] uppercase font-semibold mb-1">Deadline</p>
                 <p class="text-[#14181a]">{{ $contentItem->deadline_at->format('d M Y') }}</p>
             </div>
         </div>
@@ -78,8 +78,8 @@
             <div x-show="showRevisionForm" x-transition class="bg-white rounded-xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]" style="display: none;">
                 <form action="{{ route('client.approval.request-revision', $contentItem) }}" method="POST" class="space-y-3">
                     @csrf
-                    <label class="block text-xs font-semibold text-[#9aa0a4] uppercase">Catatan Revisi</label>
-                    <textarea name="revision_note" required rows="3"
+                    <label for="revision_note" class="block text-xs font-semibold text-[#767c80] uppercase">Catatan Revisi</label>
+                    <textarea id="revision_note" name="revision_note" required rows="3"
                               class="w-full border border-[#eef0f4] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-[#044b46]/10 focus:border-[#044b46]/40 transition-all"
                               placeholder="Jelaskan perubahan yang diinginkan..."></textarea>
                     <button type="submit" class="w-full bg-[#044b46] hover:bg-[#033b37] active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-xl transition-all">
