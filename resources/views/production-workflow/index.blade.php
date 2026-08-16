@@ -3,6 +3,23 @@
 @section('title', 'Produksi')
 
 @section('content')
+@if (($tab ?? 'board') === 'board' && ! ($viewExplicit ?? false))
+    {{-- Drag-and-drop kartu Kanban pakai HTML5 Drag & Drop API, yang tidak
+         berfungsi di layar sentuh - jadi kalau belum ada pilihan Papan/List
+         eksplisit dan layarnya sekecil HP, arahkan ke tampilan List (yang
+         sudah sepenuhnya responsif, termasuk filter & pencarian) sebelum
+         papan Kanban sempat ke-render. Pilihan eksplisit tetap dihormati -
+         script ini cuma jalan kalau belum ada ?view= di URL. --}}
+    <script>
+        (function () {
+            if (window.matchMedia('(max-width: 639px)').matches) {
+                var url = new URL(window.location.href);
+                url.searchParams.set('view', 'list');
+                window.location.replace(url.toString());
+            }
+        })();
+    </script>
+@endif
 <div class="flex flex-col {{ ($tab === 'board' && ($view ?? 'board') === 'board') ? 'h-[calc(100vh-64px)]' : '' }}">
 
     <header class="px-4 sm:px-6 lg:px-8 pt-5 flex-shrink-0">
@@ -11,7 +28,6 @@
                 <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Produksi</h1>
                 <p class="text-[#5c6266] text-sm mt-1">Alur produksi, revisi, dan riwayat tayang konten.</p>
             </div>
-            @include('partials.urgent-content-modal')
         </div>
 
         {{-- Tab switcher --}}

@@ -11,8 +11,6 @@
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
             <div class="flex items-center gap-2 flex-wrap">
-                @include('partials.urgent-content-modal')
-
                 <button type="button" @click="showCreateModal = true" class="btn-primary">
                     <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
                 </button>

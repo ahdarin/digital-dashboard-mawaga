@@ -120,6 +120,11 @@ class ProductionWorkflowController extends Controller
         return view('production-workflow.index', [
             'tab' => 'board',
             'view' => $request->input('view', 'board') === 'list' ? 'list' : 'board',
+            // Dipakai buat bedain "belum milih view apa-apa" dari "eksplisit
+            // minta board" - view-nya cuma jalanin script redirect ke List
+            // di mobile kalau belum ada pilihan eksplisit (lihat script di
+            // awal production-workflow/index.blade.php).
+            'viewExplicit' => $request->has('view'),
             'board' => $board,
             'listItems' => $listItems,
             'sortColumn' => $sortColumn,

@@ -135,6 +135,9 @@
                                 x-transition.opacity>{{ $item['label'] }}</span>
                         </a>
                     @endforeach
+                    @if ($group['label'] === 'Konten' && isset($clientOptions))
+                        @include('partials.urgent-content-modal', ['urgentTriggerStyle' => 'sidebar'])
+                    @endif
                 </div>
             </div>
         @endforeach
