@@ -112,6 +112,21 @@ class ProductionWorkflowController extends Controller
             $listItems = $listItems->filter(fn ($item) => $item->workflow->current_status === $selectedStatus)->values();
         }
 
+        // Sort/filter di atas jalan di memori (bukan query builder, karena sort
+        // "status" ngikutin urutan tahapan workflow custom, bukan alfabet) - jadi
+        // paginate juga manual pakai LengthAwarePaginator, bukan ->paginate() di
+        // query. withPath/withQueryString biar link halaman ikut bawa sort/dir/
+        // filter yang lagi aktif.
+        $listPage = (int) $request->input('page', 1);
+        $listPerPage = 20;
+        $listItems = new \Illuminate\Pagination\LengthAwarePaginator(
+            $listItems->forPage($listPage, $listPerPage)->values(),
+            $listItems->count(),
+            $listPerPage,
+            $listPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         // Daftar client untuk dropdown filter (hanya yang relevan buat user ini)
         $clientOptions = $user->canSeeAllClients()
             ? \App\Models\Client::where('status', 'active')->get()

@@ -63,7 +63,7 @@ class DelayRiskPredictionService
                 'content_item_id' => $result['content_item_id'],
                 'risk_score' => $result['risk_score'],
                 'risk_level' => $result['risk_level'],
-                'top_factor' => $this->guessTopFactor($featureMap[$result['content_item_id']], $previousFeatures),
+                'top_factor' => $this->guessTopFactor($featureMap[$result['content_item_id']], $previousFeatures, $result['risk_level']),
                 'features_snapshot' => $featureMap[$result['content_item_id']],
             ]);
 
@@ -163,7 +163,14 @@ class DelayRiskPredictionService
 
         $payload = json_encode(['items' => $items]);
 
-        $result = Process::input($payload)->run("python3 {$scriptPath}");
+        // "python3" tidak selalu ada di PATH - di Windows/beberapa environment
+        // dev cuma ada "python". PYTHON_BIN di .env bisa override kalau perlu.
+        $pythonBin = env('PYTHON_BIN', PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3');
+
+        // Bentuk array (bukan string command) supaya path yang mengandung
+        // spasi/tanda kurung (umum di direktori proyek Windows) tidak perlu
+        // di-quote manual dan tidak salah di-parse oleh shell.
+        $result = Process::input($payload)->run([$pythonBin, $scriptPath]);
 
         if (!$result->successful()) {
             Log::error('Delay Risk prediction script failed', ['error' => $result->errorOutput()]);
@@ -199,7 +206,7 @@ class DelayRiskPredictionService
         }));
     }
 
-    private function guessTopFactor(array $features, ?array $previousFeatures = null): string
+    private function guessTopFactor(array $features, ?array $previousFeatures, string $riskLevel): string
     {
         // Kalau ada histori sebelumnya, prioritaskan penjelasan berbasis PERUBAHAN
         // (lebih actionable daripada ambang statis) - "kenapa naik", bukan cuma "tinggi".
@@ -219,21 +226,65 @@ class DelayRiskPredictionService
             }
         }
 
-        // Fallback: penjelasan sederhana berbasis ambang statis (bukan SHAP, cukup
-        // untuk konteks MVP) - dipakai untuk prediksi pertama kali, atau kalau tidak
-        // ada perubahan signifikan dibanding cek sebelumnya.
-        if ($features['workload_pic_same_week'] > 8) {
-            return 'Beban kerja PIC sedang tinggi';
+        // Fallback: bukan lagi "lolos ambang atau diam" - tiap kandidat faktor
+        // dibandingkan sebagai RASIO terhadap ambang wajarnya masing-masing,
+        // supaya selalu ada satu faktor paling menonjol yang bisa ditunjuk
+        // (bukan SHAP asli, cukup untuk konteks MVP). Rasio >= 1 berarti sudah
+        // lewat ambang lama (dianggap signifikan); di bawah itu tetap ditunjuk
+        // sebagai yang paling menonjol tapi dikasih kualifier "belum
+        // mengkhawatirkan" biar tidak menyesatkan.
+        $days = (int) round($features['days_in_current_status']);
+        $candidates = [
+            [
+                'ratio' => $features['workload_pic_same_week'] / 8,
+                'label' => 'beban kerja PIC',
+                'signifikan' => 'Beban kerja PIC sedang tinggi',
+                'belum' => "Beban kerja PIC ({$features['workload_pic_same_week']} task aktif) - belum mengkhawatirkan",
+            ],
+            [
+                'ratio' => $features['revision_count'] / 2,
+                'label' => 'jumlah revisi',
+                'signifikan' => 'Sudah melalui beberapa ronde revisi',
+                'belum' => "Jumlah revisi ({$features['revision_count']} ronde) - belum mengkhawatirkan",
+            ],
+            [
+                'ratio' => $features['content_complexity'] / 3,
+                'label' => 'kompleksitas konten',
+                'signifikan' => 'Kompleksitas konten tinggi',
+                'belum' => 'Kompleksitas konten masih tergolong ringan/sedang',
+            ],
+            [
+                'ratio' => $features['days_in_current_status'] / 5,
+                'label' => 'lama waktu di status saat ini',
+                'signifikan' => 'Sudah lama berada di status saat ini',
+                'belum' => "Sudah {$days} hari di status ini - belum mengkhawatirkan",
+            ],
+        ];
+
+        usort($candidates, fn ($a, $b) => $b['ratio'] <=> $a['ratio']);
+        $top = $candidates[0];
+
+        if ($top['ratio'] >= 1) {
+            return $top['signifikan'];
         }
-        if ($features['revision_count'] >= 2) {
-            return 'Sudah melalui beberapa ronde revisi';
+
+        // Risiko rendah dan tidak ada faktor yang menonjol sama sekali (semua
+        // jauh di bawah ambang wajarnya) - lebih jujur bilang "aman" daripada
+        // menunjuk faktor kecil yang sebenarnya tidak berarti apa-apa.
+        if ($riskLevel === 'low') {
+            return $top['ratio'] < 0.3 ? 'Tidak ada faktor risiko signifikan terdeteksi' : $top['belum'];
         }
-        if ($features['content_complexity'] === 3) {
-            return 'Kompleksitas konten tinggi';
-        }
-        if ($features['days_in_current_status'] >= 5) {
-            return 'Sudah lama berada di status saat ini';
-        }
-        return 'Kombinasi beberapa faktor';
+
+        // Risiko medium/high tapi tidak ada satu faktor pun yang jelas lewat
+        // ambang - qualifier "belum mengkhawatirkan" bakal kontradiktif kalau
+        // dipasangkan ke skor yang sudah tinggi. Daripada diam generik,
+        // sebutkan 2-3 faktor dengan kontribusi terbesar (bukan SHAP asli,
+        // cuma urutan rasio) supaya tetap actionable buat PIC/manager.
+        $contributingLabels = array_column(array_slice($candidates, 0, 3), 'label');
+        $last = array_pop($contributingLabels);
+
+        return $contributingLabels
+            ? 'Kombinasi beberapa faktor: ' . implode(', ', $contributingLabels) . ' dan ' . $last
+            : "Kombinasi beberapa faktor: {$last}";
     }
 }

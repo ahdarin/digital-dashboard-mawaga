@@ -54,7 +54,8 @@
             </thead>
             <tbody>
                 @forelse ($clients as $client)
-                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                    <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
+                        onclick="window.location='{{ route('client-management.show', $client) }}'">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[#f0f5f4]' : 'bg-[#044b46] text-white' }}">
@@ -65,14 +66,14 @@
                                     @endif
                                 </div>
                                 <div>
-                                    <a href="{{ route('client-management.show', $client) }}" class="font-medium text-[#14181a] hover:underline">{{ $client->brand_name }}</a>
+                                    <p class="font-medium text-[#14181a]">{{ $client->brand_name }}</p>
                                     <p class="text-xs text-[#767c80]">{{ $client->category->name ?? '-' }}</p>
                                 </div>
                             </div>
                         </td>
                         <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client->owner->email ?? '-' }}</td>
                         <td class="px-6 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
-                        <td class="px-6 py-3.5">
+                        <td class="px-6 py-3.5" onclick="event.stopPropagation()">
                             @if ($client->asset_link)
                                 <a href="{{ $client->asset_link }}" target="_blank" rel="noopener"
                                    class="inline-flex items-center gap-1 text-[#044b46] hover:underline" title="{{ $client->asset_link }}">

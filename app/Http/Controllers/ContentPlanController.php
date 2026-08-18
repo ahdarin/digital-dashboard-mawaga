@@ -144,7 +144,7 @@ class ContentPlanController extends Controller
             ->with('status', 'Content plan berhasil dibuat. Silakan tambahkan content item-nya.');
     }
 
-    public function show(ContentPlan $contentPlan, Request $request)
+    public function show(ContentPlan $contentPlan)
     {
         $contentPlan->load(['client', 'clientPackage', 'creator', 'approver']);
 
@@ -153,35 +153,7 @@ class ContentPlanController extends Controller
             ->orderBy('deadline_at')
             ->get();
 
-        $view = $request->input('view', 'table'); // table | calendar
-
-        // Sama desainnya kayak kalender utama (content-plan.index) - pakai
-        // partial calendar-grid yang sama biar tidak dobel maintenance.
-        $month = (int) $request->input('month', $contentPlan->month);
-        $year = (int) $request->input('year', $contentPlan->year);
-        $selectedType = $request->input('type', 'all');
-        $selectedClientId = $contentPlan->client_id;
-        $clientOptions = collect([$contentPlan->client]);
-        $itemsByDateClient = collect();
-
-        if ($view === 'calendar') {
-            $itemsByDateClient = $items
-                ->when($selectedType !== 'all', fn ($collection) => $collection->filter(
-                    fn ($item) => ($item->contentType->name ?? null) === $selectedType
-                ))
-                ->groupBy(fn ($item) => $item->deadline_at->format('Y-m-d'))
-                ->map(fn ($dayItems) => $dayItems->groupBy('client_id'));
-        }
-
-        $contentTypeOptions = ContentType::all();
-        $platformOptions = Platform::all();
-        $picOptions = User::whereNull('client_id')->where('status', 'active')->get();
-
-        return view('content-plan.show', compact(
-            'contentPlan', 'items', 'view', 'month', 'year',
-            'itemsByDateClient', 'clientOptions', 'selectedType', 'selectedClientId',
-            'contentTypeOptions', 'platformOptions', 'picOptions'
-        ));
+        return view('content-plan.show', compact('contentPlan', 'items'));
     }
 
     /**

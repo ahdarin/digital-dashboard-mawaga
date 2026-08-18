@@ -1,5 +1,23 @@
 import sys
 import json
+import types
+
+# Di sebagian environment Windows (proses yang di-spawn PHP tanpa window
+# station penuh - kejadian saat script ini dipanggil dari request HTTP,
+# beda dari dipanggil manual di terminal), import asyncio gagal dengan
+# OSError WinError 10106 karena _overlapped.pyd tidak bisa WSAStartup.
+# joblib cuma butuh asyncio.iscoroutine() (buat fitur Memory cache pada
+# fungsi async, yang tidak pernah dipakai script batch-predict sinkron
+# ini), jadi kalau asyncio asli gagal di-import, ganti dengan stub minimal
+# supaya "import joblib" tidak ikut gagal.
+if sys.platform == 'win32':
+    try:
+        import asyncio  # noqa: F401
+    except OSError:
+        stub = types.ModuleType('asyncio')
+        stub.iscoroutine = lambda obj: False
+        sys.modules['asyncio'] = stub
+
 import joblib
 import pandas as pd
 import os

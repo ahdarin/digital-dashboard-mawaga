@@ -72,9 +72,10 @@
                             $risk = $item->latestDelayRisk;
                             $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
-                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
+                            onclick="window.location='{{ route('content-items.show', $item) }}'">
                             <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
-                                <a href="{{ route('content-items.show', $item) }}" class="hover:underline">{{ $item->title }}</a>
+                                {{ $item->title }}
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5">

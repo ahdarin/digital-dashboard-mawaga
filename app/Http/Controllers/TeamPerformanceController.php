@@ -32,10 +32,38 @@ class TeamPerformanceController extends Controller
             $attendanceRecords = $attendanceService->dailyRecords($date);
             $monthlySummary = $attendanceService->monthlySummary($month);
 
+            // "Hari Kerja" nilainya sama buat semua orang (cuma tergantung
+            // bulan, bukan per-user) - ambil sekali dari baris pertama
+            // sebelum di-filter/paginate, biar tidak perlu jadi kolom
+            // berulang di tabel.
+            $totalWorkdays = $monthlySummary->first()['total_workdays'] ?? 0;
+
+            $search = $request->input('search');
+            if ($search) {
+                $monthlySummary = $monthlySummary
+                    ->filter(fn ($s) => str_contains(strtolower($s['user']->name), strtolower($search)))
+                    ->values();
+            }
+
+            // monthlySummary dihitung manual per user (bukan query builder - lihat
+            // AttendanceService::monthlySummary), jadi paginate juga manual pakai
+            // LengthAwarePaginator - sama pola dengan list Production Workflow.
+            $summaryPage = (int) $request->input('page', 1);
+            $summaryPerPage = 10;
+            $monthlySummary = new \Illuminate\Pagination\LengthAwarePaginator(
+                $monthlySummary->forPage($summaryPage, $summaryPerPage)->values(),
+                $monthlySummary->count(),
+                $summaryPerPage,
+                $summaryPage,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+
             return view('team-performance.index', [
                 'tab' => $tab,
                 'date' => $date,
                 'month' => $month,
+                'search' => $search,
+                'totalWorkdays' => $totalWorkdays,
                 'attendanceRecords' => $attendanceRecords,
                 'monthlySummary' => $monthlySummary,
             ]);

@@ -41,14 +41,15 @@
                             $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
                         <tr x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                            class="border-t border-[#f2f3f6] transition-colors {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}">
+                            onclick="window.location='{{ route('content-items.show', $item) }}'"
+                            class="border-t border-[#f2f3f6] transition-colors cursor-pointer {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}">
                             <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
                                 @if ($item->is_urgent)
                                     <div class="absolute left-0 top-0 bottom-0 w-5 bg-[#b3423e] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
                                         <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
                                     </div>
                                 @endif
-                                <a href="{{ route('content-items.show', $item) }}" class="font-medium text-[#14181a] hover:underline">{{ $item->title }}</a>
+                                <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
@@ -214,5 +215,9 @@
                 <p class="text-sm text-[#767c80]">Tidak ada konten yang cocok dengan filter ini.</p>
             </div>
         @endforelse
+    </div>
+
+    <div class="mt-4">
+        {{ $listItems->links() }}
     </div>
 </div>

@@ -16,16 +16,16 @@
         <tbody>
             @forelse ($publications as $pub)
                 <tr x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
-                    class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                    onclick="window.location='{{ route('content-items.show', $pub->contentItem) }}'"
+                    class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer">
                     <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
-                        <a href="{{ route('content-items.show', $pub->contentItem) }}"
-                            class="hover:underline">{{ $pub->contentItem->title }}</a>
+                        {{ $pub->contentItem->title }}
                     </td>
                     <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $pub->contentItem->client->name ?? '-' }}</td>
                     <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $pub->platform->name ?? '-' }}</td>
                     <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $pub->published_at->format('d M Y, H:i') }}</td>
                     <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $pub->publishedBy->name ?? '-' }}</td>
-                    <td class="px-4 py-3.5 whitespace-nowrap">
+                    <td class="px-4 py-3.5 whitespace-nowrap" onclick="event.stopPropagation()">
                         @if ($pub->post_url)
                             <a href="{{ $pub->post_url }}" target="_blank"
                                 class="inline-flex items-center gap-1 bg-[#044b46] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[#033b37] transition-colors">
@@ -54,18 +54,18 @@
       @forelse ($publications as $pub)
           <div x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
               class="card p-3.5" x-data="{ open: false }">
-              <div class="flex items-start gap-2">
-                  <a href="{{ route('content-items.show', $pub->contentItem) }}" class="flex-1 min-w-0 font-medium text-[#14181a] text-sm hover:underline">
-                      {{ $pub->contentItem->title }}
-                  </a>
-                  <button type="button" @click.stop="open = !open" class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#767c80]">
+              <button type="button" class="w-full text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
+                  <div class="flex-1 min-w-0">
+                      <p class="font-medium text-[#14181a] text-sm">{{ $pub->contentItem->title }}</p>
+                      <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
+                          <span class="badge badge-neutral">{{ $pub->platform->name ?? '-' }}</span>
+                          <span class="text-xs text-[#5c6266] whitespace-nowrap">{{ $pub->published_at->format('d M Y, H:i') }}</span>
+                      </div>
+                  </div>
+                  <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#767c80]">
                       <span class="material-symbols-outlined text-[19px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
-                  </button>
-              </div>
-              <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
-                  <span class="badge badge-neutral">{{ $pub->platform->name ?? '-' }}</span>
-                  <span class="text-xs text-[#5c6266] whitespace-nowrap">{{ $pub->published_at->format('d M Y, H:i') }}</span>
-              </div>
+                  </div>
+              </button>
               <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
                   <div class="flex items-center justify-between text-xs">
                       <span class="text-[#767c80]">Klien</span>

@@ -24,9 +24,10 @@
                 @forelse ($revisions as $revision)
                     @php $revStatusStyle = $revisionStatusStyles[$revision->status] ?? $revisionStatusStyles['resolved']; @endphp
                     <tr x-show="matches('{{ addslashes($revision->contentItem->title) }}', '{{ addslashes($revision->contentItem->client->name ?? '') }}', '{{ addslashes($revision->revision_note) }}')"
-                        class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                        onclick="window.location='{{ route('content-items.show', $revision->contentItem) }}'"
+                        class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer">
                         <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
-                            <a href="{{ route('content-items.show', $revision->contentItem) }}" class="hover:underline">{{ $revision->contentItem->title }}</a>
+                            {{ $revision->contentItem->title }}
                         </td>
                         <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $revision->contentItem->client->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">Revisi #{{ $revision->revision_round }}</td>

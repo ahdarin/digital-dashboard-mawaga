@@ -100,9 +100,10 @@
                 </thead>
                 <tbody>
                     @forelse ($plans as $plan)
-                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors">
+                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
+                            onclick="window.location='{{ route('content-plan.show', $plan) }}'">
                             <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
-                                <a href="{{ route('content-plan.show', $plan) }}" class="hover:underline">{{ $plan->client->name ?? '-' }}</a>
+                                {{ $plan->client->name ?? '-' }}
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ \Carbon\Carbon::create()->month($plan->month)->translatedFormat('F') }} {{ $plan->year }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $plan->content_items_count }}</td>

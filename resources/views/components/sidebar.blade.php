@@ -16,16 +16,16 @@
             ],
         ],
         [
-            'label' => 'Klien',
-            'items' => [
-                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
-            ],
-        ],
-        [
             'label' => 'Tim',
             'items' => [
                 ['label' => 'Performa Tim', 'route' => 'team-performance.index', 'icon' => 'diversity_3', 'permission' => ['team_performance', 'view']],
                 ['label' => 'Kelola Pengguna', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'manage']],
+            ],
+        ],
+        [
+            'label' => 'Klien',
+            'items' => [
+                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
             ],
         ],
         [

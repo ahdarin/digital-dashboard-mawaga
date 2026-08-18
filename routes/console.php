@@ -12,6 +12,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('analytics:detect-anomalies')->hourly();
 
-Schedule::command(RecomputeDelayRiskScores::class)->hourly();
+Schedule::command(RecomputeDelayRiskScores::class)->dailyAt('10:00');
 Schedule::command(SendDelayRiskNotifications::class)->dailyAt('08:00');
 Schedule::command('workflow:update-overdue')->hourly();

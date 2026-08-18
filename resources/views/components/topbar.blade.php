@@ -117,11 +117,13 @@
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit" class="w-full flex gap-3 rounded-lg p-3 hover:bg-[#f7f8fc] relative text-left">
-                                    @if (! $notif->is_read)
-                                        <span class="absolute left-0 top-3 bottom-3 w-0.5 bg-[#044b46] rounded-full"></span>
-                                    @endif
-                                    <div class="w-8 h-8 rounded-full {{ $meta['bg'] }} flex items-center justify-center shrink-0">
-                                        <span class="material-symbols-outlined {{ $meta['color'] }} text-[16px]">{{ $meta['icon'] }}</span>
+                                    <div class="relative shrink-0">
+                                        <div class="w-8 h-8 rounded-full {{ $meta['bg'] }} flex items-center justify-center">
+                                            <span class="material-symbols-outlined {{ $meta['color'] }} text-[16px]">{{ $meta['icon'] }}</span>
+                                        </div>
+                                        @if (! $notif->is_read)
+                                            <span class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-[#b3423e] border-2 border-white rounded-full"></span>
+                                        @endif
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <div class="flex items-start justify-between gap-2">
