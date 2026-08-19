@@ -97,7 +97,7 @@
                     <label for="asset_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Aset (Google Drive)</label>
                     <input id="asset_link" type="url" name="asset_link" value="{{ old('asset_link', $client->asset_link) }}" placeholder="https://drive.google.com/..."
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">
-                    <p class="text-xs text-[var(--text-muted)] mt-1.5">Opsional. Link folder aset konten/desain client, tampil di tiap content item-nya.</p>
+                    <p class="text-xs text-[var(--text-muted)] mt-1.5">Opsional. Link folder aset konten/desain klien, tampil di tiap content item-nya.</p>
                     @error('asset_link') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
             </div>
@@ -112,7 +112,7 @@
             @unless ($client->owner)
                 <div class="bg-[var(--brand-tint)] rounded-lg px-3.5 py-3 flex items-start gap-2 mb-4">
                     <span class="material-symbols-outlined text-[var(--brand)] text-[15px] mt-0.5">info</span>
-                    <p class="text-xs text-[var(--brand)]">Client ini belum punya akun owner. Isi ketiga field di bawah untuk langsung membuatkannya.</p>
+                    <p class="text-xs text-[var(--brand)]">Klien ini belum punya akun owner. Isi kedua field di bawah untuk langsung membuatkannya.</p>
                 </div>
             @endunless
 
@@ -122,13 +122,6 @@
                     <input id="owner_name" type="text" name="owner_name" value="{{ old('owner_name', $client->owner->name ?? '') }}"
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_name') border-[var(--danger-border-strong)] @enderror">
                     @error('owner_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label for="owner_email" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Email Owner {{ $client->owner ? '' : '*' }}</label>
-                    <input id="owner_email" type="email" name="owner_email" value="{{ old('owner_email', $client->owner->email ?? '') }}"
-                           class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_email') border-[var(--danger-border-strong)] @enderror">
-                    @error('owner_email') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
@@ -142,7 +135,7 @@
 
         <div class="flex items-center gap-3">
             <button type="submit" class="btn-primary">
-                Simpan Perubahan
+                <span class="material-symbols-outlined text-[17px]">save</span> Simpan Perubahan
             </button>
             <a href="{{ route('client-management.show', $client) }}" class="btn-secondary">Batal</a>
         </div>

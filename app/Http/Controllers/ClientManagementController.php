@@ -10,7 +10,6 @@ use App\Services\PhoneNumberNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class ClientManagementController extends Controller
 {
@@ -27,7 +26,7 @@ class ClientManagementController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('brand_name', 'like', "%{$search}%")
-                        ->orWhereHas('owner', fn ($oq) => $oq->where('email', 'like', "%{$search}%"));
+                        ->orWhereHas('owner', fn ($oq) => $oq->where('phone_number', 'like', "%{$search}%"));
                 });
             })
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
@@ -58,7 +57,6 @@ class ClientManagementController extends Controller
             'logo' => 'nullable|image|max:2048', // max 2MB
             'asset_link' => 'nullable|url|max:255',
             'owner_name' => 'required|string|max:255',
-            'owner_email' => 'required|email|unique:users,email',
             'owner_phone' => 'required|string',
         ]);
 
@@ -82,14 +80,13 @@ class ClientManagementController extends Controller
                 'role_id' => $ownerRole->id,
                 'client_id' => $client->id,
                 'name' => $validated['owner_name'],
-                'email' => $validated['owner_email'],
                 'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                 'status' => 'invited',
             ]);
         });
 
         return redirect()->route('client-management.index')
-            ->with('status', 'Client & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
+            ->with('status', 'Klien & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
     }
 
     public function show(Client $client)
@@ -140,13 +137,8 @@ class ClientManagementController extends Controller
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
             'asset_link' => 'nullable|url|max:255',
-            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_email,owner_phone|string|max:255',
-            'owner_email' => [
-                $hasOwner ? 'nullable' : 'nullable|required_with:owner_name,owner_phone',
-                'email',
-                Rule::unique('users', 'email')->ignore($client->owner?->id),
-            ],
-            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name,owner_email|string',
+            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_phone|string|max:255',
+            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name|string',
         ]);
 
         DB::transaction(function () use ($validated, $client, $request) {
@@ -174,7 +166,6 @@ class ClientManagementController extends Controller
             if ($client->owner && filled($validated['owner_name'] ?? null)) {
                 $client->owner->update([
                     'name' => $validated['owner_name'],
-                    'email' => $validated['owner_email'] ?? $client->owner->email,
                     'phone_number' => filled($validated['owner_phone'] ?? null)
                         ? PhoneNumberNormalizer::normalize($validated['owner_phone'])
                         : $client->owner->phone_number,
@@ -186,7 +177,6 @@ class ClientManagementController extends Controller
                     'role_id' => $ownerRole->id,
                     'client_id' => $client->id,
                     'name' => $validated['owner_name'],
-                    'email' => $validated['owner_email'],
                     'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                     'status' => 'invited',
                 ]);
@@ -194,7 +184,7 @@ class ClientManagementController extends Controller
         });
 
         return redirect()->route('client-management.show', $client)
-            ->with('status', 'Data client berhasil diperbarui.');
+            ->with('status', 'Data klien berhasil diperbarui.');
     }
 
     public function destroy(Client $client)
@@ -207,7 +197,7 @@ class ClientManagementController extends Controller
             $client->update(['status' => 'paused']);
 
             return redirect()->route('client-management.index')
-                ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Paused.");
+                ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
         }
 
         DB::transaction(function () use ($client) {
@@ -223,7 +213,7 @@ class ClientManagementController extends Controller
         });
 
         return redirect()->route('client-management.index')
-            ->with('status', 'Client berhasil dihapus.');
+            ->with('status', 'Klien berhasil dihapus.');
     }
 
     private function authorizeManage(): void

@@ -33,7 +33,7 @@
 
         <a href="{{ route('client-management.edit', $client) }}"
            class="btn-primary shrink-0">
-            <span class="material-symbols-outlined text-[17px]">edit</span> Edit Client
+            <span class="material-symbols-outlined text-[17px]">edit</span> Edit Klien
         </a>
     </div>
 
@@ -60,7 +60,7 @@
                 <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-4">Konten Terbaru</h2>
 
                 @if ($recentContentItems->isEmpty())
-                    <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk client ini.</p>
+                    <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk klien ini.</p>
                 @else
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -111,9 +111,6 @@
 
                     <div class="space-y-2.5 text-sm">
                         <div class="flex items-center gap-2 text-[var(--text-secondary)]">
-                            <span class="material-symbols-outlined text-[15px]">mail</span> {{ $client->owner->email }}
-                        </div>
-                        <div class="flex items-center gap-2 text-[var(--text-secondary)]">
                             <span class="material-symbols-outlined text-[15px]">call</span> {{ $client->owner->phone_number ?? '-' }}
                         </div>
                     </div>
@@ -149,18 +146,18 @@
                         <span class="material-symbols-outlined text-[14px] ml-auto">open_in_new</span>
                     </a>
                 @else
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada link aset. <a href="{{ route('client-management.edit', $client) }}" class="text-[var(--brand)] hover:underline">Tambahkan di Edit Client</a>.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada link aset. <a href="{{ route('client-management.edit', $client) }}" class="text-[var(--brand)] hover:underline">Tambahkan di Edit Klien</a>.</p>
                 @endif
             </div>
 
             <div class="card p-6">
                 <h2 class="text-sm font-semibold text-[var(--danger-text)] mb-3">Zona Berbahaya</h2>
                 <form action="{{ route('client-management.destroy', $client) }}" method="POST"
-                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
+                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, klien hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn-danger w-full">
-                        Hapus Client
+                        Hapus Klien
                     </button>
                 </form>
             </div>

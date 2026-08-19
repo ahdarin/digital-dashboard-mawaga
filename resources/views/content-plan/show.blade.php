@@ -8,8 +8,8 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div class="flex items-start gap-3">
             <a href="{{ route('content-plan.index') }}" title="Kembali ke daftar Content Plan"
-               class="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] shrink-0 mt-0.5">
-                <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+               class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-secondary)] transition-colors shrink-0 mt-0.5">
+                <span class="material-symbols-outlined text-[19px]">arrow_back</span>
             </a>
             <div>
                 <p class="text-xs text-[var(--text-muted)] mb-1">

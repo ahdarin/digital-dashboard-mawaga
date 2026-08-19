@@ -5,7 +5,7 @@
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali ke Content Plan"
-           class="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)]">
+           class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-secondary)] transition-colors shrink-0">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <div>
@@ -23,9 +23,15 @@
             ? optional($types->firstWhere('id', (int) old('content_type_id')))->name ?? ''
             : '';
     @endphp
-    <form action="{{ route('content-plan.items.store', $contentPlan) }}" method="POST" class="card p-6 space-y-4"
+    <form action="{{ route('content-plan.items.store', $contentPlan) }}" method="POST" class="space-y-5"
           x-data="{ contentTypeName: {{ Illuminate\Support\Js::from($oldContentTypeName) }} }">
         @csrf
+
+        <div class="card p-6 space-y-4">
+        <p class="text-sm font-semibold text-[var(--text-primary)] mb-1 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[var(--brand)] text-[19px]">draft</span>
+            Detail Konten
+        </p>
 
         <div>
             <label for="title" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Judul Konten <span class="text-[var(--danger-text)]">*</span></label>
@@ -111,8 +117,9 @@
             @error('estimated_slide_count') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             <p class="text-[11px] text-[var(--text-muted)] mt-1">Dipakai buat hitung skor Delay Risk.</p>
         </div>
+        </div>
 
-        <div class="flex items-center gap-3 pt-2">
+        <div class="flex items-center gap-3">
             <button type="submit" class="btn-primary">
                 <span class="material-symbols-outlined text-[17px]">save</span> Simpan Item
             </button>
