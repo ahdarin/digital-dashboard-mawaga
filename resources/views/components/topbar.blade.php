@@ -71,7 +71,7 @@
                         class="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
                     <span class="material-symbols-outlined text-[var(--text-secondary)] text-[20px]">notifications</span>
                     @if ($unreadCount > 0)
-                        <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-[var(--danger-text)] text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
+                        <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-[var(--danger-solid)] text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
                             {{ $unreadCount > 9 ? '9+' : $unreadCount }}
                         </span>
                     @endif
@@ -98,7 +98,7 @@
                         <div class="flex items-center gap-1.5 overflow-x-auto thin-autohide-scrollbar -mx-1 px-1">
                             @foreach ($tabs as $key => $label)
                                 <button @click="tab = '{{ $key }}'" type="button"
-                                        :class="tab === '{{ $key }}' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-page)] text-[var(--text-secondary)] hover:bg-[var(--border)]'"
+                                        :class="tab === '{{ $key }}' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-page)] text-[var(--text-secondary)] hover:bg-[var(--border)]'"
                                         class="text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                     {{ $label }}
                                     @if ($tabCounts[$key]['unread'] > 0)
@@ -157,7 +157,7 @@
                 @if (auth()->user()->avatar_url)
                     <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name ?? 'User' }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover">
                 @else
-                    <div class="w-8 h-8 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-xs font-semibold">
+                    <div class="w-8 h-8 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold">
                         {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                     </div>
                 @endif

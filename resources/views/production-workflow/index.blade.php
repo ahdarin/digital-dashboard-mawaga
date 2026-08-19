@@ -121,7 +121,7 @@
         @include('production-workflow.partials.list-tab')
     @else
 
-    <div x-show="toast" x-transition role="status" aria-live="polite" class="fixed top-6 right-6 z-50 bg-[var(--text-primary)] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
+    <div x-show="toast" x-transition role="status" aria-live="polite" class="fixed top-6 right-6 z-50 bg-[var(--overlay-solid)] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
 
     <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-[var(--surface-page)] thin-autohide-scrollbar">
         @php $statusLabels = \App\Support\WorkflowTransitions::labels(); @endphp
@@ -159,7 +159,7 @@
                              class="rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'bg-[var(--danger-tint)] border-[var(--danger-border-strong)]' : ($isPinned ? 'bg-[var(--brand-tint)] border-[var(--brand-border)]' : 'bg-[var(--surface-card)] border-[var(--border)]') }}">
 
                             @if ($item->is_urgent)
-                                <div class="bg-[var(--danger-text)] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
+                                <div class="bg-[var(--danger-solid)] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[12px] shrink-0">bolt</span>
                                     <span>Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan</span>
                                 </div>
@@ -212,7 +212,7 @@
                                         <div class="flex items-center gap-1">
                                             <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                 x-on:click.stop x-on:mousedown.stop
-                                                class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                                class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                             <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
                                                 class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                                 <span class="material-symbols-outlined text-[15px]">videocam</span>
@@ -234,7 +234,7 @@
                                             @if ($assignment->user->avatar_url)
                                                 <img src="{{ $assignment->user->avatar_url }}" alt="{{ $assignment->user->name }}" referrerpolicy="no-referrer" class="w-6 h-6 rounded-full ring-2 ring-[var(--surface-card)] object-cover">
                                             @else
-                                                <div class="w-6 h-6 rounded-full bg-[var(--brand)] text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]">
+                                                <div class="w-6 h-6 rounded-full bg-[var(--brand-solid)] text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]">
                                                     {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                 </div>
                                             @endif
@@ -255,7 +255,7 @@
                                                     @if ($assignment->user->avatar_url)
                                                         <img src="{{ $assignment->user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full object-cover">
                                                     @else
-                                                        <div class="w-7 h-7 rounded-full bg-[var(--brand)] text-white text-xs font-semibold flex items-center justify-center">
+                                                        <div class="w-7 h-7 rounded-full bg-[var(--brand-solid)] text-white text-xs font-semibold flex items-center justify-center">
                                                             {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                         </div>
                                                     @endif
@@ -312,7 +312,7 @@
             <div class="px-6 py-5">
                 <label for="kanban_revision_note" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Catatan Revisi</label>
                 <textarea id="kanban_revision_note" x-model="revisionNote" rows="3" placeholder="Tulis catatan revisi..."
-                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40"></textarea>
+                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40"></textarea>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmRevisionModal()"
@@ -343,17 +343,17 @@
                 <div>
                     <label for="kanban_pub_published_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal Publish</label>
                     <input id="kanban_pub_published_at" type="text" x-model="pubForm.published_at" data-flatpickr="datetime" autocomplete="off"
-                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                 </div>
                 <div>
                     <label for="kanban_pub_post_url" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
                     <input id="kanban_pub_post_url" type="url" x-model="pubForm.post_url" placeholder="https://..."
-                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                 </div>
                 <div>
                     <label for="kanban_pub_caption_final" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
                     <textarea id="kanban_pub_caption_final" x-model="pubForm.caption_final" rows="2"
-                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                 </div>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
@@ -608,7 +608,7 @@ function kanbanBoard() {
                         : `<div class="flex items-center gap-1">
                                 <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${nowValue}"
                                     x-on:click.stop x-on:mousedown.stop
-                                    class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                    class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                 <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
                                     class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                     <span class="material-symbols-outlined text-[15px]">videocam</span>

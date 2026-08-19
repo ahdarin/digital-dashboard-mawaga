@@ -22,7 +22,7 @@
     @elseif (! $attendance->check_out_at)
         <form action="{{ route('attendance.check-out') }}" method="POST">
             @csrf
-            <button type="submit" class="bg-[var(--danger-text)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors flex items-center gap-2">
+            <button type="submit" class="bg-[var(--danger-solid)] text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors flex items-center gap-2">
                 <span class="material-symbols-outlined text-[18px]">logout</span> Check Out
             </button>
         </form>

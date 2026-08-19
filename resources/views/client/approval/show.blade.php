@@ -71,7 +71,7 @@
                 </button>
                 <form action="{{ route('client.approval.approve', $contentItem) }}" method="POST">
                     @csrf
-                    <button type="submit" class="w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white text-sm font-medium py-3 rounded-2xl transition-all">
+                    <button type="submit" class="w-full bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white text-sm font-medium py-3 rounded-2xl transition-all">
                         Approve Asset
                     </button>
                 </form>
@@ -82,9 +82,9 @@
                     @csrf
                     <label for="revision_note" class="block text-xs font-semibold text-[var(--text-muted)] uppercase">Catatan Revisi</label>
                     <textarea id="revision_note" name="revision_note" required rows="3"
-                              class="w-full border border-[var(--border)] rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-[#044b46]/10 focus:border-[#044b46]/40 transition-all"
+                              class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-2xl px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-[#044b46]/10 focus:border-[#044b46]/40 transition-all"
                               placeholder="Jelaskan perubahan yang diinginkan..."></textarea>
-                    <button type="submit" class="w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-2xl transition-all">
+                    <button type="submit" class="w-full bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white text-sm font-medium py-2.5 rounded-2xl transition-all">
                         Kirim Revisi
                     </button>
                 </form>

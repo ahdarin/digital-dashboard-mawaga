@@ -39,7 +39,7 @@
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                                <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
                                     @if ($user->avatar_url)
                                         <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-full object-cover">
                                     @else
@@ -245,7 +245,7 @@
             <div class="card p-3.5" x-data="{ open: false }">
                 <button type="button" class="w-full text-left flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                        <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
                             @if ($user->avatar_url)
                                 <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-full object-cover">
                             @else
@@ -338,7 +338,7 @@
                     <div>
                         <label for="invite_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama</label>
                         <input id="invite_name" type="text" name="name" value="{{ old('name') }}" required
-                               class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                               class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
                         @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
 
@@ -346,7 +346,7 @@
                         <label for="invite_email" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Email Google</label>
                         <input id="invite_email" type="email" name="email" value="{{ old('email') }}" required
                                placeholder="akan dipakai untuk login Google"
-                               class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40">
+                               class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40">
                         @error('email') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
 

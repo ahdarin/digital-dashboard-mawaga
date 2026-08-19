@@ -47,7 +47,7 @@
                 @endforeach
             </div>
 
-            <div class="overflow-x-auto flex-1 min-w-0 pt-8 -mt-8">
+            <div class="overflow-x-auto flex-1 min-w-0 pt-8 -mt-8 thin-autohide-scrollbar">
                 <div class="relative" style="min-width: {{ $count * ($barWidth + 6) }}px">
                     <div class="absolute inset-x-0 top-0 flex flex-col justify-between pointer-events-none" style="height: 180px">
                         @foreach ($gridLines as $g)
@@ -59,7 +59,7 @@
                         @foreach ($trendItems as $i => $point)
                             <div class="group relative shrink-0 h-full flex flex-col items-center justify-end" style="width: {{ $barWidth }}px">
                                 <div class="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap
-                                            bg-[var(--text-primary)] text-white text-[10px] font-medium px-2 py-1 rounded opacity-0
+                                            bg-[var(--overlay-solid)] text-white text-[10px] font-medium px-2 py-1 rounded opacity-0
                                             group-hover:opacity-100 transition-opacity z-10">
                                     {{ number_format($point['value']) }}
                                 </div>

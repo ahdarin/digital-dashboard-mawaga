@@ -79,7 +79,7 @@
 
     {{-- Followers overview --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-        <div class="card p-6 bg-[var(--brand)] border-0">
+        <div class="card p-6 bg-[var(--brand-solid)] border-0">
             <div class="flex items-center gap-2 mb-4">
                 <span class="material-symbols-outlined text-white/70 text-[17px]">person</span>
                 <span class="text-xs font-medium tracking-wide text-white/70 uppercase">{{ $platform->name }} Followers</span>

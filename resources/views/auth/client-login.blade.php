@@ -63,7 +63,7 @@
                     </div>
 
                     <button type="submit"
-                            class="group w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all duration-200">
+                            class="group w-full bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all duration-200">
                         Kirim Link Login
                         <svg class="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>

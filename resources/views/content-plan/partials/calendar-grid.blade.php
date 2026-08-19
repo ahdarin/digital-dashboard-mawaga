@@ -32,20 +32,20 @@
             <span class="text-xs font-medium text-[var(--text-muted)]">Tipe:</span>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
-               {{ ($selectedType ?? 'all') === 'all' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+               {{ ($selectedType ?? 'all') === 'all' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 Semua
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Desain']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">D</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Desain</span>
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Video' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+               {{ ($selectedType ?? '') === 'Video' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">V</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Video</span>
             </a>

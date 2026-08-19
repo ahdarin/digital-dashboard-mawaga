@@ -100,7 +100,7 @@
 
                 @if ($client->owner)
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-[var(--brand)] text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                        <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-sm font-semibold shrink-0">
                             {{ strtoupper(substr($client->owner->name, 0, 1)) }}
                         </div>
                         <div>

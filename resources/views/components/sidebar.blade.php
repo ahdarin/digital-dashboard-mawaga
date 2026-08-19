@@ -217,7 +217,7 @@
         <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
             class="pointer-events-none fixed z-[100] whitespace-nowrap"
             :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translateY(-50%);`">
-            <div class="relative bg-[var(--brand)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
                 <span x-text="tooltip.text"></span>
                 <span class="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[6px] border-r-[var(--brand)]"></span>
             </div>

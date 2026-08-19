@@ -67,7 +67,7 @@
         <div x-show="tip.show" x-cloak x-transition.opacity.duration.100ms
             class="pointer-events-none fixed z-[100] whitespace-nowrap"
             :style="`top: ${tip.top}px; left: ${tip.left}px; transform: translateY(-50%);`">
-            <div class="relative bg-[var(--brand)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
                 <span x-text="tip.text"></span>
                 <span class="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[6px] border-r-[var(--brand)]"></span>
             </div>
@@ -78,7 +78,7 @@
         <div x-show="errorMsg" x-cloak x-transition.opacity @click.stop
             class="fixed z-[100] w-max max-w-[220px]"
             :style="`top: ${error.top}px; left: ${error.left}px;`">
-            <div class="bg-[var(--text-primary)] text-white text-[11px] leading-snug px-2.5 py-1.5 rounded-lg shadow-lg">
+            <div class="bg-[var(--overlay-solid)] text-white text-[11px] leading-snug px-2.5 py-1.5 rounded-lg shadow-lg">
                 <span x-text="errorMsg"></span>
             </div>
         </div>

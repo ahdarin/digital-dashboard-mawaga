@@ -28,7 +28,7 @@
                     <td class="px-4 py-3.5 whitespace-nowrap" onclick="event.stopPropagation()">
                         @if ($pub->post_url)
                             <a href="{{ $pub->post_url }}" target="_blank"
-                                class="inline-flex items-center gap-1 bg-[var(--brand)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
+                                class="inline-flex items-center gap-1 bg-[var(--brand-solid)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
                                 <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Post
                             </a>
                         @else
@@ -77,7 +77,7 @@
                   </div>
                   @if ($pub->post_url)
                       <a href="{{ $pub->post_url }}" target="_blank" @click.stop
-                          class="flex items-center justify-center gap-1.5 w-full bg-[var(--brand)] text-white text-xs font-medium px-3 py-2 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
+                          class="flex items-center justify-center gap-1.5 w-full bg-[var(--brand-solid)] text-white text-xs font-medium px-3 py-2 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
                           <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Post
                       </a>
                   @endif

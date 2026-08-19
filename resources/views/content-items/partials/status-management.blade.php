@@ -125,7 +125,7 @@
                     @endforeach
                 </select>
                 <textarea x-model="correctReason" rows="2" placeholder="Alasan koreksi (wajib)..."
-                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                 <button type="button" :disabled="! correctTo || ! correctReason"
                     @click="confirmAction = {
                         title: 'Koreksi Status',

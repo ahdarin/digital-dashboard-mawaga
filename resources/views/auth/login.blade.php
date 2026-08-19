@@ -47,7 +47,7 @@
                 @endif
 
                 <a href="{{ route('auth.google') }}"
-                   class="group w-full bg-[var(--brand)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all duration-200">
+                   class="group w-full bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all duration-200">
                     <svg class="w-5 h-5" viewBox="0 0 24 24">
                         <path fill="#fff" d="M23.5 12.27c0-.85-.07-1.67-.2-2.45H12v4.64h6.47c-.28 1.5-1.13 2.77-2.4 3.62v3h3.88c2.27-2.09 3.55-5.17 3.55-8.81z"/>
                         <path fill="#fff" d="M12 24c3.24 0 5.95-1.08 7.93-2.92l-3.88-3c-1.08.72-2.45 1.15-4.05 1.15-3.11 0-5.75-2.1-6.69-4.92H1.3v3.09C3.26 21.3 7.31 24 12 24z"/>

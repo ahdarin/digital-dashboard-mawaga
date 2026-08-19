@@ -31,7 +31,7 @@
                     <div class="flex items-center gap-2">
                         <h1 class="font-display text-xl font-semibold text-[var(--text-primary)]">{{ $contentItem->title }}</h1>
                         @if ($contentItem->is_urgent)
-                            <span class="flex items-center gap-1 text-[10px] font-semibold text-white bg-[var(--danger-text)] px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
+                            <span class="flex items-center gap-1 text-[10px] font-semibold text-white bg-[var(--danger-solid)] px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap">
                                 <span class="material-symbols-outlined text-[12px]">bolt</span> Jobdesk Tambahan
                             </span>
                         @endif
@@ -100,7 +100,7 @@
                         <form x-show="editingCaption" x-cloak action="{{ route('content-items.caption', $contentItem) }}" method="POST" class="space-y-2">
                             @csrf @method('PATCH')
                             <textarea name="caption_draft" rows="3" placeholder="Tulis draft caption di sini..."
-                                class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ $contentItem->caption_draft }}</textarea>
+                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ $contentItem->caption_draft }}</textarea>
                             <button type="submit" class="btn-primary">
                                 Simpan Caption
                             </button>
@@ -129,7 +129,7 @@
                             @csrf @method('PATCH')
                             <input type="url" name="content_file_link" value="{{ $contentItem->content_file_link }}"
                                 placeholder="https://drive.google.com/..."
-                                class="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                                class="bg-[var(--surface-card)] flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                             <button type="submit" class="btn-primary whitespace-nowrap">
                                 Simpan
                             </button>
@@ -170,7 +170,7 @@
                                         }"
                                         title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
                                         class="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg transition-colors
-                                            {{ $canUpdateWorkflow ? 'bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]' : 'bg-[var(--surface-muted)] text-[var(--text-muted)] cursor-not-allowed' }}">
+                                            {{ $canUpdateWorkflow ? 'bg-[var(--brand-solid)] text-white hover:bg-[var(--brand-dark)]' : 'bg-[var(--surface-muted)] text-[var(--text-muted)] cursor-not-allowed' }}">
                                         <span class="material-symbols-outlined text-[13px]">build</span> Kerjakan Revisi
                                     </button>
                                 @elseif ($revision->status === 'in_progress')
@@ -190,7 +190,7 @@
                         <form action="{{ route('content-revision.store', $contentItem) }}" method="POST" class="flex gap-2">
                             @csrf
                             <input type="text" name="revision_note" required placeholder="Tulis catatan revisi..."
-                                class="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                class="bg-[var(--surface-card)] flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                             <button type="submit"
                                 class="btn-primary">Kirim</button>
                         </form>
@@ -237,18 +237,18 @@
                                     <label for="published_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal
                                         Publish</label>
                                     <input id="published_at" type="text" name="published_at" required data-flatpickr="datetime" autocomplete="off"
-                                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                                 </div>
                             </div>
                             <div>
                                 <label for="post_url" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
                                 <input id="post_url" type="url" name="post_url" placeholder="https://..."
-                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                             </div>
                             <div>
                                 <label for="caption_final" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
                                 <textarea id="caption_final" name="caption_final" rows="2"
-                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                             </div>
                             <button type="submit" @disabled(! $canPublish)
                                 title="{{ $canPublish ? '' : 'Hanya SMO yang bisa mencatat data publikasi' }}"
@@ -281,7 +281,7 @@
                                     <img src="{{ $assignment->user->avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover">
                                 @else
                                     <div
-                                        class="w-8 h-8 rounded-full bg-[var(--brand)] text-white text-xs font-semibold flex items-center justify-center">
+                                        class="w-8 h-8 rounded-full bg-[var(--brand-solid)] text-white text-xs font-semibold flex items-center justify-center">
                                         {{ strtoupper(substr($assignment->user->name, 0, 1)) }}</div>
                                 @endif
                                 <div>
@@ -341,7 +341,7 @@
                                         <p class="text-xs text-[var(--warning-text)] mb-2">Penanggung Jawab saat ini sedang menangani banyak task aktif. Pertimbangkan reassign ke yang lebih longgar.</p>
                                         @if ($canUpdateWorkflow)
                                             <button type="button" @click="showReassignModal = true"
-                                                    class="inline-flex items-center gap-1 bg-[var(--warning-text)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--warning-dark)] transition-colors">
+                                                    class="inline-flex items-center gap-1 bg-[var(--warning-solid)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--warning-dark)] transition-colors">
                                                 <span class="material-symbols-outlined text-[14px]">sync_alt</span> Ganti Penanggung Jawab
                                             </button>
                                         @endif
@@ -497,7 +497,7 @@
                         <div class="mt-3">
                             <label for="confirm-action-notes" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5" x-text="confirmAction?.notesLabel"></label>
                             <textarea id="confirm-action-notes" x-model="confirmNotes" rows="2" placeholder="Tulis alasan..."
-                                class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                         </div>
                     </template>
                 </div>

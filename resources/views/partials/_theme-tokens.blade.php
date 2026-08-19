@@ -16,6 +16,14 @@
        diset di mana pun sekarang (Tahap C) - blok ini cuma disiapkan
        duluan supaya Tahap C nggak perlu balik ubah file ini lagi. --}}
 :root {
+    /* Beritahu browser tema aktifnya - tanpa ini, UI bawaan browser (native
+       scrollbar, ikon date-picker bawaan, dsb) TETAP dirender versi terang
+       walau semua warna halaman sudah gelap, karena browser nggak bisa
+       nebak dari warna page, cuma dari properti ini. Ikut mekanisme
+       terang/gelap yang sama kayak token warna di bawah - lihat blok
+       @media & [data-theme] di bagian bawah file ini. */
+    color-scheme: light;
+
     /* Teks */
     --text-primary: #14181a;
     --text-secondary: #5c6266;
@@ -27,6 +35,17 @@
     /* Brand (teal 523 Studio) */
     --brand: #044b46;
     --brand-dark: #033b37;
+    /* --brand-solid SENGAJA nggak didefinisikan ulang di palet gelap (lihat
+       _theme-tokens-dark.blade.php) - nilainya harus tetap sama di kedua
+       tema. Dipakai khusus buat permukaan solid (kartu hero, bubble chat,
+       tombol) yang teksnya text-white literal, BUKAN var(--text-*) - kalau
+       --brand ikut terang di dark mode (perlu, biar kebaca sebagai
+       teks/ikon polos di halaman gelap), teks putih di atas permukaan
+       solid itu jadi nyaris nggak kebaca. --brand-dark yang dipakai buat
+       hover state permukaan solid ini juga sama-sama sengaja nggak
+       ditimpa di palet gelap, karena pemakaiannya selalu bareng
+       --brand-solid. Lihat catatan lebih lengkap di memori dark-mode-plan. */
+    --brand-solid: #044b46;
     --brand-tint: #f0f5f4;
     --brand-tint-hover: #e4ede9;
     --brand-tint-soft: #e2ece9;
@@ -44,6 +63,7 @@
 
     /* Danger */
     --danger-text: #b3423e;
+    --danger-solid: #b3423e; {{-- sama alasan --brand-solid, lihat komentar di atas --}}
     --danger-tint: #fdf2f1;
     --danger-tint-hover: #fbe4e2;
     --danger-border: #f5d9d7;
@@ -54,6 +74,7 @@
 
     /* Warning */
     --warning-text: #8a6423;
+    --warning-solid: #8a6423;
     --warning-tint: #fdf6ec;
     --warning-tint-soft: #f7f0e0;
     --warning-tint-soft-2: #f7e8cf;
@@ -63,6 +84,7 @@
 
     /* Info */
     --info-text: #3452a8;
+    --info-solid: #3452a8;
     --info-tint: #eef2fb;
     --info-tint-soft: #e2e8f8;
     --info-tint-alt: #e8f2f7;
@@ -79,6 +101,14 @@
     --surface-muted-2: #f0f2f5;
     --surface-subtle: #fafbfc;
     --surface-subtle-2: #fafcfb;
+
+    /* Overlay gelap (tooltip/toast) - SENGAJA nggak ikut ditimpa di palet
+       gelap (lihat _theme-tokens-dark.blade.php), sama alasannya kayak
+       --brand-solid: dipakai sebagai bg solid dengan teks putih literal
+       (`text-white`) di atasnya - kalau ikut jadi terang di dark mode
+       (seperti --text-primary yang jadi hampir putih), teks putihnya
+       nggak kebaca sama sekali. */
+    --overlay-solid: #14181a;
 }
 
 @media (prefers-color-scheme: dark) {

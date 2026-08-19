@@ -53,7 +53,7 @@
 
                     <div class="flex flex-wrap items-center gap-3">
                         <a href="{{ route('login') }}"
-                           class="inline-flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-dark)] text-white text-sm font-medium px-6 py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-sm">
+                           class="inline-flex items-center gap-2 bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] text-white text-sm font-medium px-6 py-3.5 rounded-xl transition-all active:scale-[0.98] shadow-sm">
                             Login Tim Internal
                             <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                         </a>

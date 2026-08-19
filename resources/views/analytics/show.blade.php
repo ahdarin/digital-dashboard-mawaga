@@ -80,19 +80,19 @@
             @if ($hasVideoMetrics)
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div class="card p-5 bg-[var(--info-tint)] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Rata-rata Watch Time</p>
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Rata-rata Watch Time</p>
                         <p class="text-lg font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $avgWatchTime !== null ? $avgWatchTime.'s' : '-' }}</p>
                     </div>
                     <div class="card p-5 bg-[var(--info-tint)] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Tingkat Penyelesaian</p>
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Tingkat Penyelesaian</p>
                         <p class="text-lg font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $avgCompletionRate !== null ? $avgCompletionRate.'%' : '-' }}</p>
                     </div>
                     <div class="card p-5 bg-[var(--info-tint)] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Shares</p>
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Shares</p>
                         <p class="text-lg font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $totalShares !== null ? number_format($totalShares) : '-' }}</p>
                     </div>
                     <div class="card p-5 bg-[var(--info-tint)] border-0">
-                        <p class="text-xs text-[#3452a8]/70 mb-1.5">Saves</p>
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Saves</p>
                         <p class="text-lg font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $totalSaves !== null ? number_format($totalSaves) : '-' }}</p>
                     </div>
                 </div>

@@ -23,11 +23,11 @@
         </p>
         <div class="flex items-center justify-center gap-3">
             @auth
-                <a href="{{ url('/') }}" class="bg-[var(--brand)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
+                <a href="{{ url('/') }}" class="bg-[var(--brand-solid)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
                     Kembali ke Beranda
                 </a>
             @else
-                <a href="{{ route('login') }}" class="bg-[var(--brand)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
+                <a href="{{ route('login') }}" class="bg-[var(--brand-solid)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
                     Ke Halaman Login
                 </a>
             @endauth

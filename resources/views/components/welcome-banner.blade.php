@@ -74,7 +74,7 @@
     // buru-buru kelewatan sebelum sempat kebaca.
     $marqueeDuration = max(9, min(20, (int) round(mb_strlen($dailyReminder['text']) / 6)));
 @endphp
-<div class="mb-6 rounded-2xl bg-[var(--brand)] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
+<div class="mb-6 rounded-2xl bg-[var(--brand-solid)] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
     <div>
         <p class="text-white/70 text-sm">{{ $greeting }}, {{ auth()->user()->name ?? 'Tim 523' }}</p>
         <h1 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h1>

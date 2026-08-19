@@ -46,7 +46,7 @@
                             class="border-t border-[var(--surface-muted)] transition-colors cursor-pointer {{ $isOverdue ? 'bg-[var(--danger-tint)] hover:bg-[var(--danger-tint-hover)]' : ($isPinned ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)]' : 'hover:bg-[var(--surface-page)]') }}">
                             <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
                                 @if ($item->is_urgent)
-                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-[var(--danger-text)] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
+                                    <div class="absolute left-0 top-0 bottom-0 w-5 bg-[var(--danger-solid)] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
                                         <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
                                     </div>
                                 @endif
@@ -78,7 +78,7 @@
                                             <div class="flex items-center gap-1">
                                                 <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                     x-on:click.stop x-on:mousedown.stop
-                                                    class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                                    class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                                 <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
                                                     class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                                     <span class="material-symbols-outlined text-[15px]">videocam</span>
@@ -139,7 +139,7 @@
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             @if ($item->is_urgent)
-                                <span class="text-[9px] font-bold uppercase tracking-wide text-white bg-[var(--danger-text)] px-1.5 py-0.5 rounded">Tambahan</span>
+                                <span class="text-[9px] font-bold uppercase tracking-wide text-white bg-[var(--danger-solid)] px-1.5 py-0.5 rounded">Tambahan</span>
                             @endif
                             <p class="font-medium text-[var(--text-primary)] truncate">{{ $item->title }}</p>
                         </div>
@@ -201,7 +201,7 @@
                                 <div class="flex items-center gap-1">
                                     <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                         x-on:click.stop x-on:mousedown.stop
-                                        class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                        class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                     <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
                                         class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                         <span class="material-symbols-outlined text-[15px]">videocam</span>

@@ -28,15 +28,36 @@
 
         @include('partials._theme-tokens')
 
-        /* Tema Flatpickr disamakan sama brand - bukan oranye bawaan */
+        /* Tema Flatpickr disamakan sama brand - bukan oranye bawaan.
+           Elemen di bawah dari CSS bawaan library (CDN, bukan punya kita),
+           jadi selain warna aksen, kartu popup-nya sendiri (background,
+           warna teks tanggal biasa, nav bulan, dropdown bulan/tahun) juga
+           HARUS ditimpa manual - kalau nggak dia tetap kartu putih/teks
+           gelap bawaan library, nggak ikut gelap sama sekali di dark mode
+           walau input & elemen lain di halaman udah gelap semua. */
+        .flatpickr-calendar {
+            background: var(--surface-card);
+            box-shadow: 0 1px 2px rgba(20,24,26,0.03), 0 20px 40px -12px rgba(20,24,26,0.15);
+            border-radius: 12px; overflow: hidden;
+        }
+        .flatpickr-day, .monthSelect-month { color: var(--text-primary); }
+        .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: var(--text-idle); }
+        .flatpickr-day.flatpickr-disabled, .flatpickr-day.flatpickr-disabled:hover { color: var(--icon-disabled); }
+        {{-- .selected/.startRange/.endRange teksnya SELALU putih dari CSS
+             bawaan library (nggak bisa ditimpa var teks kita) - makanya bg-nya
+             wajib pakai --brand-solid (konstan di kedua tema), BUKAN --brand
+             (yang sengaja diterangkan buat dark mode) - kalau pakai --brand,
+             teks putih bawaan itu jadi nyaris nggak kebaca. Sama logika
+             dengan --brand-solid di tombol/avatar - lihat memori dark-mode-plan. --}}
         .flatpickr-day.selected, .flatpickr-day.selected:hover,
         .flatpickr-day.startRange, .flatpickr-day.endRange,
         .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover,
         .monthSelect-month.selected, .monthSelect-month.selected:hover {
-            background: var(--brand); border-color: var(--brand);
+            background: var(--brand-solid); border-color: var(--brand-solid);
         }
         .flatpickr-day.inRange, .monthSelect-month.inRange {
             background: var(--brand-tint); border-color: var(--brand-tint); box-shadow: -5px 0 0 var(--brand-tint), 5px 0 0 var(--brand-tint);
+            color: var(--text-primary);
         }
         .flatpickr-day:hover, .monthSelect-month:hover { background: var(--border); }
         .flatpickr-day.today { border-color: var(--brand); }
@@ -44,8 +65,16 @@
         .flatpickr-months .flatpickr-month, .flatpickr-current-month .flatpickr-monthDropdown-months,
         .flatpickr-weekdays, span.flatpickr-weekday { background: var(--surface-card); color: var(--text-primary); }
         .flatpickr-current-month input.cur-year { color: var(--text-primary); }
-        .flatpickr-calendar { box-shadow: 0 1px 2px rgba(20,24,26,0.03), 0 20px 40px -12px rgba(20,24,26,0.15); border-radius: 12px; overflow: hidden; }
+        .flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+            background: var(--surface-card); color: var(--text-primary);
+        }
+        .flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { color: var(--text-muted); fill: var(--text-muted); }
+        .flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover { color: var(--brand); fill: var(--brand); }
         .flatpickr-months { border-radius: 12px 12px 0 0; }
+        span.flatpickr-weekday { color: var(--text-muted); }
+        .numInputWrapper:hover { background: var(--surface-page); }
+        .numInputWrapper span.arrowUp:after { border-bottom-color: var(--text-muted); }
+        .numInputWrapper span.arrowDown:after { border-top-color: var(--text-muted); }
 
         body {
             font-family: 'Inter', sans-serif;

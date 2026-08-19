@@ -87,7 +87,7 @@
                                 @if ($m['user']->avatar_url)
                                     <img src="{{ $m['user']->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover">
                                 @else
-                                    <div class="w-9 h-9 rounded-full bg-[var(--brand)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
+                                    <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
                                         {{ strtoupper(substr($m['user']->name, 0, 1)) }}
                                     </div>
                                 @endif
@@ -137,7 +137,7 @@
                         @if ($m['user']->avatar_url)
                             <img src="{{ $m['user']->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover shrink-0">
                         @else
-                            <div class="w-9 h-9 rounded-full bg-[var(--brand)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
+                            <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
                                 {{ strtoupper(substr($m['user']->name, 0, 1)) }}
                             </div>
                         @endif

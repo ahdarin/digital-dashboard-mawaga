@@ -43,7 +43,7 @@
                 @if ($user->avatar_url)
                     <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-12 h-12 rounded-full object-cover">
                 @else
-                    <div class="w-12 h-12 rounded-full bg-[var(--brand)] text-white text-base font-semibold flex items-center justify-center">
+                    <div class="w-12 h-12 rounded-full bg-[var(--brand-solid)] text-white text-base font-semibold flex items-center justify-center">
                         {{ strtoupper(substr($user->name, 0, 1)) }}
                     </div>
                 @endif

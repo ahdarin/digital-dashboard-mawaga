@@ -39,7 +39,7 @@
                 {{-- Step 1 --}}
                 <div class="card p-6">
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="w-7 h-7 rounded-lg bg-[var(--brand)] text-white flex items-center justify-center text-xs font-semibold shrink-0">1</div>
+                        <div class="w-7 h-7 rounded-lg bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0">1</div>
                         <div>
                             <p class="text-sm font-semibold text-[var(--text-primary)]">Company Information</p>
                             <p class="text-xs text-[var(--text-muted)]">Data dasar client dan kategorinya</p>
@@ -73,14 +73,14 @@
                         <div>
                             <label for="name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Perusahaan <span class="text-[var(--danger-text)]">*</span></label>
                             <input id="name" type="text" name="name" value="{{ old('name') }}" required placeholder="PT Contoh Sejahtera"
-                                   class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('name') border-[var(--danger-border-strong)] @enderror">
+                                   class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('name') border-[var(--danger-border-strong)] @enderror">
                             @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
                             <label for="brand_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Brand <span class="text-[var(--danger-text)]">*</span></label>
                             <input id="brand_name" type="text" name="brand_name" x-model="brandName" required placeholder="Contoh Coffee"
-                                   class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('brand_name') border-[var(--danger-border-strong)] @enderror">
+                                   class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('brand_name') border-[var(--danger-border-strong)] @enderror">
                             <p class="text-xs text-[var(--text-muted)] mt-1.5">Nama ini yang akan tampil di seluruh dashboard &amp; laporan.</p>
                             @error('brand_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
@@ -109,7 +109,7 @@
                         <div>
                             <label for="asset_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Aset (Google Drive)</label>
                             <input id="asset_link" type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
-                                   class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">
+                                   class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">
                             <p class="text-xs text-[var(--text-muted)] mt-1.5">Opsional. Link folder aset konten/desain client, tampil di tiap content item-nya.</p>
                             @error('asset_link') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
@@ -119,7 +119,7 @@
                 {{-- Step 2 --}}
                 <div class="card p-6">
                     <div class="flex items-center gap-3 mb-1">
-                        <div class="w-7 h-7 rounded-lg bg-[var(--brand)] text-white flex items-center justify-center text-xs font-semibold shrink-0">2</div>
+                        <div class="w-7 h-7 rounded-lg bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0">2</div>
                         <div>
                             <p class="text-sm font-semibold text-[var(--text-primary)]">Owner Account (Client Owner)</p>
                             <p class="text-xs text-[var(--text-muted)]">Akun ini yang login ke dashboard client</p>
@@ -135,7 +135,7 @@
                         <div>
                             <label for="owner_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Owner <span class="text-[var(--danger-text)]">*</span></label>
                             <input id="owner_name" type="text" name="owner_name" x-model="ownerName" required placeholder="Nama lengkap penanggung jawab"
-                                   class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_name') border-[var(--danger-border-strong)] @enderror">
+                                   class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_name') border-[var(--danger-border-strong)] @enderror">
                             @error('owner_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
 
@@ -143,14 +143,14 @@
                             <div>
                                 <label for="owner_email" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Email Owner <span class="text-[var(--danger-text)]">*</span></label>
                                 <input id="owner_email" type="email" name="owner_email" value="{{ old('owner_email') }}" required placeholder="owner@brand.com"
-                                       class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_email') border-[var(--danger-border-strong)] @enderror">
+                                       class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_email') border-[var(--danger-border-strong)] @enderror">
                                 @error('owner_email') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                             </div>
 
                             <div>
                                 <label for="owner_phone" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nomor WhatsApp <span class="text-[var(--danger-text)]">*</span></label>
                                 <input id="owner_phone" type="tel" name="owner_phone" value="{{ old('owner_phone') }}" required placeholder="08xxxxxxxxxx"
-                                       class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_phone') border-[var(--danger-border-strong)] @enderror">
+                                       class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_phone') border-[var(--danger-border-strong)] @enderror">
                                 @error('owner_phone') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                             </div>
                         </div>
@@ -197,7 +197,7 @@
                         <span class="material-symbols-outlined text-[var(--brand)] text-[17px]">task_alt</span>
                         <p class="text-sm font-semibold text-[var(--brand)]">Yang terjadi setelah submit</p>
                     </div>
-                    <ul class="space-y-2 text-xs text-[#044b46]/80">
+                    <ul class="space-y-2 text-xs text-[var(--text-secondary)]">
                         <li class="flex gap-2"><span class="shrink-0">1.</span> Profil client dibuat dengan status <strong>Active</strong></li>
                         <li class="flex gap-2"><span class="shrink-0">2.</span> Akun Owner dibuat berstatus <strong>Invited</strong></li>
                         <li class="flex gap-2"><span class="shrink-0">3.</span> Owner bisa login pakai nomor WhatsApp yang didaftarkan</li>

@@ -26,7 +26,7 @@
         <div class="flex-1 relative">
             <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-3.5 text-[var(--text-muted)] text-[19px]">search</span>
             <input type="text" name="search" value="{{ $search }}" placeholder="Cari klien, email, atau paket..."
-                   class="w-full pl-10 pr-4 py-2.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:border-[#044b46]/40">
+                   class="bg-[var(--surface-card)] w-full pl-10 pr-4 py-2.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:border-[#044b46]/40">
         </div>
 
         <select name="status" onchange="this.form.submit()"
@@ -58,7 +58,7 @@
                         onclick="window.location='{{ route('client-management.show', $client) }}'">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand)] text-white' }}">
+                                <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand-solid)] text-white' }}">
                                     @if ($client->logo_url)
                                         <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                                     @else
@@ -118,7 +118,7 @@
             <div class="card p-3.5" x-data="{ open: false }">
                 <button type="button" class="w-full text-left flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand)] text-white' }}">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand-solid)] text-white' }}">
                             @if ($client->logo_url)
                                 <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                             @else

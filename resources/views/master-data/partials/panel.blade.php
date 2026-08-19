@@ -23,7 +23,7 @@
             <div class="relative max-w-sm">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[19px]">search</span>
                 <input type="text" name="search" value="{{ $mdSearch }}" placeholder="Cari data master..."
-                       class="w-full pl-10 pr-4 py-2.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:border-[#044b46]/40">
+                       class="bg-[var(--surface-card)] w-full pl-10 pr-4 py-2.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:border-[#044b46]/40">
             </div>
         </form>
 
@@ -36,7 +36,7 @@
         <form action="{{ route('master-data.store', $mdTab) }}" method="POST" class="flex flex-col sm:flex-row sm:items-center gap-3">
             @csrf
             <input type="text" name="name" required placeholder="Nama {{ $mdTabs[$mdTab] }} baru..."
-                   class="flex-1 border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                   class="bg-[var(--surface-card)] flex-1 border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
             <button type="submit" class="btn-primary">Simpan</button>
         </form>
     </div>

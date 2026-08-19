@@ -26,7 +26,7 @@
             </button>
         @else
             <button type="button" @click="urgentOpen = true"
-                    class="flex items-center gap-2 bg-[var(--danger-text)] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors whitespace-nowrap">
+                    class="flex items-center gap-2 bg-[var(--danger-solid)] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors whitespace-nowrap">
                 <span class="material-symbols-outlined text-[17px]">bolt</span> Jobdesk Tambahan
             </button>
         @endif
@@ -127,7 +127,7 @@
                     </div>
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
-                        <button type="submit" class="bg-[var(--danger-text)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors">
+                        <button type="submit" class="bg-[var(--danger-solid)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors">
                             Tambahkan ke Production Workflow
                         </button>
                         <button type="button" @click="urgentOpen = false" class="btn-secondary">

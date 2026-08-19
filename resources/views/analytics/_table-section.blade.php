@@ -14,7 +14,7 @@
         <div class="relative flex-1 min-w-[200px]">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px]">search</span>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari judul konten..."
-                   class="w-full pl-9 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+                   class="bg-[var(--surface-card)] w-full pl-9 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
         </div>
 
         <select name="platform_id" onchange="this.form.submit()"

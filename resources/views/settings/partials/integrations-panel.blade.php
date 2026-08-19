@@ -41,14 +41,17 @@
         <form method="GET" class="flex items-center gap-2.5 flex-wrap">
             <input type="hidden" name="tab" value="integrasi">
             <select name="status" onchange="this.form.submit()"
-                    class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                    class="text-sm border border-[var(--border)] rounded-lg px-3 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px]">
                 <option value="">All Statuses</option>
                 <option value="success" {{ request('status') === 'success' ? 'selected' : '' }}>Success</option>
                 <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
             </select>
-            <input type="text" name="date" value="{{ request('date') }}" data-flatpickr="date" data-autosubmit="true" autocomplete="off"
-                   class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 focus:outline-none focus:border-[#044b46]/40">
+            <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
+                <input type="text" name="date" value="{{ request('date') }}" data-flatpickr="date" data-autosubmit="true" autocomplete="off"
+                       class="border border-[var(--border)] rounded-lg pl-9 pr-3 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
+            </div>
             @if (request('status') || request('date'))
                 <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reset</a>
             @endif

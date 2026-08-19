@@ -210,7 +210,7 @@
                                     class="text-xs font-medium px-4 py-2 rounded-md transition-colors duration-200 flex items-center gap-1.5">
                                 Diskusi
                                 <span x-show="messages.filter(m => m.role !== 'system').length > 0" x-cloak
-                                      class="w-4 h-4 rounded-full bg-[var(--brand)] text-white text-[9px] font-bold flex items-center justify-center"
+                                      class="w-4 h-4 rounded-full bg-[var(--brand-solid)] text-white text-[9px] font-bold flex items-center justify-center"
                                       x-text="messages.filter(m => m.role !== 'system').length"></span>
                             </button>
                         </div>
@@ -371,7 +371,7 @@
                                         <p x-show="msg.role === 'system'" x-cloak class="text-center text-[11px] text-[var(--text-muted)] italic" x-text="msg.message"></p>
                                         <div x-show="msg.role !== 'system'" x-cloak class="flex" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
                                             <div class="max-w-[85%] rounded-xl px-3.5 py-2.5"
-                                                 :class="msg.role === 'user' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-page)] text-[var(--text-primary)]'">
+                                                 :class="msg.role === 'user' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-page)] text-[var(--text-primary)]'">
                                                 <p class="text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.message"></p>
                                                 <p class="text-[10px] mt-1" :class="msg.role === 'user' ? 'text-white/60' : 'text-[var(--text-muted)]'" x-text="msg.time"></p>
                                             </div>
@@ -400,9 +400,9 @@
                             <form x-on:submit.prevent="send()" class="flex items-center gap-2 mb-3">
                                 <input type="text" x-model="draft" placeholder="Tulis masukan atau pertanyaan..."
                                        :disabled="sending"
-                                       class="flex-1 border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60 transition-shadow">
+                                       class="bg-[var(--surface-card)] flex-1 border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60 transition-shadow">
                                 <button type="submit" :disabled="sending || !draft.trim()"
-                                        class="w-10 h-10 shrink-0 rounded-lg bg-[var(--brand)] text-white flex items-center justify-center hover:bg-[var(--brand-dark)] active:scale-[0.95] disabled:opacity-40 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+                                        class="w-10 h-10 shrink-0 rounded-lg bg-[var(--brand-solid)] text-white flex items-center justify-center hover:bg-[var(--brand-dark)] active:scale-[0.95] disabled:opacity-40 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
                                     <span class="material-symbols-outlined text-[18px]">send</span>
                                 </button>
                             </form>

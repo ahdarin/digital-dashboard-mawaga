@@ -8,19 +8,23 @@
      dibikin gelap & desaturasi, bukan cuma dibalik, karena harus tetap
      jadi latar buat teks semantik terang di atasnya.
 
-     --brand/--danger-text/--warning-text/--info-text/--success-text
-     SENGAJA cuma dinaikkan SEDANG (bukan terang-terang amat) - kelimanya
-     dipakai dobel: (a) sebagai teks/ikon langsung di atas permukaan gelap
-     (butuh terang biar kebaca), TAPI JUGA (b) sebagai bg tombol/badge
-     dengan teks putih literal di atasnya (`text-white`, bukan token, jadi
-     nggak ikut ganti warna - lihat tombol Google login/tombol
-     Approve/badge notifikasi). Kalau dibikin terlalu terang (mis. mint
-     cerah #3ecfb8), kasus (a) bagus tapi (b) putih-di-atas-mint jadi nyaris
-     nggak kebaca. Nilai di bawah dipilih di titik tengah: kontras teks vs
-     latar gelap tetap lolos ~4.5-6:1, KONTRAS putih-di-atasnya tetap masuk
-     akal ~3-4:1 (nggak sempurna AA buat teks kecil, tapi jelas kebaca -
-     lihat catatan di dark-mode-plan soal app ini bukan produk publik yang
-     diaudit aksesibilitas ketat). --}}
+     --brand/--danger-text/--warning-text/--info-text dipakai dobel: (a)
+     sebagai teks/ikon langsung di atas permukaan gelap (butuh terang biar
+     kebaca - makanya dinaikkan di sini), TAPI JUGA (b) dulu sempat dipakai
+     sebagai bg tombol/badge/kartu-hero dengan teks putih literal di
+     atasnya (`text-white`, bukan token). Kasus (b) SEKARANG pakai token
+     terpisah (--brand-solid, --danger-solid, --warning-solid, --info-solid
+     - didefinisikan di _theme-tokens.blade.php, SENGAJA nggak ditimpa di
+     sini, jadi nilainya tetap sama persis kayak versi terang di kedua
+     tema) - itu sebabnya --brand-dark/--danger-dark/--warning-dark/
+     --info-dark (hover state buat permukaan solid itu) juga sengaja nggak
+     ditimpa di sini. Lihat komentar lengkap di _theme-tokens.blade.php dan
+     catatan di memori dark-mode-plan (bug: teks putih di atas kartu
+     followers Instagram & banner sapaan Beranda nyaris nggak kebaca,
+     karena sebelum ada token -solid ini, permukaannya ikut kartu warna
+     yang terang di dark mode). --}}
+
+color-scheme: dark;
 
 /* Teks */
 --text-primary: #eef1f0;
@@ -32,7 +36,6 @@
 
 /* Brand (teal 523 Studio) */
 --brand: #17a394;
---brand-dark: #128074;
 --brand-tint: #17332f;
 --brand-tint-hover: #1f3d38;
 --brand-tint-soft: #18342f;
@@ -54,7 +57,6 @@
 --danger-border: #5c2e2a;
 --danger-border-strong: #7a3c36;
 --danger-border-soft: #4a2622;
---danger-dark: #7a352e;
 --field-error-border: #6b332e;
 
 /* Warning */
@@ -64,7 +66,6 @@
 --warning-tint-soft-2: #33271a;
 --warning-border: #5c4826;
 --warning-strong: #d1a04a;
---warning-dark: #7a5f30;
 
 /* Info */
 --info-text: #5a82d6;
@@ -72,7 +73,6 @@
 --info-tint-soft: #202c40;
 --info-tint-alt: #1e2c34;
 --info-border: #33456b;
---info-dark: #3a5aa8;
 --info-strong: #35a8c2;
 
 /* Netral / permukaan */

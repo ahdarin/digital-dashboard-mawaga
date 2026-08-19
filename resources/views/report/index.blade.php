@@ -32,7 +32,7 @@
                 @csrf
                 <div>
                     <label for="report_client_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Klien</label>
-                    <select id="report_client_id" name="client_id" class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                    <select id="report_client_id" name="client_id" class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
                         <option value="">Semua Klien</option>
                         @foreach ($clientOptions as $client)
                             <option value="{{ $client->id }}">{{ $client->name }}</option>
@@ -53,7 +53,7 @@
 
                 <div class="flex gap-3 pt-1">
                     <button type="submit" name="format" value="pdf"
-                            class="flex-1 bg-[var(--info-text)] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-dark)] transition-colors flex items-center justify-center gap-1.5">
+                            class="flex-1 bg-[var(--info-solid)] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-dark)] transition-colors flex items-center justify-center gap-1.5">
                         <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span> Export PDF
                     </button>
                     <button type="submit" name="format" value="excel"
@@ -78,7 +78,7 @@
                 @csrf
                 <div>
                     <label for="performance_client_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Klien <span class="text-[var(--danger-text)]">*</span></label>
-                    <select id="performance_client_id" name="client_id" required class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
+                    <select id="performance_client_id" name="client_id" required class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
                         <option value="">Pilih klien...</option>
                         @foreach ($clientOptions as $client)
                             <option value="{{ $client->id }}">{{ $client->name }}</option>

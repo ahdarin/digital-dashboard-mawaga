@@ -17,7 +17,7 @@
             <template x-for="(msg, i) in messages" :key="i">
                 <div :class="msg.role === 'user' ? 'flex justify-end' : ''">
                     <div :class="msg.role === 'user'
-                            ? 'bg-[var(--brand)] text-white rounded-lg px-3 py-2 text-sm max-w-[90%]'
+                            ? 'bg-[var(--brand-solid)] text-white rounded-lg px-3 py-2 text-sm max-w-[90%]'
                             : 'bg-[var(--surface-muted)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm max-w-[95%]'">
                         <p x-text="msg.content"></p>
 
@@ -61,9 +61,9 @@
             <div class="flex items-center gap-2">
                 <input type="text" x-model="inputMessage" x-on:keydown.enter="send"
                        placeholder="Tulis masukan atau pertanyaan..."
-                       class="flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                       class="bg-[var(--surface-card)] flex-1 border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
                 <button type="button" x-on:click="send" :disabled="loading"
-                        class="bg-[var(--brand)] text-white w-9 h-9 rounded-lg flex items-center justify-center hover:bg-[var(--brand-dark)] disabled:opacity-50 shrink-0">
+                        class="bg-[var(--brand-solid)] text-white w-9 h-9 rounded-lg flex items-center justify-center hover:bg-[var(--brand-dark)] disabled:opacity-50 shrink-0">
                     <span class="material-symbols-outlined text-[17px]">send</span>
                 </button>
             </div>
