@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['role_id', 'client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status'])]
+#[Fillable(['role_id', 'client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
@@ -22,7 +22,18 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'preferences' => 'array',
         ];
+    }
+
+    /**
+     * 'light' | 'dark' | 'system' - lihat partials/_theme-init-script &
+     * PreferencesController::updateTheme(). Default 'system' kalau belum
+     * pernah diset (preferences null atau key theme belum ada).
+     */
+    public function themePreference(): string
+    {
+        return $this->preferences['theme'] ?? 'system';
     }
 
     public function role(): BelongsTo

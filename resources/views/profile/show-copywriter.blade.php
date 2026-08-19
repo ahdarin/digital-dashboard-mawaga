@@ -17,25 +17,25 @@
 
     {{-- Header --}}
     <div class="flex items-center gap-4 mb-8 flex-wrap">
-        <a href="{{ $backUrl }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white text-[#767c80] hover:text-[#14181a] transition-colors">
+        <a href="{{ $backUrl }}" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         @if ($user->avatar_url)
             <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-16 h-16 rounded-full object-cover">
         @else
-            <div class="w-16 h-16 rounded-full bg-[#044b46] text-white text-xl font-semibold flex items-center justify-center">
+            <div class="w-16 h-16 rounded-full bg-[var(--brand)] text-white text-xl font-semibold flex items-center justify-center">
                 {{ strtoupper(substr($user->name, 0, 1)) }}
             </div>
         @endif
         <div>
             <div class="flex items-center gap-2">
-                <h1 class="font-display text-2xl font-semibold text-[#14181a]">{{ $user->name }}</h1>
+                <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $user->name }}</h1>
                 @if ($isOwnProfile)
                     <span class="badge badge-success">Anda</span>
                 @endif
             </div>
-            <p class="text-sm text-[#5c6266]">{{ $user->role->name ?? '-' }}</p>
-            <p class="text-xs text-[#767c80] mt-1">Bergabung sejak {{ $user->created_at->format('d M Y') }}</p>
+            <p class="text-sm text-[var(--text-secondary)]">{{ $user->role->name ?? '-' }}</p>
+            <p class="text-xs text-[var(--text-muted)] mt-1">Bergabung sejak {{ $user->created_at->format('d M Y') }}</p>
         </div>
     </div>
 

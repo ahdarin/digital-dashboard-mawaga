@@ -74,6 +74,31 @@
         isDesktop: window.matchMedia('(min-width: 1024px)').matches,
         get effectiveCollapsed() { return this.collapsed && this.isDesktop },
         tooltip: { show: false, text: '', top: 0, left: 0 },
+        theme: localStorage.getItem('theme') || 'system',
+        themeLabels: { light: 'Tema: Terang', dark: 'Tema: Gelap', system: 'Tema: Ikut Sistem' },
+        themeIcons: { light: 'light_mode', dark: 'dark_mode', system: 'brightness_auto' },
+        setTheme(value) {
+            this.theme = value;
+            if (value === 'system') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', value);
+            }
+            localStorage.setItem('theme', value);
+            fetch('{{ route('preferences.theme') }}', {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ theme: value }),
+            }).catch(() => {});
+        },
+        cycleTheme() {
+            const order = ['light', 'dark', 'system'];
+            this.setTheme(order[(order.indexOf(this.theme) + 1) % order.length]);
+        },
     }"
     x-init="
         window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => { isDesktop = e.matches });
@@ -84,12 +109,12 @@
         });
     "
     :class="[effectiveCollapsed && 'lg:w-[76px]', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0']"
-    class="fixed inset-y-0 left-0 z-40 lg:sticky lg:top-0 lg:z-auto shrink-0 w-60 bg-white flex flex-col h-screen border-r border-[#eef0f4] transition-[width,transform] duration-200 ease-out"
+    class="fixed inset-y-0 left-0 z-40 lg:sticky lg:top-0 lg:z-auto shrink-0 w-60 bg-[var(--surface-card)] flex flex-col h-screen border-r border-[var(--border)] transition-[width,transform] duration-200 ease-out"
     style="overflow: visible;">
 
     <button type="button" @click="collapsed = true" title="Collapse sidebar" x-show="!effectiveCollapsed" x-cloak
         x-transition.opacity
-        class="hidden lg:flex absolute top-8 right-2 w-6 h-6 rounded-full bg-[#f2f3f6] border border-[#dadfe0] shadow-sm items-center justify-center text-[#5c6266] hover:bg-[#f0f5f4] hover:text-[#044b46] hover:border-[#044b46] transition-colors duration-100"
+        class="hidden lg:flex absolute top-8 right-2 w-6 h-6 rounded-full bg-[var(--surface-muted)] border border-[var(--border-strong)] shadow-sm items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand)] hover:border-[var(--brand)] transition-colors duration-100"
         style="z-index: 30;">
         <span class="material-symbols-outlined text-[15px]">
             chevron_left
@@ -97,7 +122,7 @@
     </button>
 
     <button type="button" @click="sidebarOpen = false" title="Close menu"
-        class="lg:hidden absolute top-6 right-3 w-8 h-8 rounded-full bg-[#f2f3f6] flex items-center justify-center text-[#5c6266]"
+        class="lg:hidden absolute top-6 right-3 w-8 h-8 rounded-full bg-[var(--surface-muted)] flex items-center justify-center text-[var(--text-secondary)]"
         style="z-index: 30;">
         <span class="material-symbols-outlined text-[18px]">close</span>
     </button>
@@ -112,7 +137,7 @@
     <nav class="flex-1 px-3 space-y-4 overflow-y-auto overflow-x-hidden thin-autohide-scrollbar">
         @foreach ($menuGroups as $group)
             <div>
-                <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[#767c80] whitespace-nowrap"
+                <p class="px-3 mb-1 text-[10.5px] font-semibold tracking-wide uppercase text-[var(--text-muted)] whitespace-nowrap"
                     x-show="!effectiveCollapsed" x-cloak x-transition.opacity>
                     {{ $group['label'] }}
                 </p>
@@ -127,10 +152,10 @@
                             @mouseenter="{{ $tooltipEnter }}"
                             @mouseleave="tooltip.show = false"
                             class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-100
-                                       {{ $isActive ? 'bg-[#f0f5f4] text-[#044b46]' : 'text-[#5c6266] hover:bg-[#f7f8fc] hover:text-[#14181a]' }}"
+                                       {{ $isActive ? 'bg-[var(--brand-tint)] text-[var(--brand)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)]' }}"
                             :class="effectiveCollapsed && 'justify-center px-0'">
                             <span
-                                class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[#044b46]' : 'text-[#767c80]' }}">{{ $item['icon'] }}</span>
+                                class="material-symbols-outlined text-[19px] shrink-0 {{ $isActive ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]' }}">{{ $item['icon'] }}</span>
                             <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak
                                 x-transition.opacity>{{ $item['label'] }}</span>
                         </a>
@@ -143,14 +168,44 @@
         @endforeach
     </nav>
 
-    <div class="px-3 pt-6 pb-3 border-t border-[#eef0f4]">
+    <div class="px-3 pt-4 border-t border-[var(--border)]">
+        {{-- Pemilih tema (Tahap C) - segmented control pas sidebar kebuka,
+             satu tombol yang gilir 3 pilihan pas sidebar dilipat (76px
+             kesempitan buat 3 tombol berdampingan). --}}
+        <div class="flex items-center h-9 bg-[var(--surface-muted)] rounded-lg p-1" x-show="!effectiveCollapsed" x-cloak x-transition.opacity>
+            <button type="button" @click="setTheme('light')" aria-label="Tema Terang" :aria-pressed="theme === 'light'"
+                class="flex-1 flex items-center justify-center h-full rounded-md transition-colors"
+                :class="theme === 'light' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'">
+                <span class="material-symbols-outlined text-[16px]">light_mode</span>
+            </button>
+            <button type="button" @click="setTheme('dark')" aria-label="Tema Gelap" :aria-pressed="theme === 'dark'"
+                class="flex-1 flex items-center justify-center h-full rounded-md transition-colors"
+                :class="theme === 'dark' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'">
+                <span class="material-symbols-outlined text-[16px]">dark_mode</span>
+            </button>
+            <button type="button" @click="setTheme('system')" aria-label="Ikut Sistem" :aria-pressed="theme === 'system'"
+                class="flex-1 flex items-center justify-center h-full rounded-md transition-colors"
+                :class="theme === 'system' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'">
+                <span class="material-symbols-outlined text-[16px]">brightness_auto</span>
+            </button>
+        </div>
+
+        <button type="button" @click="cycleTheme()" aria-label="Ganti tema" x-show="effectiveCollapsed" x-cloak
+            @mouseenter="tooltip = { show: true, text: themeLabels[theme], top: $event.currentTarget.getBoundingClientRect().top + $event.currentTarget.getBoundingClientRect().height / 2, left: $event.currentTarget.getBoundingClientRect().right + 12 }"
+            @mouseleave="tooltip.show = false"
+            class="w-full flex items-center justify-center py-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)] transition-colors duration-100">
+            <span class="material-symbols-outlined text-[19px]" x-text="themeIcons[theme]"></span>
+        </button>
+    </div>
+
+    <div class="px-3 pt-3 pb-3">
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit" aria-label="Logout"
                 x-data="{ label: 'Logout' }"
                 @mouseenter="{{ $tooltipEnter }}"
                 @mouseleave="tooltip.show = false"
-                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium text-[#b3423e] hover:bg-[#fdf2f1] transition-colors duration-100"
+                class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium text-[var(--danger-text)] hover:bg-[var(--danger-tint)] transition-colors duration-100"
                 :class="effectiveCollapsed && 'justify-center px-0'">
                 <span class="material-symbols-outlined text-[19px] shrink-0">logout</span>
                 <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak x-transition.opacity>Logout</span>
@@ -162,9 +217,9 @@
         <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
             class="pointer-events-none fixed z-[100] whitespace-nowrap"
             :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translateY(-50%);`">
-            <div class="relative bg-[#044b46] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+            <div class="relative bg-[var(--brand)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
                 <span x-text="tooltip.text"></span>
-                <span class="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[6px] border-r-[#044b46]"></span>
+                <span class="absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 w-0 h-0 border-y-[5px] border-y-transparent border-r-[6px] border-r-[var(--brand)]"></span>
             </div>
         </div>
     </template>

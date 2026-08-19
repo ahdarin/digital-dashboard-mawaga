@@ -4,12 +4,12 @@
 
 <div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
-        <h3 class="text-sm font-semibold text-[#14181a]">Status Management</h3>
+        <h3 class="text-sm font-semibold text-[var(--text-primary)]">Status Management</h3>
     </div>
-    <p class="text-xs text-[#767c80] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
+    <p class="text-xs text-[var(--text-muted)] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
 
     @unless ($canUpdateWorkflow)
-        <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3.5">
+        <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3.5">
             <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
             <span>Kamu cuma bisa melihat, tidak punya izin memindahkan status konten.</span>
         </div>
@@ -47,18 +47,18 @@
     @elseif ($workflow->current_status === 'waiting_review')
         @php $approveDisabled = ! $canApprove || $hasUnresolvedRevisions; @endphp
         @if ($workflow->client_reviewed_at)
-            <div class="flex items-start gap-2 bg-[#f0f5f4] text-[#0f7a5f] text-xs p-3 rounded-lg mb-3">
+            <div class="flex items-start gap-2 bg-[var(--success-tint)] text-[var(--success-text)] text-xs p-3 rounded-lg mb-3">
                 <span class="material-symbols-outlined text-[16px] shrink-0">check_circle</span>
                 <span>Klien sudah menyetujui konten ini ({{ $workflow->client_reviewed_at->format('d M Y, H:i') }}). Cek sekali lagi sebelum approve final.</span>
             </div>
         @else
-            <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3">
+            <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3">
                 <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>
                 <span>Klien belum merespons konten ini. Approve tetap bisa dilakukan, tapi belum ada persetujuan dari klien.</span>
             </div>
         @endif
         @if ($hasUnresolvedRevisions)
-            <div class="flex items-start gap-2 bg-[#fdf6ec] text-[#8a6423] text-xs p-3 rounded-lg mb-3">
+            <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3">
                 <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>
                 <span>Masih ada revisi yang belum diselesaikan - selesaikan dulu di bagian Revision Log sebelum bisa approve.</span>
             </div>
@@ -77,15 +77,15 @@
             <span class="material-symbols-outlined text-[16px]">task_alt</span> APPROVE KONTEN
         </button>
     @elseif ($workflow->current_status === 'revision')
-        <div class="flex items-start gap-2 bg-[#f7f8fc] text-[#5c6266] text-xs p-3 rounded-lg">
+        <div class="flex items-start gap-2 bg-[var(--surface-page)] text-[var(--text-secondary)] text-xs p-3 rounded-lg">
             <span class="material-symbols-outlined text-[16px] shrink-0">rate_review</span>
             <span>Konten lagi dalam siklus revisi. Kelola & mulai kerjakan revisinya di bagian <strong>Revision Log</strong> di bawah.</span>
         </div>
     @elseif ($workflow->current_status === 'approved')
         <div class="mb-3">
-            <label for="scheduled_upload_at" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
+            <label for="scheduled_upload_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
             <input id="scheduled_upload_at" type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
-                class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[#f7f8fc] disabled:text-[#767c80]">
+                class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[var(--surface-page)] disabled:text-[var(--text-muted)]">
         </div>
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }} || !scheduledUploadAt"
             @click="confirmAction = {
@@ -101,7 +101,7 @@
             <span class="material-symbols-outlined text-[16px]">event_available</span> JADWALKAN UPLOAD
         </button>
     @elseif ($workflow->current_status === 'scheduled')
-        <div class="flex items-start gap-2 bg-[#f7f8fc] text-[#5c6266] text-xs p-3 rounded-lg">
+        <div class="flex items-start gap-2 bg-[var(--surface-page)] text-[var(--text-secondary)] text-xs p-3 rounded-lg">
             <span class="material-symbols-outlined text-[16px] shrink-0">cloud_upload</span>
             <span>Tandai upload dengan mengisi data publikasi di bagian <strong>Record Publication</strong> di bawah.</span>
         </div>
@@ -110,13 +110,13 @@
     {{-- Koreksi Status - khusus Manager & CEO, buat kasus status terlanjur
          salah dipindahkan. Dicatat terpisah dari revisi biasa. --}}
     @if (in_array(auth()->user()->role?->name, ['Manager', 'CEO']) && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
-        <div class="mt-5 pt-4 border-t border-[#f2f3f6]" x-data="{ showCorrection: false, correctTo: '', correctReason: '' }">
-            <button type="button" @click="showCorrection = !showCorrection" class="text-xs font-medium text-[#5c6266] hover:text-[#14181a] flex items-center gap-1.5">
+        <div class="mt-5 pt-4 border-t border-[var(--surface-muted)]" x-data="{ showCorrection: false, correctTo: '', correctReason: '' }">
+            <button type="button" @click="showCorrection = !showCorrection" class="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[15px]">build</span> Koreksi Status (kesalahan input)
             </button>
             <div x-show="showCorrection" x-cloak x-transition class="mt-3 space-y-2.5">
-                <p class="text-[11px] text-[#767c80]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja Penanggung Jawab.</p>
-                <select x-model="correctTo" class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:border-[#044b46]/40">
+                <p class="text-[11px] text-[var(--text-muted)]">Buat status yang terlanjur salah dipindahkan. Dicatat terpisah dari revisi tim, tidak memengaruhi penilaian kinerja Penanggung Jawab.</p>
+                <select x-model="correctTo" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                     <option value="">Pilih status yang benar...</option>
                     @foreach (\App\Support\WorkflowTransitions::labels() as $value => $label)
                         @if ($value !== $workflow->current_status)
@@ -125,7 +125,7 @@
                     @endforeach
                 </select>
                 <textarea x-model="correctReason" rows="2" placeholder="Alasan koreksi (wajib)..."
-                    class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                 <button type="button" :disabled="! correctTo || ! correctReason"
                     @click="confirmAction = {
                         title: 'Koreksi Status',
@@ -145,8 +145,8 @@
 
     {{-- Danger Zone --}}
     @if (! in_array($workflow->current_status, ['uploaded', 'cancelled']))
-        <div class="mt-5 pt-4 border-t border-[#f2f3f6]">
-            <p class="text-[10px] font-semibold text-[#b3423e] uppercase tracking-wide mb-2.5">Danger Zone</p>
+        <div class="mt-5 pt-4 border-t border-[var(--surface-muted)]">
+            <p class="text-[10px] font-semibold text-[var(--danger-text)] uppercase tracking-wide mb-2.5">Danger Zone</p>
             <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
                 @click="confirmNotes = ''; confirmAction = {
                     title: 'Batalkan Konten',

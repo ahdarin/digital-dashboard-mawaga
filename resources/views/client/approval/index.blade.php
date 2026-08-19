@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    @include('partials._theme-init-script')
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>523 Studio | Approval Queue</title>
 
@@ -14,69 +15,70 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f7f8fc; color: #14181a; }
+        @include('partials._theme-tokens')
+        body { font-family: 'Inter', sans-serif; background-color: var(--surface-page); color: var(--text-primary); }
         .font-display { font-family: 'Fraunces', serif; }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <header class="bg-white border-b border-[#eef0f4] px-5 py-4 sticky top-0 z-10 flex items-center gap-2.5">
+    <header class="bg-[var(--surface-card)] border-b border-[var(--border)] px-5 py-4 sticky top-0 z-10 flex items-center gap-2.5">
         <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto">
         <div>
-            <h1 class="font-display text-base font-semibold text-[#14181a] leading-tight">523 Studio</h1>
-            <p class="text-xs text-[#767c80] leading-tight">Approval Queue</p>
+            <h1 class="font-display text-base font-semibold text-[var(--text-primary)] leading-tight">523 Studio</h1>
+            <p class="text-xs text-[var(--text-muted)] leading-tight">Approval Queue</p>
         </div>
     </header>
 
-    <nav class="bg-white border-b border-[#eef0f4] px-5 flex items-center gap-1 sticky top-[65px] z-10">
+    <nav class="bg-[var(--surface-card)] border-b border-[var(--border)] px-5 flex items-center gap-1 sticky top-[65px] z-10">
         <a href="{{ route('client.approval.index') }}"
-           class="text-sm font-medium px-3 py-3 border-b-2 border-[#044b46] text-[#044b46] transition-colors">
+           class="text-sm font-medium px-3 py-3 border-b-2 border-[var(--brand)] text-[var(--brand)] transition-colors">
             Approval
         </a>
         <a href="{{ route('client.analytics') }}"
-           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[#767c80] hover:text-[#14181a] transition-colors">
+           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
             Analytics
         </a>
     </nav>
 
     <div class="p-5">
         @if (session('status'))
-            <div class="bg-[#f0f5f4] border border-[#dbe6e4] text-[#044b46] text-sm p-3 rounded-2xl mb-4 font-medium">{{ session('status') }}</div>
+            <div class="bg-[var(--brand-tint)] border border-[var(--brand-tint-border)] text-[var(--brand)] text-sm p-3 rounded-2xl mb-4 font-medium">{{ session('status') }}</div>
         @endif
 
-        <p class="text-sm text-[#5c6266] mb-4">{{ $pendingItems->count() }} konten menunggu persetujuan Anda</p>
+        <p class="text-sm text-[var(--text-secondary)] mb-4">{{ $pendingItems->count() }} konten menunggu persetujuan Anda</p>
 
         <div class="space-y-3">
             @forelse ($pendingItems as $item)
                 <a href="{{ route('client.approval.show', $item) }}"
-                   class="block bg-white rounded-2xl border border-[#eef0f4] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
+                   class="block bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold text-[#8a6423] bg-[#fdf6ec] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
-                        <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
+                        <span class="text-[10px] font-bold text-[var(--warning-text)] bg-[var(--warning-tint)] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
+                        <span class="text-[10px] text-[var(--text-muted)]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
                     </div>
-                    <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
-                    <p class="text-xs text-[#767c80] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
+                    <p class="text-sm font-semibold text-[var(--text-primary)]">{{ $item->title }}</p>
+                    <p class="text-xs text-[var(--text-muted)] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }}</p>
                 </a>
             @empty
                 <div class="text-center py-16">
-                    <span class="material-symbols-outlined text-[#d4d7db] text-[32px] mb-2 block">task_alt</span>
-                    <p class="text-sm text-[#767c80]">Tidak ada konten yang perlu ditinjau saat ini.</p>
-                    <p class="text-xs text-[#767c80] mt-1">Konten baru akan muncul di sini begitu tim selesai mengerjakannya.</p>
+                    <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[32px] mb-2 block">task_alt</span>
+                    <p class="text-sm text-[var(--text-muted)]">Tidak ada konten yang perlu ditinjau saat ini.</p>
+                    <p class="text-xs text-[var(--text-muted)] mt-1">Konten baru akan muncul di sini begitu tim selesai mengerjakannya.</p>
                 </div>
             @endforelse
         </div>
 
         @if ($reviewedItems->isNotEmpty())
-            <p class="text-xs font-semibold text-[#767c80] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
+            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mt-8 mb-3">Menunggu Pengecekan Tim ({{ $reviewedItems->count() }})</p>
             <div class="space-y-3">
                 @foreach ($reviewedItems as $item)
-                    <div class="bg-white rounded-2xl border border-[#eef0f4] p-4 opacity-70">
+                    <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 opacity-70">
                         <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] font-bold text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1 rounded uppercase">Sudah Anda Setujui</span>
-                            <span class="text-[10px] text-[#767c80]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
+                            <span class="text-[10px] font-bold text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1 rounded uppercase">Sudah Anda Setujui</span>
+                            <span class="text-[10px] text-[var(--text-muted)]">Tenggat: {{ $item->deadline_at->format('d M') }}</span>
                         </div>
-                        <p class="text-sm font-semibold text-[#14181a]">{{ $item->title }}</p>
-                        <p class="text-xs text-[#767c80] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }} · Menunggu pengecekan tim internal</p>
+                        <p class="text-sm font-semibold text-[var(--text-primary)]">{{ $item->title }}</p>
+                        <p class="text-xs text-[var(--text-muted)] mt-1">{{ $item->contentType->name ?? '-' }} · {{ $item->platform->name ?? '-' }} · Menunggu pengecekan tim internal</p>
                     </div>
                 @endforeach
             </div>

@@ -25,23 +25,23 @@
     <header class="px-4 sm:px-6 lg:px-8 pt-5 flex-shrink-0">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Produksi</h1>
-                <p class="text-[#5c6266] text-sm mt-1">Alur produksi, revisi, dan riwayat tayang konten.</p>
+                <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Produksi</h1>
+                <p class="text-[var(--text-secondary)] text-sm mt-1">Alur produksi, revisi, dan riwayat tayang konten.</p>
             </div>
         </div>
 
         {{-- Tab switcher --}}
-        <div class="flex items-center h-10 bg-[#f2f3f6] rounded-lg p-1 w-fit mb-5">
+        <div class="flex items-center h-10 bg-[var(--surface-muted)] rounded-lg p-1 w-fit mb-5">
             <a href="{{ route('production-workflow.index') }}"
-               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'board' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#14181a]' }}">
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'board' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}">
                 Papan Alur Produksi
             </a>
             <a href="{{ route('production-workflow.index', ['tab' => 'revisions']) }}"
-               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'revisions' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#14181a]' }}">
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'revisions' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}">
                 Revisi
             </a>
             <a href="{{ route('production-workflow.index', ['tab' => 'published']) }}"
-               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'published' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#14181a]' }}">
+               class="flex items-center h-full text-xs font-medium px-4 rounded-md transition-colors {{ $tab === 'published' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}">
                 Sudah Tayang
             </a>
         </div>
@@ -64,7 +64,7 @@
 
         <div class="flex items-center gap-3 mb-2.5 flex-wrap">
             <select name="client_id" form="filter-form" onchange="this.form.submit()"
-                    class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
+                    class="border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px]">
                 <option value="">Semua Klien</option>
                 @foreach ($clientOptions as $client)
                     <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
@@ -72,21 +72,21 @@
             </select>
 
             <div class="relative flex-1 min-w-[160px]">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767c80] text-[19px]">search</span>
-                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-white border border-[#eef0f4] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-full sm:w-64" placeholder="Cari konten..." type="text">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[19px]">search</span>
+                <input x-model="search" class="pl-10 pr-4 h-[40px] bg-[var(--surface-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[#044b46]/40 w-full sm:w-64" placeholder="Cari konten..." type="text">
             </div>
 
             @if ($view === 'board')
                 <button type="button" @click="toggleRiskSort()"
                         class="flex items-center gap-1.5 h-[40px] px-3.5 rounded-lg text-sm font-medium border transition-colors whitespace-nowrap"
-                        :class="riskSortActive ? 'bg-[#fdf2f1] border-[#f5d9d7] text-[#b3423e]' : 'bg-white border-[#eef0f4] text-[#5c6266]'">
+                        :class="riskSortActive ? 'bg-[var(--danger-tint)] border-[var(--danger-border)] text-[var(--danger-text)]' : 'bg-[var(--surface-card)] border-[var(--border)] text-[var(--text-secondary)]'">
                     <span class="material-symbols-outlined text-[17px]">sort</span>
                     Risiko Tertinggi
                 </button>
             @else
                 @php $statusLabels = \App\Support\WorkflowTransitions::labels(); @endphp
                 <select name="status" form="filter-form" onchange="this.form.submit()"
-                        class="border border-[#eef0f4] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px]">
+                        class="border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px]">
                     <option value="">Semua Status</option>
                     @foreach ($statuses as $status)
                         <option value="{{ $status }}" {{ $selectedStatus === $status ? 'selected' : '' }}>{{ $statusLabels[$status] ?? $status }}</option>
@@ -95,22 +95,22 @@
             @endif
 
             <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#767c80] text-[17px] pointer-events-none">calendar_month</span>
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
                 <input type="text" name="month" form="filter-form" value="{{ $selectedMonth }}"
                        data-flatpickr="month-combined" data-autosubmit="true" placeholder="Semua Bulan"
-                       class="border border-[#eef0f4] rounded-lg pl-9 pr-3 py-2 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
+                       class="border border-[var(--border)] rounded-lg pl-9 pr-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
             </div>
             @if ($selectedMonth)
-                <a href="{{ request()->fullUrlWithQuery(['month' => null]) }}" class="text-xs font-medium text-[#767c80] hover:text-[#14181a]">Reset bulan</a>
+                <a href="{{ request()->fullUrlWithQuery(['month' => null]) }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)]">Reset bulan</a>
             @endif
 
-            <div class="flex items-center h-9 bg-[#f2f3f6] rounded-lg p-1 sm:ml-auto">
+            <div class="flex items-center h-9 bg-[var(--surface-muted)] rounded-lg p-1 sm:ml-auto">
                 <a href="{{ request()->fullUrlWithQuery(['view' => 'board']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'board' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'board' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)]' }}">
                     <span class="material-symbols-outlined text-[15px] align-middle">view_kanban</span> Papan
                 </a>
                 <a href="{{ request()->fullUrlWithQuery(['view' => 'list']) }}"
-                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'list' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80]' }}">
+                   class="flex items-center h-full text-xs font-medium px-3 rounded-md {{ $view === 'list' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)]' }}">
                     <span class="material-symbols-outlined text-[15px] align-middle">view_list</span> List
                 </a>
             </div>
@@ -121,9 +121,9 @@
         @include('production-workflow.partials.list-tab')
     @else
 
-    <div x-show="toast" x-transition role="status" aria-live="polite" class="fixed top-6 right-6 z-50 bg-[#14181a] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
+    <div x-show="toast" x-transition role="status" aria-live="polite" class="fixed top-6 right-6 z-50 bg-[var(--text-primary)] text-white px-4 py-2.5 rounded-lg shadow-lg text-sm" x-text="toast" style="display: none;"></div>
 
-    <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-[#f7f8fc] thin-autohide-scrollbar">
+    <div class="flex-1 overflow-x-auto p-4 flex items-start gap-4 bg-[var(--surface-page)] thin-autohide-scrollbar">
         @php $statusLabels = \App\Support\WorkflowTransitions::labels(); @endphp
 
         @foreach ($statuses as $status)
@@ -131,11 +131,11 @@
                 $columnColors = ['#044b46', '#3452a8', '#0e7490', '#b8873a', '#b3427e', '#7c5cbf', '#0f7a5f', '#b3423e', '#0a8f76', '#6b7280'];
                 $dotColor = $columnColors[$loop->index % count($columnColors)];
             @endphp
-            <div class="flex-shrink-0 w-[290px] h-full flex flex-col bg-white rounded-xl border border-[#eef0f4]"
+            <div class="flex-shrink-0 w-[290px] h-full flex flex-col bg-[var(--surface-card)] rounded-xl border border-[var(--border)]"
                  x-on:dragover.prevent x-on:drop="onDrop($event, '{{ $status }}')">
 
-                <div class="p-3 border-b border-[#eef0f4] flex items-center justify-between flex-shrink-0">
-                    <h3 class="text-xs font-semibold text-[#5c6266] flex items-center gap-2">
+                <div class="p-3 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
+                    <h3 class="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-2">
                         <div class="w-1.5 h-1.5 rounded-full" style="background-color: {{ $dotColor }}"></div>
                         {{ $statusLabels[$status] }}
                     </h3>
@@ -156,10 +156,10 @@
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}"
-                             class="rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'bg-[#fdf2f1] border-[#e39a96]' : ($isPinned ? 'bg-[#f0f5f4] border-[#8fb8b3]' : 'bg-white border-[#eef0f4]') }}">
+                             class="rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'bg-[var(--danger-tint)] border-[var(--danger-border-strong)]' : ($isPinned ? 'bg-[var(--brand-tint)] border-[var(--brand-border)]' : 'bg-[var(--surface-card)] border-[var(--border)]') }}">
 
                             @if ($item->is_urgent)
-                                <div class="bg-[#b3423e] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
+                                <div class="bg-[var(--danger-text)] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[12px] shrink-0">bolt</span>
                                     <span>Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan &bull; Jobdesk Tambahan</span>
                                 </div>
@@ -167,14 +167,14 @@
 
                             <div class="p-3.5">
                             <div class="flex justify-between items-start gap-1 flex-wrap mb-2">
-                                <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded inline-flex items-center gap-1">
+                                <span class="text-[11px] bg-[var(--surface-muted)] text-[var(--text-secondary)] px-2 py-1 rounded inline-flex items-center gap-1">
                                     @if ($isPinned)
-                                        <span class="material-symbols-outlined text-[12px] text-[#044b46]" style="font-variation-settings: 'FILL' 1">push_pin</span>
+                                        <span class="material-symbols-outlined text-[12px] text-[var(--brand)]" style="font-variation-settings: 'FILL' 1">push_pin</span>
                                     @endif
                                     {{ $item->contentType->name ?? '-' }}
                                 </span>
                                 @if ($item->workflow->client_reviewed_at && $status === 'waiting_review')
-                                    <span data-client-approved-badge class="text-[10px] text-[#0f7a5f] font-semibold flex items-center gap-1 bg-[#f0f5f4] px-2 py-0.5 rounded whitespace-nowrap">
+                                    <span data-client-approved-badge class="text-[10px] text-[var(--success-text)] font-semibold flex items-center gap-1 bg-[var(--success-tint)] px-2 py-0.5 rounded whitespace-nowrap">
                                         <span class="material-symbols-outlined text-[12px]">check_circle</span> Klien Setuju
                                     </span>
                                 @endif
@@ -192,8 +192,8 @@
                                     </span>
                                 @endif
                             </div>
-                            <h4 class="text-sm font-semibold text-[#14181a] mb-1">{{ $item->title }}</h4>
-                            <p class="text-xs text-[#767c80] mb-3">{{ $item->client->name ?? '-' }}</p>
+                            <h4 class="text-sm font-semibold text-[var(--text-primary)] mb-1">{{ $item->title }}</h4>
+                            <p class="text-xs text-[var(--text-muted)] mb-3">{{ $item->client->name ?? '-' }}</p>
 
                             {{-- Video di In Progress bisa selesai syuting belakangan setelah proses
                                  edit sudah/lagi berjalan - penanda ini bantu tim lihat progres riil
@@ -201,20 +201,20 @@
                             @if ($status === 'in_progress' && ($item->contentType->name ?? '') === 'Video')
                                 <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mb-2.5">
                                     @if ($item->footage_captured_at)
-                                        <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                                        <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1.5 rounded-lg">
                                             <span class="flex items-center gap-1">
                                                 <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take ({{ $item->footage_captured_at->format('d M Y, H:i') }})
                                             </span>
                                             <button type="button" x-on:click.stop="unmarkFootageCaptured({{ $item->id }}, $event)"
-                                                class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
+                                                class="text-[var(--warning-text)] hover:underline shrink-0">Batalkan</button>
                                         </div>
                                     @else
                                         <div class="flex items-center gap-1">
                                             <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                 x-on:click.stop x-on:mousedown.stop
-                                                class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                                class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                             <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
-                                                class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                                class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                                 <span class="material-symbols-outlined text-[15px]">videocam</span>
                                             </button>
                                         </div>
@@ -222,8 +222,8 @@
                                 </div>
                             @endif
 
-                            <div class="flex items-center justify-between pt-2.5 border-t border-[#f2f3f6]">
-                                <div class="flex items-center gap-1 {{ $isOverdue ? 'text-[#b3423e]' : 'text-[#767c80]' }}">
+                            <div class="flex items-center justify-between pt-2.5 border-t border-[var(--surface-muted)]">
+                                <div class="flex items-center gap-1 {{ $isOverdue ? 'text-[var(--danger-text)]' : 'text-[var(--text-muted)]' }}">
                                     <span class="material-symbols-outlined text-[15px]">{{ $isOverdue ? 'warning' : 'schedule' }}</span>
                                     <span class="text-xs {{ $isOverdue ? 'font-semibold' : '' }}">{{ $item->deadline_at->format('M d') }}</span>
                                 </div>
@@ -232,61 +232,61 @@
                                     <div class="flex items-center -space-x-2 cursor-pointer" x-on:mouseenter="open = true" x-on:mouseleave="open = false" x-on:click.stop="open = !open">
                                         @forelse ($item->assignments->take(3) as $assignment)
                                             @if ($assignment->user->avatar_url)
-                                                <img src="{{ $assignment->user->avatar_url }}" alt="{{ $assignment->user->name }}" referrerpolicy="no-referrer" class="w-6 h-6 rounded-full ring-2 ring-white object-cover">
+                                                <img src="{{ $assignment->user->avatar_url }}" alt="{{ $assignment->user->name }}" referrerpolicy="no-referrer" class="w-6 h-6 rounded-full ring-2 ring-[var(--surface-card)] object-cover">
                                             @else
-                                                <div class="w-6 h-6 rounded-full bg-[#044b46] text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-white">
+                                                <div class="w-6 h-6 rounded-full bg-[var(--brand)] text-white text-[10px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]">
                                                     {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                 </div>
                                             @endif
                                         @empty
-                                            <span class="text-xs text-[#767c80] italic">Belum ada Penanggung Jawab</span>
+                                            <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
                                         @endforelse
                                         @if ($item->assignments->count() > 3)
-                                            <div class="w-6 h-6 rounded-full bg-[#f2f3f6] text-[#5c6266] text-[9px] font-semibold flex items-center justify-center ring-2 ring-white">+{{ $item->assignments->count() - 3 }}</div>
+                                            <div class="w-6 h-6 rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] text-[9px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]">+{{ $item->assignments->count() - 3 }}</div>
                                         @endif
                                     </div>
 
                                     <div x-show="open" x-transition x-on:mouseenter="open = true" x-on:mouseleave="open = false"
-                                         class="absolute z-10 bottom-full right-0 mb-2 w-56 bg-white border border-[#eef0f4] rounded-lg shadow-lg p-3" style="display: none;">
-                                        <p class="text-[10px] font-semibold text-[#767c80] uppercase mb-2">Penanggung Jawab</p>
+                                         class="absolute z-10 bottom-full right-0 mb-2 w-56 bg-[var(--surface-card)] border border-[var(--border)] rounded-lg shadow-lg p-3" style="display: none;">
+                                        <p class="text-[10px] font-semibold text-[var(--text-muted)] uppercase mb-2">Penanggung Jawab</p>
                                         <div class="space-y-2">
                                             @forelse ($item->assignments as $assignment)
                                                 <div class="flex items-center gap-2">
                                                     @if ($assignment->user->avatar_url)
                                                         <img src="{{ $assignment->user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full object-cover">
                                                     @else
-                                                        <div class="w-7 h-7 rounded-full bg-[#044b46] text-white text-xs font-semibold flex items-center justify-center">
+                                                        <div class="w-7 h-7 rounded-full bg-[var(--brand)] text-white text-xs font-semibold flex items-center justify-center">
                                                             {{ strtoupper(substr($assignment->user->name, 0, 1)) }}
                                                         </div>
                                                     @endif
                                                     <div>
-                                                        <p class="text-xs font-medium text-[#14181a]">{{ $assignment->user->name }}</p>
-                                                        <p class="text-[10px] text-[#767c80]">{{ ucwords(str_replace('_', ' ', $assignment->assignment_role)) }}</p>
+                                                        <p class="text-xs font-medium text-[var(--text-primary)]">{{ $assignment->user->name }}</p>
+                                                        <p class="text-[10px] text-[var(--text-muted)]">{{ ucwords(str_replace('_', ' ', $assignment->assignment_role)) }}</p>
                                                     </div>
                                                 </div>
                                             @empty
-                                                <p class="text-xs text-[#767c80] italic">Belum ada Penanggung Jawab ditugaskan</p>
+                                                <p class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab ditugaskan</p>
                                             @endforelse
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="mt-2.5 pt-2 border-t border-[#f2f3f6] text-right">
-                                <a href="{{ route('content-items.show', $item) }}" class="text-xs text-[#044b46] font-medium hover:underline">Lihat Detail →</a>
+                            <div class="mt-2.5 pt-2 border-t border-[var(--surface-muted)] text-right">
+                                <a href="{{ route('content-items.show', $item) }}" class="text-xs text-[var(--brand)] font-medium hover:underline">Lihat Detail →</a>
                             </div>
                             </div>
                         </div>
                     @empty
-                        <div class="text-center p-6 border border-dashed border-[#dadfe0] rounded-lg">
-                            <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">note_add</span>
-                            <p class="text-xs text-[#767c80]">Drop cards here</p>
+                        <div class="text-center p-6 border border-dashed border-[var(--border-strong)] rounded-lg">
+                            <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">note_add</span>
+                            <p class="text-xs text-[var(--text-muted)]">Drop cards here</p>
                         </div>
                     @endforelse
 
                     @if ($board[$status]->count() > 8)
                         <button type="button" x-show="!search"
                                 @click="expandedColumns['{{ $status }}'] = !expandedColumns['{{ $status }}']"
-                                class="column-more-toggle w-full text-center text-xs font-medium text-[#044b46] hover:underline py-1.5">
+                                class="column-more-toggle w-full text-center text-xs font-medium text-[var(--brand)] hover:underline py-1.5">
                             <span x-show="!expandedColumns['{{ $status }}']">+{{ $board[$status]->count() - 8 }} lainnya</span>
                             <span x-show="expandedColumns['{{ $status }}']" x-cloak>Sembunyikan</span>
                         </button>
@@ -299,22 +299,22 @@
     {{-- Modal drag-drop: waiting_review -> revision butuh catatan revisi dulu --}}
     <div x-show="revisionModal" x-cloak x-on:keydown.escape.window="revisionModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="revisionModal = null"></div>
-        <div x-show="revisionModal" x-transition role="dialog" aria-modal="true" aria-labelledby="revision-note-modal-title" x-trap="!!revisionModal" class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+        <div x-show="revisionModal" x-transition role="dialog" aria-modal="true" aria-labelledby="revision-note-modal-title" x-trap="!!revisionModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                 <div>
-                    <h3 id="revision-note-modal-title" class="font-display text-lg font-semibold text-[#14181a]">Tambah Catatan Revisi</h3>
-                    <p class="text-xs text-[#767c80] mt-0.5" x-text="revisionModal?.title"></p>
+                    <h3 id="revision-note-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Tambah Catatan Revisi</h3>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5" x-text="revisionModal?.title"></p>
                 </div>
-                <button type="button" @click="revisionModal = null" class="text-[#767c80] hover:text-[#5c6266]">
+                <button type="button" @click="revisionModal = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>
             </div>
             <div class="px-6 py-5">
-                <label for="kanban_revision_note" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Catatan Revisi</label>
+                <label for="kanban_revision_note" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Catatan Revisi</label>
                 <textarea id="kanban_revision_note" x-model="revisionNote" rows="3" placeholder="Tulis catatan revisi..."
-                    class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40"></textarea>
+                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40"></textarea>
             </div>
-            <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmRevisionModal()"
                         class="btn-primary">
                     Pindahkan ke Revision
@@ -329,34 +329,34 @@
     {{-- Modal drag-drop: scheduled -> uploaded butuh data publikasi dulu --}}
     <div x-show="publicationModal" x-cloak x-on:keydown.escape.window="publicationModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="publicationModal = null"></div>
-        <div x-show="publicationModal" x-transition role="dialog" aria-modal="true" aria-labelledby="publication-modal-title" x-trap="!!publicationModal" class="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between px-6 py-5 border-b border-[#eef0f4]">
+        <div x-show="publicationModal" x-transition role="dialog" aria-modal="true" aria-labelledby="publication-modal-title" x-trap="!!publicationModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                 <div>
-                    <h3 id="publication-modal-title" class="font-display text-lg font-semibold text-[#14181a]">Catat Publikasi</h3>
-                    <p class="text-xs text-[#767c80] mt-0.5" x-text="publicationModal?.title"></p>
+                    <h3 id="publication-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Catat Publikasi</h3>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5" x-text="publicationModal?.title"></p>
                 </div>
-                <button type="button" @click="publicationModal = null" class="text-[#767c80] hover:text-[#5c6266]">
+                <button type="button" @click="publicationModal = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>
             </div>
             <div class="px-6 py-5 space-y-3">
                 <div>
-                    <label for="kanban_pub_published_at" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Tanggal Publish</label>
+                    <label for="kanban_pub_published_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal Publish</label>
                     <input id="kanban_pub_published_at" type="text" x-model="pubForm.published_at" data-flatpickr="datetime" autocomplete="off"
-                        class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                 </div>
                 <div>
-                    <label for="kanban_pub_post_url" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Link Post</label>
+                    <label for="kanban_pub_post_url" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
                     <input id="kanban_pub_post_url" type="url" x-model="pubForm.post_url" placeholder="https://..."
-                        class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
                 </div>
                 <div>
-                    <label for="kanban_pub_caption_final" class="block text-[10px] font-medium text-[#767c80] uppercase mb-1">Caption Final</label>
+                    <label for="kanban_pub_caption_final" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
                     <textarea id="kanban_pub_caption_final" x-model="pubForm.caption_final" rows="2"
-                        class="w-full border border-[#eef0f4] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                 </div>
             </div>
-            <div class="flex items-center gap-3 px-6 py-4 border-t border-[#eef0f4]">
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmPublicationModal()"
                         class="btn-primary">
                     Tandai Uploaded
@@ -540,8 +540,8 @@ function kanbanBoard() {
             if (!hasCards && !placeholder) {
                 placeholder = document.createElement('div');
                 placeholder.setAttribute('data-empty-placeholder', '');
-                placeholder.className = 'text-center p-6 border border-dashed border-[#dadfe0] rounded-lg';
-                placeholder.innerHTML = '<span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">note_add</span><p class="text-xs text-[#767c80]">Drop cards here</p>';
+                placeholder.className = 'text-center p-6 border border-dashed border-[var(--border-strong)] rounded-lg';
+                placeholder.innerHTML = '<span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">note_add</span><p class="text-xs text-[var(--text-muted)]">Drop cards here</p>';
                 column.appendChild(placeholder);
             } else if (hasCards && placeholder) {
                 placeholder.remove();
@@ -598,19 +598,19 @@ function kanbanBoard() {
                     const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
                     const nowValue = now.toISOString().slice(0, 10) + ' ' + now.toISOString().slice(11, 16);
                     wrapper.innerHTML = method === 'PATCH'
-                        ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[#0f7a5f] bg-[#f0f5f4] px-2 py-1.5 rounded-lg">
+                        ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1.5 rounded-lg">
                                 <span class="flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take (${data.footage_captured_at ?? ''})
                                 </span>
                                 <button type="button" x-on:click.stop="unmarkFootageCaptured(${itemId}, $event)"
-                                    class="text-[#8a6423] hover:underline shrink-0">Batalkan</button>
+                                    class="text-[var(--warning-text)] hover:underline shrink-0">Batalkan</button>
                             </div>`
                         : `<div class="flex items-center gap-1">
                                 <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${nowValue}"
                                     x-on:click.stop x-on:mousedown.stop
-                                    class="flex-1 min-w-0 border border-[#eef0f4] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                                    class="flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
                                 <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
-                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[#044b46] w-7 h-7 rounded-lg hover:bg-[#f0f5f4] transition-colors">
+                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                     <span class="material-symbols-outlined text-[15px]">videocam</span>
                                 </button>
                             </div>`;

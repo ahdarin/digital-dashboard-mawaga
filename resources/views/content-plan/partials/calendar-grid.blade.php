@@ -29,23 +29,23 @@
     <div class="flex items-center gap-6 mb-4 flex-wrap">
 
         <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-[#767c80]">Tipe:</span>
+            <span class="text-xs font-medium text-[var(--text-muted)]">Tipe:</span>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'all', 'date' => null]) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
-               {{ ($selectedType ?? 'all') === 'all' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+               {{ ($selectedType ?? 'all') === 'all' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 Semua
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Desain']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+               {{ ($selectedType ?? '') === 'Desain' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">D</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Desain</span>
             </a>
 
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'type' => 'Video']) }}"
                class="group relative overflow-hidden flex items-center justify-center h-8 w-8 hover:w-[4.5rem] rounded-lg text-xs font-medium transition-[width] duration-300 ease-out
-               {{ ($selectedType ?? '') === 'Video' ? 'bg-[#044b46] text-white' : 'bg-[#f2f3f6] text-[#5c6266]' }}">
+               {{ ($selectedType ?? '') === 'Video' ? 'bg-[var(--brand)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
                 <span class="absolute transition-opacity duration-150 group-hover:opacity-0">V</span>
                 <span class="absolute whitespace-nowrap opacity-0 transition-opacity duration-200 delay-150 group-hover:opacity-100">Video</span>
             </a>
@@ -56,7 +56,7 @@
     {{-- Legenda warna client --}}
     <div class="flex flex-wrap gap-3 mb-4">
         @foreach ($clientOptions as $c)
-            <span class="flex items-center gap-1.5 text-xs text-[#5c6266]">
+            <span class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                 <span class="w-2.5 h-2.5 rounded-full"
                     style="background-color: {{ $c->color ?? $fallbackColor($c->id) }}"></span>
                 {{ $c->name }}
@@ -79,7 +79,7 @@
         @forelse ($agendaDays as $date)
             @php $dateKey = $date->format('Y-m-d'); @endphp
             <div class="card p-4">
-                <p class="text-xs font-semibold text-[#767c80] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
+                <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
                 <div class="flex flex-col gap-1.5">
                     @foreach ($itemsByDateClient->get($dateKey, collect()) as $clientId => $clientItems)
                         @php
@@ -92,7 +92,7 @@
                                 style="background-color: {{ $color }}14; border-left: 3px solid {{ $color }}">
                                 <div class="min-w-0">
                                     <span class="text-xs font-semibold block truncate" style="color: {{ $color }}">{{ $client->name }}</span>
-                                    <span class="text-[11px] text-[#5c6266] truncate block">{{ $item->title }}</span>
+                                    <span class="text-[11px] text-[var(--text-secondary)] truncate block">{{ $item->title }}</span>
                                 </div>
                                 <span title="{{ $item->contentType->name ?? '-' }}"
                                     class="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
@@ -106,8 +106,8 @@
             </div>
         @empty
             <div class="card p-6 text-center">
-                <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2 block">event_busy</span>
-                <p class="text-sm text-[#767c80]">Tidak ada konten terjadwal bulan ini.</p>
+                <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">event_busy</span>
+                <p class="text-sm text-[var(--text-muted)]">Tidak ada konten terjadwal bulan ini.</p>
             </div>
         @endforelse
     </div>
@@ -115,7 +115,7 @@
     <div class="card p-5 hidden sm:block">
       <div class="overflow-x-auto">
         <div class="min-w-[700px]">
-        <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[#767c80] uppercase mb-2">
+        <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[var(--text-muted)] uppercase mb-2">
             @foreach (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $d)
                 <div>{{ $d }}</div>
             @endforeach
@@ -134,9 +134,9 @@
                     $overflowCount = max(0, $clientGroups->count() - $maxVisibleClients);
                 @endphp
 
-                <div class="border border-[#f2f3f6] rounded-lg p-2 min-h-[100px] flex flex-col gap-1">
+                <div class="border border-[var(--surface-muted)] rounded-lg p-2 min-h-[100px] flex flex-col gap-1">
 
-                    <p class="text-xs text-[#767c80] mb-0.5">{{ $day }}</p>
+                    <p class="text-xs text-[var(--text-muted)] mb-0.5">{{ $day }}</p>
 
                     @foreach ($visibleGroups as $clientId => $clientItems)
                         @php
@@ -166,14 +166,14 @@
                     @if ($overflowCount > 0)
                         <button type="button"
                             x-on:click="expandedDate = (expandedDate === '{{ $dateKey }}' ? null : '{{ $dateKey }}')"
-                            class="text-[11px] font-medium text-[#044b46] text-left hover:underline mt-0.5">
+                            class="text-[11px] font-medium text-[var(--brand)] text-left hover:underline mt-0.5">
                             <span x-show="expandedDate !== '{{ $dateKey }}'">+{{ $overflowCount }} lainnya</span>
                             <span x-show="expandedDate === '{{ $dateKey }}'" x-cloak>Sembunyikan</span>
                         </button>
                     @endif
 
                     <div x-show="expandedDate === '{{ $dateKey }}'" x-cloak x-transition
-                        class="mt-1 pt-1.5 border-t border-[#eef0f4] flex flex-col gap-1">
+                        class="mt-1 pt-1.5 border-t border-[var(--border)] flex flex-col gap-1">
 
                         @foreach ($clientGroups as $clientId => $clientItems)
                             @php

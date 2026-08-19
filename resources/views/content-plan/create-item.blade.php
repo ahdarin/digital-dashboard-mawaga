@@ -5,12 +5,12 @@
 
     <div class="flex items-center gap-3 mb-7">
         <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali ke Content Plan"
-           class="w-9 h-9 flex items-center justify-center rounded-lg border border-[#eef0f4] text-[#5c6266]">
+           class="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)]">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
         <div>
-            <p class="text-xs text-[#767c80]">{{ $contentPlan->client->name }} / {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}</p>
-            <h1 class="font-display text-2xl font-semibold text-[#14181a]">Tambah Konten</h1>
+            <p class="text-xs text-[var(--text-muted)]">{{ $contentPlan->client->name }} / {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}</p>
+            <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">Tambah Konten</h1>
         </div>
     </div>
 
@@ -28,88 +28,88 @@
         @csrf
 
         <div>
-            <label for="title" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Judul Konten <span class="text-[#b3423e]">*</span></label>
+            <label for="title" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Judul Konten <span class="text-[var(--danger-text)]">*</span></label>
             <input id="title" type="text" name="title" required value="{{ old('title') }}" placeholder="Tips Memilih Warna Cat Rumah"
-                   class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('title') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
-            @error('title') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                   class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('title') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+            @error('title') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div>
-            <label for="brief" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Brief Konten</label>
+            <label for="brief" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Brief Konten</label>
             <textarea id="brief" name="brief" rows="4" placeholder="Tuliskan brief detail, hook, dan poin utama konten..."
-                      class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('brief') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">{{ old('brief') }}</textarea>
-            @error('brief') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                      class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('brief') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">{{ old('brief') }}</textarea>
+            @error('brief') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-                <label for="content_pillar_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Content Pillar</label>
-                <select id="content_pillar_id" name="content_pillar_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_pillar_id') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+                <label for="content_pillar_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Content Pillar</label>
+                <select id="content_pillar_id" name="content_pillar_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_pillar_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                     <option value="">Pilih Pillar...</option>
                     @foreach ($pillars as $p) <option value="{{ $p->id }}" {{ (string) old('content_pillar_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option> @endforeach
                 </select>
-                @error('content_pillar_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                @error('content_pillar_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label for="content_type_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Jenis Konten</label>
+                <label for="content_type_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Jenis Konten</label>
                 <select id="content_type_id" name="content_type_id"
                         x-on:change="contentTypeName = $event.target.selectedOptions[0]?.dataset.name || ''"
-                        class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_type_id') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+                        class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_type_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                     <option value="">Pilih Jenis...</option>
                     @foreach ($types as $t)
                         <option value="{{ $t->id }}" data-name="{{ $t->name }}" {{ (string) old('content_type_id') === (string) $t->id ? 'selected' : '' }}>{{ $t->name }}</option>
                     @endforeach
                 </select>
-                @error('content_type_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                @error('content_type_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label for="platform_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Platform</label>
-                <select id="platform_id" name="platform_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('platform_id') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+                <label for="platform_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Platform</label>
+                <select id="platform_id" name="platform_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('platform_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                     <option value="">Pilih Platform...</option>
                     @foreach ($platforms as $p) <option value="{{ $p->id }}" {{ (string) old('platform_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option> @endforeach
                 </select>
-                @error('platform_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                @error('platform_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-                <label for="deadline_at" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Deadline Produksi <span class="text-[#b3423e]">*</span></label>
+                <label for="deadline_at" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Deadline Produksi <span class="text-[var(--danger-text)]">*</span></label>
                 <input id="deadline_at" type="text" name="deadline_at" required value="{{ old('deadline_at') }}" data-flatpickr="datetime" autocomplete="off"
-                       class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('deadline_at') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
-                @error('deadline_at') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                       class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('deadline_at') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                @error('deadline_at') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label for="pic_id" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Penanggung Jawab <span class="text-[#b3423e]">*</span></label>
-                <select id="pic_id" name="pic_id" required class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+                <label for="pic_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab <span class="text-[var(--danger-text)]">*</span></label>
+                <select id="pic_id" name="pic_id" required class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                     <option value="">Pilih Penanggung Jawab...</option>
                     @foreach ($picOptions as $pic) <option value="{{ $pic->id }}" {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option> @endforeach
                 </select>
-                @error('pic_id') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
+                @error('pic_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 
         <div x-show="contentTypeName === 'Video'" x-cloak>
-            <label for="estimated_duration_seconds" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Estimasi Durasi Video</label>
-            <select id="estimated_duration_seconds" name="estimated_duration_seconds" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('estimated_duration_seconds') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+            <label for="estimated_duration_seconds" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Estimasi Durasi Video</label>
+            <select id="estimated_duration_seconds" name="estimated_duration_seconds" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('estimated_duration_seconds') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                 <option value="">Pilih Estimasi...</option>
                 <option value="25" {{ (string) old('estimated_duration_seconds') === '25' ? 'selected' : '' }}>Pendek (&lt;30 detik)</option>
                 <option value="35" {{ (string) old('estimated_duration_seconds') === '35' ? 'selected' : '' }}>Sedang (31-40 detik)</option>
                 <option value="60" {{ (string) old('estimated_duration_seconds') === '60' ? 'selected' : '' }}>Panjang (41 detik ke atas)</option>
             </select>
-            @error('estimated_duration_seconds') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
-            <p class="text-[11px] text-[#767c80] mt-1">Dipakai buat hitung skor Delay Risk.</p>
+            @error('estimated_duration_seconds') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+            <p class="text-[11px] text-[var(--text-muted)] mt-1">Dipakai buat hitung skor Delay Risk.</p>
         </div>
         <div x-show="contentTypeName === 'Desain'" x-cloak>
-            <label for="estimated_slide_count" class="block text-xs font-medium text-[#767c80] uppercase mb-1.5">Estimasi Jumlah Slide</label>
-            <select id="estimated_slide_count" name="estimated_slide_count" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('estimated_slide_count') ? 'border-[#f5a19b]' : 'border-[#eef0f4]' }}">
+            <label for="estimated_slide_count" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Estimasi Jumlah Slide</label>
+            <select id="estimated_slide_count" name="estimated_slide_count" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('estimated_slide_count') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                 <option value="">Pilih Estimasi...</option>
                 <option value="1" {{ (string) old('estimated_slide_count') === '1' ? 'selected' : '' }}>Single (1 slide)</option>
                 <option value="3" {{ (string) old('estimated_slide_count') === '3' ? 'selected' : '' }}>Beberapa (2-4 slide)</option>
                 <option value="6" {{ (string) old('estimated_slide_count') === '6' ? 'selected' : '' }}>Banyak (5+ slide)</option>
             </select>
-            @error('estimated_slide_count') <p class="text-xs text-[#b3423e] mt-1">{{ $message }}</p> @enderror
-            <p class="text-[11px] text-[#767c80] mt-1">Dipakai buat hitung skor Delay Risk.</p>
+            @error('estimated_slide_count') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+            <p class="text-[11px] text-[var(--text-muted)] mt-1">Dipakai buat hitung skor Delay Risk.</p>
         </div>
 
         <div class="flex items-center gap-3 pt-2">

@@ -27,6 +27,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
 use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\PreferencesController;
 use Illuminate\Support\Facades\Schedule;
 use App\Services\AiStrategyService;
 
@@ -90,6 +91,11 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::delete('/content-items/{contentItem}/pin', [ContentItemController::class, 'unpin'])
         ->middleware(['permission:workflow,view', 'client.scope:contentItem'])
         ->name('content-items.pin.unmark');
+
+    // Preferensi tampilan personal (tema dsb) - nggak digated permission
+    // modul manapun, semua user internal yang login boleh atur punya sendiri.
+    Route::patch('/preferences/theme', [PreferencesController::class, 'updateTheme'])
+        ->name('preferences.theme');
 
     Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
         ->middleware(['permission:workflow,view', 'client.scope:contentBrief,contentItem.client_id'])

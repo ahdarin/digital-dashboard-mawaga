@@ -23,27 +23,27 @@
 <div class="w-full">
     @if ($total === 0)
         <div class="flex flex-col items-center justify-center py-16 text-center">
-            <span class="material-symbols-outlined text-[#d4d7db] text-[28px] mb-2">show_chart</span>
-            <p class="text-sm text-[#767c80]">Belum ada data metrik pada periode ini.</p>
+            <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2">show_chart</span>
+            <p class="text-sm text-[var(--text-muted)]">Belum ada data metrik pada periode ini.</p>
         </div>
     @else
         <div class="flex items-baseline gap-6 mb-5">
             @if ($showTotal)
                 <div>
-                    <p class="text-[11px] text-[#767c80] mb-0.5">Total</p>
-                    <p class="font-display text-xl font-semibold text-[#14181a]">{{ number_format($total) }}</p>
+                    <p class="text-[11px] text-[var(--text-muted)] mb-0.5">Total</p>
+                    <p class="font-display text-xl font-semibold text-[var(--text-primary)]">{{ number_format($total) }}</p>
                 </div>
             @endif
             <div>
-                <p class="text-[11px] text-[#767c80] mb-0.5">Rata-rata</p>
-                <p class="font-display text-xl font-semibold text-[#14181a]">{{ $compact(round($avg)) }}</p>
+                <p class="text-[11px] text-[var(--text-muted)] mb-0.5">Rata-rata</p>
+                <p class="font-display text-xl font-semibold text-[var(--text-primary)]">{{ $compact(round($avg)) }}</p>
             </div>
         </div>
 
         <div class="flex gap-2">
             <div class="flex flex-col justify-between text-right shrink-0 pb-6" style="height: 180px">
                 @foreach ($gridLines as $g)
-                    <span class="text-[10px] text-[#767c80]">{{ $compact($max * $g) }}</span>
+                    <span class="text-[10px] text-[var(--text-muted)]">{{ $compact($max * $g) }}</span>
                 @endforeach
             </div>
 
@@ -51,7 +51,7 @@
                 <div class="relative" style="min-width: {{ $count * ($barWidth + 6) }}px">
                     <div class="absolute inset-x-0 top-0 flex flex-col justify-between pointer-events-none" style="height: 180px">
                         @foreach ($gridLines as $g)
-                            <div class="border-t border-[#eef0f4] w-full"></div>
+                            <div class="border-t border-[var(--border)] w-full"></div>
                         @endforeach
                     </div>
 
@@ -59,11 +59,11 @@
                         @foreach ($trendItems as $i => $point)
                             <div class="group relative shrink-0 h-full flex flex-col items-center justify-end" style="width: {{ $barWidth }}px">
                                 <div class="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap
-                                            bg-[#14181a] text-white text-[10px] font-medium px-2 py-1 rounded opacity-0
+                                            bg-[var(--text-primary)] text-white text-[10px] font-medium px-2 py-1 rounded opacity-0
                                             group-hover:opacity-100 transition-opacity z-10">
                                     {{ number_format($point['value']) }}
                                 </div>
-                                <div class="w-full rounded-[3px] transition-colors {{ $i === $peakIndex && $point['value'] > 0 ? 'bg-[#044b46]' : 'bg-[#dbe6e4] group-hover:bg-[#a9c4bf]' }}"
+                                <div class="w-full rounded-[3px] transition-colors {{ $i === $peakIndex && $point['value'] > 0 ? 'bg-[var(--brand)]' : 'bg-[var(--brand-tint-border)] group-hover:bg-[var(--brand-muted)]' }}"
                                      style="height: {{ max(($point['value'] / $max) * 100, 2) }}%"></div>
                             </div>
                         @endforeach
@@ -72,7 +72,7 @@
                     <div class="flex gap-1.5 mt-2">
                         @foreach ($trendItems as $i => $point)
                             <div class="shrink-0 text-center" style="width: {{ $barWidth }}px">
-                                <span class="text-[10px] text-[#767c80] whitespace-nowrap">
+                                <span class="text-[10px] text-[var(--text-muted)] whitespace-nowrap">
                                     {{ $point['label'] }}
                                 </span>
                             </div>

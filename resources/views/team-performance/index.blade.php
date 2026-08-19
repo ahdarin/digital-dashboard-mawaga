@@ -4,17 +4,17 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="mb-7">
-        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[#14181a]">Performa Tim</h1>
-        <p class="text-[#5c6266] text-sm mt-1">Beban kerja dan produktivitas tim internal.</p>
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa Tim</h1>
+        <p class="text-[var(--text-secondary)] text-sm mt-1">Beban kerja dan produktivitas tim internal.</p>
     </div>
 
-    <div class="flex items-center gap-1 bg-[#f2f3f6] rounded-lg p-1 mb-6 w-fit">
+    <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-6 w-fit">
         <a href="{{ route('team-performance.index', ['tab' => 'performa']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'performa' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'performa' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]' }}">
             Performa
         </a>
         <a href="{{ route('team-performance.index', ['tab' => 'kehadiran']) }}"
-           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'kehadiran' ? 'bg-white text-[#14181a] shadow-sm' : 'text-[#767c80] hover:text-[#5c6266]' }}">
+           class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $tab === 'kehadiran' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]' }}">
             Kehadiran
         </a>
     </div>

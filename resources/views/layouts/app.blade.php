@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
+    @include('partials._theme-init-script')
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', '523 Studio')</title>
     <link rel="icon" href="{{ asset('images/favicon.png') }}">
@@ -25,29 +26,31 @@
     <style>
         [x-cloak] { display: none !important; }
 
-        /* Tema Flatpickr disamakan sama brand (#044b46) - bukan oranye bawaan */
+        @include('partials._theme-tokens')
+
+        /* Tema Flatpickr disamakan sama brand - bukan oranye bawaan */
         .flatpickr-day.selected, .flatpickr-day.selected:hover,
         .flatpickr-day.startRange, .flatpickr-day.endRange,
         .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover,
         .monthSelect-month.selected, .monthSelect-month.selected:hover {
-            background: #044b46; border-color: #044b46;
+            background: var(--brand); border-color: var(--brand);
         }
         .flatpickr-day.inRange, .monthSelect-month.inRange {
-            background: #f0f5f4; border-color: #f0f5f4; box-shadow: -5px 0 0 #f0f5f4, 5px 0 0 #f0f5f4;
+            background: var(--brand-tint); border-color: var(--brand-tint); box-shadow: -5px 0 0 var(--brand-tint), 5px 0 0 var(--brand-tint);
         }
-        .flatpickr-day:hover, .monthSelect-month:hover { background: #eef0f4; }
-        .flatpickr-day.today { border-color: #044b46; }
-        .flatpickr-day.today:hover { background: #044b46; color: #fff; }
+        .flatpickr-day:hover, .monthSelect-month:hover { background: var(--border); }
+        .flatpickr-day.today { border-color: var(--brand); }
+        .flatpickr-day.today:hover { background: var(--brand); color: var(--surface-card); }
         .flatpickr-months .flatpickr-month, .flatpickr-current-month .flatpickr-monthDropdown-months,
-        .flatpickr-weekdays, span.flatpickr-weekday { background: #fff; color: #14181a; }
-        .flatpickr-current-month input.cur-year { color: #14181a; }
+        .flatpickr-weekdays, span.flatpickr-weekday { background: var(--surface-card); color: var(--text-primary); }
+        .flatpickr-current-month input.cur-year { color: var(--text-primary); }
         .flatpickr-calendar { box-shadow: 0 1px 2px rgba(20,24,26,0.03), 0 20px 40px -12px rgba(20,24,26,0.15); border-radius: 12px; overflow: hidden; }
         .flatpickr-months { border-radius: 12px 12px 0 0; }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7f8fc;
-            color: #14181a;
+            background-color: var(--surface-page);
+            color: var(--text-primary);
         }
         .font-display {
             font-family: 'Fraunces', serif;
@@ -56,8 +59,8 @@
 
         /* Card standar - flat, border tipis, shadow super halus */
         .card {
-            background: #fff;
-            border: 1px solid #eef0f4;
+            background: var(--surface-card);
+            border: 1px solid var(--border);
             border-radius: 16px;
             box-shadow: 0 1px 2px rgba(20,24,26,0.03);
         }
@@ -84,36 +87,36 @@
             cursor: not-allowed;
         }
         .btn-primary {
-            background: #044b46;
-            color: #fff;
+            background: var(--brand);
+            color: var(--surface-card);
         }
-        .btn-primary:hover:not(:disabled) { background: #033b37; }
+        .btn-primary:hover:not(:disabled) { background: var(--brand-dark); }
         .btn-secondary {
-            background: #fff;
-            color: #5c6266;
-            border-color: #eef0f4;
+            background: var(--surface-card);
+            color: var(--text-secondary);
+            border-color: var(--border);
         }
-        .btn-secondary:hover:not(:disabled) { background: #f7f8fc; }
+        .btn-secondary:hover:not(:disabled) { background: var(--surface-page); }
         .btn-danger {
-            background: #fff;
-            color: #b3423e;
-            border-color: #f5d9d7;
+            background: var(--surface-card);
+            color: var(--danger-text);
+            border-color: var(--danger-border);
         }
-        .btn-danger:hover:not(:disabled) { background: #fdf2f1; }
+        .btn-danger:hover:not(:disabled) { background: var(--danger-tint); }
         .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible {
             outline: none;
-            box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(4,75,70,0.45);
+            box-shadow: 0 0 0 2px var(--surface-card), 0 0 0 4px rgba(4,75,70,0.45);
         }
 
         .input {
             display: block;
             width: 100%;
-            border: 1px solid #eef0f4;
+            border: 1px solid var(--border);
             border-radius: 0.5rem;
             padding: 0.625rem 0.875rem;
             font-size: 0.875rem;
-            background: #fff;
-            color: #14181a;
+            background: var(--surface-card);
+            color: var(--text-primary);
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
         .input:focus {
@@ -122,10 +125,10 @@
             box-shadow: 0 0 0 2px rgba(4,75,70,0.15);
         }
         .input.input-error {
-            border-color: #f5a19b;
+            border-color: var(--field-error-border);
         }
         .input.input-error:focus {
-            border-color: #b3423e;
+            border-color: var(--danger-text);
             box-shadow: 0 0 0 2px rgba(179,66,62,0.15);
         }
 
@@ -139,15 +142,15 @@
             font-weight: 500;
             white-space: nowrap;
         }
-        .badge-success { background: #f0f5f4; color: #0f7a5f; }
-        .badge-danger  { background: #fdf2f1; color: #b3423e; }
-        .badge-info    { background: #eef2fb; color: #3452a8; }
-        .badge-warning { background: #fdf6ec; color: #8a6423; }
-        .badge-neutral { background: #f2f3f6; color: #5c6266; }
+        .badge-success { background: var(--success-tint); color: var(--success-text); }
+        .badge-danger  { background: var(--danger-tint); color: var(--danger-text); }
+        .badge-info    { background: var(--info-tint); color: var(--info-text); }
+        .badge-warning { background: var(--warning-tint); color: var(--warning-text); }
+        .badge-neutral { background: var(--surface-muted); color: var(--text-secondary); }
 
         #top-loading-bar {
             position: fixed; top: 0; left: 0; height: 2.5px; width: 0%;
-            background: #044b46; z-index: 9999;
+            background: var(--brand); z-index: 9999;
             transition: width 0.4s ease, opacity 0.3s ease; opacity: 0;
         }
         #top-loading-bar.loading {
@@ -161,7 +164,7 @@
             scrollbar-color: transparent transparent;
         }
         .thin-autohide-scrollbar:hover {
-            scrollbar-color: #c3c7cb transparent;
+            scrollbar-color: var(--text-idle) transparent;
         }
         .thin-autohide-scrollbar::-webkit-scrollbar {
             width: 6px;
@@ -175,10 +178,10 @@
             border-radius: 9999px;
         }
         .thin-autohide-scrollbar:hover::-webkit-scrollbar-thumb {
-            background-color: #c3c7cb;
+            background-color: var(--text-idle);
         }
         .thin-autohide-scrollbar::-webkit-scrollbar-thumb:hover {
-            background-color: #9aa0a4;
+            background-color: var(--text-placeholder);
         }
 
         /* Running text (marquee) - dipakai buat reminder di Dashboard welcome
@@ -258,8 +261,8 @@
         x-on:keydown.escape.window="show = false"
         class="fixed inset-0 z-[100] flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="show = false"></div>
-        <div x-show="show" x-transition role="dialog" aria-modal="true" x-trap="show" class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
-            <p class="text-sm text-[#14181a] leading-relaxed mb-5" x-text="message"></p>
+        <div x-show="show" x-transition role="dialog" aria-modal="true" x-trap="show" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6">
+            <p class="text-sm text-[var(--text-primary)] leading-relaxed mb-5" x-text="message"></p>
             <div class="flex items-center gap-3">
                 <button type="button" @click="confirm()"
                     :class="danger ? 'btn-danger' : 'btn-primary'">

@@ -74,7 +74,7 @@
     // buru-buru kelewatan sebelum sempat kebaca.
     $marqueeDuration = max(9, min(20, (int) round(mb_strlen($dailyReminder['text']) / 6)));
 @endphp
-<div class="mb-6 rounded-2xl bg-[#044b46] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
+<div class="mb-6 rounded-2xl bg-[var(--brand)] px-5 sm:px-7 py-4 sm:py-5 flex items-center justify-between gap-5 flex-wrap">
     <div>
         <p class="text-white/70 text-sm">{{ $greeting }}, {{ auth()->user()->name ?? 'Tim 523' }}</p>
         <h1 class="font-display text-xl font-semibold text-white mt-0.5">Selamat datang kembali di 523 Studio</h1>
@@ -93,9 +93,9 @@
 <div x-data="{ now: new Date() }" x-init="setInterval(() => now = new Date(), 1000)"
     class="flex items-start justify-between mb-6 ml-3 flex-wrap gap-3">
     <div class="shrink-0">
-        <p class="text-sm text-[#5c6266]"
+        <p class="text-sm text-[var(--text-secondary)]"
             x-text="now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })"></p>
-        <p class="font-display text-2xl font-semibold text-[#14181a]"
+        <p class="font-display text-2xl font-semibold text-[var(--text-primary)]"
             x-text="now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })"></p>
     </div>
     <x-attendance-widget :is-workday="$isWorkday" :attendance="$attendance" :late-minutes="$lateMinutes" />
