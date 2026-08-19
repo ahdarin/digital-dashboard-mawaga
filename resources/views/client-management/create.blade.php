@@ -41,7 +41,7 @@
                     <div class="flex items-center gap-3 mb-6">
                         <div class="w-7 h-7 rounded-lg bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0">1</div>
                         <div>
-                            <p class="text-sm font-semibold text-[var(--text-primary)]">Company Information</p>
+                            <p class="text-sm font-semibold text-[var(--text-primary)]">Informasi Perusahaan</p>
                             <p class="text-xs text-[var(--text-muted)]">Data dasar client dan kategorinya</p>
                         </div>
                     </div>
@@ -97,16 +97,6 @@
                             @error('client_category_id') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label for="color" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Warna Penanda (Kalender)</label>
-                            <div class="flex items-center gap-3">
-                            <input id="color" type="color" name="color" value="{{ old('color', '#044b46') }}"
-                            class="h-10 w-14 rounded-lg cursor-pointer border border-[var(--border)]">
-                            <p class="text-xs text-[var(--text-muted)]">Dipakai sebagai warna penanda deadline client ini di Content Plan Calendar.</p>
-                    </div>
-                    @error('color') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                    </div>
-
-                        <div>
                             <label for="asset_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Aset (Google Drive)</label>
                             <input id="asset_link" type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">
@@ -121,7 +111,7 @@
                     <div class="flex items-center gap-3 mb-1">
                         <div class="w-7 h-7 rounded-lg bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0">2</div>
                         <div>
-                            <p class="text-sm font-semibold text-[var(--text-primary)]">Owner Account (Client Owner)</p>
+                            <p class="text-sm font-semibold text-[var(--text-primary)]">Akun Owner (Client Owner)</p>
                             <p class="text-xs text-[var(--text-muted)]">Akun ini yang login ke dashboard client</p>
                         </div>
                     </div>
@@ -198,8 +188,8 @@
                         <p class="text-sm font-semibold text-[var(--brand)]">Yang terjadi setelah submit</p>
                     </div>
                     <ul class="space-y-2 text-xs text-[var(--text-secondary)]">
-                        <li class="flex gap-2"><span class="shrink-0">1.</span> Profil client dibuat dengan status <strong>Active</strong></li>
-                        <li class="flex gap-2"><span class="shrink-0">2.</span> Akun Owner dibuat berstatus <strong>Invited</strong></li>
+                        <li class="flex gap-2"><span class="shrink-0">1.</span> Profil client dibuat dengan status <strong>Aktif</strong></li>
+                        <li class="flex gap-2"><span class="shrink-0">2.</span> Akun Owner dibuat berstatus <strong>Diundang</strong></li>
                         <li class="flex gap-2"><span class="shrink-0">3.</span> Owner bisa login pakai nomor WhatsApp yang didaftarkan</li>
                     </ul>
                 </div>

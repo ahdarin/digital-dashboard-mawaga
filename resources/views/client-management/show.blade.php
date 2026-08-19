@@ -24,7 +24,7 @@
                         {{ $client->status === 'active' ? 'badge-success' : '' }}
                         {{ $client->status === 'past_due' ? 'badge-danger' : '' }}
                         {{ $client->status === 'paused' ? 'badge-neutral' : '' }}">
-                        {{ $client->status === 'past_due' ? 'Past Due' : ucfirst($client->status) }}
+                        {{ match($client->status) { 'active' => 'Aktif', 'past_due' => 'Jatuh Tempo', 'paused' => 'Dijeda', default => ucfirst($client->status) } }}
                     </span>
                 </div>
                 <p class="text-sm text-[var(--text-muted)] mt-0.5">{{ $client->name }} &middot; {{ $client->category->name ?? '-' }}</p>
@@ -47,17 +47,17 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div class="card p-6">
-                    <p class="text-sm text-[var(--text-secondary)] mb-2">Total Content Plan</p>
+                    <p class="text-sm text-[var(--text-secondary)] mb-2">Total Rencana Konten</p>
                     <p class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $planCount }}</p>
                 </div>
                 <div class="card p-6">
-                    <p class="text-sm text-[var(--text-secondary)] mb-2">Total Content Created</p>
+                    <p class="text-sm text-[var(--text-secondary)] mb-2">Total Konten Dibuat</p>
                     <p class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $contentCount }}</p>
                 </div>
             </div>
 
             <div class="card p-6">
-                <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-4">Recent Content</h2>
+                <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-4">Konten Terbaru</h2>
 
                 @if ($recentContentItems->isEmpty())
                     <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk client ini.</p>
@@ -66,8 +66,8 @@
                         <table class="w-full text-sm text-left">
                             <thead class="bg-[var(--surface-page)]">
                                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                    <th class="px-6 py-3 font-medium whitespace-nowrap">Title</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Type</th>
+                                    <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
                                     <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
                                     <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                 </tr>
@@ -96,7 +96,7 @@
         <div class="w-full lg:w-[320px] shrink-0 space-y-5">
 
             <div class="card p-6">
-                <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-4">Owner Account</h2>
+                <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-4">Akun Owner</h2>
 
                 @if ($client->owner)
                     <div class="flex items-center gap-3 mb-4">
@@ -105,7 +105,7 @@
                         </div>
                         <div>
                             <p class="text-sm font-medium text-[var(--text-primary)]">{{ $client->owner->name }}</p>
-                            <p class="text-xs text-[var(--text-muted)]">{{ ucfirst($client->owner->status) }}</p>
+                            <p class="text-xs text-[var(--text-muted)]">{{ match($client->owner->status) { 'active' => 'Aktif', 'invited' => 'Diundang', 'inactive' => 'Nonaktif', default => ucfirst($client->owner->status) } }}</p>
                         </div>
                     </div>
 
@@ -123,7 +123,7 @@
             </div>
 
             <div class="card p-6">
-                <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-4">Active Package</h2>
+                <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-4">Paket Aktif</h2>
 
                 @if ($client->activePackage)
                     <p class="text-sm font-medium text-[var(--text-primary)]">{{ $client->activePackage->package_name_snapshot }}</p>
@@ -154,7 +154,7 @@
             </div>
 
             <div class="card p-6">
-                <h2 class="text-sm font-semibold text-[var(--danger-text)] mb-3">Danger Zone</h2>
+                <h2 class="text-sm font-semibold text-[var(--danger-text)] mb-3">Zona Berbahaya</h2>
                 <form action="{{ route('client-management.destroy', $client) }}" method="POST"
                       onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, client hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
                     @csrf

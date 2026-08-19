@@ -22,6 +22,9 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
 use App\Http\Controllers\Client\AnalyticsController as ClientAnalyticsController;
+use App\Http\Controllers\Client\DashboardController as ClientDashboardController;
+use App\Http\Controllers\Client\CalendarController as ClientCalendarController;
+use App\Http\Controllers\Client\HistoryController as ClientHistoryController;
 use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
@@ -48,6 +51,26 @@ Route::get('/', function () {
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
+
+// TEMPORARY DEV-ONLY - login langsung sebagai user klien tanpa lewat magic
+// link WhatsApp, buat mempermudah eksplorasi Portal Klien selama development.
+// Cuma aktif di environment local. HAPUS route ini sebelum deploy/push -
+// lihat memori "client-portal-audit" buat konteksnya.
+if (app()->environment('local')) {
+    Route::get('/__dev-client-login/{userId}', function (int $userId) {
+        $user = \App\Models\User::whereNotNull('client_id')->findOrFail($userId);
+        auth()->login($user);
+        return redirect()->route('client.dashboard');
+    });
+}
+
+// Preferensi tampilan personal (tema dsb) - dipakai user internal MAUPUN
+// klien, jadi cuma butuh 'auth', bukan di dalam grup 'internal' atau
+// 'client.user' manapun.
+Route::middleware('auth')->group(function () {
+    Route::patch('/preferences/theme', [PreferencesController::class, 'updateTheme'])
+        ->name('preferences.theme');
+});
 
 //Production Workflow Routes
 Route::middleware(['auth', 'internal'])->group(function () {
@@ -91,11 +114,6 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::delete('/content-items/{contentItem}/pin', [ContentItemController::class, 'unpin'])
         ->middleware(['permission:workflow,view', 'client.scope:contentItem'])
         ->name('content-items.pin.unmark');
-
-    // Preferensi tampilan personal (tema dsb) - nggak digated permission
-    // modul manapun, semua user internal yang login boleh atur punya sendiri.
-    Route::patch('/preferences/theme', [PreferencesController::class, 'updateTheme'])
-        ->name('preferences.theme');
 
     Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
         ->middleware(['permission:workflow,view', 'client.scope:contentBrief,contentItem.client_id'])
@@ -282,11 +300,14 @@ Route::post('/client/login', [ClientMagicLinkController::class, 'requestLink'])
 Route::get('/client/magic-login/{token}', [ClientMagicLinkController::class, 'verify'])->name('client.magic-login.verify');
 
 Route::middleware(['auth', 'client.user'])->group(function () {
-    Route::get('/client/dashboard', [ApprovalController::class, 'index'])->name('client.dashboard');
+    Route::get('/client/dashboard', [ClientDashboardController::class, 'index'])->name('client.dashboard');
+
+    Route::get('/client/calendar', [ClientCalendarController::class, 'index'])->name('client.calendar');
+
+    Route::get('/client/riwayat', [ClientHistoryController::class, 'index'])->name('client.history');
 
     Route::get('/client/analytics', [ClientAnalyticsController::class, 'index'])->name('client.analytics');
 
-    Route::get('/client/approval', [ApprovalController::class, 'index'])->name('client.approval.index');
     Route::get('/client/approval/{contentItem}', [ApprovalController::class, 'show'])->name('client.approval.show');
     Route::post('/client/approval/{contentItem}/approve', [ApprovalController::class, 'approve'])->name('client.approval.approve');
     Route::post('/client/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.approval.request-revision');
