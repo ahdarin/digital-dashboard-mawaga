@@ -6,7 +6,10 @@
 
     <x-welcome-banner :is-workday="$isWorkday" :attendance="$attendance" :late-minutes="$lateMinutes" />
 
-    <x-next-steps :steps="$nextSteps" />
+    <div class="lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
+        <x-pinned-focus :pinned-items="$pinnedItems" />
+        <x-next-steps :steps="$nextSteps" />
+    </div>
 
     @include('partials.copywriter-brief-queue')
 </div>

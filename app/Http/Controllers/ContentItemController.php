@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\PinException;
 use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
+use App\Services\PinService;
 use App\Services\WorkflowStatusService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
@@ -124,6 +126,33 @@ class ContentItemController extends Controller
         }
 
         return back()->with('status', 'Footage video ditandai sudah selesai di-take.');
+    }
+
+    /**
+     * Pin konten ini buat user yang lagi login - personal, nggak
+     * mempengaruhi/kelihatan user lain. Ditolak (422) kalau sudah nyentuh
+     * batas maksimal PinService::MAX_PINS.
+     */
+    public function pin(Request $request, ContentItem $contentItem, PinService $pinService)
+    {
+        try {
+            $pinService->pin($request->user(), $contentItem);
+        } catch (PinException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['success' => true, 'pinned' => true]);
+    }
+
+    /**
+     * Lepas pin konten ini buat user yang lagi login. Idempoten, sama
+     * seperti unmarkFootageCaptured di bawah.
+     */
+    public function unpin(Request $request, ContentItem $contentItem, PinService $pinService)
+    {
+        $pinService->unpin($request->user(), $contentItem);
+
+        return response()->json(['success' => true, 'pinned' => false]);
     }
 
     /**

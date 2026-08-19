@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
+use App\Services\PinService;
 use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,7 +22,7 @@ class ProductionWorkflowController extends Controller
         'cancelled',
     ];
 
-    public function index(Request $request)
+    public function index(Request $request, PinService $pinService)
     {
         $user = $request->user();
         $tab = $request->input('tab', 'board');
@@ -64,6 +65,11 @@ class ProductionWorkflowController extends Controller
         $allItems = $itemsQuery->get();
         $items = $allItems->groupBy(fn($item) => $item->workflow->current_status);
 
+        // Pin personal (lihat PinService) - dihitung duluan di sini karena
+        // dipakai buat ngapungin kartu ke atas di tiap kolom Kanban, selain
+        // buat sort tampilan List di bawah.
+        $pinnedIds = $pinService->pinnedContentItemIds($user);
+
         $board = [];
         foreach ($this->statuses as $status) {
             // Default: terbaru dipindahkan/diupdate di atas, biar kartu yang
@@ -71,6 +77,14 @@ class ProductionWorkflowController extends Controller
             $columnItems = $items->get($status, collect())
                 ->sortByDesc(fn ($item) => $item->workflow->updated_at)
                 ->values();
+            // Kartu yang di-pin diapungkan ke atas kolom, di atas urutan
+            // default-nya - sama seperti tampilan List, "fokus saya" harus
+            // tetap kelihatan duluan di kolom manapun dia berada. sortBy
+            // stabil (PHP 8+) jadi urutan terbaru-diupdate di atas tetap
+            // terjaga di dalam masing-masing grup pinned/tidak.
+            if ($pinnedIds->isNotEmpty()) {
+                $columnItems = $columnItems->sortBy(fn ($item) => $pinnedIds->contains($item->id) ? 0 : 1)->values();
+            }
             $columnItems->each(fn ($item, $i) => $item->boardOrder = $i);
             $board[$status] = $columnItems;
         }
@@ -112,6 +126,16 @@ class ProductionWorkflowController extends Controller
             $listItems = $listItems->filter(fn ($item) => $item->workflow->current_status === $selectedStatus)->values();
         }
 
+        // Pin personal (lihat PinService, $pinnedIds sudah dihitung di atas)
+        // selalu diapungkan ke atas terlepas dari kolom sort yang aktif -
+        // "fokus saya" harus tetap kelihatan duluan walau lagi sort by
+        // risiko/deadline dsb. sortBy stabil (PHP 8+) jadi urutan dari
+        // $sortKey di atas tetap terjaga di dalam masing-masing grup
+        // pinned/tidak.
+        if ($pinnedIds->isNotEmpty()) {
+            $listItems = $listItems->sortBy(fn ($item) => $pinnedIds->contains($item->id) ? 0 : 1)->values();
+        }
+
         // Sort/filter di atas jalan di memori (bukan query builder, karena sort
         // "status" ngikutin urutan tahapan workflow custom, bukan alfabet) - jadi
         // paginate juga manual pakai LengthAwarePaginator, bukan ->paginate() di
@@ -142,6 +166,7 @@ class ProductionWorkflowController extends Controller
             'viewExplicit' => $request->has('view'),
             'board' => $board,
             'listItems' => $listItems,
+            'pinnedIds' => $pinnedIds,
             'sortColumn' => $sortColumn,
             'sortDir' => $sortDir,
             'statuses' => $this->statuses,

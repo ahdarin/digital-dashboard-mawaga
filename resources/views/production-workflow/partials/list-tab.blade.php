@@ -32,6 +32,7 @@
                     @forelse ($listItems as $item)
                         @php
                             $isOverdue = $item->workflow->is_overdue;
+                            $isPinned = $pinnedIds->contains($item->id);
                             $risk = $item->latestDelayRisk;
                             $riskBadgeClasses = [
                                 'high' => 'badge-danger',
@@ -42,14 +43,17 @@
                         @endphp
                         <tr x-show="matchesSearch('{{ addslashes($item->title) }}')"
                             onclick="window.location='{{ route('content-items.show', $item) }}'"
-                            class="border-t border-[#f2f3f6] transition-colors cursor-pointer {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : 'hover:bg-[#f7f8fc]' }}">
+                            class="border-t border-[#f2f3f6] transition-colors cursor-pointer {{ $isOverdue ? 'bg-[#fdf2f1] hover:bg-[#fbe4e2]' : ($isPinned ? 'bg-[#f0f5f4] hover:bg-[#e4ede9]' : 'hover:bg-[#f7f8fc]') }}">
                             <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
                                 @if ($item->is_urgent)
                                     <div class="absolute left-0 top-0 bottom-0 w-5 bg-[#b3423e] flex items-center justify-center overflow-hidden" title="Jobdesk Tambahan">
                                         <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
                                     </div>
                                 @endif
-                                <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
+                                <div class="flex items-center gap-2">
+                                    <x-pin-button :item="$item" :pinned="$isPinned" />
+                                    <p class="font-medium text-[#14181a]">{{ $item->title }}</p>
+                                </div>
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
@@ -117,6 +121,7 @@
         @forelse ($listItems as $item)
             @php
                 $isOverdue = $item->workflow->is_overdue;
+                $isPinned = $pinnedIds->contains($item->id);
                 $risk = $item->latestDelayRisk;
                 $riskBadgeClasses = [
                     'high' => 'badge-danger',
@@ -127,8 +132,10 @@
             @endphp
             <div x-data="{ open: false }"
                 x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                class="card p-3.5 {{ $isOverdue ? 'bg-[#fdf2f1]' : '' }}">
-                <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
+                class="card p-3.5 {{ $isOverdue ? 'bg-[#fdf2f1]' : ($isPinned ? 'bg-[#f0f5f4]' : '') }}">
+                <div class="flex items-start gap-2">
+                    <x-pin-button :item="$item" :pinned="$isPinned" class="mt-0.5" />
+                    <button type="button" class="flex-1 min-w-0 text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             @if ($item->is_urgent)
@@ -150,7 +157,8 @@
                     <span class="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-[#767c80]">
                         <span class="material-symbols-outlined text-[20px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
                     </span>
-                </button>
+                    </button>
+                </div>
 
                 <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2" @click.stop>
                     <p class="text-[10px] font-semibold uppercase tracking-wide text-[#767c80]">Info Penugasan</p>

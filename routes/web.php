@@ -84,6 +84,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::delete('/content-items/{contentItem}/footage-captured', [ContentItemController::class, 'unmarkFootageCaptured'])
         ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('content-items.footage-captured.unmark');
+    Route::post('/content-items/{contentItem}/pin', [ContentItemController::class, 'pin'])
+        ->middleware(['permission:workflow,view', 'client.scope:contentItem'])
+        ->name('content-items.pin');
+    Route::delete('/content-items/{contentItem}/pin', [ContentItemController::class, 'unpin'])
+        ->middleware(['permission:workflow,view', 'client.scope:contentItem'])
+        ->name('content-items.pin.unmark');
 
     Route::get('/content-brief/{contentBrief}', [ContentBriefController::class, 'show'])
         ->middleware(['permission:workflow,view', 'client.scope:contentBrief,contentItem.client_id'])

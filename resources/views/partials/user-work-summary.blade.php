@@ -2,6 +2,13 @@
      Used by home/index and profile/show for the staff role.
      Expects: $activeCount, $overdueCount, $completionRate, $revisionCount,
               $assignedClients, $assignments, $statusLabels --}}
+@php
+    // Tombol pin cuma relevan di Beranda (selalu punya sendiri) atau profil
+    // sendiri - lihat orang lain nggak perlu bisa pin task orang itu.
+    // $isOwnProfile cuma keset di profile/show*.blade.php, jadi default true
+    // di Beranda yang nggak pernah nyetel variabel itu.
+    $showPinButton = ! isset($isOwnProfile) || $isOwnProfile;
+@endphp
 {{-- Kartu Ringkasan --}}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
     <div class="card p-5">
@@ -64,6 +71,7 @@
                     @forelse ($assignments as $assignment)
                         @php
                             $item = $assignment->contentItem;
+                            $isPinned = $pinnedIds->contains($item->id);
                             $riskBadgeClasses = [
                                 'high' => 'badge-danger',
                                 'medium' => 'badge-warning',
@@ -72,10 +80,15 @@
                             $risk = $item->latestDelayRisk;
                             $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
-                        <tr class="border-t border-[#f2f3f6] hover:bg-[#f7f8fc] transition-colors cursor-pointer"
+                        <tr class="border-t border-[#f2f3f6] transition-colors cursor-pointer {{ $isPinned ? 'bg-[#f0f5f4] hover:bg-[#e4ede9]' : 'hover:bg-[#f7f8fc]' }}"
                             onclick="window.location='{{ route('content-items.show', $item) }}'">
                             <td class="px-6 py-3.5 font-medium text-[#14181a] whitespace-nowrap">
-                                {{ $item->title }}
+                                <div class="flex items-center gap-2">
+                                    @if ($showPinButton)
+                                        <x-pin-button :item="$item" :pinned="$isPinned" />
+                                    @endif
+                                    <span>{{ $item->title }}</span>
+                                </div>
                             </td>
                             <td class="px-4 py-3.5 text-[#5c6266] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
                             <td class="px-4 py-3.5">
@@ -114,6 +127,7 @@
             @forelse ($assignments as $assignment)
                 @php
                     $item = $assignment->contentItem;
+                    $isPinned = $pinnedIds->contains($item->id);
                     $riskBadgeClasses = [
                         'high' => 'badge-danger',
                         'medium' => 'badge-warning',
@@ -122,8 +136,12 @@
                     $risk = $item->latestDelayRisk;
                     $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                 @endphp
-                <div class="card p-3.5" x-data="{ open: false }">
-                    <button type="button" class="w-full text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
+                <div class="card p-3.5 {{ $isPinned ? 'bg-[#f0f5f4]' : '' }}" x-data="{ open: false }">
+                    <div class="flex items-start gap-2">
+                        @if ($showPinButton)
+                            <x-pin-button :item="$item" :pinned="$isPinned" class="mt-0.5" />
+                        @endif
+                        <button type="button" class="flex-1 min-w-0 text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-[#14181a] text-sm">{{ $item->title }}</p>
                             <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
@@ -143,7 +161,8 @@
                         <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[#767c80]">
                             <span class="material-symbols-outlined text-[19px] transition-transform" :class="open && 'rotate-180'">expand_more</span>
                         </div>
-                    </button>
+                        </button>
+                    </div>
                     <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[#f2f3f6] space-y-2">
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-[#767c80]">Klien</span>

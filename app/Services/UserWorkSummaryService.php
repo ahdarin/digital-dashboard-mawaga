@@ -29,9 +29,14 @@ class UserWorkSummaryService
      * ke client yang ada di roster $user (bukan global) - konsisten sama
      * scoping di Produksi/Content Plan dkk.
      */
-    public function copywriterQueue(User $user): Collection
+    /**
+     * $pinnedIds selalu punya pin milik user yang lagi login (bukan $user
+     * yang lagi dilihat ringkasannya) - profil siapa pun bisa ditinjau,
+     * tapi "fokus saya" tetap relatif ke penonton, bukan pemilik profil.
+     */
+    public function copywriterQueue(User $user, ?Collection $pinnedIds = null): Collection
     {
-        return ContentItem::with(['client', 'contentType', 'contentBriefDraft', 'workflow'])
+        $items = ContentItem::with(['client', 'contentType', 'contentBriefDraft', 'workflow'])
             ->whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
             ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses))
             ->when(
@@ -40,14 +45,26 @@ class UserWorkSummaryService
             )
             ->orderBy('deadline_at')
             ->get();
+
+        if ($pinnedIds && $pinnedIds->isNotEmpty()) {
+            $items = $items->sortBy(fn ($item) => $pinnedIds->contains($item->id) ? 0 : 1)->values();
+        }
+
+        return $items;
     }
 
-    public function productionSummary(User $user): array
+    public function productionSummary(User $user, ?Collection $pinnedIds = null): array
     {
         $assignments = ContentItemAssignment::where('user_id', $user->id)
             ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType', 'contentItem.latestDelayRisk'])
             ->get()
             ->filter(fn ($a) => $a->contentItem && $a->contentItem->workflow);
+
+        if ($pinnedIds && $pinnedIds->isNotEmpty()) {
+            $assignments = $assignments->sortBy(
+                fn ($a) => $pinnedIds->contains($a->content_item_id) ? 0 : 1
+            )->values();
+        }
 
         $activeCount = $assignments->filter(
             fn ($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses)

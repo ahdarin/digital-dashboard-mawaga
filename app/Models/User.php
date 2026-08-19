@@ -59,6 +59,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notification::class);
     }
+
+    public function pins(): HasMany
+    {
+        return $this->hasMany(Pin::class);
+    }
+
     public function hasAnyRole(array $roles): bool
     {
         $roleValues = array_map(fn (UserRole $r) => $r->value, $roles);

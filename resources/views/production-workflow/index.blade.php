@@ -146,14 +146,17 @@
                      data-column="{{ $status }}"
                      x-bind:data-expanded="(expandedColumns['{{ $status }}'] || search.length > 0) ? 'true' : 'false'">
                     @forelse ($board[$status] as $item)
-                        @php $isOverdue = $item->workflow->is_overdue; @endphp
+                        @php
+                            $isOverdue = $item->workflow->is_overdue;
+                            $isPinned = $pinnedIds->contains($item->id);
+                        @endphp
 
                         <div draggable="{{ $canUpdateWorkflow ? 'true' : 'false' }}"
                              x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }})"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}"
-                             class="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'border-[#e39a96]' : 'border-[#eef0f4]' }}">
+                             class="rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'bg-[#fdf2f1] border-[#e39a96]' : ($isPinned ? 'bg-[#f0f5f4] border-[#8fb8b3]' : 'bg-white border-[#eef0f4]') }}">
 
                             @if ($item->is_urgent)
                                 <div class="bg-[#b3423e] text-white text-[10px] font-bold uppercase tracking-wider py-1 px-2 overflow-hidden whitespace-nowrap flex items-center gap-1.5">
@@ -164,12 +167,12 @@
 
                             <div class="p-3.5">
                             <div class="flex justify-between items-start gap-1 flex-wrap mb-2">
-                                <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded">{{ $item->contentType->name ?? '-' }}</span>
-                                @if ($isOverdue)
-                                    <span class="text-[10px] text-[#b3423e] font-semibold flex items-center gap-1 bg-[#fdf2f1] px-2 py-0.5 rounded">
-                                        <span class="material-symbols-outlined text-[12px]">warning</span> Terlambat
-                                    </span>
-                                @endif
+                                <span class="text-[11px] bg-[#f2f3f6] text-[#5c6266] px-2 py-1 rounded inline-flex items-center gap-1">
+                                    @if ($isPinned)
+                                        <span class="material-symbols-outlined text-[12px] text-[#044b46]" style="font-variation-settings: 'FILL' 1">push_pin</span>
+                                    @endif
+                                    {{ $item->contentType->name ?? '-' }}
+                                </span>
                                 @if ($item->workflow->client_reviewed_at && $status === 'waiting_review')
                                     <span data-client-approved-badge class="text-[10px] text-[#0f7a5f] font-semibold flex items-center gap-1 bg-[#f0f5f4] px-2 py-0.5 rounded whitespace-nowrap">
                                         <span class="material-symbols-outlined text-[12px]">check_circle</span> Klien Setuju
@@ -220,9 +223,9 @@
                             @endif
 
                             <div class="flex items-center justify-between pt-2.5 border-t border-[#f2f3f6]">
-                                <div class="flex items-center gap-1 text-[#767c80]">
-                                    <span class="material-symbols-outlined text-[15px]">schedule</span>
-                                    <span class="text-xs">{{ $item->deadline_at->format('M d') }}</span>
+                                <div class="flex items-center gap-1 {{ $isOverdue ? 'text-[#b3423e]' : 'text-[#767c80]' }}">
+                                    <span class="material-symbols-outlined text-[15px]">{{ $isOverdue ? 'warning' : 'schedule' }}</span>
+                                    <span class="text-xs {{ $isOverdue ? 'font-semibold' : '' }}">{{ $item->deadline_at->format('M d') }}</span>
                                 </div>
 
                                 <div class="relative" x-data="{ open: false }" x-on:click.outside="open = false">

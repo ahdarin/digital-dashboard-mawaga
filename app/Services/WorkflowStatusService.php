@@ -99,6 +99,10 @@ class WorkflowStatusService
                     'caption_final' => $payload['caption_final'] ?? null,
                 ]);
                 $contentItem->update(['is_posted' => true]);
+
+                // Konten sudah tayang - lepas dari daftar pin semua orang
+                // biar daftar pin nggak numpuk konten yang udah kelar.
+                app(PinService::class)->unpinForAllUsers($contentItem);
             }
 
             $workflow->update(['current_status' => $toStatus]);

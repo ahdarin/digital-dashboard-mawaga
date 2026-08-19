@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AttendanceService;
 use App\Services\NextStepsService;
+use App\Services\PinService;
 use App\Services\UserWorkSummaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,10 +21,13 @@ class HomeController extends Controller
         Request $request,
         UserWorkSummaryService $summaryService,
         NextStepsService $nextStepsService,
-        AttendanceService $attendanceService
+        AttendanceService $attendanceService,
+        PinService $pinService
     ) {
         $user = $request->user();
         $nextSteps = $nextStepsService->forUser($user);
+        $pinnedIds = $pinService->pinnedContentItemIds($user);
+        $pinnedItems = $pinService->pinnedContentItems($user);
 
         $now = Carbon::now();
         $attendanceProps = [
@@ -33,18 +37,18 @@ class HomeController extends Controller
         ];
 
         if ($summaryService->isCopywriter($user)) {
-            $briefQueueItems = $summaryService->copywriterQueue($user);
+            $briefQueueItems = $summaryService->copywriterQueue($user, $pinnedIds);
 
             return view('home.index-copywriter', array_merge(
-                compact('user', 'briefQueueItems', 'nextSteps'),
+                compact('user', 'briefQueueItems', 'nextSteps', 'pinnedIds', 'pinnedItems'),
                 $attendanceProps
             ));
         }
 
-        $data = $summaryService->productionSummary($user);
+        $data = $summaryService->productionSummary($user, $pinnedIds);
 
         return view('home.index', array_merge(
-            ['user' => $user, 'nextSteps' => $nextSteps],
+            ['user' => $user, 'nextSteps' => $nextSteps, 'pinnedIds' => $pinnedIds, 'pinnedItems' => $pinnedItems],
             $data,
             $attendanceProps
         ));
