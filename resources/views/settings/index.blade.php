@@ -50,7 +50,7 @@
                 <div>
                     <p class="text-sm font-semibold text-[var(--text-primary)]">{{ $user->name }}</p>
                     <p class="text-sm text-[var(--text-secondary)]">{{ $user->email }}</p>
-                    <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->role->name ?? '-' }}</p>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->roleNamesLabel() }}</p>
                 </div>
             </div>
         </div>
@@ -109,45 +109,22 @@
             </a>
         </div>
 
-        {{-- Notifications + Anomaly Detection --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 items-start">
-            <div class="card p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Notifications</h2>
-                    <span class="badge badge-neutral">Semua aktif</span>
-                </div>
-                <p class="text-xs text-[var(--text-muted)] mb-4 -mt-1">
-                    Semua notifikasi di bawah ini otomatis aktif buat akunmu. Pengaturan on/off per jenis belum tersedia.
-                </p>
-                <div class="space-y-3.5">
-                    @foreach (['Konten mendekati deadline', 'Ada revisi baru yang perlu direspons', 'Sinkronisasi data performa selesai/gagal'] as $label)
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="text-sm text-[var(--text-secondary)]">{{ $label }}</span>
-                            <span title="Pengaturan on/off per jenis belum tersedia"
-                                  class="badge badge-success shrink-0">
-                                <span class="material-symbols-outlined text-[13px]">check_circle</span> Aktif
-                            </span>
-                        </div>
-                    @endforeach
-                </div>
+        {{-- Anomaly Detection --}}
+        <div class="card p-6">
+            <div class="flex items-center gap-2.5 mb-1">
+                <span class="material-symbols-outlined text-[var(--info-text)] text-[18px]">auto_awesome</span>
+                <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Anomaly Detection</h2>
             </div>
-
-            <div class="card p-6">
-                <div class="flex items-center gap-2.5 mb-1">
-                    <span class="material-symbols-outlined text-[var(--info-text)] text-[18px]">auto_awesome</span>
-                    <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Anomaly Detection</h2>
-                </div>
-                <p class="text-sm text-[var(--text-secondary)] mb-5">
-                    Otomatis bandingin performa konten hari ini vs rata-rata 30 hari terakhir, kirim notifikasi kalau ada lonjakan/penurunan signifikan.
-                    Berjalan otomatis tiap jam - ini buat trigger manual.
-                </p>
-                <form action="{{ route('settings.detect-anomalies') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="bg-[var(--info-tint)] text-[var(--info-text)] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] transition-colors flex items-center gap-2">
-                        <span class="material-symbols-outlined text-[16px]">bolt</span> Jalankan Sekarang
-                    </button>
-                </form>
-            </div>
+            <p class="text-sm text-[var(--text-secondary)] mb-5">
+                Otomatis bandingin performa konten hari ini vs rata-rata 30 hari terakhir, kirim notifikasi kalau ada lonjakan/penurunan signifikan.
+                Berjalan otomatis tiap jam - ini buat trigger manual.
+            </p>
+            <form action="{{ route('settings.detect-anomalies') }}" method="POST">
+                @csrf
+                <button type="submit" class="bg-[var(--info-tint)] text-[var(--info-text)] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] transition-colors flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">bolt</span> Jalankan Sekarang
+                </button>
+            </form>
         </div>
 
     </div>

@@ -602,7 +602,7 @@ class AnalyticsController extends Controller
             $message .= " Pembagian PIC: {$summaryParts}.";
         }
         if ($picAssignmentService->usedFallbackRole()) {
-            $message .= ' Sebagian item nggak punya kandidat PIC dengan role yang cocok, tetap dibagi ke tim internal aktif - cek lagi penugasannya.';
+            $message .= ' Sebagian item nggak punya kandidat PIC dengan role yang cocok di antara tim yang sudah di-assign ke klien ini - cek lagi penugasannya, atau tambahkan PIC dengan role yang sesuai lewat "Assign Klien" di Kelola Pengguna.';
         }
 
         return redirect()->route('content-plan.show', $plan)

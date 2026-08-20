@@ -178,7 +178,7 @@ class ProductionWorkflowController extends Controller
             'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 
@@ -220,7 +220,7 @@ class ProductionWorkflowController extends Controller
             'selectedStatus' => $request->input('status', 'open'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 
@@ -263,7 +263,7 @@ class ProductionWorkflowController extends Controller
             'platformOptions' => $platformOptions,
             'selectedPlatformId' => $request->input('platform_id'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->get(),
+            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 
@@ -297,6 +297,10 @@ class ProductionWorkflowController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['success' => true, 'status' => $toStatus]);
+        return response()->json([
+            'success' => true,
+            'status' => $toStatus,
+            'scheduled_upload_at' => $toStatus === 'scheduled' ? $contentItem->scheduled_upload_at?->format('d M Y, H:i') : null,
+        ]);
     }
 }

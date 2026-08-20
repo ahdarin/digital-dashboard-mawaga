@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\ContentItem;
 use App\Models\ContentPlan;
 use App\Models\ContentWorkflow;
@@ -56,7 +57,7 @@ class NextStepsService
             }
         }
 
-        if ($user->role?->name === 'Copywriter') {
+        if ($user->hasAnyRole([UserRole::Copywriter])) {
             $unfinishedBriefs = ContentItem::whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
                 ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', ['uploaded', 'cancelled']))
                 ->when(

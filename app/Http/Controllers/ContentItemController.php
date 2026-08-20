@@ -33,10 +33,14 @@ class ContentItemController extends Controller
             'contentBriefDraft.takeByUser',
         ]);
 
-        // Kandidat reassign PIC, diurutkan dari yang paling longgar (task aktif
-        // paling sedikit) - biar kelihatan langsung siapa yang punya kapasitas.
+        // Kandidat reassign PIC dibatasi ke tim yang SUDAH di-assign ke client
+        // ini (lewat "Assign Klien" di Kelola Pengguna) - bukan semua staff
+        // internal. Diurutkan dari yang paling longgar (task aktif paling
+        // sedikit) biar kelihatan langsung siapa yang punya kapasitas.
         $reassignCandidates = User::whereNull('client_id')
             ->where('status', 'active')
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
+            ->with('roles')
             ->withCount(['assignments as active_task_count' => function ($q) {
                 $q->whereHas('contentItem.workflow', fn ($qq) => $qq->whereNotIn('current_status', $this->doneStatuses));
             }])

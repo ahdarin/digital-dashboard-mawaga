@@ -80,7 +80,7 @@
             <tbody>
                 @forelse ($items as $item)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                        onclick="window.location='{{ route('content-items.show', $item) }}'">
+                        onclick="navigateTo('{{ route('content-items.show', $item) }}')">
                         <td class="px-6 py-3.5 whitespace-nowrap">
                             <p class="font-medium text-[var(--text-primary)]">{{ $item->title }}</p>
                             <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>

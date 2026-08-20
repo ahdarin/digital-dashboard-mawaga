@@ -22,6 +22,13 @@ class NotificationController extends Controller
         $notification->update(['is_read' => true]);
 
         if ($notification->related_type === ContentItem::class && $notification->related_id) {
+            // Kontennya bisa saja sudah dihapus (mis. lewat Revert AI
+            // Strategy) sejak notifikasi ini dibuat - cek dulu biar
+            // nggak 404 mentah begitu diklik.
+            if (! ContentItem::find($notification->related_id)) {
+                return back()->with('status', 'Konten yang dimaksud notifikasi ini sudah tidak ada.');
+            }
+
             // ai_insight = anomali performa (spike/drop views) dari
             // analytics:detect-anomalies - relevan buat dibawa ke halaman
             // performa (Analytics), bukan halaman produksi/workflow.

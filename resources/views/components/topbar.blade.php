@@ -163,7 +163,7 @@
                 @endif
                 <div class="hidden md:block leading-tight">
                     <p class="text-[13px] font-medium text-[var(--text-primary)]">{{ auth()->user()->name ?? 'User' }}</p>
-                    <p class="text-[11px] text-[var(--text-muted)]">{{ auth()->user()->role->name ?? '-' }}</p>
+                    <p class="text-[11px] text-[var(--text-muted)]">{{ auth()->user()->roleNamesLabel() }}</p>
                 </div>
             </a>
         </div>

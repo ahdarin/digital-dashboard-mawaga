@@ -31,55 +31,53 @@ class RoleSeeder extends Seeder
         if (app()->environment('local')) {
             $managerRole = Role::where('name', 'Manager')->first();
 
-            User::firstOrCreate(
+            $managerDemo = User::firstOrCreate(
                 [
                     'email' => 'admin@523studio.test',
                 ],
                 [
-                    'role_id' => $managerRole->id,
                     'name' => 'Manager Demo',
                     'password' => bcrypt('password'),
                     'status' => 'active',
                 ]
             );
+            $managerDemo->roles()->syncWithoutDetaching([$managerRole->id]);
         }
 
         // CEO
         $ceoRole = Role::where('name', 'CEO')->first();
 
-        User::firstOrCreate(
+        $ahda = User::firstOrCreate(
             [
                 'email' => 'ahdaalamin2506@gmail.com',
             ],
             [
-                'role_id' => $ceoRole->id,
                 'name' => 'Ahda',
                 'status' => 'active',
             ]
         );
-        $ceoRole = Role::where('name', 'CEO')->first();
+        $ahda->roles()->syncWithoutDetaching([$ceoRole->id]);
 
-        User::firstOrCreate(
+        $surdik = User::firstOrCreate(
             [
                 'email' => 'surdik2811@gmail.com',
             ],
             [
-                'role_id' => $ceoRole->id,
                 'name' => 'Surdik',
                 'status' => 'active',
             ]
         );
-        $ceoRole = Role::where('name', 'CEO')->first();
+        $surdik->roles()->syncWithoutDetaching([$ceoRole->id]);
 
-        User::firstOrCreate(
+        $ghazi = User::firstOrCreate(
             [
                 'email' => 'ghazifadhlullah31@gmail.com',
             ],
             [
-                'role_id' => $ceoRole->id,
                 'name' => 'Ghazi',
                 'status' => 'active',
             ]
         );
+        $ghazi->roles()->syncWithoutDetaching([$ceoRole->id]);
     }
 }

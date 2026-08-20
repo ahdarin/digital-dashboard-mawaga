@@ -42,7 +42,7 @@
                             $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
                         <tr x-show="matchesSearch('{{ addslashes($item->title) }}')"
-                            onclick="window.location='{{ route('content-items.show', $item) }}'"
+                            onclick="navigateTo('{{ route('content-items.show', $item) }}')"
                             class="border-t border-[var(--surface-muted)] transition-colors cursor-pointer {{ $isOverdue ? 'bg-[var(--danger-tint)] hover:bg-[var(--danger-tint-hover)]' : ($isPinned ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)]' : 'hover:bg-[var(--surface-page)]') }}">
                             <td class="px-6 py-3.5 relative {{ $item->is_urgent ? 'pl-8' : '' }}">
                                 @if ($item->is_urgent)

@@ -17,7 +17,7 @@ class Client extends Model
     public function contentItems() { return $this->hasMany(ContentItem::class); }
 
     public function users() { return $this->hasMany(User::class); }
-    public function owner() { return $this->hasOne(User::class)->whereHas('role', fn ($q) => $q->where('name', 'Client Owner')); }
+    public function owner() { return $this->hasOne(User::class)->whereHas('roles', fn ($q) => $q->where('name', 'Client Owner')); }
     public function activePackage() { return $this->hasOne(ClientPackage::class)->where('status', 'active')->latestOfMany('start_date'); }
     public function assignedUsers() { return $this->belongsToMany(User::class, 'user_client_assignments'); }
 

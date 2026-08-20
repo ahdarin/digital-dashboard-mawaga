@@ -155,7 +155,8 @@
                              x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }})"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
-                             data-item-id="{{ $item->id }}"
+                             data-item-id="{{ $item->id }}" data-content-type="{{ $item->contentType->name ?? '' }}"
+                             data-footage-captured-at="{{ $item->footage_captured_at?->format('d M Y, H:i') }}"
                              class="rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden {{ $canUpdateWorkflow ? 'cursor-move' : '' }} {{ $isOverdue ? 'bg-[var(--danger-tint)] border-[var(--danger-border-strong)]' : ($isPinned ? 'bg-[var(--brand-tint)] border-[var(--brand-border)]' : 'bg-[var(--surface-card)] border-[var(--border)]') }}">
 
                             @if ($item->is_urgent)
@@ -222,7 +223,16 @@
                                 </div>
                             @endif
 
-                            <div class="flex items-center justify-between pt-2.5 border-t border-[var(--surface-muted)]">
+                            {{-- Info jadwal upload di posisi yang sama dengan penanda "Sudah
+                                 Di-take" - biar tim langsung lihat rencana tayangnya tanpa
+                                 harus buka detail konten. --}}
+                            @if ($status === 'scheduled' && $item->scheduled_upload_at)
+                                <div data-scheduled-info data-item-id="{{ $item->id }}" class="flex items-center gap-1 text-[10px] font-medium text-[var(--brand)] bg-[var(--brand-tint)] px-2 py-1.5 rounded-lg mb-2.5">
+                                    <span class="material-symbols-outlined text-[13px]">event_available</span> Terjadwal tayang {{ $item->scheduled_upload_at->format('d M Y, H:i') }}
+                                </div>
+                            @endif
+
+                            <div data-card-footer class="flex items-center justify-between pt-2.5 border-t border-[var(--surface-muted)]">
                                 <div class="flex items-center gap-1 {{ $isOverdue ? 'text-[var(--danger-text)]' : 'text-[var(--text-muted)]' }}">
                                     <span class="material-symbols-outlined text-[15px]">{{ $isOverdue ? 'warning' : 'schedule' }}</span>
                                     <span class="text-xs {{ $isOverdue ? 'font-semibold' : '' }}">{{ $item->deadline_at->format('M d') }}</span>
@@ -317,7 +327,7 @@
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmRevisionModal()"
                         class="btn-primary">
-                    Pindahkan ke Revision
+                    Pindahkan ke Status Revisi
                 </button>
                 <button type="button" @click="revisionModal = null" class="btn-secondary">
                     Batal
@@ -368,6 +378,36 @@
         </div>
     </div>
 
+    {{-- Modal drag-drop: approved -> scheduled butuh rencana tanggal & jam upload dulu --}}
+    <div x-show="scheduledModal" x-cloak x-on:keydown.escape.window="scheduledModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="absolute inset-0 bg-[#14181a]/40" @click="scheduledModal = null"></div>
+        <div x-show="scheduledModal" x-transition role="dialog" aria-modal="true" aria-labelledby="scheduled-modal-title" x-trap="!!scheduledModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
+                <div>
+                    <h3 id="scheduled-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Jadwalkan Upload</h3>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5" x-text="scheduledModal?.title"></p>
+                </div>
+                <button type="button" @click="scheduledModal = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+                    <span class="material-symbols-outlined text-[19px]">close</span>
+                </button>
+            </div>
+            <div class="px-6 py-5">
+                <label for="kanban_scheduled_upload_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
+                <input id="kanban_scheduled_upload_at" type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off"
+                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+            </div>
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
+                <button type="button" @click="confirmScheduledModal()"
+                        class="btn-primary">
+                    Jadwalkan
+                </button>
+                <button type="button" @click="scheduledModal = null" class="btn-secondary">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
     @endif
     @endif
@@ -402,6 +442,8 @@ function kanbanBoard() {
         revisionNote: '',
         publicationModal: null,
         pubForm: { published_at: '', post_url: '', caption_final: '' },
+        scheduledModal: null,
+        scheduledUploadAt: '',
         toggleRiskSort() {
             this.riskSortActive = !this.riskSortActive;
             document.querySelectorAll('.kanban-column').forEach((col) => {
@@ -441,6 +483,12 @@ function kanbanBoard() {
                 return;
             }
 
+            if (toStatus === 'scheduled') {
+                this.scheduledUploadAt = '';
+                this.scheduledModal = { itemId, title };
+                return;
+            }
+
             this.submitStatusChange(itemId, toStatus, {});
         },
         confirmRevisionModal() {
@@ -477,6 +525,16 @@ function kanbanBoard() {
                 this.publicationModal = null;
             });
         },
+        confirmScheduledModal() {
+            if (!this.scheduledUploadAt) {
+                this.toast = 'Perpindahan ke Terjadwal Tayang dibatalkan - rencana tanggal & jam upload wajib diisi.';
+                setTimeout(() => this.toast = '', 3000);
+                return;
+            }
+            this.submitStatusChange(this.scheduledModal.itemId, 'scheduled', { scheduled_upload_at: this.scheduledUploadAt }, () => {
+                this.scheduledModal = null;
+            });
+        },
         submitStatusChange(itemId, toStatus, extra, onSuccess) {
             fetch(`/production-workflow/${itemId}/status`, {
                 method: 'PATCH',
@@ -492,10 +550,10 @@ function kanbanBoard() {
                 if (!res.ok) throw new Error(data.message || 'Gagal memindahkan kartu');
                 return data;
             })
-            .then(() => {
+            .then((data) => {
                 this.toast = 'Status berhasil diperbarui';
                 setTimeout(() => this.toast = '', 2500);
-                this.moveCardToColumn(itemId, toStatus);
+                this.moveCardToColumn(itemId, toStatus, data);
                 if (onSuccess) onSuccess();
             })
             .catch((err) => {
@@ -509,18 +567,48 @@ function kanbanBoard() {
         // toggle, "Klien Setuju") disembunyikan kalau kartu keluar dari
         // kolom asalnya - bukan dibuat ulang, karena markup-nya butuh data
         // dari server yang nggak ada di sisi client.
-        moveCardToColumn(itemId, toStatus) {
+        moveCardToColumn(itemId, toStatus, data = {}) {
             const card = document.querySelector(`[data-item-id="${itemId}"]`);
             const targetColumn = document.querySelector(`[data-column="${toStatus}"]`);
             if (!card || !targetColumn) { return; }
 
             const sourceColumn = card.closest('.kanban-column');
+            const footer = card.querySelector('[data-card-footer]');
 
             if (toStatus !== 'in_progress') {
                 card.querySelector('[data-footage-toggle]')?.remove();
+            } else if (footer && !card.querySelector('[data-footage-toggle]') && card.dataset.contentType === 'Video') {
+                // Video baru masuk Sedang Dikerjakan lewat drag-drop - langsung
+                // tampilkan penanda "Sudah Di-take" tanpa nunggu refresh.
+                // Ngikutin footage_captured_at yang sudah ada di kartu, kalau
+                // sebelumnya sempat ditandai lalu keluar-masuk in_progress lagi.
+                const capturedAt = card.dataset.footageCapturedAt;
+                const wrapper = document.createElement('div');
+                wrapper.setAttribute('data-footage-toggle', '');
+                wrapper.setAttribute('data-item-id', itemId);
+                wrapper.className = 'footage-toggle-fade mb-2.5';
+                wrapper.innerHTML = capturedAt ? this.footageCapturedMarkup(itemId, capturedAt) : this.footageInputMarkup(itemId);
+                footer.parentElement.insertBefore(wrapper, footer);
+                window.Alpine?.initTree(wrapper);
+                window.initFlatpickrs?.(wrapper);
             }
+
             if (toStatus !== 'waiting_review') {
                 card.querySelector('[data-client-approved-badge]')?.remove();
+            }
+
+            if (toStatus !== 'scheduled') {
+                card.querySelector('[data-scheduled-info]')?.remove();
+            } else if (footer && !card.querySelector('[data-scheduled-info]') && data.scheduled_upload_at) {
+                // Sama seperti footage toggle di atas - info jadwal tayang
+                // langsung tampil begitu kartu masuk kolom Terjadwal Tayang,
+                // tanpa nunggu refresh.
+                const info = document.createElement('div');
+                info.setAttribute('data-scheduled-info', '');
+                info.setAttribute('data-item-id', itemId);
+                info.className = 'flex items-center gap-1 text-[10px] font-medium text-[var(--brand)] bg-[var(--brand-tint)] px-2 py-1.5 rounded-lg mb-2.5';
+                info.innerHTML = `<span class="material-symbols-outlined text-[13px]">event_available</span> Terjadwal tayang ${data.scheduled_upload_at}`;
+                footer.parentElement.insertBefore(info, footer);
             }
 
             // Taruh di paling atas kolom tujuan - biar kelihatan langsung
@@ -532,6 +620,34 @@ function kanbanBoard() {
             this.updateColumnCount(targetColumn);
             this.toggleEmptyPlaceholder(sourceColumn);
             this.toggleEmptyPlaceholder(targetColumn);
+        },
+        // Markup badge/form footage-toggle - dipakai bareng oleh
+        // moveCardToColumn() (drag masuk in_progress) dan
+        // submitFootageCaptured() (tandai/batalkan manual), biar dua jalur
+        // itu nggak punya salinan HTML yang bisa kebablasan beda.
+        footageInputMarkup(itemId, dateValue = null) {
+            const value = dateValue || (() => {
+                const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+                return now.toISOString().slice(0, 10) + ' ' + now.toISOString().slice(11, 16);
+            })();
+            return `<div class="flex items-center gap-1">
+                        <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${value}"
+                            x-on:click.stop x-on:mousedown.stop
+                            class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
+                        <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
+                            class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
+                            <span class="material-symbols-outlined text-[15px]">videocam</span>
+                        </button>
+                    </div>`;
+        },
+        footageCapturedMarkup(itemId, dateStr) {
+            return `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1.5 rounded-lg">
+                        <span class="flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take (${dateStr})
+                        </span>
+                        <button type="button" x-on:click.stop="unmarkFootageCaptured(${itemId}, $event)"
+                            class="text-[var(--warning-text)] hover:underline shrink-0">Batalkan</button>
+                    </div>`;
         },
         toggleEmptyPlaceholder(column) {
             if (!column) return;
@@ -595,25 +711,9 @@ function kanbanBoard() {
                 if (!wrapper) return;
                 wrapper.classList.add('footage-toggle-fade-out');
                 setTimeout(() => {
-                    const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
-                    const nowValue = now.toISOString().slice(0, 10) + ' ' + now.toISOString().slice(11, 16);
                     wrapper.innerHTML = method === 'PATCH'
-                        ? `<div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1.5 rounded-lg">
-                                <span class="flex items-center gap-1">
-                                    <span class="material-symbols-outlined text-[13px]">check_circle</span> Sudah di-take (${data.footage_captured_at ?? ''})
-                                </span>
-                                <button type="button" x-on:click.stop="unmarkFootageCaptured(${itemId}, $event)"
-                                    class="text-[var(--warning-text)] hover:underline shrink-0">Batalkan</button>
-                            </div>`
-                        : `<div class="flex items-center gap-1">
-                                <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${nowValue}"
-                                    x-on:click.stop x-on:mousedown.stop
-                                    class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
-                                <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)" title="Tandai Sudah Di-take"
-                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
-                                    <span class="material-symbols-outlined text-[15px]">videocam</span>
-                                </button>
-                            </div>`;
+                        ? this.footageCapturedMarkup(itemId, data.footage_captured_at ?? '')
+                        : this.footageInputMarkup(itemId);
                     window.Alpine?.initTree(wrapper);
                     window.initFlatpickrs?.(wrapper);
                     wrapper.classList.remove('footage-toggle-fade-out');

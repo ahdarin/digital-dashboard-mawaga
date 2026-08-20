@@ -81,7 +81,7 @@
                             $riskBadgeClass = $risk ? ($riskBadgeClasses[$risk->risk_level] ?? $riskBadgeClasses['low']) : null;
                         @endphp
                         <tr class="border-t border-[var(--surface-muted)] transition-colors cursor-pointer {{ $isPinned ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)]' : 'hover:bg-[var(--surface-page)]' }}"
-                            onclick="window.location='{{ route('content-items.show', $item) }}'">
+                            onclick="navigateTo('{{ route('content-items.show', $item) }}')">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
                                 <div class="flex items-center gap-2">
                                     @if ($showPinButton)

@@ -8,11 +8,12 @@ use Illuminate\Console\Command;
 
 /**
  * Sekali jalan: isi roster client (user_client_assignments) berdasarkan
- * penugasan item yang sudah ada (content_item_assignments) - dipakai saat
- * roster belum pernah diisi manual lewat Assign Klien, supaya papan
- * Produksi dkk yang di-scope per-client langsung kelihatan isinya buat
- * staf yang sudah punya tugas. Setelah ini, ContentItemAssignmentObserver
- * yang menjaga roster tetap sinkron ke depannya.
+ * penugasan item yang sudah ada (content_item_assignments) dari SEBELUM
+ * roster jadi wajib diisi manual - buat migrasi data lama satu kali saja,
+ * bukan proses otomatis yang jalan terus. Roster (siapa PIC klien mana)
+ * sekarang murni diatur lewat "Assign Klien" di Kelola Pengguna - PIC
+ * hanya bisa dipilih untuk content item kalau sudah terdaftar di roster
+ * client-nya, jadi jangan andalkan command ini buat alur normal.
  */
 class BackfillClientRosterFromAssignments extends Command
 {

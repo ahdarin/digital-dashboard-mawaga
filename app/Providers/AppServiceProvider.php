@@ -4,13 +4,11 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
-use App\Models\ContentItemAssignment;
 use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Client;
 use App\Models\Platform;
 use App\Models\User;
-use App\Observers\ContentItemAssignmentObserver;
 use App\Observers\ContentWorkflowObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,7 +27,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ContentWorkflow::observe(ContentWorkflowObserver::class);
-        ContentItemAssignment::observe(ContentItemAssignmentObserver::class);
 
         // Sidebar sekarang megang tombol + modal "Jobdesk Tambahan" (pindah
         // dari header Content Plan/Produksi supaya bisa diakses dari halaman
@@ -49,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
                     : $user->assignedClients()->where('status', 'active')->get(),
                 'contentTypeOptions' => ContentType::all(),
                 'platformOptions' => Platform::all(),
-                'picOptions' => User::whereNull('client_id')->where('status', 'active')->get(),
+                'picOptions' => User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
             ]);
         });
     }

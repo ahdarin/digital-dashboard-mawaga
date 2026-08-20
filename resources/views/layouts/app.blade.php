@@ -258,6 +258,13 @@
         (function () {
             const bar = document.getElementById('top-loading-bar');
             const show = () => bar.classList.add('loading');
+            // Buat baris tabel/kartu yang navigasi lewat onclick="window.location=..."
+            // (bukan <a> asli, misal baris tabel Kelola Klien) - supaya loading
+            // bar tetap muncul, bukan cuma link <a> biasa.
+            window.navigateTo = function (url) {
+                show();
+                window.location = url;
+            };
             document.addEventListener('click', function (e) {
                 const link = e.target.closest('a');
                 if (!link) return;

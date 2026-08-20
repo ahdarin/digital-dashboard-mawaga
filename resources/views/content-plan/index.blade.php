@@ -101,7 +101,7 @@
                 <tbody>
                     @forelse ($plans as $plan)
                         <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                            onclick="window.location='{{ route('content-plan.show', $plan) }}'">
+                            onclick="navigateTo('{{ route('content-plan.show', $plan) }}')">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
                                 {{ $plan->client->name ?? '-' }}
                             </td>

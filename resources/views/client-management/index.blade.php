@@ -55,7 +55,7 @@
             <tbody>
                 @forelse ($clients as $client)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                        onclick="window.location='{{ route('client-management.show', $client) }}'">
+                        onclick="navigateTo('{{ route('client-management.show', $client) }}')">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand-solid)] text-white' }}">

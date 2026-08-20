@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
 use App\Models\ContentPublication;
@@ -128,7 +129,7 @@ class WorkflowStatusService
      */
     public function correctStatus(ContentItem $contentItem, string $toStatus, string $reason, User $actor): void
     {
-        if (! in_array($actor->role?->name, ['Manager', 'CEO'], true)) {
+        if (! $actor->hasAnyRole([UserRole::Manager, UserRole::CEO])) {
             throw new WorkflowTransitionException('Cuma Manager atau CEO yang bisa melakukan koreksi status.');
         }
 

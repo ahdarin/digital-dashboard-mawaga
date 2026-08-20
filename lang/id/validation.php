@@ -189,7 +189,7 @@ return [
         'platform' => 'platform',
         'pic_id' => 'penanggung jawab',
         'user_id' => 'pengguna',
-        'role_id' => 'role',
+        'role_ids' => 'role',
         'deadline_at' => 'deadline',
         'scheduled_upload_at' => 'tanggal & jam upload',
         'published_at' => 'tanggal publish',

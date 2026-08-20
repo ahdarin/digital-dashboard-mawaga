@@ -36,9 +36,23 @@ class MasterDataController extends Controller
 
         $model = self::TYPES[$type]::findOrFail($id);
 
-        $inUse = $type === 'client-category'
-            ? $model->clients()->exists()
-            : $model->contentItems()->exists();
+        // Platform direferensikan 5 tabel berbeda (content_items,
+        // content_publications, content_metrics, api_integrations,
+        // analytics_sync_logs, audience_insights - semua RESTRICT tanpa
+        // cascade), bukan cuma content_items - kalau cuma dicek satu,
+        // platform yang sudah tidak dipakai di content item aktif tapi
+        // masih punya riwayat publikasi/metrik lama bakal lolos guard ini
+        // lalu gagal di level database (500 mentah, bukan pesan yang rapi).
+        $inUse = match ($type) {
+            'client-category' => $model->clients()->exists(),
+            'platform' => $model->contentItems()->exists()
+                || $model->publications()->exists()
+                || $model->contentMetrics()->exists()
+                || $model->apiIntegrations()->exists()
+                || $model->analyticsSyncLogs()->exists()
+                || $model->audienceInsights()->exists(),
+            default => $model->contentItems()->exists(),
+        };
 
         if ($inUse) {
             return back()->with('error', 'Tidak bisa dihapus, masih dipakai data lain.');

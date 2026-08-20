@@ -89,17 +89,16 @@ class DemoSeeder extends Seeder
         $lastMonthEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
         // ===== Master data =====
-        // Nama pillar HARUS persis sama kayak label yang dipakai buat
-        // latih model Delay Risk (lihat storage/ai/delay_risk) - kalau beda
-        // nama, encoder di model nggak kenal dan hasil skornya nggak akurat.
-        $pillars = collect(['Education', 'Entertainment', 'Soft Selling', 'Hard Selling', 'Product Highlight', 'Information'])
-            ->map(fn ($name) => ContentPillar::firstOrCreate(['name' => $name]));
+        // Dipindah ke MasterDataSeeder (dijalankan di sini sebagai
+        // dependency, bukan didefinisikan ulang) - biar nilainya tetap satu
+        // sumber kebenaran, termasuk nama pillar yang HARUS persis sama
+        // kayak label yang dipakai buat latih model Delay Risk (lihat
+        // storage/ai/delay_risk).
+        $this->call(MasterDataSeeder::class);
 
-        $contentTypes = collect(['Video', 'Desain'])
-            ->map(fn ($name) => ContentType::firstOrCreate(['name' => $name]));
-
-        $platforms = collect(['Instagram', 'TikTok'])
-            ->map(fn ($name) => Platform::firstOrCreate(['name' => $name]));
+        $pillars = ContentPillar::all();
+        $contentTypes = ContentType::all();
+        $platforms = Platform::all();
 
         $videoType = $contentTypes->firstWhere('name', 'Video');
         $videoPlatforms = $platforms->whereIn('name', ['Instagram', 'TikTok']);
@@ -108,8 +107,7 @@ class DemoSeeder extends Seeder
         // 'client_category' salah satu feature model Delay Risk, jadi kalau
         // semua client sama kategorinya, feature ini nggak ada variasi sama
         // sekali buat testing.
-        $categories = collect(['UMKM', 'Startup', 'Korporat', 'Retail'])
-            ->map(fn ($name) => ClientCategory::firstOrCreate(['name' => $name]));
+        $categories = ClientCategory::all();
         $category = $categories->first(); // dipakai fallback lama di bawah kalau perlu
 
         $picUser = User::where('email', 'ahdaalamin2506@gmail.com')->first() ?? User::first();
@@ -139,22 +137,26 @@ class DemoSeeder extends Seeder
         // Setiap entry: ['user' => User, 'assignment_role' => '...'] - dipakai
         // bareng pas bikin ContentItemAssignment biar assignment_role-nya
         // konsisten sama role asli staff itu (bukan asal random string).
-        $staffPool = collect($staffDefs)->map(fn ($def) => [
-            'user' => User::firstOrCreate(
+        $staffPool = collect($staffDefs)->map(function ($def) use ($staffRoles) {
+            $user = User::firstOrCreate(
                 ['email' => $def['email']],
                 [
-                    'role_id' => $staffRoles[$def['role']]->id,
                     'name' => $def['name'],
                     'status' => 'active',
                 ]
-            ),
-            'assignment_role' => match ($def['role']) {
-                'Content Creator' => 'content_creator',
-                'Graphic Designer' => 'designer',
-                'SMO' => 'smo',
-                'Copywriter' => 'copywriter',
-            },
-        ]);
+            );
+            $user->roles()->syncWithoutDetaching([$staffRoles[$def['role']]->id]);
+
+            return [
+                'user' => $user,
+                'assignment_role' => match ($def['role']) {
+                    'Content Creator' => 'content_creator',
+                    'Graphic Designer' => 'designer',
+                    'SMO' => 'smo',
+                    'Copywriter' => 'copywriter',
+                },
+            ];
+        });
 
         // ===== Clients =====
         // 'login' opsional - kalau diisi, dibikinin 1 User (role Client
@@ -229,16 +231,16 @@ class DemoSeeder extends Seeder
             );
 
             if ($def['login']) {
-                User::firstOrCreate(
+                $owner = User::firstOrCreate(
                     ['phone_number' => $def['login']['phone']],
                     [
-                        'role_id' => $clientOwnerRole->id,
                         'client_id' => $client->id,
                         'name' => $def['login']['name'],
                         'email' => $def['login']['email'],
                         'status' => 'active',
                     ]
                 );
+                $owner->roles()->syncWithoutDetaching([$clientOwnerRole->id]);
             }
 
             return $client;

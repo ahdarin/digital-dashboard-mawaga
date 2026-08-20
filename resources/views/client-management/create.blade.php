@@ -76,6 +76,21 @@
                 </div>
 
                 <div>
+                    <label for="package_template_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Paket</label>
+                    <select id="package_template_id" name="package_template_id"
+                            class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 @error('package_template_id') border-[var(--danger-border-strong)] @enderror">
+                        <option value="">-- Belum Ditentukan --</option>
+                        @foreach ($packageTemplates as $template)
+                            <option value="{{ $template->id }}" {{ old('package_template_id') == $template->id ? 'selected' : '' }}>
+                                {{ $template->name }} ({{ $template->monthly_content_quota }} Konten / {{ $template->monthly_design_quota }} Desain)
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-xs text-[var(--text-muted)] mt-1.5">Opsional. Bisa diisi/diubah nanti dari halaman detail klien.</p>
+                    @error('package_template_id') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
                     <label for="asset_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Aset (Google Drive)</label>
                     <input id="asset_link" type="url" name="asset_link" value="{{ old('asset_link') }}" placeholder="https://drive.google.com/..."
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">

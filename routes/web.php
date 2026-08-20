@@ -29,6 +29,7 @@ use App\Http\Controllers\AudienceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ContentPlanController;
 use App\Http\Controllers\MasterDataController;
+use App\Http\Controllers\PackageTemplateController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\PreferencesController;
 use Illuminate\Support\Facades\Schedule;
@@ -149,19 +150,34 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
+        Route::put('/user-management/{user}/roles', [UserManagementController::class, 'updateRoles'])->name('user-management.roles.update');
 
         Route::put('/user-management/{user}/clients', [UserClientAssignmentController::class, 'update'])
             ->name('user-client-assignment.update');
+        Route::put('/client-management/{client}/pic', [UserClientAssignmentController::class, 'updateForClient'])
+            ->name('client-management.pic.update');
+        Route::delete('/client-management/{client}/pic/{user}', [UserClientAssignmentController::class, 'removeFromClient'])
+            ->name('client-management.pic.remove');
+    });
+
+    // Detail 1 client dibuka ke semua role internal (bukan cuma CEO/Manager)
+    // supaya hasil search "klien" nggak jadi dead-end 403 - tapi tetap
+    // discope ke client yang di-assign ke dia (client.scope, sama seperti
+    // content item). Aksi ubah data (edit/hapus/dst) tetap di grup
+    // client,manage di bawah - tombolnya di-disable di view buat yang
+    // nggak punya izin itu.
+    Route::middleware(['permission:client,view', 'client.scope:client,id'])->group(function () {
+        Route::get('/client-management/{client}', [ClientManagementController::class, 'show'])->name('client-management.show');
     });
 
     Route::middleware('permission:client,manage')->group(function () {
         Route::get('/client-management', [ClientManagementController::class, 'index'])->name('client-management.index');
         Route::get('/client-management/create', [ClientManagementController::class, 'create'])->name('client-management.create');
         Route::post('/client-management', [ClientManagementController::class, 'store'])->name('client-management.store');
-        Route::get('/client-management/{client}', [ClientManagementController::class, 'show'])->name('client-management.show');
         Route::get('/client-management/{client}/edit', [ClientManagementController::class, 'edit'])->name('client-management.edit');
         Route::put('/client-management/{client}', [ClientManagementController::class, 'update'])->name('client-management.update');
         Route::delete('/client-management/{client}', [ClientManagementController::class, 'destroy'])->name('client-management.destroy');
+        Route::put('/client-management/{client}/package', [ClientManagementController::class, 'updatePackage'])->name('client-management.package.update');
     });
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])
@@ -243,6 +259,10 @@ Route::middleware(['auth', 'internal'])->group(function () {
     });
 
     Route::middleware('permission:master_data,manage')->group(function () {
+        Route::post('/package-templates', [PackageTemplateController::class, 'store'])->name('package-templates.store');
+        Route::put('/package-templates/{packageTemplate}', [PackageTemplateController::class, 'update'])->name('package-templates.update');
+        Route::delete('/package-templates/{packageTemplate}', [PackageTemplateController::class, 'destroy'])->name('package-templates.destroy');
+
         Route::post('/master-data/{type}', [MasterDataController::class, 'store'])->name('master-data.store');
         Route::delete('/master-data/{type}/{id}', [MasterDataController::class, 'destroy'])->name('master-data.destroy');
     });
