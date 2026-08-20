@@ -52,18 +52,6 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-// TEMPORARY DEV-ONLY - login langsung sebagai user klien tanpa lewat magic
-// link WhatsApp, buat mempermudah eksplorasi Portal Klien selama development.
-// Cuma aktif di environment local. HAPUS route ini sebelum deploy/push -
-// lihat memori "client-portal-audit" buat konteksnya.
-if (app()->environment('local')) {
-    Route::get('/__dev-client-login/{userId}', function (int $userId) {
-        $user = \App\Models\User::whereNotNull('client_id')->findOrFail($userId);
-        auth()->login($user);
-        return redirect()->route('client.dashboard');
-    });
-}
-
 // Preferensi tampilan personal (tema dsb) - dipakai user internal MAUPUN
 // klien, jadi cuma butuh 'auth', bukan di dalam grup 'internal' atau
 // 'client.user' manapun.

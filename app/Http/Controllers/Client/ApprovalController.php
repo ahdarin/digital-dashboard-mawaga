@@ -78,6 +78,13 @@ class ApprovalController extends Controller
             ]);
         });
 
+        NotificationService::notifyAssignedUsers(
+            $contentItem,
+            'Klien Meminta Revisi',
+            'client_revision_requested',
+            "\"{$contentItem->title}\" diminta revisi oleh klien: \"{$validated['revision_note']}\""
+        );
+
         return redirect(route('client.dashboard') . '#persetujuan')
             ->with('status', 'Catatan revisi berhasil dikirim.');
     }
