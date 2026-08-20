@@ -12,6 +12,7 @@ class ContentBriefDraft extends Model
         'take_by_user_id', 'copywriting_script', 'scenes', 'talent', 'properti',
         'estimated_duration_seconds', 'slide_count', 'talent_count',
         'location_count', 'complexity_level',
+        'feasibility_level', 'feasibility_notes',
         'status', 'chat_history', 'finalized_at', 'previous_snapshot',
     ];
 

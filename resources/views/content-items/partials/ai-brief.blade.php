@@ -202,6 +202,27 @@
 
         <h3 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-4">{{ $contentBrief->hook_title }}</h3>
 
+        {{-- Cek Kelayakan AI - analisis deadline vs kompleksitas & beban kerja PIC minggu itu,
+             bukan cuma elaborasi teks ide. Kosong kalau item belum ada deadline atau API gagal. --}}
+        @if ($contentBrief->feasibility_level)
+            @php
+                $feasibilityMeta = match ($contentBrief->feasibility_level) {
+                    'critical' => ['icon' => 'error', 'tint' => 'var(--danger-tint)', 'text' => 'var(--danger-text)', 'label' => 'Risiko Tinggi'],
+                    'warning' => ['icon' => 'warning', 'tint' => 'var(--warning-tint)', 'text' => 'var(--warning-text)', 'label' => 'Perlu Diperhatikan'],
+                    default => ['icon' => 'check_circle', 'tint' => 'var(--success-tint)', 'text' => 'var(--success-text)', 'label' => 'Jadwal Aman'],
+                };
+            @endphp
+            <div class="flex items-start gap-2.5 p-3.5 rounded-lg mb-4" style="background-color: {{ $feasibilityMeta['tint'] }};">
+                <span class="material-symbols-outlined text-[17px] shrink-0 mt-0.5" style="color: {{ $feasibilityMeta['text'] }};">{{ $feasibilityMeta['icon'] }}</span>
+                <div>
+                    <p class="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style="color: {{ $feasibilityMeta['text'] }};">
+                        Cek Kelayakan AI &middot; {{ $feasibilityMeta['label'] }}
+                    </p>
+                    <p class="text-sm" style="color: {{ $feasibilityMeta['text'] }};">{{ $contentBrief->feasibility_notes }}</p>
+                </div>
+            </div>
+        @endif
+
         {{-- Jadwal & platform - ringkas, 3 kolom sejajar --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 mb-4 border-b border-[var(--surface-muted)]">
             <div>
