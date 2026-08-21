@@ -93,8 +93,8 @@
                     @foreach ($items as $item)
                         <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] max-w-[240px] truncate">{{ $item->title }}</td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->type }}</td>
                             <td class="px-4 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
                             <td class="px-4 py-3.5 whitespace-nowrap">
                                 @if ($item->avg_engagement !== null)
@@ -103,18 +103,24 @@
                                     <span class="text-[var(--text-muted)]">-</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') ?? '-' }}</td>
                             <td class="px-4 py-3.5 whitespace-nowrap">
-                                @if ($item->is_posted)
+                                @if (! $item->linked)
+                                    <span class="badge badge-neutral">Belum terhubung ke konten internal</span>
+                                @elseif ($item->is_posted)
                                     <span class="badge badge-success">Published</span>
-                                @elseif ($item->workflow?->is_overdue)
+                                @elseif ($item->is_overdue)
                                     <span class="badge badge-danger">Terlambat</span>
                                 @else
                                     <span class="badge badge-warning">On Progress</span>
                                 @endif
                             </td>
                             <td class="px-6 py-3.5 text-right whitespace-nowrap">
-                                <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Detail</a>
+                                @if ($item->linked)
+                                    <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Detail</a>
+                                @elseif ($item->permalink)
+                                    <a href="{{ $item->permalink }}" target="_blank" rel="noopener" class="text-xs font-medium text-[var(--brand)] hover:underline">Lihat Post</a>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -126,9 +132,11 @@
         <div class="sm:hidden p-3.5 space-y-3">
             @foreach ($items as $item)
                 @php
-                    if ($item->is_posted) {
+                    if (! $item->linked) {
+                        $rowStatus = ['class' => 'badge-neutral', 'label' => 'Belum terhubung'];
+                    } elseif ($item->is_posted) {
                         $rowStatus = ['class' => 'badge-success', 'label' => 'Published'];
-                    } elseif ($item->workflow?->is_overdue) {
+                    } elseif ($item->is_overdue) {
                         $rowStatus = ['class' => 'badge-danger', 'label' => 'Terlambat'];
                     } else {
                         $rowStatus = ['class' => 'badge-warning', 'label' => 'On Progress'];
@@ -140,7 +148,7 @@
                             <p class="font-medium text-[var(--text-primary)] text-sm truncate">{{ $item->title }}</p>
                             <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
                                 <span class="badge {{ $rowStatus['class'] }}">{{ $rowStatus['label'] }}</span>
-                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform->name ?? '-' }} &middot; {{ $item->contentType->name ?? '-' }}</span>
+                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }} &middot; {{ $item->type }}</span>
                             </div>
                         </div>
                         <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)]">
@@ -165,10 +173,17 @@
                             <span class="text-[var(--text-muted)]">Deadline</span>
                             <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') ?? '-' }}</span>
                         </div>
-                        <a href="{{ route('analytics.show', $item->id) }}"
-                            class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
-                            Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
-                        </a>
+                        @if ($item->linked)
+                            <a href="{{ route('analytics.show', $item->id) }}"
+                                class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+                                Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                            </a>
+                        @elseif ($item->permalink)
+                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener"
+                                class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
+                                Lihat Post <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                            </a>
+                        @endif
                     </div>
                 </div>
             @endforeach

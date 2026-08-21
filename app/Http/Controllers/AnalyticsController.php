@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
@@ -221,8 +222,11 @@ class AnalyticsController extends Controller
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
         $end = Carbon::now()->endOfDay();
 
-        $metrics = ContentMetric::with(['contentItem', 'platform'])
-            ->whereHas('contentItem', fn($q) => $q->where('client_id', $client->id))
+        // client_id langsung (bukan whereHas('contentItem', ...)) - sama
+        // seperti dashboard, biar post Instagram real yang belum ke-link
+        // ikut ke-export juga, bukan cuma yang sudah punya ContentItem.
+        $metrics = ContentMetric::with(['contentItem', 'platform', 'instagramMediaSnapshot'])
+            ->where('client_id', $client->id)
             ->whereBetween('metric_date', [$start, $end])
             ->orderBy('metric_date')
             ->get();
@@ -234,8 +238,12 @@ class AnalyticsController extends Controller
             fputcsv($handle, ['content_title', 'platform', 'metric_date', 'views', 'engagement_rate']);
 
             foreach ($metrics as $m) {
+                $title = $m->contentItem?->title
+                    ?? ($m->instagramMediaSnapshot?->caption ? \Illuminate\Support\Str::limit($m->instagramMediaSnapshot->caption, 60) : null)
+                    ?? '-';
+
                 fputcsv($handle, [
-                    $m->contentItem->title ?? '-',
+                    $title,
                     $m->platform->name ?? '-',
                     Carbon::parse($m->metric_date)->toDateString(),
                     $m->views,
@@ -253,9 +261,18 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Data buat tab "Performance Table" di halaman Analytics - list semua
-     * content item milik 1 client, lengkap dengan agregat metrik-nya
-     * (total views, avg engagement), sortable & filterable.
+     * Data buat tab "Performance Table" di halaman Analytics - list SEMUA
+     * post yang punya data performa milik 1 client, sortable & filterable.
+     *
+     * Direstrukturisasi mulai dari ContentMetric (bukan ContentItem lagi) -
+     * post Instagram real yang belum ke-link ke ContentItem internal HARUS
+     * tetap muncul di sini (Langkah E, audit "Data Source Architecture"),
+     * bukan cuma yang sudah punya ContentItem. Agregasi & pagination
+     * dilakukan di PHP (bukan SQL) karena baris tabel ini bisa berasal dari
+     * 2 sumber metadata berbeda (ContentItem vs InstagramMediaSnapshot)
+     * yang nggak bisa di-UNION bersih lewat query builder - volume data
+     * client (puluhan-ratusan post) masih aman diproses begini, pola yang
+     * sama sudah dipakai AnalyticsSummaryService buat Top Content.
      */
     private function buildTableTabData(int|string $selectedClientId, Request $request): array
     {
@@ -268,32 +285,67 @@ class AnalyticsController extends Controller
             $sort = 'total_views';
         }
 
-        $query = ContentItem::with(['platform', 'contentType', 'workflow'])
-            ->where('client_id', $client->id)
-            ->withSum('metrics as total_views', 'views')
-            ->withAvg('metrics as avg_engagement', 'engagement_rate');
+        $metricsQuery = ContentMetric::where('client_id', $client->id)
+            ->with(['contentItem.platform', 'contentItem.contentType', 'contentItem.workflow', 'instagramMediaSnapshot', 'platform']);
 
         if ($request->filled('platform_id')) {
-            $query->where('platform_id', $request->input('platform_id'));
+            $metricsQuery->where('platform_id', $request->input('platform_id'));
         }
 
+        $allMetrics = $metricsQuery->get();
+
+        $rows = $allMetrics
+            ->groupBy(fn ($m) => $m->distinct_content_key)
+            ->map(function ($group) {
+                $first = $group->first();
+                $item = $first->contentItem;
+                $snapshot = $first->instagramMediaSnapshot;
+
+                return (object) [
+                    'id' => $item?->id,
+                    'title' => $item?->title ?? \Illuminate\Support\Str::limit($snapshot?->caption ?: 'Instagram Post', 60),
+                    'platform' => $first->platform->name ?? '-',
+                    'content_type_id' => $item?->content_type_id,
+                    'type' => $item?->contentType->name ?? '-',
+                    'total_views' => (int) $group->sum('views'),
+                    'avg_engagement' => round($group->avg('engagement_rate'), 2),
+                    'deadline_at' => $item?->deadline_at,
+                    'is_posted' => $item?->is_posted,
+                    'is_overdue' => $item?->workflow?->is_overdue ?? false,
+                    'linked' => (bool) $item,
+                    'permalink' => $snapshot?->permalink,
+                ];
+            })
+            ->values();
+
         if ($request->filled('content_type_id')) {
-            $query->where('content_type_id', $request->input('content_type_id'));
+            // Filter tipe konten cuma masuk akal buat post yang sudah
+            // ke-link (unmatched nggak punya content_type sama sekali) -
+            // otomatis nge-exclude unmatched, itu memang perilaku yang benar.
+            $rows = $rows->where('content_type_id', $request->input('content_type_id'));
         }
 
         if ($request->filled('search')) {
-            $query->where('title', 'like', '%' . $request->input('search') . '%');
+            $needle = strtolower($request->input('search'));
+            $rows = $rows->filter(fn ($r) => str_contains(strtolower($r->title), $needle));
         }
 
-        if (in_array($sort, ['total_views', 'avg_engagement'])) {
-            $query->orderByRaw("{$sort} IS NULL, {$sort} {$dir}");
-        } else {
-            $query->orderBy($sort, $dir);
-        }
+        $rows = in_array($sort, ['total_views', 'avg_engagement'])
+            ? $rows->sortBy(fn ($r) => $r->{$sort} ?? -INF, SORT_REGULAR, $dir === 'desc')
+            : $rows->sortBy($sort, SORT_REGULAR, $dir === 'desc');
+        $rows = $rows->values();
 
-        $items = $query->paginate(15)->withQueryString();
+        $page = (int) $request->input('page', 1);
+        $perPage = 15;
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $rows->forPage($page, $perPage),
+            $rows->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
-        $platformOptions = Platform::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
+        $platformOptions = Platform::whereIn('id', $allMetrics->pluck('platform_id')->unique())->get();
         $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
 
         return compact('client', 'items', 'platformOptions', 'contentTypeOptions', 'sort', 'dir');
@@ -303,6 +355,14 @@ class AnalyticsController extends Controller
      * Data buat tab "Audience" di halaman Analytics - dipindah dari
      * AudienceController::index() (sekarang jadi redirect ke sini) biar
      * 1 halaman yang sama kayak Performance Table.
+     *
+     * Precedence (Langkah 17 "Instagram Audience Insights"): kalau
+     * client+platform SUDAH PERNAH punya row source=instagram_api, tab ini
+     * HANYA baca API (summary + 3 demographic_type terpisah) - CSV/legacy
+     * untuk kombinasi itu diabaikan sepenuhnya, tidak digabung (unit beda:
+     * CSV manual vs API real, campur jadi angka yang nggak berarti). Kalau
+     * belum pernah ada row API sama sekali, fallback ke CSV/legacy persis
+     * seperti behavior lama.
      */
     private function buildAudienceTabData(int|string $selectedClientId, Request $request, int $period): array
     {
@@ -317,17 +377,116 @@ class AnalyticsController extends Controller
         $selectedPlatformId = $request->input('platform_id', $platforms->first()->id);
         $platform = $platforms->firstWhere('id', (int) $selectedPlatformId) ?? $platforms->first();
 
-        $latestSnapshot = \App\Models\AudienceInsight::where('client_id', $client->id)
+        $hasApiData = AudienceInsight::where('client_id', $client->id)
             ->where('platform_id', $platform->id)
-            ->latest('snapshot_date')
-            ->first();
+            ->apiSourced()
+            ->exists();
 
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
-        $history = \App\Models\AudienceInsight::where('client_id', $client->id)
+
+        $data = $hasApiData
+            ? $this->buildApiAudienceData($client, $platform, $start, $period)
+            : $this->buildCsvAudienceData($client, $platform, $start, $period);
+
+        return array_merge(
+            compact('client', 'platforms', 'platform', 'selectedPlatformId'),
+            ['audienceSource' => $hasApiData ? AudienceInsight::SOURCE_API : 'csv'],
+            $data
+        );
+    }
+
+    /**
+     * Sumber Instagram API real - summary row (followers/reach/active_hours)
+     * + 3 demographic_type terpisah (follower/reached/engaged), masing-masing
+     * BOLEH null kalau memang belum ada datanya (threshold/belum sync) -
+     * TIDAK PERNAH ditebak jadi 0/array kosong (Langkah 4/18).
+     */
+    private function buildApiAudienceData(Client $client, Platform $platform, Carbon $start, int $period): array
+    {
+        $baseQuery = fn () => AudienceInsight::where('client_id', $client->id)
             ->where('platform_id', $platform->id)
+            ->apiSourced();
+
+        $lastSyncAt = (clone $baseQuery())->max('updated_at');
+
+        // Growth follower PAKAI TOTAL follower_count (bukan delta time-series) -
+        // dihitung dari 2 snapshot summary TERAKHIR yang benar-benar punya
+        // follower_count (banyak baris summary historis hasil backfill reach
+        // sengaja follower_count-nya NULL, lihat InstagramAudienceInsightsService::
+        // backfillReachHistory()). Kalau baru 1 (atau 0), growth TIDAK dihitung.
+        $followerRows = (clone $baseQuery())->summary()->whereNotNull('follower_count')
+            ->orderBy('snapshot_date')->get(['snapshot_date', 'follower_count']);
+
+        $lastCount = $followerRows->last()->follower_count ?? null;
+        $growth = null;
+        $growthMessage = 'Belum cukup data historis untuk menghitung pertumbuhan.';
+        if ($followerRows->count() >= 2) {
+            $current = $followerRows->last()->follower_count;
+            $previous = $followerRows->slice(-2, 1)->first()->follower_count;
+            if ($previous > 0) {
+                $growth = round((($current - $previous) / $previous) * 100, 1);
+                $growthMessage = null;
+            }
+        }
+
+        $followerTrend = $followerRows
             ->where('snapshot_date', '>=', $start)
-            ->orderBy('snapshot_date')
-            ->get();
+            ->map(fn ($row) => ['label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'), 'value' => $row->follower_count])
+            ->values();
+
+        // Reach: kebalikan dari follower_count - historis LENGKAP (backfill
+        // s/d 180 hari terbukti tersedia), jadi trend-nya jauh lebih kaya.
+        $reachRows = (clone $baseQuery())->summary()->whereNotNull('reach')
+            ->where('snapshot_date', '>=', $start)
+            ->orderBy('snapshot_date')->get(['snapshot_date', 'reach']);
+
+        $latestReach = $reachRows->last()->reach ?? null;
+        $reachTrend = $reachRows
+            ->map(fn ($row) => ['label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'), 'value' => $row->reach])
+            ->values();
+
+        $latestActiveHoursRow = (clone $baseQuery())->summary()->whereNotNull('active_hours')
+            ->latest('snapshot_date')->first();
+        $activeHours = null;
+        $peakHour = null;
+        if ($latestActiveHoursRow) {
+            $activeHours = collect(range(0, 23))->map(fn ($hour) => [
+                'label' => str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00',
+                'value' => (int) ($latestActiveHoursRow->active_hours[$hour] ?? $latestActiveHoursRow->active_hours[(string) $hour] ?? 0),
+            ]);
+            $peakHour = $activeHours->sortByDesc('value')->first();
+        }
+
+        $demographics = [];
+        foreach ([AudienceInsight::TYPE_FOLLOWER, AudienceInsight::TYPE_REACHED, AudienceInsight::TYPE_ENGAGED] as $type) {
+            $row = (clone $baseQuery())->demographics($type)->latest('snapshot_date')->first();
+            $demographics[$type] = $row ? [
+                'gender_breakdown' => $row->gender_breakdown,
+                'age_breakdown' => $row->age_breakdown,
+                'top_locations' => $row->top_locations,
+                'top_countries' => $row->top_countries,
+                'snapshot_date' => $row->snapshot_date,
+            ] : null;
+        }
+
+        return compact('lastSyncAt', 'lastCount', 'growth', 'growthMessage', 'followerTrend', 'latestReach', 'reachTrend', 'activeHours', 'peakHour', 'demographics');
+    }
+
+    /**
+     * Sumber CSV/legacy - behavior PERSIS sama seperti sebelum Instagram
+     * Audience API ada (1 row/hari, generic, persentase langsung dari CSV).
+     * TIDAK diubah sama sekali selain scope query apiSourced() jadi
+     * csvSourced() (Langkah 15/21 - CSV tetap compatible).
+     */
+    private function buildCsvAudienceData(Client $client, Platform $platform, Carbon $start, int $period): array
+    {
+        $baseQuery = fn () => AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->csvSourced();
+
+        $latestSnapshot = (clone $baseQuery())->latest('snapshot_date')->first();
+
+        $history = (clone $baseQuery())->where('snapshot_date', '>=', $start)->orderBy('snapshot_date')->get();
 
         $followerTrend = $history->map(fn($row) => [
             'label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'),
@@ -337,6 +496,7 @@ class AnalyticsController extends Controller
         $firstCount = $history->first()->follower_count ?? 0;
         $lastCount = $history->last()->follower_count ?? ($latestSnapshot->follower_count ?? 0);
         $growth = $firstCount > 0 ? round((($lastCount - $firstCount) / $firstCount) * 100, 1) : null;
+        $growthMessage = $firstCount > 0 ? null : 'Belum cukup data historis untuk menghitung pertumbuhan.';
 
         $genderBreakdown = $latestSnapshot->gender_breakdown ?? [];
         $ageBreakdown = $latestSnapshot->age_breakdown ?? [];
@@ -345,20 +505,17 @@ class AnalyticsController extends Controller
         $activeHoursRaw = $latestSnapshot->active_hours ?? [];
         $activeHours = collect(range(0, 23))->map(function ($hour) use ($activeHoursRaw) {
             return [
-                'label' => str_pad($hour, 2, '0', STR_PAD_LEFT) . ':00',
+                'label' => str_pad((string) $hour, 2, '0', STR_PAD_LEFT) . ':00',
                 'value' => (int) ($activeHoursRaw[$hour] ?? $activeHoursRaw[(string) $hour] ?? 0),
             ];
         });
         $peakHour = $activeHours->sortByDesc('value')->first();
 
         return compact(
-            'client',
-            'platforms',
-            'platform',
-            'selectedPlatformId',
             'latestSnapshot',
             'followerTrend',
             'growth',
+            'growthMessage',
             'lastCount',
             'genderBreakdown',
             'ageBreakdown',

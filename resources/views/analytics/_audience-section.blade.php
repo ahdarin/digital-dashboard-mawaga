@@ -1,6 +1,14 @@
 {{-- Tab "Audience" - dipindah dari audience/index.blade.php, sekarang jadi
      bagian dari halaman Analytics (bukan halaman terpisah lagi). Client,
-     dipilih dari filter bar bersama di atas. --}}
+     dipilih dari filter bar bersama di atas.
+
+     Precedence sumber data (lihat AnalyticsController::buildAudienceTabData()):
+     - $audienceSource === 'instagram_api' -> section di bawah baca 3 row
+       demographic_type terpisah (follower/reached/engaged) + 1 row summary,
+       SEMUA field boleh null (belum tersedia dari Instagram), TIDAK PERNAH
+       ditampilkan sebagai 0 palsu.
+     - $audienceSource === 'csv' -> fallback, behavior identik sebelum API
+       ada (1 snapshot/hari, generic). --}}
 
 {{-- Import CSV --}}
 <div class="card p-5 mb-6">
@@ -52,6 +60,10 @@
                 </button>
             </div>
 
+            @if (($audienceSource ?? null) === 'instagram_api')
+                <p class="text-[11px] text-[var(--warning-text)] mt-2">Client ini sudah pakai data Instagram API real - import CSV tetap tersimpan, tapi TIDAK ditampilkan di sini selama data API tersedia.</p>
+            @endif
+
             <details class="mt-3">
                 <summary class="text-xs font-medium text-[var(--brand)] cursor-pointer">Lihat format kolom CSV</summary>
                 <div class="mt-2 bg-[var(--surface-page)] rounded-lg p-3 text-xs text-[var(--text-secondary)] font-mono overflow-x-auto">
@@ -71,13 +83,218 @@
         <div class="w-14 h-14 rounded-full bg-[var(--warning-tint)] flex items-center justify-center mb-4">
             <span class="material-symbols-outlined text-[var(--warning-text)] text-[26px]">database</span>
         </div>
-        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1.5">Belum ada data audience untuk {{ $client->name }}</h2>
-        <p class="text-sm text-[var(--text-secondary)] max-w-sm">Buka panel "Import Data Audiens" di atas buat upload CSV-nya.</p>
+        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1.5">Data audience belum disinkronkan untuk {{ $client->name }}</h2>
+        <p class="text-sm text-[var(--text-secondary)] max-w-sm">Connect Instagram di Client Detail buat sync otomatis, atau buka panel "Import Data Audiens" di atas buat upload CSV.</p>
     </div>
+
+@elseif (($audienceSource ?? null) === 'instagram_api')
+
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <span class="badge badge-success inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[13px]">verified</span> Instagram API
+        </span>
+        @if ($lastSyncAt)
+            <span class="text-xs text-[var(--text-muted)]">Last Audience Sync: {{ \Illuminate\Support\Carbon::parse($lastSyncAt)->translatedFormat('d M Y, H:i') }}</span>
+        @endif
+    </div>
+
+    {{-- Followers + Reach overview --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div class="card p-6 bg-[var(--brand-solid)] border-0">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-white/70 text-[17px]">person</span>
+                <span class="text-xs font-medium tracking-wide text-white/70 uppercase">{{ $platform->name }} Followers</span>
+            </div>
+            @if (! is_null($lastCount))
+                <p class="font-display text-[34px] font-semibold text-white mb-1.5 [font-variant-numeric:tabular-nums]">{{ number_format($lastCount) }}</p>
+                @if (! is_null($growth))
+                    <p class="text-xs font-medium flex items-center gap-1 {{ $growth >= 0 ? 'text-[var(--success-strong)]' : 'text-[var(--danger-border-soft)]' }}">
+                        <span class="material-symbols-outlined text-[13px]">{{ $growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
+                        {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% dalam {{ $period }} hari
+                    </p>
+                @else
+                    <p class="text-xs text-white/50">{{ $growthMessage }}</p>
+                @endif
+            @else
+                <p class="text-sm text-white/60 py-2">Data belum tersedia dari Instagram.</p>
+            @endif
+        </div>
+
+        <div class="card p-6">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-[var(--text-muted)] text-[17px]">visibility</span>
+                <span class="text-xs font-medium tracking-wide text-[var(--text-muted)] uppercase">Reach Akun (Hari Ini)</span>
+            </div>
+            @if (! is_null($latestReach))
+                <p class="font-display text-[34px] font-semibold text-[var(--text-primary)] mb-1.5 [font-variant-numeric:tabular-nums]">{{ number_format($latestReach) }}</p>
+                <p class="text-xs text-[var(--text-muted)]">Akun unik yang lihat konten hari ini.</p>
+            @else
+                <p class="text-sm text-[var(--text-muted)] py-2">Data belum tersedia dari Instagram.</p>
+            @endif
+        </div>
+
+        <div class="card p-6">
+            <h2 class="font-display text-sm font-semibold text-[var(--text-primary)] mb-1">Followers Growth</h2>
+            <p class="text-xs text-[var(--text-muted)] mb-3">Tren total follower {{ $platform->name }}.</p>
+            @if ($followerTrend->isEmpty())
+                <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada histori followers pada periode ini.</p>
+            @else
+                <x-trend-chart :trend="$followerTrend" />
+            @endif
+        </div>
+    </div>
+
+    {{-- Reach trend --}}
+    <div class="card p-6 mb-5">
+        <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-1">Reach Trend</h2>
+        <p class="text-xs text-[var(--text-muted)] mb-5">Tren reach akun harian {{ $platform->name }}.</p>
+        @if ($reachTrend->isEmpty())
+            <p class="text-sm text-[var(--text-muted)] text-center py-12">Belum ada histori reach pada periode ini.</p>
+        @else
+            <x-trend-chart :trend="$reachTrend" />
+        @endif
+    </div>
+
+    {{-- Active hours --}}
+    <div class="card p-6 mb-5">
+        <div class="flex items-center justify-between mb-1">
+            <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Jam Aktif Audiens</h2>
+            @if ($peakHour && $peakHour['value'] > 0)
+                <span class="badge badge-success">Paling aktif: {{ $peakHour['label'] }}</span>
+            @endif
+        </div>
+        <p class="text-xs text-[var(--text-muted)] mb-5">Sebaran follower online per jam, snapshot terakhir.</p>
+
+        @if (is_null($activeHours))
+            <p class="text-sm text-[var(--text-muted)] text-center py-12">Data belum tersedia dari Instagram untuk akun ini.</p>
+        @else
+            <x-trend-chart :trend="$activeHours" />
+        @endif
+    </div>
+
+    {{-- Demographics: follower / reached / engaged - 3 row terpisah, tiap
+         section boleh unavailable independen dari yang lain (Langkah 8/9). --}}
+    @php
+        $demographicMeta = [
+            'follower' => ['title' => 'Follower Demographics', 'desc' => 'Karakteristik seluruh follower akun ini saat ini.'],
+            'reached' => ['title' => 'Reached Audience', 'desc' => 'Karakteristik audiens yang dijangkau, 30 hari terakhir.'],
+            'engaged' => ['title' => 'Engaged Audience', 'desc' => 'Karakteristik audiens yang berinteraksi, 30 hari terakhir.'],
+        ];
+        $genderColors = ['male' => '#3452a8', 'female' => '#b3427e', 'other' => '#9aa0a4'];
+        $genderLabels = ['male' => 'Laki-laki', 'female' => 'Perempuan', 'other' => 'Lainnya'];
+    @endphp
+
+    @foreach ($demographicMeta as $type => $meta)
+        @php $demo = $demographics[$type] ?? null; @endphp
+        <div class="card p-6 mb-5">
+            <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-1">{{ $meta['title'] }}</h2>
+            <p class="text-xs text-[var(--text-muted)] mb-5">{{ $meta['desc'] }}</p>
+
+            @if (! $demo)
+                <p class="text-sm text-[var(--text-muted)] text-center py-10">Data demografi {{ strtolower($meta['title']) }} belum tersedia dari Instagram untuk akun ini.</p>
+            @else
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {{-- Gender --}}
+                    <div>
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Gender</h3>
+                        @if (empty($demo['gender_breakdown']))
+                            <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada data.</p>
+                        @else
+                            <div class="space-y-3">
+                                @foreach ($demo['gender_breakdown'] as $key => $value)
+                                    <div>
+                                        <div class="flex items-center justify-between mb-1 text-xs">
+                                            <span class="text-[var(--text-secondary)]">{{ $genderLabels[$key] ?? ucfirst($key) }}</span>
+                                            <span class="font-medium text-[var(--text-primary)]">{{ $value }}%</span>
+                                        </div>
+                                        <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
+                                            <div class="h-full rounded-full" style="width: {{ $value }}%; background-color: {{ $genderColors[$key] ?? '#9aa0a4' }}"></div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Age --}}
+                    <div>
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Rentang Usia</h3>
+                        @if (empty($demo['age_breakdown']))
+                            <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada data.</p>
+                        @else
+                            <div class="space-y-3">
+                                @foreach ($demo['age_breakdown'] as $range => $value)
+                                    <div>
+                                        <div class="flex items-center justify-between mb-1 text-xs">
+                                            <span class="text-[var(--text-secondary)]">{{ $range }} th</span>
+                                            <span class="font-medium text-[var(--text-primary)]">{{ $value }}%</span>
+                                        </div>
+                                        <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
+                                            <div class="h-full rounded-full bg-[var(--brand)]" style="width: {{ $value }}%"></div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Top cities --}}
+                    <div>
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Kota Teratas</h3>
+                        @if (empty($demo['top_locations']))
+                            <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada data.</p>
+                        @else
+                            <div class="space-y-3">
+                                @foreach (array_slice($demo['top_locations'], 0, 5) as $i => $loc)
+                                    <div>
+                                        <div class="flex items-center justify-between mb-1 text-xs">
+                                            <span class="text-[var(--text-secondary)] truncate">{{ $loc['city'] }}</span>
+                                            <span class="font-medium text-[var(--text-primary)] shrink-0 ml-2">{{ $loc['percentage'] }}%</span>
+                                        </div>
+                                        <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
+                                            <div class="h-full rounded-full bg-[var(--warning-strong)]" style="width: {{ $loc['percentage'] }}%"></div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Top countries --}}
+                    <div>
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Negara Teratas</h3>
+                        @if (empty($demo['top_countries']))
+                            <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada data.</p>
+                        @else
+                            <div class="space-y-3">
+                                @foreach (array_slice($demo['top_countries'], 0, 5) as $i => $loc)
+                                    <div>
+                                        <div class="flex items-center justify-between mb-1 text-xs">
+                                            <span class="text-[var(--text-secondary)] truncate">{{ $loc['country'] }}</span>
+                                            <span class="font-medium text-[var(--text-primary)] shrink-0 ml-2">{{ $loc['percentage'] }}%</span>
+                                        </div>
+                                        <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
+                                            <div class="h-full rounded-full bg-[#0d9488]" style="width: {{ $loc['percentage'] }}%"></div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+        </div>
+    @endforeach
 
 @else
 
-    {{-- Followers overview --}}
+    {{-- CSV/legacy - behavior identik sebelum Instagram Audience API ada --}}
+    <div class="flex items-center justify-end mb-4">
+        <span class="badge badge-neutral inline-flex items-center gap-1">
+            <span class="material-symbols-outlined text-[13px]">upload_file</span> CSV Import
+        </span>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         <div class="card p-6 bg-[var(--brand-solid)] border-0">
             <div class="flex items-center gap-2 mb-4">
@@ -91,7 +308,7 @@
                     {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% dalam {{ $period }} hari
                 </p>
             @else
-                <p class="text-xs text-white/50">Belum cukup data historis.</p>
+                <p class="text-xs text-white/50">{{ $growthMessage ?? 'Belum cukup data historis.' }}</p>
             @endif
         </div>
 

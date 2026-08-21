@@ -9,6 +9,13 @@ class AnalyticsSyncLog extends Model
     protected $fillable = [
         'client_id', 'platform_id', 'api_integration_id', 'imported_by',
         'source_type', 'status',
+        'synced_count', 'skipped_count', 'error_message',
+        'sync_mode', 'range_from', 'range_to',
+    ];
+
+    protected $casts = [
+        'range_from' => 'date',
+        'range_to' => 'date',
     ];
 
     public function client() { return $this->belongsTo(Client::class); }

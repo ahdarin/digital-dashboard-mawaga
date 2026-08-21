@@ -71,12 +71,15 @@ class AiStrategyService
         $prevMonthEnd = $start->copy()->subDay()->endOfMonth();
         $prevMonthStart = $start->copy()->subMonthNoOverflow()->startOfMonth();
 
+        // client_id langsung (bukan whereHas('contentItem', ...)) - biar post
+        // Instagram real yang belum ke-link ikut dianalisis AI juga, bukan
+        // cuma yang sudah punya ContentItem internal.
         $metrics = ContentMetric::with(['contentItem.contentPillar', 'contentItem.contentType', 'platform'])
-            ->whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
+            ->where('client_id', $client->id)
             ->whereBetween('metric_date', [$start, $end])
             ->get();
 
-        $prevMetrics = ContentMetric::whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
+        $prevMetrics = ContentMetric::where('client_id', $client->id)
             ->whereBetween('metric_date', [$prevMonthStart, $prevMonthEnd])
             ->get();
 
@@ -86,21 +89,21 @@ class AiStrategyService
             ? round((($totalViews - $prevTotalViews) / $prevTotalViews) * 100, 1)
             : null;
 
-        $byPillar = $metrics->groupBy(fn ($m) => $m->contentItem->contentPillar->name ?? 'Tanpa Pilar')
+        $byPillar = $metrics->groupBy(fn ($m) => $m->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
             ->map(fn ($rows) => [
                 'total_views' => (int) $rows->sum('views'),
                 'avg_engagement' => round($rows->avg('engagement_rate'), 2),
-                'content_count' => $rows->pluck('content_item_id')->unique()->count(),
+                'content_count' => $rows->map(fn ($m) => $m->distinct_content_key)->unique()->count(),
             ]);
 
         $byPlatform = $metrics->groupBy(fn ($m) => $m->platform->name ?? '-')
             ->map(fn ($rows) => ['total_views' => (int) $rows->sum('views')]);
 
-        $topContent = $metrics->groupBy('content_item_id')
+        $topContent = $metrics->groupBy(fn ($m) => $m->distinct_content_key)
             ->map(fn ($rows) => [
-                'title' => $rows->first()->contentItem->title ?? '-',
-                'pillar' => $rows->first()->contentItem->contentPillar->name ?? '-',
-                'type' => $rows->first()->contentItem->contentType->name ?? '-',
+                'title' => $rows->first()->contentItem?->title ?? '-',
+                'pillar' => $rows->first()->contentItem?->contentPillar?->name ?? '-',
+                'type' => $rows->first()->contentItem?->contentType?->name ?? '-',
                 'platform' => $rows->first()->platform->name ?? '-',
                 'views' => (int) $rows->sum('views'),
                 'engagement_rate' => round($rows->avg('engagement_rate'), 2),
@@ -119,37 +122,24 @@ class AiStrategyService
         $platformsWithMetrics = Platform::whereIn('name', $byPlatform->keys()->reject(fn ($name) => $name === '-'))->get();
 
         foreach ($platformsWithMetrics as $platformModel) {
-            $latestSnapshot = AudienceInsight::where('client_id', $client->id)
-                ->where('platform_id', $platformModel->id)
-                ->latest('snapshot_date')
-                ->first();
+            $audienceRow = $this->resolveAudienceForPlatform($client, $platformModel, $start);
 
-            if (! $latestSnapshot) {
+            if (! $audienceRow) {
                 continue;
             }
 
-            $snapshotAtPeriodStart = AudienceInsight::where('client_id', $client->id)
-                ->where('platform_id', $platformModel->id)
-                ->where('snapshot_date', '<=', $start)
-                ->latest('snapshot_date')
-                ->first();
-
-            $growthPercent = ($snapshotAtPeriodStart && $snapshotAtPeriodStart->follower_count > 0)
-                ? round((($latestSnapshot->follower_count - $snapshotAtPeriodStart->follower_count) / $snapshotAtPeriodStart->follower_count) * 100, 1)
-                : null;
-
             $peakHour = null;
-            if (! empty($latestSnapshot->active_hours)) {
-                $peakHourKey = collect($latestSnapshot->active_hours)->sortDesc()->keys()->first();
+            if (! empty($audienceRow['active_hours'])) {
+                $peakHourKey = collect($audienceRow['active_hours'])->sortDesc()->keys()->first();
                 $peakHour = str_pad((string) $peakHourKey, 2, '0', STR_PAD_LEFT).':00';
             }
 
             $audienceByPlatform[$platformModel->name] = [
-                'follower_count' => $latestSnapshot->follower_count,
-                'follower_growth_percent_this_period' => $growthPercent,
-                'gender_breakdown' => $latestSnapshot->gender_breakdown,
-                'age_breakdown' => $latestSnapshot->age_breakdown,
-                'top_locations' => $latestSnapshot->top_locations,
+                'follower_count' => $audienceRow['follower_count'],
+                'follower_growth_percent_this_period' => $audienceRow['growth_percent'],
+                'gender_breakdown' => $audienceRow['gender_breakdown'],
+                'age_breakdown' => $audienceRow['age_breakdown'],
+                'top_locations' => $audienceRow['top_locations'],
                 'peak_active_hour' => $peakHour,
             ];
         }
@@ -189,7 +179,7 @@ class AiStrategyService
             'total_views' => $totalViews,
             'avg_engagement_rate' => $metrics->count() > 0 ? round($metrics->avg('engagement_rate'), 2) : 0,
             'trend_vs_previous_period_percent' => $trendDirection,
-            'content_published_count' => $metrics->pluck('content_item_id')->unique()->count(),
+            'content_published_count' => $metrics->map(fn ($m) => $m->distinct_content_key)->unique()->count(),
             'tracked_days' => $metrics->pluck('metric_date')->unique()->count(),
             'period_days' => $days,
             'performance_by_pillar' => $byPillar,
@@ -198,6 +188,85 @@ class AiStrategyService
             'audience_by_platform' => $audienceByPlatform,
             'notable_anomalies' => $notableAnomalies,
             'target_content_count' => $targetItemCount,
+        ];
+    }
+
+    /**
+     * Precedence API/CSV konsisten sama AnalyticsController::buildAudienceTabData()
+     * (Langkah 22, "Instagram Audience Insights") - kalau client+platform
+     * sudah punya row source=instagram_api, AI HANYA baca API (summary buat
+     * follower_count/active_hours/growth, demographic_type=follower buat
+     * gender/age/top_locations) - TIDAK digabung sama CSV/legacy. Kalau
+     * belum ada API sama sekali, fallback ke CSV/legacy seperti sebelumnya.
+     * Prompt Gemini & shape performance_data TIDAK diubah - method ini cuma
+     * benerin SUMBER datanya, karena "latest()" polos sudah tidak aman
+     * sejak 1 tanggal bisa punya banyak row paralel (summary+follower+
+     * reached+engaged).
+     *
+     * @return array{follower_count: ?int, growth_percent: ?float, gender_breakdown: ?array, age_breakdown: ?array, top_locations: ?array, active_hours: ?array}|null
+     */
+    private function resolveAudienceForPlatform(Client $client, Platform $platform, Carbon $periodStart): ?array
+    {
+        $hasApiData = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->apiSourced()
+            ->exists();
+
+        if (! $hasApiData) {
+            $latestSnapshot = AudienceInsight::where('client_id', $client->id)
+                ->where('platform_id', $platform->id)
+                ->csvSourced()
+                ->latest('snapshot_date')
+                ->first();
+
+            if (! $latestSnapshot) {
+                return null;
+            }
+
+            $previous = AudienceInsight::where('client_id', $client->id)
+                ->where('platform_id', $platform->id)
+                ->csvSourced()
+                ->where('snapshot_date', '<=', $periodStart)
+                ->latest('snapshot_date')
+                ->first();
+
+            return [
+                'follower_count' => $latestSnapshot->follower_count,
+                'growth_percent' => ($previous && $previous->follower_count > 0)
+                    ? round((($latestSnapshot->follower_count - $previous->follower_count) / $previous->follower_count) * 100, 1)
+                    : null,
+                'gender_breakdown' => $latestSnapshot->gender_breakdown,
+                'age_breakdown' => $latestSnapshot->age_breakdown,
+                'top_locations' => $latestSnapshot->top_locations,
+                'active_hours' => $latestSnapshot->active_hours,
+            ];
+        }
+
+        $summary = AudienceInsight::where('client_id', $client->id)->where('platform_id', $platform->id)
+            ->apiSourced()->summary()->latest('snapshot_date')->first();
+        $followerDemo = AudienceInsight::where('client_id', $client->id)->where('platform_id', $platform->id)
+            ->apiSourced()->demographics(AudienceInsight::TYPE_FOLLOWER)->latest('snapshot_date')->first();
+
+        if (! $summary && ! $followerDemo) {
+            return null; // integration ada tapi belum pernah sync sukses sama sekali
+        }
+
+        $previousSummary = AudienceInsight::where('client_id', $client->id)->where('platform_id', $platform->id)
+            ->apiSourced()->summary()->whereNotNull('follower_count')
+            ->where('snapshot_date', '<=', $periodStart)
+            ->latest('snapshot_date')->first();
+
+        $followerCount = $summary?->follower_count;
+
+        return [
+            'follower_count' => $followerCount,
+            'growth_percent' => ($previousSummary && $followerCount && $previousSummary->follower_count > 0)
+                ? round((($followerCount - $previousSummary->follower_count) / $previousSummary->follower_count) * 100, 1)
+                : null,
+            'gender_breakdown' => $followerDemo?->gender_breakdown,
+            'age_breakdown' => $followerDemo?->age_breakdown,
+            'top_locations' => $followerDemo?->top_locations,
+            'active_hours' => $summary?->active_hours,
         ];
     }
 

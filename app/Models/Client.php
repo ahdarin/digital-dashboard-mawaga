@@ -20,6 +20,7 @@ class Client extends Model
     public function owner() { return $this->hasOne(User::class)->whereHas('role', fn ($q) => $q->where('name', 'Client Owner')); }
     public function activePackage() { return $this->hasOne(ClientPackage::class)->where('status', 'active')->latestOfMany('start_date'); }
     public function assignedUsers() { return $this->belongsToMany(User::class, 'user_client_assignments'); }
+    public function apiIntegrations() { return $this->hasMany(ApiIntegration::class); }
 
     // Accessor: $client->logo_url -> URL logo kalau ada, null kalau nggak
     // (biar view tinggal fallback ke placeholder inisial huruf)

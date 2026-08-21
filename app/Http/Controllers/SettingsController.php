@@ -2,15 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SyncInstagramAnalyticsJob;
+use App\Jobs\SyncInstagramAudienceJob;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
+use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\Platform;
+use App\Services\InstagramAnalyticsSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\MasterDataController;
 
 /**
@@ -36,7 +41,6 @@ class SettingsController extends Controller
         $section = $request->input('tab', 'umum');
 
         $user = auth()->user();
-        $integrations = $this->buildIntegrationStatus();
         $clientOptions = Client::where('status', 'active')->get();
 
         // Tahap 6.2 - Data Pilihan (dulu Master Data) & Integrasi digabung
@@ -54,9 +58,27 @@ class SettingsController extends Controller
                 ->get();
         }
 
+        // Integrasi SEKARANG client-centric (dulu: 1 kartu Instagram global
+        // ambil integration TERAKHIR di-update lintas SEMUA client, salah
+        // total begitu ada >1 client connect - lihat audit "Settings
+        // Integrasi client-centric"). User pilih client dulu, baru kartu
+        // integration MILIK client itu yang ditampilkan.
+        $selectedClientId = null;
+        $selectedClient = null;
+        $instagramCard = null;
+        $instagramOauthConfigured = false;
         $syncLogs = null;
+        $logsAllClients = false;
         if ($section === 'integrasi') {
+            $selectedClientId = $request->input('client_id') ?: $clientOptions->first()?->id;
+            $selectedClient = $selectedClientId ? Client::find($selectedClientId) : null;
+            $instagramCard = $selectedClient ? $this->buildInstagramCard($selectedClient) : null;
+            $instagramOauthConfigured = filled(config('services.instagram.client_id')) && filled(config('services.instagram.client_secret'));
+
+            $logsAllClients = $request->boolean('all_clients');
+
             $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
+                ->when(! $logsAllClients && $selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
                 ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
                 ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
                 ->latest()
@@ -65,7 +87,7 @@ class SettingsController extends Controller
         }
 
         // Status koneksi service pihak ketiga yang dipakai sistem (bukan
-        // per-client platform kayak $integrations di atas, ini level
+        // per-client platform kayak $instagramCard di atas, ini level
         // aplikasi) - sebelumnya nggak kelihatan sama sekali di Settings,
         // padahal AI Strategy Analysis (Gemini), login client (Fonnte
         // WhatsApp), dan login tim internal (Google) semuanya bergantung
@@ -93,31 +115,75 @@ class SettingsController extends Controller
         ];
 
         return view('settings.index', compact(
-            'user', 'integrations', 'clientOptions', 'systemConnections',
-            'section', 'mdTab', 'mdItems', 'mdSearch', 'syncLogs'
+            'user', 'clientOptions', 'systemConnections',
+            'section', 'mdTab', 'mdItems', 'mdSearch', 'syncLogs',
+            'selectedClientId', 'selectedClient', 'instagramCard', 'instagramOauthConfigured', 'logsAllClients'
         ));
     }
 
     /**
-     * Status koneksi API per platform - dipakai bareng sama index() dan
-     * integrationsPage(), biar nggak ada 2 salinan logic yang bisa
-     * kebablasan beda pas salah satunya diubah.
+     * Kartu Instagram di Settings > Integrasi - SELALU scoped ke 1 client
+     * (dulu: query ambil integration TERAKHIR di-update lintas SEMUA
+     * client, salah kalau ada >1 client connect - lihat audit). Integration
+     * "connected" WAJIB `whereNotNull('access_token')`, BUKAN cuma
+     * `status='active'` - ditemukan row DemoSeeder placeholder
+     * (ApiIntegration status=active TAPI access_token kosong) yang bakal
+     * kejaring salah kalau cuma cek status.
+     *
+     * Log content vs audience DIPISAH lewat source_type ('api_sync' vs
+     * 'audience_api_sync') - pola sama persis dengan ClientManagementController
+     * ::show() (sengaja tidak diekstrak jadi 1 helper bersama - 2 controller
+     * beda halaman, duplikasi ~20 baris ini lebih murah daripada bikin
+     * abstraksi baru buat sesuatu sekecil ini).
      */
-    private function buildIntegrationStatus()
+    private function buildInstagramCard(Client $client): array
     {
-        return Platform::all()->map(function ($platform) {
-            $integration = ApiIntegration::where('platform_id', $platform->id)
-                ->where('status', 'active')
-                ->latest()
-                ->first();
+        $platform = Platform::where('name', 'Instagram')->first();
 
-            return [
-                'platform' => $platform->name,
-                'connected' => (bool) $integration,
-                'integration_name' => $integration->integration_name ?? null,
-                'updated_at' => $integration->updated_at ?? null,
-            ];
-        });
+        $integration = $client->apiIntegrations()
+            ->where('platform_id', $platform?->id)
+            ->whereNotNull('access_token')
+            ->first();
+
+        if (! $integration) {
+            return ['connected' => false];
+        }
+
+        $contentLastSyncLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', 'api_sync')->latest()->first();
+
+        $audienceLastSyncLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', 'audience_api_sync')->latest()->first();
+        $audienceLastSuccessAt = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $integration->platform_id)
+            ->apiSourced()->max('updated_at');
+
+        return [
+            'connected' => true,
+            'integration' => $integration,
+            'content_last_sync_log' => $contentLastSyncLog,
+            'content_syncing' => $this->isLocked(SyncInstagramAnalyticsJob::cacheLockKey($integration->id)),
+            'audience_last_sync_log' => $audienceLastSyncLog,
+            'audience_last_success_at' => $audienceLastSuccessAt,
+            'audience_syncing' => $this->isLocked(SyncInstagramAudienceJob::cacheLockKey($integration->id)),
+        ];
+    }
+
+    /**
+     * Peek non-invasif ke Cache::lock() - ambil, langsung lepas kalau
+     * berhasil (cuma ngecek "lagi dipegang atau nggak"), pola sama persis
+     * yang sudah dipakai ClientManagementController::show() &
+     * SettingsController::syncInstagram().
+     */
+    private function isLocked(string $cacheLockKey): bool
+    {
+        $lock = Cache::lock($cacheLockKey, 10);
+        if ($lock->get()) {
+            $lock->release();
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -284,6 +350,69 @@ class SettingsController extends Controller
         $output = trim(Artisan::output());
 
         return back()->with('import_success', 'Deteksi anomali selesai dijalankan. '.$output);
+    }
+
+    /**
+     * Tombol "Sync Last 2 Months" / "Sync Selected Month" di Client Detail.
+     * Dispatch SyncInstagramAnalyticsJob ke queue lalu redirect LANGSUNG -
+     * tidak menahan request user menunggu Instagram API. Sync sesungguhnya
+     * jalan di background worker (php artisan queue:work).
+     *
+     * AnalyticsSyncLog SENGAJA TIDAK dibuat di sini lagi (lihat docblock
+     * SyncInstagramAnalyticsJob) - kalau dibuat di controller lalu job-nya
+     * dibuang WithoutOverlapping (integration lagi sibuk), log itu nyangkut
+     * 'pending' selamanya. Job sendiri yang bikin log-nya, SETELAH lock
+     * berhasil didapat.
+     *
+     * Buat feedback instan "sedang berjalan" tanpa gantung ke log: peek
+     * non-invasif ke Cache::lock() pakai key yang sama persis dengan
+     * WithoutOverlapping (SyncInstagramAnalyticsJob::cacheLockKey()) -
+     * coba ambil, langsung lepas lagi kalau berhasil (cuma ngecek).
+     *
+     * PENTING buat operasional: QUEUE_CONNECTION=database sudah ada tapi
+     * butuh `php artisan queue:work` (atau setara) jalan terus-menerus -
+     * lihat docs/RUNTIME.md.
+     */
+    public function syncInstagram(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => ['required', 'exists:clients,id'],
+            // Format YYYY-MM divalidasi di sini (feedback cepat) DAN di
+            // InstagramAnalyticsSyncService::resolveSyncWindow() (defense
+            // kalau dispatch dipicu dari jalur lain) - regex sama persis.
+            'month' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+        ]);
+
+        $platform = Platform::where('name', 'Instagram')->first();
+        $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
+
+        if (! $integration || ! filled($integration->access_token)) {
+            return back()->with('import_error', 'Client ini belum connect Instagram (OAuth). Hubungkan dulu lewat tombol "Connect Instagram".');
+        }
+
+        // Cegah 2 sync bersamaan buat integration yang sama (defense-in-depth,
+        // WithoutOverlapping di Job tetap source of truth concurrency).
+        // Lock diambil lalu LANGSUNG dilepas - ini cuma ngecek "sedang
+        // dipegang atau nggak", bukan benar-benar mau pegang dari sini.
+        $lock = Cache::lock(SyncInstagramAnalyticsJob::cacheLockKey($integration->id), 10);
+        if (! $lock->get()) {
+            return back()->with('import_error', 'Sinkronisasi Instagram untuk akun ini sedang berjalan.');
+        }
+        $lock->release();
+
+        try {
+            [$syncMode, $since, $until] = app(InstagramAnalyticsSyncService::class)
+                ->resolveSyncWindow($validated['month'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('import_error', $e->getMessage());
+        }
+
+        SyncInstagramAnalyticsJob::dispatch(
+            $integration->id, $syncMode,
+            $since->toDateString(), $until->toDateString(), auth()->id()
+        );
+
+        return back()->with('import_success', 'Sinkronisasi Instagram dimulai.');
     }
 
     /**

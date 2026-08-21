@@ -144,11 +144,17 @@ class AudienceController extends Controller
             if ($ageBreakdown !== null) $updateData['age_breakdown'] = $ageBreakdown;
             if ($topLocations !== null) $updateData['top_locations'] = $topLocations;
 
+            // source=csv_import + demographic_type=generic - identity eksplisit
+            // (bukan API punya banyak row/hari, CSV cuma 1) - baris ini TIDAK
+            // PERNAH menimpa row source=instagram_api di tanggal yang sama
+            // karena source ikut jadi bagian unique key.
             AudienceInsight::updateOrCreate(
                 [
                     'client_id' => $client->id,
                     'platform_id' => $platform->id,
                     'snapshot_date' => $snapshotDate->toDateString(),
+                    'source' => AudienceInsight::SOURCE_CSV,
+                    'demographic_type' => AudienceInsight::TYPE_GENERIC,
                 ],
                 $updateData
             );

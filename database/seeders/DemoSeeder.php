@@ -20,10 +20,12 @@ use App\Models\ContentStatusLog;
 use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Notification;
+use App\Models\PerformanceAnomaly;
 use App\Models\Platform;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserClientAssignment;
+use App\Services\AiStrategyService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -89,17 +91,13 @@ class DemoSeeder extends Seeder
         $lastMonthEnd = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
         // ===== Master data =====
-        // Nama pillar HARUS persis sama kayak label yang dipakai buat
-        // latih model Delay Risk (lihat storage/ai/delay_risk) - kalau beda
-        // nama, encoder di model nggak kenal dan hasil skornya nggak akurat.
-        $pillars = collect(['Education', 'Entertainment', 'Soft Selling', 'Hard Selling', 'Product Highlight', 'Information'])
-            ->map(fn ($name) => ContentPillar::firstOrCreate(['name' => $name]));
-
-        $contentTypes = collect(['Video', 'Desain'])
-            ->map(fn ($name) => ContentType::firstOrCreate(['name' => $name]));
-
-        $platforms = collect(['Instagram', 'TikTok'])
-            ->map(fn ($name) => Platform::firstOrCreate(['name' => $name]));
+        // Platform/ContentType/ContentPillar/ClientCategory dipindah ke
+        // ReferenceDataSeeder (selalu dijalankan DatabaseSeeder, di semua
+        // environment) - di sini tinggal DIBACA, bukan dibuat lagi, biar
+        // nggak ada 2 sumber kebenaran buat data yang sama.
+        $pillars = ContentPillar::whereIn('name', ['Education', 'Entertainment', 'Soft Selling', 'Hard Selling', 'Product Highlight', 'Information'])->get();
+        $contentTypes = ContentType::whereIn('name', ['Video', 'Desain'])->get();
+        $platforms = Platform::whereIn('name', ['Instagram', 'TikTok'])->get();
 
         $videoType = $contentTypes->firstWhere('name', 'Video');
         $videoPlatforms = $platforms->whereIn('name', ['Instagram', 'TikTok']);
@@ -108,8 +106,7 @@ class DemoSeeder extends Seeder
         // 'client_category' salah satu feature model Delay Risk, jadi kalau
         // semua client sama kategorinya, feature ini nggak ada variasi sama
         // sekali buat testing.
-        $categories = collect(['UMKM', 'Startup', 'Korporat', 'Retail'])
-            ->map(fn ($name) => ClientCategory::firstOrCreate(['name' => $name]));
+        $categories = ClientCategory::whereIn('name', ['UMKM', 'Startup', 'Korporat', 'Retail'])->get();
         $category = $categories->first(); // dipakai fallback lama di bawah kalau perlu
 
         $picUser = User::where('email', 'ahdaalamin2506@gmail.com')->first() ?? User::first();
@@ -412,17 +409,30 @@ class DemoSeeder extends Seeder
                     $baseViews = rand(400, 6000);
 
                     for ($d = 0; $d < $trackDays; $d++) {
+                        $dayViews = max(0, $baseViews + rand(-200, 800) * $d);
+
                         ContentMetric::create([
                             'content_item_id' => $item->id,
                             'platform_id' => $platform->id,
                             'imported_by' => $picUser->id,
                             'metric_date' => $deadline->copy()->addDays($d),
-                            'views' => max(0, $baseViews + rand(-200, 800) * $d),
+                            'views' => $dayViews,
                             'engagement_rate' => round(rand(150, 950) / 100, 2),
                             'watch_time_avg' => $isVideoContent ? rand(8, 45) : null,
                             'completion_rate' => $isVideoContent ? round(rand(3000, 8500) / 100, 2) : null,
                             'shares' => $isVideoContent ? rand(5, 300) : null,
                             'saves' => $isVideoContent ? rand(10, 500) : null,
+                            // Metrik umum tambahan (PRD 7.3.1) - reach/impressions
+                            // selalu >= views (satu "view" bisa keitung berkali-kali
+                            // di impressions, reach = unique user jadi biasanya
+                            // sedikit di bawah impressions tapi bisa di atas/bawah
+                            // views tergantung platform), likes/comments/profile_visit
+                            // proporsional ke views biar rasionya masuk akal.
+                            'reach' => (int) round($dayViews * (rand(70, 110) / 100)),
+                            'impressions' => (int) round($dayViews * (rand(110, 180) / 100)),
+                            'likes' => (int) round($dayViews * (rand(2, 9) / 100)),
+                            'comments' => (int) round($dayViews * (rand(0, 2) / 100)),
+                            'profile_visit' => (int) round($dayViews * (rand(1, 5) / 100)),
                         ]);
                     }
                 }
@@ -592,6 +602,58 @@ class DemoSeeder extends Seeder
                 // "Terapkan ke Content Plan" tanpa generate ulang dulu.
                 $targetItemCount = ($clientPackage->monthly_content_quota + $clientPackage->monthly_design_quota) ?: 10;
 
+                // Performance Anomaly (KF-A909) - dihitung persis kayak
+                // DetectPerformanceAnomalies command (baseline = rata-rata
+                // hari-hari sebelumnya, dibandingin ke hari paling akhir yang
+                // ke-track per content item), BUKAN angka acak. detected_date
+                // sengaja jatuh di dalam periode yang dianalisis biar
+                // buildPerformanceSummary() beneran narik anomali ini kalau
+                // client-nya di-generate ulang lewat tombol Analytics.
+                $seededAnomalies = collect();
+                foreach ($lastMonthMetrics->groupBy('content_item_id') as $contentItemId => $rows) {
+                    $sorted = $rows->sortBy('metric_date')->values();
+                    if ($sorted->count() < 4) {
+                        continue;
+                    }
+
+                    $latestMetric = $sorted->last();
+                    $baselineAvg = $sorted->slice(0, -1)->avg('views');
+                    if ($baselineAvg <= 0) {
+                        continue;
+                    }
+
+                    $ratio = $latestMetric->views / $baselineAvg;
+                    $anomalyType = match (true) {
+                        $ratio >= 1.5 => 'spike',
+                        $ratio <= 0.5 => 'drop',
+                        default => null,
+                    };
+                    if (! $anomalyType) {
+                        continue;
+                    }
+
+                    $anomaly = PerformanceAnomaly::create([
+                        'content_item_id' => $contentItemId,
+                        'type' => $anomalyType,
+                        'percent_change' => round(($ratio - 1) * 100),
+                        'views_on_date' => $latestMetric->views,
+                        'baseline_avg_views' => (int) round($baselineAvg),
+                        'detected_date' => $latestMetric->metric_date,
+                    ]);
+
+                    $seededAnomalies->push([
+                        'content_title' => $latestMetric->contentItem->title ?? '-',
+                        'pillar' => $latestMetric->contentItem->contentPillar->name ?? '-',
+                        'type' => $anomaly->type,
+                        'percent_change' => $anomaly->percent_change,
+                        'date' => $anomaly->detected_date->format('d M'),
+                    ]);
+
+                    if ($seededAnomalies->count() >= 2) {
+                        break;
+                    }
+                }
+
                 $performanceData = [
                     'client_name' => $client->name,
                     'period' => $lastMonthStart->format('d M Y').' - '.$lastMonthEnd->format('d M Y'),
@@ -604,6 +666,7 @@ class DemoSeeder extends Seeder
                     'performance_by_pillar' => $byPillar,
                     'performance_by_platform' => $byPlatform,
                     'top_5_content' => $topContentFromMetrics,
+                    'notable_anomalies' => $seededAnomalies->values()->all(),
                     'target_content_count' => $targetItemCount,
                 ];
 
@@ -640,6 +703,12 @@ class DemoSeeder extends Seeder
                         'platform' => $ideaPlatforms->random()->name,
                     ]);
                 })->values()->all();
+
+                // Skor beneran (KF-A908) lewat AiStrategyService::scoreContentIdeas()
+                // yang sungguhan dipakai controller - bukan placeholder null - biar
+                // predicted_score/predicted_label langsung kelihatan begitu seeder
+                // jalan, nggak perlu klik "Generate" ulang dulu buat lihat fiturnya.
+                $contentIdeas = app(AiStrategyService::class)->scoreContentIdeas($contentIdeas, $performanceData);
 
                 $isApplied = $clientIndex === 0;
 

@@ -50,4 +50,14 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
     ],
 
+    // Global Meta App credentials doang - token milik masing-masing client
+    // TIDAK disimpan di sini, cuma di api_integrations.access_token
+    // (encrypted, per client) hasil OAuth connect.
+    'instagram' => [
+        'client_id' => env('INSTAGRAM_CLIENT_ID'),
+        'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
+        'api_version' => env('INSTAGRAM_API_VERSION'),
+        'redirect' => env('INSTAGRAM_REDIRECT_URI'),
+    ],
+
 ];

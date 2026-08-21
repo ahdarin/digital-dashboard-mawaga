@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\InstagramMediaSnapshot;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Agregasi "Overview" analytics (stats, trend, platform breakdown, top
@@ -22,8 +24,13 @@ class AnalyticsSummaryService
         $prevEnd = $start->copy()->subDay()->endOfDay();
         $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
 
-        $baseQuery = ContentMetric::query()
-            ->whereHas('contentItem', fn ($q) => $q->where('client_id', $clientId));
+        // Source-of-truth langsung dari client_id di content_metrics -
+        // BUKAN lagi whereHas('contentItem', client_id=X). whereHas mustahil
+        // ikut baris yang content_item_id-nya NULL (post Instagram real
+        // yang belum di-link manual/schedule-match) karena relasinya kosong,
+        // padahal baris itu tetap valid milik client ini (client_id sendiri
+        // sudah diisi langsung, lihat migration + InstagramAnalyticsSyncService).
+        $baseQuery = ContentMetric::query()->where('client_id', $clientId);
 
         $currentMetrics = (clone $baseQuery)->whereBetween('metric_date', [$start, $end])->get();
         $previousMetrics = (clone $baseQuery)->whereBetween('metric_date', [$prevStart, $prevEnd])->get();
@@ -32,14 +39,14 @@ class AnalyticsSummaryService
         $avgEngagement = $currentMetrics->count() > 0
             ? round($currentMetrics->avg('engagement_rate'), 2)
             : 0;
-        $contentPublished = $currentMetrics->pluck('content_item_id')->unique()->count();
+        $contentPublished = $currentMetrics->map(fn ($m) => $m->distinct_content_key)->unique()->count();
         $platformsTracked = $currentMetrics->pluck('platform_id')->unique()->count();
 
         $prevTotalViews = (int) $previousMetrics->sum('views');
         $prevAvgEngagement = $previousMetrics->count() > 0
             ? round($previousMetrics->avg('engagement_rate'), 2)
             : 0;
-        $prevContentPublished = $previousMetrics->pluck('content_item_id')->unique()->count();
+        $prevContentPublished = $previousMetrics->map(fn ($m) => $m->distinct_content_key)->unique()->count();
         $prevPlatformsTracked = $previousMetrics->pluck('platform_id')->unique()->count();
 
         $stats = [
@@ -85,22 +92,50 @@ class AnalyticsSummaryService
             ->values();
 
         $topContent = $currentMetrics
-            ->groupBy('content_item_id')
-            ->map(function ($rows, $contentItemId) {
-                $item = ContentItem::with(['client', 'contentType', 'platform'])->find($contentItemId);
-                if (! $item) {
-                    return null;
+            ->groupBy(fn ($m) => $m->distinct_content_key)
+            ->map(function ($rows) {
+                $first = $rows->first();
+
+                // Sudah ke-link ke ContentItem internal - tampilkan metadata
+                // lengkap seperti sebelumnya.
+                if ($first->content_item_id) {
+                    $item = ContentItem::with(['client', 'contentType', 'platform'])->find($first->content_item_id);
+                    if (! $item) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $item->id,
+                        'title' => $item->title,
+                        'client' => $item->client->name ?? '-',
+                        'type' => $item->contentType->name ?? '-',
+                        'platform' => $item->platform->name ?? '-',
+                        'views' => (int) $rows->sum('views'),
+                        'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                        'last_metric_date' => $rows->max('metric_date'),
+                        'linked' => true,
+                    ];
                 }
 
+                // Post Instagram real TAPI belum ke-link - metadata dari
+                // InstagramMediaSnapshot (caption/permalink), bukan
+                // ContentItem. TIDAK di-skip (Langkah 4/8 - tetap dihitung
+                // dalam Analytics), cuma nggak ada link "Detail" internal.
+                $snapshot = $first->instagram_media_snapshot_id
+                    ? InstagramMediaSnapshot::find($first->instagram_media_snapshot_id)
+                    : null;
+
                 return [
-                    'id' => $item->id,
-                    'title' => $item->title,
-                    'client' => $item->client->name ?? '-',
-                    'type' => $item->contentType->name ?? '-',
-                    'platform' => $item->platform->name ?? '-',
+                    'id' => null,
+                    'title' => $snapshot?->caption ? Str::limit($snapshot->caption, 60) : 'Instagram Post (belum terhubung)',
+                    'client' => '-',
+                    'type' => '-',
+                    'platform' => Platform::find($first->platform_id)->name ?? '-',
                     'views' => (int) $rows->sum('views'),
                     'engagement_rate' => round($rows->avg('engagement_rate'), 2),
                     'last_metric_date' => $rows->max('metric_date'),
+                    'linked' => false,
+                    'permalink' => $snapshot?->permalink,
                 ];
             })
             ->filter()

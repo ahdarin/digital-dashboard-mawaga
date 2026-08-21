@@ -68,6 +68,16 @@ class DetectPerformanceAnomalies extends Command
         // masuk, entah dari import CSV atau sync) - cuma yang relevan
         // dicek, biar command-nya ringan dan nggak nyisir seluruh histori
         // tiap kali jalan.
+        //
+        // TODO (gap diketahui, sengaja belum dibenahi - lihat audit "Data
+        // Source Architecture"): post Instagram real yang belum ke-link ke
+        // ContentItem (content_item_id NULL di content_metrics) TIDAK ikut
+        // dicek di sini. pluck() di bawah ini ikut ngambil null, tapi
+        // ContentItem::find(null) di loop bawah balikin null lalu di-skip
+        // (continue) - jadi command ini aman (nggak crash), cuma diam-diam
+        // nggak mendeteksi anomali buat post unmatched. Belum diperbaiki
+        // karena eksplisit di luar scope task ini (anomaly detection nggak
+        // boleh di-redesign dulu).
         $contentItemIds = ContentMetric::whereDate('metric_date', $today)
             ->distinct()
             ->pluck('content_item_id');

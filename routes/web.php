@@ -19,6 +19,7 @@ use App\Http\Controllers\UserClientAssignmentController;
 use App\Console\Commands\UpdateOverdueContentItems;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\InstagramIntegrationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
 use App\Http\Controllers\Client\AnalyticsController as ClientAnalyticsController;
@@ -156,7 +157,20 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::get('/client-management/{client}/edit', [ClientManagementController::class, 'edit'])->name('client-management.edit');
         Route::put('/client-management/{client}', [ClientManagementController::class, 'update'])->name('client-management.update');
         Route::delete('/client-management/{client}', [ClientManagementController::class, 'destroy'])->name('client-management.destroy');
+
+        Route::get('/client-management/{client}/instagram/connect', [InstagramIntegrationController::class, 'connect'])
+            ->name('client-management.instagram.connect');
+        Route::post('/client-management/{client}/instagram/sync-audience', [ClientManagementController::class, 'syncInstagramAudience'])
+            ->name('client-management.instagram.sync-audience');
     });
+
+    // Callback OAuth Instagram - sengaja di luar group permission di atas dan
+    // TANPA {client} di URL (Meta mewajibkan redirect_uri statis/exact-match
+    // yang didaftarkan di App Dashboard, nggak boleh ada segmen dinamis).
+    // client_id ditentukan dari session yang disimpan di connect() di atas,
+    // dan tetap butuh user login (middleware 'auth' dari parent group).
+    Route::get('/client-management/instagram/callback', [InstagramIntegrationController::class, 'callback'])
+        ->name('client-management.instagram.callback');
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])
         ->middleware('permission:team_performance,view')
@@ -201,6 +215,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::get('/settings/import', [SettingsController::class, 'importPage'])->name('settings.import');
         Route::post('/settings/detect-anomalies', [SettingsController::class, 'runAnomalyDetection'])
             ->name('settings.detect-anomalies');
+        Route::post('/settings/sync-instagram', [SettingsController::class, 'syncInstagram'])
+            ->name('settings.sync-instagram');
     });
 
     Route::middleware('permission:content_plan,view')->group(function () {
@@ -250,6 +266,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/publishing-tracker', [ContentPublicationController::class, 'index'])
         ->middleware('permission:workflow,view')
         ->name('publishing-tracker.index');
+
+    Route::get('/publishing-tracker/instagram/{apiIntegration}/unmatched', [ContentPublicationController::class, 'unmatchedInstagram'])
+        ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
+        ->name('publishing-tracker.instagram.unmatched');
+    Route::post('/publishing-tracker/instagram/{apiIntegration}/link', [ContentPublicationController::class, 'linkInstagramMedia'])
+        ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
+        ->name('publishing-tracker.instagram.link');
 
     Route::get('/revision-log', [ContentRevisionController::class, 'index'])
         ->middleware('permission:workflow,view')

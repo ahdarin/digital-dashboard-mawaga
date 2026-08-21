@@ -14,7 +14,14 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             PermissionSeeder::class,
-            DemoSeeder::class,
+            ReferenceDataSeeder::class,
         ]);
+
+        // Data demo (client/konten/metrik fiktif) - cuma buat dev/testing,
+        // sama seperti akun Manager Demo di RoleSeeder. Jangan pernah
+        // ter-seed otomatis di staging/production.
+        if (app()->environment('local')) {
+            $this->call(DemoSeeder::class);
+        }
     }
 }
