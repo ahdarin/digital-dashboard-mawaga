@@ -178,7 +178,7 @@ class ProductionWorkflowController extends Controller
             'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
+            'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 
@@ -189,7 +189,7 @@ class ProductionWorkflowController extends Controller
      */
     private function revisionsTab(Request $request, $user)
     {
-        $query = \App\Models\ContentRevision::with(['contentItem.client', 'requestedBy'])
+        $query = \App\Models\ContentRevision::with(['contentItem.client', 'requestedByUser', 'requestedByClient'])
             ->latest('created_at');
 
         if (! $user->canSeeAllClients()) {
@@ -220,7 +220,7 @@ class ProductionWorkflowController extends Controller
             'selectedStatus' => $request->input('status', 'open'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
+            'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 
@@ -263,7 +263,7 @@ class ProductionWorkflowController extends Controller
             'platformOptions' => $platformOptions,
             'selectedPlatformId' => $request->input('platform_id'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
-            'picOptions' => \App\Models\User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
+            'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
         ]);
     }
 

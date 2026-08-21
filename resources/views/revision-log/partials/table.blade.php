@@ -32,7 +32,7 @@
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $revision->contentItem->client->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">Revisi #{{ $revision->revision_round }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] max-w-xs truncate">{{ $revision->revision_note }}</td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $revision->requestedBy->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $revision->requestedByLabel() }}</td>
                         <td class="px-4 py-3.5">
                             <span class="badge {{ $revStatusStyle['class'] }}">{{ $revStatusStyle['label'] }}</span>
                         </td>
@@ -79,7 +79,7 @@
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Diminta Oleh</span>
-                        <span class="text-[var(--text-primary)] font-medium">{{ $revision->requestedBy->name ?? '-' }}</span>
+                        <span class="text-[var(--text-primary)] font-medium">{{ $revision->requestedByLabel() }}</span>
                     </div>
                     <a href="{{ route('content-items.show', $revision->contentItem) }}" class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span></a>
                 </div>

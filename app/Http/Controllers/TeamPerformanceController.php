@@ -69,7 +69,7 @@ class TeamPerformanceController extends Controller
             ]);
         }
 
-        $membersQuery = User::whereNull('client_id')
+        $membersQuery = User::query()
             ->where('status', 'active')
             ->with(['roles', 'assignments.contentItem.workflow']);
 

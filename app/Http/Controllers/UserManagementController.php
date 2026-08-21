@@ -21,14 +21,14 @@ class UserManagementController extends Controller
 
         $users = User::with(['roles', 'assignedClients'])
             ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
-            ->whereNull('client_id')->latest()->get();
+            ->latest()->get();
 
         $allClients = Client::where('status', 'active')->orderBy('name')->get();
-        $roles = Role::whereNotIn('name', ['Client Owner'])->get();
+        $roles = Role::all();
         // Kandidat pengganti buat modal nonaktifkan - staff aktif lain,
         // dipopulasi selalu (bukan cuma pas ada yang nonaktifkan) biar
         // dropdown-nya nggak perlu request tambahan per baris.
-        $replacementOptions = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
+        $replacementOptions = User::query()->where('status', 'active')->orderBy('name')->get();
 
         return view('user-management.index', compact('users', 'allClients', 'roles', 'replacementOptions'));
     }
@@ -37,14 +37,16 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        $validated = $request->validate([
+        // Bag terpisah ('inviteUser') - halaman ini juga punya form Edit
+        // Role yang divalidasi dengan field 'role_ids' YANG SAMA PERSIS.
+        // Kalau keduanya pakai bag default, validasi Edit Role yang gagal
+        // akan ikut membuka modal Undang User ini juga (showCreateModal
+        // di index.blade.php dulu cek $errors->any(), bukan per-form).
+        $validated = $request->validateWithBag('inviteUser', [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            // Client Owner sengaja dikecualikan dari checkbox (lihat index()
-            // di atas) - dikunci juga di validasi biar nggak bisa dikirim
-            // manual lewat request langsung.
             'role_ids' => 'required|array|min:1',
-            'role_ids.*' => Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner')),
+            'role_ids.*' => 'exists:roles,id',
         ]);
 
         $user = User::create([
@@ -77,10 +79,6 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        // Halaman ini cuma buat kelola staf internal - binding User polos
-        // tanpa scope bisa saja diarahkan ke akun client kalau ID-nya
-        // ditebak/dikirim manual.
-        abort_if($user->isClientUser(), 404);
         abort_if($user->id === auth()->id(), 422, 'Anda tidak bisa menonaktifkan akun sendiri.');
 
         $activeCount = $picReassignmentService->countActive($user);
@@ -91,7 +89,7 @@ class UserManagementController extends Controller
         // sudah tidak bisa login sama sekali begitu dinonaktifkan.
         if ($activeCount > 0) {
             $validated = $request->validate([
-                'replacement_user_id' => ['required', Rule::exists('users', 'id')->where(fn ($q) => $q->where('status', 'active')->whereNull('client_id')), Rule::notIn([$user->id])],
+                'replacement_user_id' => ['required', Rule::exists('users', 'id')->where(fn ($q) => $q->where('status', 'active')), Rule::notIn([$user->id])],
             ]);
 
             $replacement = User::findOrFail($validated['replacement_user_id']);
@@ -111,8 +109,6 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        abort_if($user->isClientUser(), 404);
-
         $user->update(['status' => 'active']);
 
         return back()->with('status', 'User berhasil diaktifkan kembali.');
@@ -122,11 +118,10 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        abort_if($user->isClientUser(), 404);
-
-        $validated = $request->validate([
+        // Bag terpisah ('editRoles') - lihat catatan yang sama di store().
+        $validated = $request->validateWithBag('editRoles', [
             'role_ids' => 'required|array|min:1',
-            'role_ids.*' => Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner')),
+            'role_ids.*' => 'exists:roles,id',
         ]);
 
         $user->roles()->sync($validated['role_ids']);

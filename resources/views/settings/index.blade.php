@@ -56,7 +56,7 @@
         </div>
 
         {{-- System Connections - status koneksi service pihak ketiga yang
-             dipakai sistem (Google Sign-In, WhatsApp/Fonnte, Gemini AI) --}}
+             dipakai sistem (Google Sign-In, Gemini AI) --}}
         <div class="card p-6">
             <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">System Connections</h2>
             <p class="text-xs text-[var(--text-muted)] mb-5">Status koneksi service pihak ketiga yang dipakai sistem ini.</p>

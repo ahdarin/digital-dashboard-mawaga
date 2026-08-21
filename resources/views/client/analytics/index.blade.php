@@ -6,7 +6,7 @@
 
         <div class="flex items-center gap-1.5">
             @foreach ([7 => '7 Hari', 30 => '30 Hari', 90 => '90 Hari'] as $value => $label)
-                <a href="{{ route('client.analytics', ['period' => $value]) }}"
+                <a href="{{ route('client.portal.analytics', ['token' => $portalToken, 'period' => $value]) }}"
                    class="text-xs font-medium px-3 py-1.5 rounded-full transition-colors
                        {{ $period === $value ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-card)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)]' }}">
                     {{ $label }}

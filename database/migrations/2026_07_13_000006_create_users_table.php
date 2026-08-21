@@ -10,13 +10,12 @@ return new class extends Migration {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->foreignId('role_id')->constrained('roles');
-            $table->foreignId('client_id')->nullable()->constrained('clients')->nullOnDelete();
             $table->string('name');
-            // email nullable & tetap unique - staf internal login via Google
-            // OAuth (butuh email), Client Owner login via WhatsApp magic link
-            // (nomor saja, tanpa email).
-            $table->string('email')->nullable()->unique();
-            $table->string('phone_number')->nullable()->unique();
+            // users HANYA internal staff (523 Studio) - login Google OAuth,
+            // jadi email selalu wajib & unik. Client BUKAN User sama sekali
+            // (lihat clients.portal_token) - tidak ada lagi client_id/
+            // phone_number di sini.
+            $table->string('email')->unique();
             $table->string('google_id')->nullable()->unique();
             $table->string('avatar_url')->nullable();
             $table->string('password')->nullable();

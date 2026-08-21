@@ -17,7 +17,6 @@ class RoleSeeder extends Seeder
             'Graphic Designer',
             'SMO',
             'Copywriter',
-            'Client Owner',
         ];
 
         foreach ($roles as $name) {

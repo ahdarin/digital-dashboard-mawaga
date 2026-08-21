@@ -10,8 +10,8 @@ class AnalyticsController extends Controller
 {
     /**
      * Versi read-only & disederhanakan dari AnalyticsController (internal)
-     * untuk client - client_id SELALU diambil dari user yang login, bukan
-     * dari parameter/query, biar 1 client nggak pernah bisa lihat data
+     * untuk client - client SELALU dari portal context (token permanen),
+     * bukan dari parameter/query, biar 1 client nggak pernah bisa lihat data
      * client lain. Query-nya sendiri direuse dari AnalyticsSummaryService
      * yang sama persis dipakai versi internal.
      */
@@ -20,11 +20,11 @@ class AnalyticsController extends Controller
         $period = (int) $request->input('period', 30); // 7 / 30 / 90 hari
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
-        $clientId = $request->user()->client_id;
+        $client = $request->attributes->get('portalClient');
 
         ['stats' => $stats, 'trend' => $trend, 'platformBreakdown' => $platformBreakdown, 'topContent' => $topContent]
-            = $analyticsSummaryService->buildOverviewData($clientId, $period);
+            = $analyticsSummaryService->buildOverviewData($client->id, $period);
 
-        return view('client.analytics.index', compact('stats', 'trend', 'platformBreakdown', 'topContent', 'period'));
+        return view('client.analytics.index', compact('client', 'stats', 'trend', 'platformBreakdown', 'topContent', 'period'));
     }
 }

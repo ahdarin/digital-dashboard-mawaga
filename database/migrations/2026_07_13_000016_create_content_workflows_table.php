@@ -15,7 +15,9 @@ return new class extends Migration {
             $table->string('current_status')->default('brief_ready');
             $table->boolean('is_overdue')->default(false); // Kolom derived (Design Notes #4)
             $table->timestamp('client_reviewed_at')->nullable();
-            $table->foreignId('client_reviewed_by')->nullable()->constrained('users')->nullOnDelete();
+            // Actor client (bukan users.id) - Client Portal tidak pernah
+            // punya User, jadi review selalu berasal dari Client langsung.
+            $table->foreignId('client_reviewed_by_client_id')->nullable()->constrained('clients')->nullOnDelete();
             $table->string('client_review_result')->nullable();
             $table->timestamps();
 

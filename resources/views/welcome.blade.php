@@ -57,11 +57,11 @@
                             Login Tim Internal
                             <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                         </a>
-                        <a href="{{ route('client.login') }}"
-                           class="inline-flex items-center gap-2 bg-[var(--surface-card)] hover:bg-[var(--brand-tint)] text-[var(--text-primary)] text-sm font-medium px-6 py-3.5 rounded-xl border border-[var(--border)] transition-all active:scale-[0.98]">
-                            Login Client
-                        </a>
                     </div>
+
+                    <p class="text-xs text-[var(--text-muted)] mt-5 max-w-md">
+                        Portal klien dapat diakses melalui link yang diberikan oleh tim 523 Studio.
+                    </p>
                 </div>
 
                 <div class="hidden md:flex items-center justify-center">

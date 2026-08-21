@@ -2,7 +2,20 @@
 @section('title', 'Kelola Pengguna')
 @section('content')
 
-<div x-data="{ openAssign: null, editRoles: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+<div x-data="{
+        openAssign: null,
+        {{-- Kalau form Edit Role gagal validasi (mis. semua role dikosongkan),
+             buka lagi modal Edit Role milik user yang sama - bukan modal lain.
+             _edit_roles_user_id cuma diisi form Edit Role (lihat modalnya di
+             bawah), jadi old()-nya nggak akan ke-trigger form lain manapun. --}}
+        editRoles: {{ $errors->editRoles->any() && old('_edit_roles_user_id') ? (int) old('_edit_roles_user_id') : 'null' }},
+        confirmDeactivate: null,
+        confirmActivate: null,
+        {{-- Bag 'inviteUser' - halaman ini juga punya form Edit Role yang
+             divalidasi dengan field 'role_ids' yang sama persis; tanpa bag
+             terpisah, gagal Edit Role ikut membuka modal Undang User ini. --}}
+        showCreateModal: {{ $errors->inviteUser->any() ? 'true' : 'false' }}
+    }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
@@ -174,6 +187,7 @@
 
                                 <form action="{{ route('user-management.roles.update', $user) }}" method="POST">
                                     @csrf @method('PUT')
+                                    <input type="hidden" name="_edit_roles_user_id" value="{{ $user->id }}">
                                     <div class="px-6 py-5">
                                         <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Role</p>
 
@@ -188,6 +202,7 @@
                                                 </label>
                                             @endforeach
                                         </div>
+                                        @error('role_ids', 'editRoles') <p class="text-[var(--danger-text)] text-xs mt-2">{{ $message }}</p> @enderror
                                     </div>
 
                                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
@@ -416,7 +431,7 @@
                         <label for="invite_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama</label>
                         <input id="invite_name" type="text" name="name" value="{{ old('name') }}" required
                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#044b46]/40">
-                        @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                        @error('name', 'inviteUser') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -424,7 +439,7 @@
                         <input id="invite_email" type="email" name="email" value="{{ old('email') }}" required
                                placeholder="akan dipakai untuk login Google"
                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40">
-                        @error('email') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                        @error('email', 'inviteUser') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -440,7 +455,7 @@
                                 </label>
                             @endforeach
                         </div>
-                        @error('role_ids') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                        @error('role_ids', 'inviteUser') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

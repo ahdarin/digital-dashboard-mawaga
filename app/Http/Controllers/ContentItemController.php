@@ -25,8 +25,10 @@ class ContentItemController extends Controller
             'platform',
             'workflow.currentPic',
             'assignments.user',
-            'statusLogs.changedBy',
-            'revisions.requestedBy',
+            'statusLogs.changedByUser',
+            'statusLogs.changedByClient',
+            'revisions.requestedByUser',
+            'revisions.requestedByClient',
             'publications.platform',
             'publications.publishedBy',
             'delayRiskScores' => fn ($q) => $q->latest()->limit(10),
@@ -37,7 +39,7 @@ class ContentItemController extends Controller
         // ini (lewat "Assign Klien" di Kelola Pengguna) - bukan semua staff
         // internal. Diurutkan dari yang paling longgar (task aktif paling
         // sedikit) biar kelihatan langsung siapa yang punya kapasitas.
-        $reassignCandidates = User::whereNull('client_id')
+        $reassignCandidates = User::query()
             ->where('status', 'active')
             ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
             ->with('roles')
@@ -218,7 +220,7 @@ class ContentItemController extends Controller
             'user_id' => 'required|exists:users,id',
         ]);
 
-        $newPic = User::whereNull('client_id')->where('status', 'active')->findOrFail($validated['user_id']);
+        $newPic = User::query()->where('status', 'active')->findOrFail($validated['user_id']);
 
         $workflow = $contentItem->workflow;
         $workflow->update(['current_pic_id' => $newPic->id]);

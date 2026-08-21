@@ -11,7 +11,7 @@
         </a>
         <div>
             <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">Tambah Klien Baru</h1>
-            <p class="text-sm text-[var(--text-muted)] mt-0.5">Buat profil klien sekaligus akun Owner-nya dalam satu langkah.</p>
+            <p class="text-sm text-[var(--text-muted)] mt-0.5">Link Portal Klien otomatis tersedia begitu klien dibuat.</p>
         </div>
     </div>
 
@@ -96,34 +96,6 @@
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('asset_link') border-[var(--danger-border-strong)] @enderror">
                     <p class="text-xs text-[var(--text-muted)] mt-1.5">Opsional. Link folder aset konten/desain klien, tampil di tiap content item-nya.</p>
                     @error('asset_link') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                </div>
-            </div>
-        </div>
-
-        <div class="card p-6">
-            <p class="text-sm font-semibold text-[var(--text-primary)] mb-5 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[var(--brand)] text-[19px]">person</span>
-                Akun Owner
-            </p>
-
-            <div class="bg-[var(--brand-tint)] rounded-lg px-3.5 py-3 flex items-start gap-2 mb-4">
-                <span class="material-symbols-outlined text-[var(--brand)] text-[15px] mt-0.5">info</span>
-                <p class="text-xs text-[var(--brand)]">Owner login pakai <strong>nomor WhatsApp</strong> via magic link, bukan password. Pastikan nomornya aktif.</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label for="owner_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Owner <span class="text-[var(--danger-text)]">*</span></label>
-                    <input id="owner_name" type="text" name="owner_name" value="{{ old('owner_name') }}" required placeholder="Nama lengkap penanggung jawab"
-                           class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_name') border-[var(--danger-border-strong)] @enderror">
-                    @error('owner_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label for="owner_phone" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nomor WhatsApp <span class="text-[var(--danger-text)]">*</span></label>
-                    <input id="owner_phone" type="tel" name="owner_phone" value="{{ old('owner_phone') }}" required placeholder="08xxxxxxxxxx"
-                           class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('owner_phone') border-[var(--danger-border-strong)] @enderror">
-                    @error('owner_phone') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
             </div>
         </div>

@@ -7,7 +7,6 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ContentItemController;
 use App\Http\Controllers\ContentBriefController;
 use App\Http\Controllers\Auth\GoogleAuthController;
-use App\Http\Controllers\Auth\ClientMagicLinkController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\ClientManagementController;
 use App\Http\Controllers\DashboardController;
@@ -38,12 +37,6 @@ use App\Services\AiStrategyService;
 
 Route::get('/', function () {
     if (auth()->check()) {
-        $user = auth()->user();
-
-        if ($user->client_id) {
-            return redirect()->route('client.dashboard');
-        }
-
         return redirect()->route('profile.me');
     }
 
@@ -54,9 +47,8 @@ Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
 
-// Preferensi tampilan personal (tema dsb) - dipakai user internal MAUPUN
-// klien, jadi cuma butuh 'auth', bukan di dalam grup 'internal' atau
-// 'client.user' manapun.
+// Preferensi tampilan personal (tema dsb) - user internal saja (Client
+// Portal tidak pakai Auth sama sekali, tema di sana localStorage-only).
 Route::middleware('auth')->group(function () {
     Route::patch('/preferences/theme', [PreferencesController::class, 'updateTheme'])
         ->name('preferences.theme');
@@ -161,16 +153,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
             ->name('client-management.pic.remove');
     });
 
-    // Detail 1 client dibuka ke semua role internal (bukan cuma CEO/Manager)
-    // supaya hasil search "klien" nggak jadi dead-end 403 - tapi tetap
-    // discope ke client yang di-assign ke dia (client.scope, sama seperti
-    // content item). Aksi ubah data (edit/hapus/dst) tetap di grup
-    // client,manage di bawah - tombolnya di-disable di view buat yang
-    // nggak punya izin itu.
-    Route::middleware(['permission:client,view', 'client.scope:client,id'])->group(function () {
-        Route::get('/client-management/{client}', [ClientManagementController::class, 'show'])->name('client-management.show');
-    });
-
+    // PENTING soal URUTAN: '/client-management/create' (literal) HARUS
+    // didaftarkan SEBELUM '/client-management/{client}' (wildcard) di bawah -
+    // Laravel/Symfony mencocokkan route berdasarkan URUTAN REGISTRASI, bukan
+    // spesifisitas pattern. Kalau grup client,view+show didaftarkan duluan,
+    // '/client-management/create' ikut tertangkap oleh pattern
+    // '/client-management/{client}' (mencoba bind Client dengan ID "create",
+    // gagal, 404) - route 'create' yang sebenarnya nggak pernah kesampaian.
     Route::middleware('permission:client,manage')->group(function () {
         Route::get('/client-management', [ClientManagementController::class, 'index'])->name('client-management.index');
         Route::get('/client-management/create', [ClientManagementController::class, 'create'])->name('client-management.create');
@@ -180,10 +169,28 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::delete('/client-management/{client}', [ClientManagementController::class, 'destroy'])->name('client-management.destroy');
         Route::put('/client-management/{client}/package', [ClientManagementController::class, 'updatePackage'])->name('client-management.package.update');
 
+        Route::post('/client-management/{client}/portal/regenerate', [ClientManagementController::class, 'regeneratePortalToken'])
+            ->name('client-management.portal.regenerate');
+        Route::patch('/client-management/{client}/portal/enable', [ClientManagementController::class, 'enablePortal'])
+            ->name('client-management.portal.enable');
+        Route::patch('/client-management/{client}/portal/disable', [ClientManagementController::class, 'disablePortal'])
+            ->name('client-management.portal.disable');
+
         Route::get('/client-management/{client}/instagram/connect', [InstagramIntegrationController::class, 'connect'])
             ->name('client-management.instagram.connect');
         Route::post('/client-management/{client}/instagram/sync-audience', [ClientManagementController::class, 'syncInstagramAudience'])
             ->name('client-management.instagram.sync-audience');
+    });
+
+    // Detail 1 client dibuka ke semua role internal (bukan cuma CEO/Manager)
+    // supaya hasil search "klien" nggak jadi dead-end 403 - tapi tetap
+    // discope ke client yang di-assign ke dia (client.scope, sama seperti
+    // content item). Aksi ubah data (edit/hapus/dst) tetap di grup
+    // client,manage di atas - tombolnya di-disable di view buat yang
+    // nggak punya izin itu. HARUS di bawah grup di atas (lihat catatan
+    // urutan route di atas).
+    Route::middleware(['permission:client,view', 'client.scope:client,id'])->group(function () {
+        Route::get('/client-management/{client}', [ClientManagementController::class, 'show'])->name('client-management.show');
     });
 
     // Callback OAuth Instagram - sengaja di luar group permission di atas dan
@@ -322,26 +329,19 @@ Route::post('/logout', function (Illuminate\Http\Request $request) {
     return redirect()->route('login');
 })->middleware('auth')->name('logout');
 
-Route::get('/client/login', [ClientMagicLinkController::class, 'showForm'])->name('client.login');
+// Client Portal - TIDAK PAKAI Laravel Auth sama sekali. Token permanen di
+// URL ITU SENDIRI adalah credential-nya (permanent capability URL) - lihat
+// Client::portal_token & ResolveClientPortal middleware ('client.portal'
+// alias, di bootstrap/app.php). Tidak ada login/magic-link/session Client.
+Route::middleware('client.portal')->prefix('/portal/{token}')->group(function () {
+    Route::get('/', [ClientDashboardController::class, 'index'])->name('client.portal.dashboard');
+    Route::get('/calendar', [ClientCalendarController::class, 'index'])->name('client.portal.calendar');
+    Route::get('/history', [ClientHistoryController::class, 'index'])->name('client.portal.history');
+    Route::get('/analytics', [ClientAnalyticsController::class, 'index'])->name('client.portal.analytics');
 
-Route::post('/client/login', [ClientMagicLinkController::class, 'requestLink'])
-    ->middleware('throttle:5,1') // maksimal 5 request per menit per IP
-    ->name('client.login.request');
-
-Route::get('/client/magic-login/{token}', [ClientMagicLinkController::class, 'verify'])->name('client.magic-login.verify');
-
-Route::middleware(['auth', 'client.user'])->group(function () {
-    Route::get('/client/dashboard', [ClientDashboardController::class, 'index'])->name('client.dashboard');
-
-    Route::get('/client/calendar', [ClientCalendarController::class, 'index'])->name('client.calendar');
-
-    Route::get('/client/riwayat', [ClientHistoryController::class, 'index'])->name('client.history');
-
-    Route::get('/client/analytics', [ClientAnalyticsController::class, 'index'])->name('client.analytics');
-
-    Route::get('/client/approval/{contentItem}', [ApprovalController::class, 'show'])->name('client.approval.show');
-    Route::post('/client/approval/{contentItem}/approve', [ApprovalController::class, 'approve'])->name('client.approval.approve');
-    Route::post('/client/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.approval.request-revision');
+    Route::get('/approval/{contentItem}', [ApprovalController::class, 'show'])->name('client.portal.approval.show');
+    Route::post('/approval/{contentItem}/approve', [ApprovalController::class, 'approve'])->name('client.portal.approval.approve');
+    Route::post('/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.portal.approval.request-revision');
 });
 
 Schedule::command(UpdateOverdueContentItems::class)->hourly();

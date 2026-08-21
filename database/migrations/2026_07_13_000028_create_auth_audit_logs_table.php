@@ -9,8 +9,8 @@ return new class extends Migration {
         Schema::create('auth_audit_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('event'); // login_success, login_failed, logout, magic_link_requested
-            $table->string('method'); // google, whatsapp
+            $table->string('event'); // login_success, login_failed, logout
+            $table->string('method'); // google (satu-satunya - Client Portal tidak pakai Auth sama sekali)
             $table->string('ip_address')->nullable();
             $table->string('user_agent')->nullable();
             $table->timestamps();

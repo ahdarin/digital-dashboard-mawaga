@@ -51,7 +51,7 @@ class SearchController extends Controller
 
     private function searchUsers(string $term): array
     {
-        return User::whereNull('client_id')
+        return User::query()
             ->where('status', 'active')
             ->where('name', 'like', "%{$term}%")
             ->with('roles')

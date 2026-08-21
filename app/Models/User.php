@@ -7,13 +7,14 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
+// User = INTERNAL 523 Studio staff SAJA. Client bukan User sama sekali -
+// lihat Client::portal_token untuk akses Client Portal (tanpa akun/login).
+#[Fillable(['name', 'email', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
@@ -47,11 +48,6 @@ class User extends Authenticatable
         return $this->roles->pluck('name')->join(', ') ?: '-';
     }
 
-    public function client(): BelongsTo
-    {
-        return $this->belongsTo(Client::class);
-    }
-
     public function assignments(): HasMany
     {
         return $this->hasMany(ContentItemAssignment::class);
@@ -64,12 +60,7 @@ class User extends Authenticatable
 
     public function statusLogsChanged(): HasMany
     {
-        return $this->hasMany(ContentStatusLog::class, 'changed_by');
-    }
-
-    public function magicLoginTokens(): HasMany
-    {
-        return $this->hasMany(MagicLoginToken::class);
+        return $this->hasMany(ContentStatusLog::class, 'changed_by_user_id');
     }
 
     public function notifications(): \Illuminate\Database\Eloquent\Relations\HasMany
@@ -91,11 +82,6 @@ class User extends Authenticatable
     public function hasPermissionTo(string $module, string $action): bool
     {
         return $this->roles->contains(fn (Role $role) => $role->hasPermission($module, $action));
-    }
-
-    public function isClientUser(): bool
-    {
-        return !is_null($this->client_id);
     }
 
     public function clientAssignments(): HasMany

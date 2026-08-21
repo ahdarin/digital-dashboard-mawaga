@@ -16,6 +16,15 @@ return new class extends Migration {
             $table->string('logo_path')->nullable(); // logo brand client, disimpan di storage/app/public/client-logos
             $table->string('asset_link')->nullable(); // link folder aset konten/desain client di Google Drive
             $table->string('status')->default('active'); // active, past_due, paused
+
+            // Client BUKAN User - tidak ada login/password/akun sama sekali.
+            // Client Portal diakses lewat permanent capability URL (token di
+            // URL-nya sendiri yang jadi credential) - lihat ResolveClientPortal
+            // middleware & routes/web.php grup /portal/{token}. Token permanen
+            // (tidak pernah expired), cuma berubah kalau di-regenerate manual.
+            $table->string('portal_token', 64)->unique();
+            $table->boolean('portal_access_enabled')->default(true);
+
             $table->timestamps();
         });
 

@@ -12,16 +12,15 @@ class HistoryController extends Controller
     /**
      * Riwayat/arsip konten client - lintas SEMUA status (bukan cuma
      * waiting_review kayak Approval Queue), biar client bisa telusur balik
-     * konten lama. Kolom PIC & Risiko sengaja tidak ada di sini (versi
-     * internal punya itu di production-workflow/partials/list-tab.blade.php)
-     * - itu info operasional internal, bukan urusan client.
+     * konten lama. Kolom PIC & Risiko sengaja tidak ada di sini - itu info
+     * operasional internal, bukan urusan client.
      */
     public function index(Request $request)
     {
-        $clientId = $request->user()->client_id;
+        $client = $request->attributes->get('portalClient');
 
         $query = ContentItem::with(['contentType', 'workflow'])
-            ->where('client_id', $clientId);
+            ->where('client_id', $client->id);
 
         if ($request->filled('type')) {
             $query->whereHas('contentType', fn ($q) => $q->where('name', $request->input('type')));
@@ -36,6 +35,6 @@ class HistoryController extends Controller
 
         $typeOptions = ContentType::all();
 
-        return view('client.history.index', compact('items', 'typeOptions'));
+        return view('client.history.index', compact('client', 'items', 'typeOptions'));
     }
 }

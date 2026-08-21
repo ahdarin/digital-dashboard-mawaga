@@ -10,9 +10,7 @@ use App\Models\Client;
 use App\Models\ClientCategory;
 use App\Models\ClientPackage;
 use App\Models\PackageTemplate;
-use App\Models\Role;
 use App\Models\User;
-use App\Services\PhoneNumberNormalizer;
 use App\Services\PicReassignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -29,12 +27,11 @@ class ClientManagementController extends Controller
         $status = $request->query('status', 'all');
 
         $clients = Client::query()
-            ->with(['category', 'owner', 'activePackage'])
+            ->with(['category', 'activePackage'])
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('brand_name', 'like', "%{$search}%")
-                        ->orWhereHas('owner', fn ($oq) => $oq->where('phone_number', 'like', "%{$search}%"));
+                        ->orWhere('brand_name', 'like', "%{$search}%");
                 });
             })
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
@@ -55,6 +52,12 @@ class ClientManagementController extends Controller
         return view('client-management.create', compact('categories', 'packageTemplates'));
     }
 
+    /**
+     * Client adalah business entity murni - store() di sini CUMA bikin
+     * Client. Tidak ada User/akun/credential yang dibuat sama sekali.
+     * portal_token otomatis ke-generate lewat Client::booted() (model event),
+     * bukan logic di sini - konsisten dari controller/factory/seeder/test manapun.
+     */
     public function store(Request $request)
     {
         $this->authorizeManage();
@@ -65,12 +68,10 @@ class ClientManagementController extends Controller
             'client_category_id' => 'required|exists:client_categories,id',
             'logo' => 'nullable|image|max:2048', // max 2MB
             'asset_link' => 'nullable|url|max:255',
-            'owner_name' => 'required|string|max:255',
-            'owner_phone' => 'required|string',
             'package_template_id' => 'nullable|exists:package_templates,id',
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $client = DB::transaction(function () use ($validated, $request) {
             $logoPath = $request->hasFile('logo')
                 ? $request->file('logo')->store('client-logos', 'public')
                 : null;
@@ -84,23 +85,15 @@ class ClientManagementController extends Controller
                 'status' => 'active',
             ]);
 
-            $ownerRole = Role::firstOrCreate(['name' => 'Client Owner']);
-
-            $owner = User::create([
-                'client_id' => $client->id,
-                'name' => $validated['owner_name'],
-                'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
-                'status' => 'invited',
-            ]);
-            $owner->roles()->attach($ownerRole->id);
-
             if (filled($validated['package_template_id'] ?? null)) {
                 $this->assignPackage($client, PackageTemplate::find($validated['package_template_id']));
             }
+
+            return $client;
         });
 
-        return redirect()->route('client-management.index')
-            ->with('status', 'Klien & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
+        return redirect()->route('client-management.show', $client)
+            ->with('status', 'Klien berhasil dibuat. Link Portal Klien telah tersedia.');
     }
 
     public function show(Client $client, PicReassignmentService $picReassignmentService)
@@ -111,7 +104,7 @@ class ClientManagementController extends Controller
         // lain di controller ini. Tombol ubah data di-gate di view lewat
         // hasPermissionTo('client','manage').
 
-        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.roles']);
+        $client->load(['category', 'activePackage', 'packages', 'assignedUsers.roles']);
 
         $recentContentItems = $client->contentItems()
             ->with(['contentType', 'workflow'])
@@ -122,7 +115,7 @@ class ClientManagementController extends Controller
         $contentCount = $client->contentItems()->count();
         $planCount = $client->contentPlans()->count();
         $packageTemplates = PackageTemplate::where('is_active', true)->orderBy('name')->get();
-        $staffOptions = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
+        $staffOptions = User::where('status', 'active')->orderBy('name')->get();
 
         // Berapa konten aktif per PIC yang di-assign ke client ini - dipakai
         // buat memutuskan apakah dia bisa dikeluarkan dari roster langsung
@@ -251,7 +244,6 @@ class ClientManagementController extends Controller
         $this->authorizeManage();
 
         $categories = ClientCategory::all();
-        $client->load('owner');
 
         return view('client-management.edit', compact('client', 'categories'));
     }
@@ -259,12 +251,6 @@ class ClientManagementController extends Controller
     public function update(Request $request, Client $client)
     {
         $this->authorizeManage();
-
-        // Kalau client belum punya owner, ketiga field owner jadi
-        // "all-or-nothing" (required bareng-bareng) - biar bisa langsung
-        // dibuatkan akun ownernya dari sini juga, bukan cuma edit yang
-        // sudah ada.
-        $hasOwner = (bool) $client->owner;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -274,8 +260,6 @@ class ClientManagementController extends Controller
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
             'asset_link' => 'nullable|url|max:255',
-            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_phone|string|max:255',
-            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name|string',
         ]);
 
         DB::transaction(function () use ($validated, $client, $request) {
@@ -299,25 +283,6 @@ class ClientManagementController extends Controller
                 'logo_path' => $logoPath,
                 'asset_link' => $validated['asset_link'] ?? null,
             ]);
-
-            if ($client->owner && filled($validated['owner_name'] ?? null)) {
-                $client->owner->update([
-                    'name' => $validated['owner_name'],
-                    'phone_number' => filled($validated['owner_phone'] ?? null)
-                        ? PhoneNumberNormalizer::normalize($validated['owner_phone'])
-                        : $client->owner->phone_number,
-                ]);
-            } elseif (! $client->owner && filled($validated['owner_name'] ?? null)) {
-                $ownerRole = Role::firstOrCreate(['name' => 'Client Owner']);
-
-                $owner = User::create([
-                    'client_id' => $client->id,
-                    'name' => $validated['owner_name'],
-                    'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
-                    'status' => 'invited',
-                ]);
-                $owner->roles()->attach($ownerRole->id);
-            }
         });
 
         return redirect()->route('client-management.show', $client)
@@ -338,6 +303,41 @@ class ClientManagementController extends Controller
 
         return redirect()->route('client-management.show', $client)
             ->with('status', "Paket {$client->brand_name} berhasil diperbarui.");
+    }
+
+    /**
+     * "Buat link baru? Link lama akan langsung tidak dapat digunakan." -
+     * regenerate GANTI token (old URL langsung invalid), portal_access_enabled
+     * tidak berubah sama sekali.
+     */
+    public function regeneratePortalToken(Client $client)
+    {
+        $this->authorizeManage();
+
+        $client->regeneratePortalToken();
+
+        return redirect()->route('client-management.show', $client)
+            ->with('status', 'Link Portal Klien baru berhasil dibuat. Link lama sudah tidak berlaku.');
+    }
+
+    public function disablePortal(Client $client)
+    {
+        $this->authorizeManage();
+
+        $client->update(['portal_access_enabled' => false]);
+
+        return redirect()->route('client-management.show', $client)
+            ->with('status', 'Akses Portal Klien dinonaktifkan.');
+    }
+
+    public function enablePortal(Client $client)
+    {
+        $this->authorizeManage();
+
+        $client->update(['portal_access_enabled' => true]);
+
+        return redirect()->route('client-management.show', $client)
+            ->with('status', 'Akses Portal Klien diaktifkan kembali.');
     }
 
     /**
@@ -380,10 +380,6 @@ class ClientManagementController extends Controller
             if ($client->logo_path) {
                 Storage::disk('public')->delete($client->logo_path);
             }
-            // Hapus SEMUA user milik client ini (owner + staf tambahan), bukan cuma
-            // owner - kalau tidak, user selain owner jadi punya client_id=NULL lewat
-            // FK ON DELETE SET NULL, yang di sistem ini berarti "staf internal".
-            $client->users()->delete();
             $client->packages()->delete();
             $client->delete();
         });

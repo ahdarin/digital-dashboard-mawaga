@@ -96,7 +96,7 @@ class ContentPlanController extends Controller
 
         $contentTypeOptions = ContentType::all();
         $platformOptions = Platform::all();
-        $picOptions = User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get();
+        $picOptions = User::query()->where('status', 'active')->with('assignedClients:id')->get();
 
         return view('content-plan.index', compact(
             'plans',
@@ -120,7 +120,11 @@ class ContentPlanController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Bag terpisah ('createContentPlan') - modal "Jobdesk Tambahan" ada
+        // di sidebar GLOBAL (semua halaman internal), jadi kalau validasi
+        // di sini pakai bag default, urgentOpen (yang juga cek $errors->any())
+        // akan ikut kebuka setiap kali form Content Plan ini gagal validasi.
+        $validated = $request->validateWithBag('createContentPlan', [
             'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020',
@@ -198,7 +202,7 @@ class ContentPlanController extends Controller
         // Cuma tim yang sudah di-assign ke client rencana ini (lewat "Assign
         // Klien" di Kelola Pengguna) yang bisa dipilih jadi PIC - bukan
         // semua staff internal.
-        $picOptions = User::whereNull('client_id')
+        $picOptions = User::query()
             ->where('status', 'active')
             ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
             ->get();
@@ -215,7 +219,7 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => ['required', Rule::exists('users', 'id')->whereNull('client_id')->where('status', 'active')],
+            'pic_id' => ['required', Rule::exists('users', 'id')->where('status', 'active')],
             'estimated_duration_seconds' => 'nullable|integer',
             'estimated_slide_count' => 'nullable|integer',
         ]);
@@ -262,14 +266,19 @@ class ContentPlanController extends Controller
      */
     public function quickCreateUrgent(Request $request)
     {
-        $validated = $request->validate([
+        // Bag terpisah ('urgentContent') - modal ini sendiri ada di sidebar
+        // GLOBAL (semua halaman internal), jadi kalau validasi gagal di form
+        // lain manapun (mis. Edit Role di Kelola Pengguna) tapi bag-nya
+        // default/sama, urgentOpen ikut kebuka juga walau bukan form ini
+        // yang gagal - lihat urgentOpen di urgent-content-modal.blade.php.
+        $validated = $request->validateWithBag('urgentContent', [
             'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'title' => 'required|string|max:255',
             'brief' => 'nullable|string',
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => ['nullable', Rule::exists('users', 'id')->whereNull('client_id')->where('status', 'active')],
+            'pic_id' => ['nullable', Rule::exists('users', 'id')->where('status', 'active')],
         ]);
 
         $client = Client::findOrFail($validated['client_id']);

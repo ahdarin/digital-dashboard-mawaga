@@ -160,7 +160,7 @@ class AttendanceService
 
     public function dailyRecords(Carbon $date): \Illuminate\Support\Collection
     {
-        $users = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
+        $users = User::query()->where('status', 'active')->orderBy('name')->get();
         $attendances = Attendance::where('date', $date->toDateString())->get()->keyBy('user_id');
 
         return $users->map(function ($user) use ($date, $attendances) {
@@ -176,7 +176,7 @@ class AttendanceService
 
     public function monthlySummary(Carbon $month): \Illuminate\Support\Collection
     {
-        $users = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
+        $users = User::query()->where('status', 'active')->orderBy('name')->get();
         $start = $month->copy()->startOfMonth();
         $end = $month->copy()->endOfMonth();
 

@@ -46,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
                     : $user->assignedClients()->where('status', 'active')->get(),
                 'contentTypeOptions' => ContentType::all(),
                 'platformOptions' => Platform::all(),
-                'picOptions' => User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
+                'picOptions' => User::query()->where('status', 'active')->with('assignedClients:id')->get(),
             ]);
         });
     }

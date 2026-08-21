@@ -62,7 +62,7 @@ class WorkflowStatusService
                 $lastRound = ContentRevision::where('content_item_id', $contentItem->id)->max('revision_round') ?? 0;
                 ContentRevision::create([
                     'content_item_id' => $contentItem->id,
-                    'requested_by' => $actor->id,
+                    'requested_by_user_id' => $actor->id,
                     'revision_round' => $lastRound + 1,
                     'revision_note' => $payload['revision_note'],
                     'status' => 'open',
@@ -110,7 +110,7 @@ class WorkflowStatusService
 
             ContentStatusLog::create([
                 'content_item_id' => $contentItem->id,
-                'changed_by' => $actor->id,
+                'changed_by_user_id' => $actor->id,
                 'from_status' => $fromStatus,
                 'to_status' => $toStatus,
                 'notes' => $payload['notes'] ?? null,
@@ -149,7 +149,7 @@ class WorkflowStatusService
 
             ContentStatusLog::create([
                 'content_item_id' => $contentItem->id,
-                'changed_by' => $actor->id,
+                'changed_by_user_id' => $actor->id,
                 'from_status' => $fromStatus,
                 'to_status' => $toStatus,
                 'approval_type' => 'correction',

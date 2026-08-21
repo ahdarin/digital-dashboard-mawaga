@@ -14,9 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'internal' => \App\Http\Middleware\EnsureInternalUser::class,
-            'client.user' => \App\Http\Middleware\EnsureClientUser::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
             'client.scope' => \App\Http\Middleware\EnsureClientScope::class,
+            'client.portal' => \App\Http\Middleware\ResolveClientPortal::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -17,7 +17,7 @@
                        class="text-sm border border-[var(--border)] rounded-lg pl-9 pr-3 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]">
             </div>
             @if (request('type') || request('month'))
-                <a href="{{ route('client.history') }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reset</a>
+                <a href="{{ route('client.portal.history', $portalToken) }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reset</a>
             @endif
         </form>
 
@@ -31,7 +31,7 @@
                         default => 'text-[var(--info-text)] bg-[var(--info-tint)]',
                     };
                 @endphp
-                <a href="{{ route('client.approval.show', $item) }}"
+                <a href="{{ route('client.portal.approval.show', ['token' => $portalToken, 'contentItem' => $item]) }}"
                    class="block bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hover:shadow-[0_4px_16px_-4px_rgba(20,24,26,0.08)] transition-shadow">
                     <div class="flex justify-between items-start gap-2 mb-2">
                         <span class="text-[10px] font-bold px-2 py-1 rounded uppercase {{ $statusChip }}">

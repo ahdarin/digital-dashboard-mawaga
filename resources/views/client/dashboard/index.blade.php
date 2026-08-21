@@ -62,7 +62,7 @@
                 @if ($pendingApprovalItems->isNotEmpty())
                     <div class="space-y-3">
                         @foreach ($pendingApprovalItems as $item)
-                            <a href="{{ route('client.approval.show', $item) }}"
+                            <a href="{{ route('client.portal.approval.show', ['token' => $portalToken, 'contentItem' => $item]) }}"
                                class="block bg-[var(--surface-page)] rounded-xl border border-[var(--border)] p-3.5 hover:bg-[var(--surface-muted)] transition-colors">
                                 <div class="flex justify-between items-start mb-2">
                                     <span class="text-[10px] font-bold text-[var(--warning-text)] bg-[var(--warning-tint)] px-2 py-1 rounded uppercase">Menunggu Persetujuan</span>
@@ -97,14 +97,14 @@
         <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
             <div class="flex items-center justify-between mb-3">
                 <p class="text-sm font-semibold text-[var(--text-primary)]">Konten Terbaru</p>
-                <a href="{{ route('client.calendar') }}" class="text-xs font-medium text-[var(--brand)] hover:underline">Lihat semua</a>
+                <a href="{{ route('client.portal.calendar', $portalToken) }}" class="text-xs font-medium text-[var(--brand)] hover:underline">Lihat semua</a>
             </div>
             @if ($recentItems->isEmpty())
                 <p class="text-sm text-[var(--text-muted)] text-center py-6">Belum ada konten.</p>
             @else
                 <div class="space-y-3">
                     @foreach ($recentItems as $item)
-                        <a href="{{ route('client.approval.show', $item['id']) }}"
+                        <a href="{{ route('client.portal.approval.show', ['token' => $portalToken, 'contentItem' => $item['id']]) }}"
                            class="flex items-center justify-between gap-3 {{ !$loop->last ? 'pb-3 border-b border-[var(--border)]' : '' }}">
                             <div class="min-w-0">
                                 <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $item['title'] }}</p>

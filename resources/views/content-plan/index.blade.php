@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Content Plan Bulanan')
 @section('content')
-<div x-data="{ showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+<div x-data="{ showCreateModal: {{ $errors->createContentPlan->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
@@ -206,7 +206,7 @@
             <form action="{{ route('content-plan.store') }}" method="POST">
                 @csrf
                 <div class="px-6 py-5 space-y-4">
-                    @error('client_id')
+                    @error('client_id', 'createContentPlan')
                         <div class="bg-[var(--danger-tint)] text-[var(--danger-text)] text-xs p-3 rounded-lg">{{ $message }}</div>
                     @enderror
 

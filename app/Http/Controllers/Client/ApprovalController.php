@@ -12,9 +12,35 @@ use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
-    public function show(Request $request, ContentItem $contentItem)
+    /**
+     * Ambil ContentItem TERSCOPE ke client dari portal context - dipakai
+     * ketiga method di bawah, BUKAN implicit route-model-binding global
+     * (route param {contentItem} sengaja diterima sebagai ID mentah, bukan
+     * type-hint ContentItem) - whereKey()->firstOrFail() di sini SATU-SATUNYA
+     * jalur resolusi model, jadi tidak mungkin ada content item milik client
+     * lain yang lolos. 404 (bukan 403) kalau content item itu bukan milik
+     * client token ini (termasuk kalau memang tidak ada) - jangan bocorkan
+     * bahwa ID itu valid tapi punya client lain.
+     */
+    private function scopedContentItem(Request $request, string $contentItemId): ContentItem
     {
-        abort_unless($contentItem->client_id === $request->user()->client_id, 403);
+        $client = $request->attributes->get('portalClient');
+
+        return $client->contentItems()->whereKey($contentItemId)->firstOrFail();
+    }
+
+    /**
+     * $token DIDEKLARASIKAN walau tidak dipakai langsung di sini (client
+     * sudah tersedia lewat $request->attributes->get('portalClient')) -
+     * WAJIB ada karena Laravel me-resolve parameter scalar (non class-hint)
+     * SECARA POSISI, bukan berdasarkan nama, begitu ada parameter route yang
+     * tidak diwakili di signature method (di sini {token} datang sebelum
+     * {contentItem} di URL) - tanpa ini, $contentItem diam-diam menerima
+     * nilai token, bukan ID content item. Jangan hapus parameter ini.
+     */
+    public function show(Request $request, string $token, string $contentItem)
+    {
+        $contentItem = $this->scopedContentItem($request, $contentItem);
 
         $contentItem->load(['contentType', 'platform', 'workflow', 'publications.platform']);
 
@@ -23,9 +49,10 @@ class ApprovalController extends Controller
         return view('client.approval.show', compact('contentItem', 'alreadyReviewed'));
     }
 
-    public function approve(Request $request, ContentItem $contentItem)
+    public function approve(Request $request, string $token, string $contentItem)
     {
-        abort_unless($contentItem->client_id === $request->user()->client_id, 403);
+        $client = $request->attributes->get('portalClient');
+        $contentItem = $this->scopedContentItem($request, $contentItem);
 
         $workflow = $contentItem->workflow;
         abort_unless($workflow->current_status === 'waiting_review', 400);
@@ -33,19 +60,20 @@ class ApprovalController extends Controller
 
         $workflow->update([
             'client_reviewed_at' => now(),
-            'client_reviewed_by' => $request->user()->id,
+            'client_reviewed_by_client_id' => $client->id,
             'client_review_result' => 'approved',
         ]);
 
         NotificationService::notifyInternalCheckers($contentItem);
 
-        return redirect(route('client.dashboard') . '#persetujuan')
+        return redirect(route('client.portal.dashboard', $client->portal_token) . '#persetujuan')
             ->with('status', 'Terima kasih! Persetujuan kamu sudah dicatat dan akan dicek oleh tim internal sebelum konten resmi disetujui.');
     }
 
-    public function requestRevision(Request $request, ContentItem $contentItem)
+    public function requestRevision(Request $request, string $token, string $contentItem)
     {
-        abort_unless($contentItem->client_id === $request->user()->client_id, 403);
+        $client = $request->attributes->get('portalClient');
+        $contentItem = $this->scopedContentItem($request, $contentItem);
 
         $validated = $request->validate([
             'revision_note' => 'required|string',
@@ -54,12 +82,12 @@ class ApprovalController extends Controller
         $workflow = $contentItem->workflow;
         abort_unless($workflow->current_status === 'waiting_review', 400);
 
-        DB::transaction(function () use ($workflow, $contentItem, $validated, $request) {
+        DB::transaction(function () use ($workflow, $contentItem, $validated, $client) {
             $lastRound = ContentRevision::where('content_item_id', $contentItem->id)->max('revision_round') ?? 0;
 
             ContentRevision::create([
                 'content_item_id' => $contentItem->id,
-                'requested_by' => $request->user()->id,
+                'requested_by_client_id' => $client->id,
                 'revision_round' => $lastRound + 1,
                 'revision_note' => $validated['revision_note'],
                 'status' => 'open',
@@ -70,7 +98,7 @@ class ApprovalController extends Controller
 
             ContentStatusLog::create([
                 'content_item_id' => $contentItem->id,
-                'changed_by' => $request->user()->id,
+                'changed_by_client_id' => $client->id,
                 'from_status' => $fromStatus,
                 'to_status' => 'revision',
                 'notes' => 'Revisi diminta oleh klien melalui Portal Klien.',
@@ -85,7 +113,7 @@ class ApprovalController extends Controller
             "\"{$contentItem->title}\" diminta revisi oleh klien: \"{$validated['revision_note']}\""
         );
 
-        return redirect(route('client.dashboard') . '#persetujuan')
+        return redirect(route('client.portal.dashboard', $client->portal_token) . '#persetujuan')
             ->with('status', 'Catatan revisi berhasil dikirim.');
     }
 }

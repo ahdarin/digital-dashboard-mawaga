@@ -27,7 +27,7 @@
             <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2.5">{{ $date->translatedFormat('l, d F') }}</p>
             <div class="flex flex-col gap-1.5">
                 @foreach ($itemsByDate->get($dateKey, collect()) as $item)
-                    <a href="{{ route('client.approval.show', $item) }}"
+                    <a href="{{ route('client.portal.approval.show', ['token' => $portalToken, 'contentItem' => $item]) }}"
                         class="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] transition-colors">
                         <span class="text-xs font-medium text-[var(--text-primary)] truncate">{{ $item->title }}</span>
                         <span title="{{ $item->contentType->name ?? '-' }}"
@@ -70,7 +70,7 @@
                         <p class="text-xs text-[var(--text-muted)] mb-0.5">{{ $day }}</p>
 
                         @foreach ($dayItems->take(3) as $item)
-                            <a href="{{ route('client.approval.show', $item) }}"
+                            <a href="{{ route('client.portal.approval.show', ['token' => $portalToken, 'contentItem' => $item]) }}"
                                 class="flex items-center justify-between gap-1.5 rounded-md px-2 py-1 bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] transition-colors">
                                 <span class="text-[11px] font-medium text-[var(--text-primary)] truncate">{{ $item->title }}</span>
                                 <span title="{{ $item->contentType->name ?? '-' }}"

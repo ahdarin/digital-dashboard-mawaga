@@ -154,7 +154,7 @@
                             <div class="border border-[var(--border)] rounded-lg p-3 {{ $revisionStyle['card'] }}">
                                 <div class="flex items-center justify-between mb-1">
                                     <p class="text-xs font-medium text-[var(--text-primary)]">Revisi #{{ $revision->revision_round }} -
-                                        {{ $revision->requestedBy->name ?? '-' }}</p>
+                                        {{ $revision->requestedByLabel() }}</p>
                                     <span class="text-[10px] px-2 py-0.5 rounded-full {{ $revisionStyle['badge'] }}">{{ $revisionStyle['label'] }}</span>
                                 </div>
                                 <p class="text-xs text-[var(--text-secondary)]">{{ $revision->revision_note }}</p>
@@ -392,7 +392,7 @@
                                             <span
                                                 class="font-medium text-[var(--text-primary)]">{{ $statusLabels[$log->to_status] ?? $log->to_status }}</span>
                                         </p>
-                                        <p class="text-[10px] text-[var(--text-muted)]">{{ $log->changedBy->name ?? '-' }} ·
+                                        <p class="text-[10px] text-[var(--text-muted)]">{{ $log->changedByLabel() }} ·
                                             {{ $log->changed_at->format('d M, H:i') }}</p>
                                         @if ($log->notes)
                                             <p class="text-[10px] text-[var(--text-muted)] italic mt-0.5">{{ $log->notes }}</p>

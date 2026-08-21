@@ -16,7 +16,7 @@ class ContentRevisionController extends Controller
     {
         $user = $request->user();
 
-        $query = ContentRevision::with(['contentItem.client', 'requestedBy'])
+        $query = ContentRevision::with(['contentItem.client', 'requestedByUser', 'requestedByClient'])
             ->latest('created_at');
 
         if (!$user->canSeeAllClients()) {
@@ -84,7 +84,7 @@ class ContentRevisionController extends Controller
                 $lastRound = ContentRevision::where('content_item_id', $contentItem->id)->max('revision_round') ?? 0;
                 ContentRevision::create([
                     'content_item_id' => $contentItem->id,
-                    'requested_by' => $request->user()->id,
+                    'requested_by_user_id' => $request->user()->id,
                     'revision_round' => $lastRound + 1,
                     'revision_note' => $validated['revision_note'],
                     'status' => 'open',

@@ -70,7 +70,7 @@
                             class="border border-[var(--border)] text-[var(--text-primary)] text-sm font-medium py-3 rounded-2xl hover:bg-[var(--surface-page)] transition-colors">
                         Request Revision
                     </button>
-                    <form action="{{ route('client.approval.approve', $contentItem) }}" method="POST">
+                    <form action="{{ route('client.portal.approval.approve', ['token' => $portalToken, 'contentItem' => $contentItem]) }}" method="POST">
                         @csrf
                         <button type="submit" class="w-full bg-[var(--brand-solid)] hover:bg-[var(--brand-dark)] active:scale-[0.98] text-white text-sm font-medium py-3 rounded-2xl transition-all">
                             Approve Asset
@@ -79,7 +79,7 @@
                 </div>
 
                 <div x-show="showRevisionForm" x-transition class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]" style="display: none;">
-                    <form action="{{ route('client.approval.request-revision', $contentItem) }}" method="POST" class="space-y-3">
+                    <form action="{{ route('client.portal.approval.request-revision', ['token' => $portalToken, 'contentItem' => $contentItem]) }}" method="POST" class="space-y-3">
                         @csrf
                         <label for="revision_note" class="block text-xs font-semibold text-[var(--text-muted)] uppercase">Catatan Revisi</label>
                         <textarea id="revision_note" name="revision_note" required rows="3"

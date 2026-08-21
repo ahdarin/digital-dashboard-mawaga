@@ -101,7 +101,7 @@ class DelayRiskPredictionService
         }
 
         $recipients = $recipients->merge(
-            User::whereNull('client_id')
+            User::query()
                 ->where('status', 'active')
                 ->whereHas('roles', fn ($q) => $q->whereIn('name', [UserRole::CEO->value, UserRole::Manager->value]))
                 ->get()

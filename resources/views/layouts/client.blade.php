@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     @include('partials._theme-init-script')
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{-- Permanent portal link = credential akses - jangan pernah ke-index
+         search engine atau bocor lewat Referer header ke situs lain. --}}
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="referrer" content="no-referrer">
     <title>@yield('title', 'Portal Klien') | 523 Studio</title>
 
     <link rel="icon" href="{{ asset('images/favicon.png') }}">
@@ -66,6 +70,9 @@
 <body class="min-h-screen" x-data="{
         theme: localStorage.getItem('theme') || 'system',
         themeIcons: { light: 'light_mode', dark: 'dark_mode', system: 'brightness_auto' },
+        {{-- Client Portal TIDAK PAKAI Auth - tema di sini localStorage-only,
+             tidak ada request ke /preferences/theme (route itu butuh 'auth'
+             dan Client tidak pernah login). --}}
         setTheme(value) {
             this.theme = value;
             if (value === 'system') {
@@ -74,15 +81,6 @@
                 document.documentElement.setAttribute('data-theme', value);
             }
             localStorage.setItem('theme', value);
-            fetch('{{ route('preferences.theme') }}', {
-                method: 'PATCH',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ theme: value }),
-            }).catch(() => {});
         },
         cycleTheme() {
             const order = ['light', 'dark', 'system'];
@@ -101,28 +99,20 @@
             class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)] transition-colors">
             <span class="material-symbols-outlined text-[19px]" x-text="themeIcons[theme]"></span>
         </button>
-
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" title="Keluar" aria-label="Keluar"
-                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[var(--danger-text)] hover:bg-[var(--danger-tint)] transition-colors">
-                <span class="material-symbols-outlined text-[19px]">logout</span>
-            </button>
-        </form>
     </header>
 
     <nav class="bg-[var(--surface-card)] border-b border-[var(--border)] px-2 sm:px-5 flex items-center gap-1 sticky top-[57px] sm:top-[65px] z-10 overflow-x-auto thin-autohide-scrollbar">
         @php
             $clientNavItems = [
-                ['route' => 'client.dashboard', 'label' => 'Dashboard'],
-                ['route' => 'client.calendar', 'label' => 'Kalender'],
-                ['route' => 'client.history', 'label' => 'Riwayat'],
-                ['route' => 'client.analytics', 'label' => 'Analytics'],
+                ['route' => 'client.portal.dashboard', 'label' => 'Dashboard'],
+                ['route' => 'client.portal.calendar', 'label' => 'Kalender'],
+                ['route' => 'client.portal.history', 'label' => 'Riwayat'],
+                ['route' => 'client.portal.analytics', 'label' => 'Analytics'],
             ];
         @endphp
         @foreach ($clientNavItems as $navItem)
             @php $isActive = request()->routeIs($navItem['route'] . '*'); @endphp
-            <a href="{{ route($navItem['route']) }}"
+            <a href="{{ route($navItem['route'], $portalToken) }}"
                class="shrink-0 text-sm font-medium px-3 py-3 border-b-2 whitespace-nowrap transition-colors
                    {{ $isActive ? 'border-[var(--brand)] text-[var(--brand)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]' }}">
                 {{ $navItem['label'] }}

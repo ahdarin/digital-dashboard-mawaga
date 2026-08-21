@@ -41,7 +41,7 @@ class DashboardController extends Controller
         $activeClients = Client::where('status', 'active')->count();
         $newClientsThisMonth = Client::where('created_at', '>=', $startOfThisMonth)->count();
 
-        $activeTeam = User::whereNull('client_id')->where('status', 'active')->count();
+        $activeTeam = User::query()->where('status', 'active')->count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
         $viewsThisMonth = (int) ContentMetric::whereHas('contentItem')

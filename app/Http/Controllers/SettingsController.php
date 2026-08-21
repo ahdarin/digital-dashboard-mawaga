@@ -95,22 +95,18 @@ class SettingsController extends Controller
         // Status koneksi service pihak ketiga yang dipakai sistem (bukan
         // per-client platform kayak $instagramCard di atas, ini level
         // aplikasi) - sebelumnya nggak kelihatan sama sekali di Settings,
-        // padahal AI Strategy Analysis (Gemini), login client (Fonnte
-        // WhatsApp), dan login tim internal (Google) semuanya bergantung
-        // ke sini. Dicek dari config, bukan nge-tes koneksi beneran (biar
-        // nggak ngirim request tiap kali halaman Settings dibuka).
+        // padahal AI Strategy Analysis (Gemini) dan login tim internal
+        // (Google) semuanya bergantung ke sini. Dicek dari config, bukan
+        // nge-tes koneksi beneran (biar nggak ngirim request tiap kali
+        // halaman Settings dibuka). Client Portal TIDAK di sini - sudah
+        // tidak pakai service eksternal apa pun (permanent link, bukan
+        // WhatsApp login) - lihat Client::portal_token.
         $systemConnections = [
             [
                 'label' => 'Google Sign-In',
                 'description' => 'Login tim internal',
                 'icon' => 'admin_panel_settings',
                 'connected' => filled(config('services.google.client_id')) && filled(config('services.google.client_secret')),
-            ],
-            [
-                'label' => 'WhatsApp (Fonnte)',
-                'description' => 'Kirim link login client',
-                'icon' => 'chat',
-                'connected' => filled(config('services.fonnte.token')),
             ],
             [
                 'label' => 'Gemini AI',

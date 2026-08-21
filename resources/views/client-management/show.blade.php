@@ -3,7 +3,19 @@
 @section('content')
 
 @php $canManageClient = auth()->user()->hasPermissionTo('client', 'manage'); @endphp
-<div x-data="{ showPackageModal: false, showPicModal: {{ $errors->has('user_ids') ? 'true' : 'false' }}, removePic: null }" class="p-4 sm:p-6 lg:p-8 max-w-[1300px] mx-auto">
+<div x-data="{
+        showPackageModal: false,
+        showPicModal: {{ $errors->has('user_ids') ? 'true' : 'false' }},
+        removePic: null,
+        confirmRegenerate: false,
+        portalLinkCopied: false,
+        copyPortalLink() {
+            navigator.clipboard.writeText('{{ route('client.portal.dashboard', $client->portal_token) }}').then(() => {
+                this.portalLinkCopied = true;
+                setTimeout(() => this.portalLinkCopied = false, 2000);
+            });
+        },
+    }" class="p-4 sm:p-6 lg:p-8 max-w-[1300px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
         <div class="flex items-center gap-4">
@@ -116,28 +128,92 @@
         <div class="w-full lg:w-[320px] shrink-0 space-y-5">
 
             <div class="card p-6">
-                <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-4">Akun Owner</h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Akses Portal Klien</h2>
+                    <span class="badge {{ $client->portal_access_enabled ? 'badge-success' : 'badge-neutral' }}">
+                        {{ $client->portal_access_enabled ? 'Aktif' : 'Dinonaktifkan' }}
+                    </span>
+                </div>
 
-                @if ($client->owner)
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-sm font-semibold shrink-0">
-                            {{ strtoupper(substr($client->owner->name, 0, 1)) }}
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-[var(--text-primary)]">{{ $client->owner->name }}</p>
-                            <p class="text-xs text-[var(--text-muted)]">{{ match($client->owner->status) { 'active' => 'Aktif', 'invited' => 'Diundang', 'inactive' => 'Nonaktif', default => ucfirst($client->owner->status) } }}</p>
-                        </div>
+                @if ($client->portal_access_enabled)
+                    <p class="text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Permanent Portal Link</p>
+                    <div class="flex items-center gap-2 mb-4">
+                        <input type="text" readonly value="{{ route('client.portal.dashboard', $client->portal_token) }}"
+                               class="flex-1 min-w-0 bg-[var(--surface-page)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-[var(--text-secondary)] truncate">
+                        <button type="button" @click="copyPortalLink()" title="Salin Link"
+                                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
+                            <span class="material-symbols-outlined text-[17px]" x-text="portalLinkCopied ? 'check' : 'content_copy'"></span>
+                        </button>
                     </div>
+                    <p x-show="portalLinkCopied" x-cloak x-transition class="text-xs text-[var(--brand)] font-medium -mt-3 mb-4">Link berhasil disalin.</p>
 
-                    <div class="space-y-2.5 text-sm">
-                        <div class="flex items-center gap-2 text-[var(--text-secondary)]">
-                            <span class="material-symbols-outlined text-[15px]">call</span> {{ $client->owner->phone_number ?? '-' }}
-                        </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('client.portal.dashboard', $client->portal_token) }}" target="_blank" rel="noopener"
+                           class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[14px]">open_in_new</span> Buka Portal
+                        </a>
+
+                        @if ($canManageClient)
+                            <button type="button" @click="confirmRegenerate = true"
+                                    class="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border)] px-3 py-2 rounded-lg hover:bg-[var(--surface-page)] transition-colors flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[14px]">refresh</span> Regenerate Link
+                            </button>
+
+                            <form action="{{ route('client-management.portal.disable', $client) }}" method="POST"
+                                  onsubmit="return appConfirm(this, 'Nonaktifkan akses Portal Klien untuk {{ addslashes($client->brand_name) }}? Link tidak akan bisa dipakai sampai diaktifkan lagi.', { danger: true })">
+                                @csrf @method('PATCH')
+                                <button type="submit" class="text-xs font-medium text-[var(--danger-text)] border border-[var(--border)] px-3 py-2 rounded-lg hover:bg-[var(--danger-tint)] transition-colors flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px]">block</span> Nonaktifkan
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 @else
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada akun owner terdaftar.</p>
+                    <p class="text-sm text-[var(--text-muted)] mb-4">Akses Portal Klien sedang dinonaktifkan - klien tidak bisa membuka link portal sampai diaktifkan kembali.</p>
+
+                    @if ($canManageClient)
+                        <div class="flex flex-wrap items-center gap-2">
+                            <form action="{{ route('client-management.portal.enable', $client) }}" method="POST">
+                                @csrf @method('PATCH')
+                                <button type="submit" class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-2 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px]">check_circle</span> Aktifkan
+                                </button>
+                            </form>
+                            <button type="button" @click="confirmRegenerate = true"
+                                    class="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border)] px-3 py-2 rounded-lg hover:bg-[var(--surface-page)] transition-colors flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[14px]">refresh</span> Regenerate Link
+                            </button>
+                        </div>
+                    @endif
                 @endif
             </div>
+
+            {{-- Modal Konfirmasi Regenerate Link --}}
+            <template x-teleport="body">
+                <div x-show="confirmRegenerate" x-cloak
+                     x-on:keydown.escape.window="confirmRegenerate = false"
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                    <div class="absolute inset-0 bg-[#14181a]/40" @click="confirmRegenerate = false"></div>
+
+                    <div x-show="confirmRegenerate" x-transition
+                         role="dialog" aria-modal="true" aria-labelledby="regenerate-modal-title"
+                         class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md">
+                        <div class="px-6 py-5 border-b border-[var(--border)]">
+                            <h3 id="regenerate-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Buat Link Baru?</h3>
+                        </div>
+                        <div class="px-6 py-5">
+                            <p class="text-sm text-[var(--text-secondary)]">Link lama akan langsung tidak dapat digunakan.</p>
+                        </div>
+                        <form action="{{ route('client-management.portal.regenerate', $client) }}" method="POST">
+                            @csrf
+                            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
+                                <button type="submit" class="btn-danger">Ya, Buat Link Baru</button>
+                                <button type="button" @click="confirmRegenerate = false" class="btn-secondary">Batal</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </template>
 
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">

@@ -76,9 +76,6 @@ class PermissionSeeder extends Seeder
                 ['content_plan', 'view'], ['content_plan', 'create'],
                 ['workflow', 'view'],
             ],
-            'Client Owner' => [
-                ['workflow', 'view'], ['workflow', 'approve'], ['analytics', 'view'],
-            ],
         ];
 
         foreach ($mapping as $roleName => $perms) {

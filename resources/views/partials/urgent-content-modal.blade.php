@@ -13,7 +13,7 @@
      solid seperti semula. --}}
 @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
     <div x-data="{
-            urgentOpen: {{ $errors->any() ? 'true' : 'false' }},
+            urgentOpen: {{ $errors->urgentContent->any() ? 'true' : 'false' }},
             // PIC dibatasi ke tim yang sudah di-assign ke client yang
             // dipilih (lewat Assign Klien di Kelola Pengguna) - client
             // di form ini dipilih dinamis, jadi filternya di client side
@@ -80,7 +80,7 @@
                             <label for="urgent_client_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Klien <span class="text-[var(--danger-text)]">*</span></label>
                             <select id="urgent_client_id" name="client_id" required {{ isset($urgentPreselectClientId) ? 'disabled' : '' }}
                                 x-ref="urgentClientSelect" @change="filterPicOptions()"
-                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 disabled:bg-[var(--surface-page)] disabled:text-[var(--text-secondary)] {{ $errors->has('client_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 disabled:bg-[var(--surface-page)] disabled:text-[var(--text-secondary)] {{ $errors->urgentContent->has('client_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 @unless (isset($urgentPreselectClientId))
                                     <option value="">Pilih klien...</option>
                                 @endunless
@@ -96,45 +96,45 @@
                             @if (isset($urgentPreselectClientId))
                                 <input type="hidden" name="client_id" value="{{ $urgentPreselectClientId }}">
                             @endif
-                            @error('client_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                            @error('client_id', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="urgent_title" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Judul Konten <span class="text-[var(--danger-text)]">*</span></label>
                             <input id="urgent_title" type="text" name="title" required value="{{ old('title') }}" placeholder="Contoh: Dokumentasi Event Grand Opening"
-                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('title') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
-                            @error('title') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('title') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            @error('title', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label for="urgent_content_type_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Tipe Konten</label>
-                                <select id="urgent_content_type_id" name="content_type_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_type_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                                <select id="urgent_content_type_id" name="content_type_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('content_type_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                     <option value="">-</option>
                                     @foreach ($contentTypeOptions as $type)
                                         <option value="{{ $type->id }}" {{ (string) old('content_type_id') === (string) $type->id ? 'selected' : '' }}>{{ $type->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('content_type_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                @error('content_type_id', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label for="urgent_platform_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Platform</label>
-                                <select id="urgent_platform_id" name="platform_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('platform_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                                <select id="urgent_platform_id" name="platform_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('platform_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                     <option value="">-</option>
                                     @foreach ($platformOptions as $platform)
                                         <option value="{{ $platform->id }}" {{ (string) old('platform_id') === (string) $platform->id ? 'selected' : '' }}>{{ $platform->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('platform_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                @error('platform_id', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                             </div>
                         </div>
                         <div>
                             <label for="urgent_deadline_at" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Deadline <span class="text-[var(--danger-text)]">*</span></label>
                             <input id="urgent_deadline_at" type="text" name="deadline_at" required value="{{ old('deadline_at', now()->addDay()->format('Y-m-d H:i')) }}" data-flatpickr="datetime" autocomplete="off"
-                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('deadline_at') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
-                            @error('deadline_at') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('deadline_at') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            @error('deadline_at', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="urgent_pic_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab</label>
-                            <select id="urgent_pic_id" name="pic_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            <select id="urgent_pic_id" name="pic_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 <option value="">Belum ditentukan</option>
                                 @foreach ($picOptions as $pic)
                                     <option value="{{ $pic->id }}" data-client-ids="{{ $pic->assignedClients->pluck('id')->join(',') }}"
@@ -142,13 +142,13 @@
                                 @endforeach
                             </select>
                             <p class="text-[11px] text-[var(--text-muted)] mt-1">Cuma menampilkan tim yang sudah di-assign ke klien yang dipilih di atas.</p>
-                            @error('pic_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                            @error('pic_id', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="urgent_brief" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Catatan / Brief Singkat</label>
                             <textarea id="urgent_brief" name="brief" rows="3" placeholder="Detail permintaan klien..."
-                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('brief') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">{{ old('brief') }}</textarea>
-                            @error('brief') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('brief') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">{{ old('brief') }}</textarea>
+                            @error('brief', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
