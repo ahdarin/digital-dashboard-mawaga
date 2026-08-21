@@ -32,8 +32,14 @@
                     @endif
                 </div>
                 <p class="text-[var(--text-secondary)] text-sm mt-1">
-                    Target: {{ $contentPlan->clientPackage->monthly_content_quota ?? 0 }} Content /
-                    {{ $contentPlan->clientPackage->monthly_design_quota ?? 0 }} Design
+                    @if ($contentPlan->clientPackage)
+                        Target: {{ $contentPlan->clientPackage->monthly_content_quota }} Content /
+                        {{ $contentPlan->clientPackage->monthly_design_quota }} Design
+                    @else
+                        {{-- client_package_id NULL = data paket belum tercatat, BUKAN client
+                             tanpa paket - jangan tampilkan "0 Content / 0 Design" (Langkah 2). --}}
+                        <span class="text-[var(--text-muted)] italic">Paket belum tercatat</span>
+                    @endif
                 </p>
             </div>
         </div>
@@ -100,9 +106,12 @@
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->deadline_at->format('d M Y') }}</td>
                         <td class="px-4 py-3.5 whitespace-nowrap">
-                            @php $pic = $item->assignments->first()?->user; @endphp
-                            @if ($pic)
-                                <span class="text-xs text-[var(--text-secondary)]">{{ $pic->name }}</span>
+                            @php $pic = $picResolver->resolve($item); @endphp
+                            @if ($pic['name'])
+                                <span class="text-xs text-[var(--text-secondary)]">{{ $pic['name'] }}</span>
+                                @if (! $pic['has_account'])
+                                    <span class="block text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
                             @else
                                 <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
                             @endif
@@ -130,7 +139,7 @@
                     'Desain' => '#b3427e',
                     default => '#9aa0a4',
                 };
-                $pic = $item->assignments->first()?->user;
+                $pic = $picResolver->resolve($item);
             @endphp
             <div x-data="{ open: false }" class="card p-3.5">
                 <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
@@ -162,8 +171,13 @@
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Penanggung Jawab</span>
-                        @if ($pic)
-                            <span class="text-[var(--text-primary)] font-medium">{{ $pic->name }}</span>
+                        @if ($pic['name'])
+                            <span class="text-right">
+                                <span class="text-[var(--text-primary)] font-medium block">{{ $pic['name'] }}</span>
+                                @if (! $pic['has_account'])
+                                    <span class="text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
+                            </span>
                         @else
                             <span class="text-[var(--text-muted)] italic">Belum ada</span>
                         @endif

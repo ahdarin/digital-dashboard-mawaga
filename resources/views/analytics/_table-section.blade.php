@@ -69,7 +69,14 @@
                             </a>
                         </th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Type</th>
+                        {{-- "Tipe / Format" (bukan cuma "Type") - kolom ini
+                             bisa isi ContentType internal (taksonomi produksi,
+                             mis. Video/Desain) ATAU format Instagram
+                             (Reels/Carousel/Image, mis. post yang belum
+                             terhubung ke konten internal) - dua domain beda,
+                             judul kolom sengaja dibuat netral biar nggak
+                             menyiratkan itu selalu taksonomi internal. --}}
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe / Format</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">
                             <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[var(--brand)] transition-colors">
                                 Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
@@ -94,7 +101,7 @@
                         <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] max-w-[240px] truncate">{{ $item->title }}</td>
                             <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }}</td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->type }}</td>
+                            <td class="px-4 py-3.5 whitespace-nowrap {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">{{ $item->type ?? '-' }}</td>
                             <td class="px-4 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
                             <td class="px-4 py-3.5 whitespace-nowrap">
                                 @if ($item->avg_engagement !== null)
@@ -116,11 +123,28 @@
                                 @endif
                             </td>
                             <td class="px-6 py-3.5 text-right whitespace-nowrap">
-                                @if ($item->linked)
-                                    <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Detail</a>
-                                @elseif ($item->permalink)
-                                    <a href="{{ $item->permalink }}" target="_blank" rel="noopener" class="text-xs font-medium text-[var(--brand)] hover:underline">Lihat Post</a>
-                                @endif
+                                <div class="flex items-center justify-end gap-2.5">
+                                    @if ($item->linked)
+                                        {{-- Dashboard ini dashboard workflow agensi, bukan
+                                             sekadar pintu ke Instagram - detail internal SELALU
+                                             jadi primary destination, permalink cuma supporting
+                                             action eksternal (Langkah 11). --}}
+                                        <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Lihat Detail</a>
+                                        @if ($item->permalink)
+                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" title="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                            </a>
+                                        @endif
+                                    @else
+                                        @if ($item->api_integration_id)
+                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}#post-{{ $item->external_post_id }}"
+                                               class="text-xs font-medium text-[var(--brand)] hover:underline">Hubungkan Konten</a>
+                                        @endif
+                                        @if ($item->permalink)
+                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">Lihat Post</a>
+                                        @endif
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -148,7 +172,7 @@
                             <p class="font-medium text-[var(--text-primary)] text-sm truncate">{{ $item->title }}</p>
                             <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
                                 <span class="badge {{ $rowStatus['class'] }}">{{ $rowStatus['label'] }}</span>
-                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }} &middot; {{ $item->type }}</span>
+                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }} &middot; {{ $item->type ?? '-' }}</span>
                             </div>
                         </div>
                         <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)]">
@@ -176,13 +200,27 @@
                         @if ($item->linked)
                             <a href="{{ route('analytics.show', $item->id) }}"
                                 class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
-                                Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                                Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
                             </a>
-                        @elseif ($item->permalink)
-                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener"
-                                class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
-                                Lihat Post <span class="material-symbols-outlined text-[15px]">open_in_new</span>
-                            </a>
+                            @if ($item->permalink)
+                                <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                    class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                    Lihat di Instagram <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                </a>
+                            @endif
+                        @else
+                            @if ($item->api_integration_id)
+                                <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}#post-{{ $item->external_post_id }}"
+                                    class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
+                                    Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
+                                </a>
+                            @endif
+                            @if ($item->permalink)
+                                <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                    class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                    Lihat Post <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                </a>
+                            @endif
                         @endif
                     </div>
                 </div>

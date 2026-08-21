@@ -153,6 +153,16 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
         Route::put('/user-management/{user}/roles', [UserManagementController::class, 'updateRoles'])->name('user-management.roles.update');
 
+        // Kelola Tim - primary entity TeamMember (Langkah "Kelola Tim
+        // Actions fix"): Edit Role & Assign Klien di row TeamMember WAJIB
+        // mengedit TeamMember (operational_role/team_member_client), bukan
+        // User - sebelumnya row TeamMember malah membuka modal yang
+        // mengedit User terkait, jadi 1 row nyampur 2 entity berbeda.
+        Route::put('/team-members/{teamMember}/operational-role', [UserManagementController::class, 'updateOperationalRole'])
+            ->name('team-members.operational-role.update');
+        Route::put('/team-members/{teamMember}/clients', [UserManagementController::class, 'updateTeamMemberClients'])
+            ->name('team-members.clients.update');
+
         Route::put('/user-management/{user}/clients', [UserClientAssignmentController::class, 'update'])
             ->name('user-client-assignment.update');
         Route::put('/client-management/{client}/pic', [UserClientAssignmentController::class, 'updateForClient'])

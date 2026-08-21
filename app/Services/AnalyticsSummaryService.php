@@ -97,12 +97,19 @@ class AnalyticsSummaryService
                 $first = $rows->first();
 
                 // Sudah ke-link ke ContentItem internal - tampilkan metadata
-                // lengkap seperti sebelumnya.
+                // lengkap seperti sebelumnya. permalink tetap diikutkan kalau
+                // post ini asalnya dari Instagram (instagram_media_snapshot_id
+                // keisi meski sudah matched) - dipakai action external
+                // "secondary" di samping "Lihat Detail" (Langkah 5/11).
                 if ($first->content_item_id) {
                     $item = ContentItem::with(['client', 'contentType', 'platform'])->find($first->content_item_id);
                     if (! $item) {
                         return null;
                     }
+
+                    $linkedSnapshot = $first->instagram_media_snapshot_id
+                        ? InstagramMediaSnapshot::find($first->instagram_media_snapshot_id)
+                        : null;
 
                     return [
                         'id' => $item->id,
@@ -114,6 +121,7 @@ class AnalyticsSummaryService
                         'engagement_rate' => round($rows->avg('engagement_rate'), 2),
                         'last_metric_date' => $rows->max('metric_date'),
                         'linked' => true,
+                        'permalink' => $linkedSnapshot?->permalink,
                     ];
                 }
 
@@ -129,13 +137,18 @@ class AnalyticsSummaryService
                     'id' => null,
                     'title' => $snapshot?->caption ? Str::limit($snapshot->caption, 60) : 'Instagram Post (belum terhubung)',
                     'client' => '-',
-                    'type' => '-',
+                    // Display-only fallback dari format Instagram (Reels/
+                    // Carousel/Image/Video) - sama seperti Performance Table,
+                    // BUKAN ContentType, tidak ditulis ke content_type_id.
+                    'type' => $snapshot?->display_format ?? '-',
                     'platform' => Platform::find($first->platform_id)->name ?? '-',
                     'views' => (int) $rows->sum('views'),
                     'engagement_rate' => round($rows->avg('engagement_rate'), 2),
                     'last_metric_date' => $rows->max('metric_date'),
                     'linked' => false,
                     'permalink' => $snapshot?->permalink,
+                    'api_integration_id' => $snapshot?->api_integration_id,
+                    'external_post_id' => $snapshot?->external_post_id,
                 ];
             })
             ->filter()

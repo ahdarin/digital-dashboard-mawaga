@@ -108,6 +108,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Client::class, 'user_client_assignments');
     }
 
+    public function teamMember()
+    {
+        return $this->hasOne(TeamMember::class);
+    }
+
     public function canSeeAllClients(): bool
     {
         return $this->hasAnyRole([UserRole::CEO, UserRole::Manager]);

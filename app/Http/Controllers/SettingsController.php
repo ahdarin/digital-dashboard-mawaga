@@ -42,7 +42,15 @@ class SettingsController extends Controller
         $section = $request->input('tab', 'umum');
 
         $user = auth()->user();
-        $clientOptions = Client::where('status', 'active')->get();
+
+        // Scoped sama seperti Content Plan/Analytics/Production Workflow -
+        // 'settings,manage' juga digenggam SMO (bukan cuma CEO/Manager yang
+        // canSeeAllClients()), jadi tanpa scoping ini SMO bisa lihat DAN
+        // trigger sync buat client yang bukan assignment-nya (audit
+        // "Settings Integrasi client-centric" Langkah 15/16).
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
 
         // Tahap 6.2 - Data Pilihan (dulu Master Data) & Integrasi digabung
         // jadi tab di Pengaturan, bukan halaman menu terpisah lagi.
@@ -76,14 +84,25 @@ class SettingsController extends Controller
         $syncLogs = null;
         $logsAllClients = false;
         if ($section === 'integrasi') {
-            $selectedClientId = $request->input('client_id') ?: $clientOptions->first()?->id;
-            $selectedClient = $selectedClientId ? Client::find($selectedClientId) : null;
+            $requestedClientId = $request->input('client_id') ?: $clientOptions->first()?->id;
+            // $clientOptions SUDAH scoped di atas - cari di situ (bukan
+            // Client::find() langsung) biar ?client_id=X hasil tebak/ketik
+            // manual tidak bisa nembus scope (lihat EnsureClientScope, pola
+            // yang sama diterapkan manual di sini karena client_id datang
+            // dari query string, bukan route-model-binding).
+            $selectedClient = $requestedClientId ? $clientOptions->firstWhere('id', (int) $requestedClientId) : null;
+            $selectedClientId = $selectedClient?->id;
             $instagramCard = $selectedClient ? $this->buildInstagramCard($selectedClient) : null;
             $instagramOauthConfigured = filled(config('services.instagram.client_id')) && filled(config('services.instagram.client_secret'));
 
-            $logsAllClients = $request->boolean('all_clients');
+            // "All Clients" cuma valid buat yang canSeeAllClients() - user
+            // ter-assign spesifik tidak boleh lihat log client lain lewat
+            // toggle ini walau query string-nya dipaksa manual.
+            $logsAllClients = $user->canSeeAllClients() && $request->boolean('all_clients');
+            $assignedClientIds = $user->canSeeAllClients() ? null : $clientOptions->pluck('id');
 
             $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
+                ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
                 ->when(! $logsAllClients && $selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
                 ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
                 ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
@@ -388,6 +407,19 @@ class SettingsController extends Controller
             // kalau dispatch dipicu dari jalur lain) - regex sama persis.
             'month' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
         ]);
+
+        // client_id lewat form field, BUKAN route-model-binding, jadi
+        // EnsureClientScope middleware tidak bisa dipasang di route - cek
+        // manual di sini (pola sama: canSeeAllClients() atau memang
+        // ter-assign ke client ini). Tanpa ini, siapapun yang punya
+        // 'settings,manage' (termasuk SMO yang di-scope ke client tertentu
+        // di seluruh halaman lain) bisa submit client_id client manapun.
+        $user = $request->user();
+        abort_unless(
+            $user->canSeeAllClients() || $user->assignedClients()->whereKey($validated['client_id'])->exists(),
+            403,
+            'Anda tidak punya akses ke client ini.'
+        );
 
         $platform = Platform::where('name', 'Instagram')->first();
         $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();

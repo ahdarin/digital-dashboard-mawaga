@@ -88,7 +88,13 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">
+                                @php $listPic = $picResolver->resolve($item); @endphp
+                                {{ $listPic['name'] ?? 'Belum ditugaskan' }}
+                                @if ($listPic['name'] && ! $listPic['has_account'])
+                                    <span class="block text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 whitespace-nowrap {{ $isOverdue ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-secondary)]' }}">{{ $item->deadline_at->format('d M Y') }}</td>
                             <td class="px-4 py-3.5">
                                 @if ($risk)
@@ -172,7 +178,13 @@
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Penanggung Jawab</span>
-                        <span class="text-[var(--text-primary)] font-medium">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</span>
+                        @php $mobilePic = $picResolver->resolve($item); @endphp
+                        <span class="text-right">
+                            <span class="text-[var(--text-primary)] font-medium block">{{ $mobilePic['name'] ?? 'Belum ditugaskan' }}</span>
+                            @if ($mobilePic['name'] && ! $mobilePic['has_account'])
+                                <span class="text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                            @endif
+                        </span>
                     </div>
                     @if ($risk && $risk->top_factor)
                         <div class="flex items-center justify-between text-xs gap-3">

@@ -111,7 +111,7 @@ class ClientManagementController extends Controller
         // lain di controller ini. Tombol ubah data di-gate di view lewat
         // hasPermissionTo('client','manage').
 
-        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.roles']);
+        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.roles', 'teamMembers.user']);
 
         $recentContentItems = $client->contentItems()
             ->with(['contentType', 'workflow'])

@@ -237,11 +237,11 @@
                 {{-- Top client ranking (Executive Dashboard, PRD 7.3.3) --}}
                 <div class="card p-6">
                     <div class="flex items-center justify-between mb-1">
-                        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Client Teratas</h2>
+                        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Klien Teratas</h2>
                         <a href="{{ Route::has('client-management.index') ? route('client-management.index') : '#' }}"
-                            class="text-sm font-medium text-[var(--brand)] hover:underline">Lihat semua client</a>
+                            class="text-sm font-medium text-[var(--brand)] hover:underline">Lihat semua klien</a>
                     </div>
-                    <p class="text-xs text-[var(--text-muted)] mb-4">Client dengan performa views tertinggi bulan ini.</p>
+                    <p class="text-xs text-[var(--text-muted)] mb-4">Klien dengan performa views tertinggi bulan ini.</p>
 
                     @if ($topClients->isEmpty())
                         <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada data performa client bulan ini.</p>

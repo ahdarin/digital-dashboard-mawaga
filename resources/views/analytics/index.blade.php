@@ -226,7 +226,7 @@
                                 <div class="lg:col-span-2 space-y-5">
                                     @if (! empty($latestAiInsight->top_pillars))
                                         <div>
-                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Top Content Pillars</p>
+                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Pilar Konten Teratas</p>
                                             <div class="space-y-2">
                                                 @php $rankStyles = ['bg-[#044b46]', 'bg-[#5c6266]', 'bg-[#9aa0a4]']; @endphp
                                                 @foreach ($latestAiInsight->top_pillars as $i => $pillar)
@@ -311,6 +311,12 @@
                         {{-- ===== TAB: IDE KONTEN ===== --}}
                         <div x-show="tab === 'ide'" x-cloak>
                             @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
+                                @unless ($latestAiInsight->client->activePackage)
+                                    <p class="text-[11px] text-[var(--text-muted)] mb-2 flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[13px]">info</span>
+                                        Paket belum tercatat - ide diterapkan tanpa validasi kuota paket.
+                                    </p>
+                                @endunless
                                 <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST" class="mb-4">
                                     @csrf
                                     <button type="submit" class="btn-primary w-full">
@@ -585,7 +591,12 @@
                                                 @if ($content['linked'] ?? true)
                                                     <p class="text-xs text-[var(--text-muted)] font-normal mt-0.5">{{ $content['type'] }}</p>
                                                 @else
-                                                    <span class="badge badge-neutral mt-1 inline-block">Belum terhubung ke konten internal</span>
+                                                    <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                                                        <span class="badge badge-neutral">Belum terhubung ke konten internal</span>
+                                                        @if (($content['type'] ?? '-') !== '-')
+                                                            <span class="text-xs text-[var(--text-muted)]">{{ $content['type'] }}</span>
+                                                        @endif
+                                                    </div>
                                                 @endif
                                             </td>
                                             <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $content['client'] }}</td>
@@ -595,11 +606,24 @@
                                                 <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
                                             </td>
                                             <td class="px-6 py-3.5 text-right">
-                                                @if ($content['linked'] ?? true)
-                                                    <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Detail</a>
-                                                @elseif ($content['permalink'] ?? null)
-                                                    <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener" class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Lihat Post</a>
-                                                @endif
+                                                <div class="flex items-center justify-end gap-2.5">
+                                                    @if ($content['linked'] ?? true)
+                                                        <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Lihat Detail</a>
+                                                        @if ($content['permalink'] ?? null)
+                                                            <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer" title="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                                            </a>
+                                                        @endif
+                                                    @else
+                                                        @if ($content['api_integration_id'] ?? null)
+                                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}#post-{{ $content['external_post_id'] }}"
+                                                               class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
+                                                        @endif
+                                                        @if ($content['permalink'] ?? null)
+                                                            <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors whitespace-nowrap">Lihat Post</a>
+                                                        @endif
+                                                    @endif
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -626,8 +650,8 @@
 
                                     <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
                                         <div class="flex items-center justify-between text-xs">
-                                            <span class="text-[var(--text-muted)]">Tipe</span>
-                                            <span class="text-[var(--text-primary)] font-medium">{{ $content['type'] }}</span>
+                                            <span class="text-[var(--text-muted)]">Tipe / Format</span>
+                                            <span class="text-[var(--text-primary)] font-medium">{{ $content['type'] ?? '-' }}</span>
                                         </div>
                                         <div class="flex items-center justify-between text-xs">
                                             <span class="text-[var(--text-muted)]">Views</span>
@@ -636,14 +660,26 @@
                                         @if ($content['linked'] ?? true)
                                             <a href="{{ route('analytics.show', $content['id']) }}"
                                                 class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
-                                                Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+                                                Lihat Detail <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
                                             </a>
+                                            @if ($content['permalink'] ?? null)
+                                                <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer"
+                                                    class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                    Lihat di Instagram <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                                </a>
+                                            @endif
                                         @else
                                             <span class="badge badge-neutral block text-center">Belum terhubung ke konten internal</span>
-                                            @if ($content['permalink'] ?? null)
-                                                <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener"
+                                            @if ($content['api_integration_id'] ?? null)
+                                                <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}#post-{{ $content['external_post_id'] }}"
                                                     class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
-                                                    Lihat Post <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                                                    Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
+                                                </a>
+                                            @endif
+                                            @if ($content['permalink'] ?? null)
+                                                <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer"
+                                                    class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                    Lihat Post <span class="material-symbols-outlined text-[13px]">open_in_new</span>
                                                 </a>
                                             @endif
                                         @endif

@@ -21,6 +21,7 @@ class Client extends Model
     public function activePackage() { return $this->hasOne(ClientPackage::class)->where('status', 'active')->latestOfMany('start_date'); }
     public function assignedUsers() { return $this->belongsToMany(User::class, 'user_client_assignments'); }
     public function apiIntegrations() { return $this->hasMany(ApiIntegration::class); }
+    public function teamMembers() { return $this->belongsToMany(TeamMember::class, 'team_member_client'); }
 
     // Accessor: $client->logo_url -> URL logo kalau ada, null kalau nggak
     // (biar view tinggal fallback ke placeholder inisial huruf)

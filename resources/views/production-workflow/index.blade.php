@@ -249,7 +249,14 @@
                                                 </div>
                                             @endif
                                         @empty
-                                            <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
+                                            @php $legacyPic = $picResolver->resolve($item); @endphp
+                                            @if ($legacyPic['name'])
+                                                <div class="w-6 h-6 rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] text-[10px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]" title="{{ $legacyPic['name'] }} (belum memiliki akun)">
+                                                    {{ strtoupper(substr($legacyPic['name'], 0, 1)) }}
+                                                </div>
+                                            @else
+                                                <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
+                                            @endif
                                         @endforelse
                                         @if ($item->assignments->count() > 3)
                                             <div class="w-6 h-6 rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] text-[9px] font-semibold flex items-center justify-center ring-2 ring-[var(--surface-card)]">+{{ $item->assignments->count() - 3 }}</div>
@@ -275,7 +282,19 @@
                                                     </div>
                                                 </div>
                                             @empty
-                                                <p class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab ditugaskan</p>
+                                                @if ($legacyPic['name'])
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-7 h-7 rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] text-xs font-semibold flex items-center justify-center">
+                                                            {{ strtoupper(substr($legacyPic['name'], 0, 1)) }}
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-xs font-medium text-[var(--text-primary)]">{{ $legacyPic['name'] }}</p>
+                                                            <p class="text-[10px] text-[var(--text-muted)] italic">PIC operasional - belum memiliki akun</p>
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <p class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab ditugaskan</p>
+                                                @endif
                                             @endforelse
                                         </div>
                                     </div>

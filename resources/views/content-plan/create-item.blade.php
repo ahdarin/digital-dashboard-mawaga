@@ -49,9 +49,9 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-                <label for="content_pillar_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Content Pillar</label>
+                <label for="content_pillar_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Pilar Konten</label>
                 <select id="content_pillar_id" name="content_pillar_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('content_pillar_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
-                    <option value="">Pilih Pillar...</option>
+                    <option value="">Pilih Pilar...</option>
                     @foreach ($pillars as $p) <option value="{{ $p->id }}" {{ (string) old('content_pillar_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option> @endforeach
                 </select>
                 @error('content_pillar_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
@@ -86,12 +86,17 @@
                 @error('deadline_at') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label for="pic_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab <span class="text-[var(--danger-text)]">*</span></label>
-                <select id="pic_id" name="pic_id" required class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                <label for="team_member_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab <span class="text-[var(--danger-text)]">*</span></label>
+                <select id="team_member_id" name="team_member_id" required class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('team_member_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                     <option value="">Pilih Penanggung Jawab...</option>
-                    @foreach ($picOptions as $pic) <option value="{{ $pic->id }}" {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option> @endforeach
+                    @foreach ($teamMemberOptions as $tm)
+                        <option value="{{ $tm->id }}" {{ (string) old('team_member_id') === (string) $tm->id ? 'selected' : '' }}>{{ $tm->name }}{{ $tm->hasAccount() ? '' : ' (belum punya akun sistem)' }}</option>
+                    @endforeach
                 </select>
-                @error('pic_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                @error('team_member_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                @if ($teamMemberOptions->isEmpty())
+                    <p class="text-[11px] text-[var(--danger-text)] mt-1">Belum ada anggota tim tercatat untuk client ini - hubungi CEO/Manager untuk mendaftarkan tim yang menangani client ini.</p>
+                @endif
             </div>
         </div>
 

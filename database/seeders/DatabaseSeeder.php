@@ -7,7 +7,15 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Seed the application's database - HANYA bootstrap/reference wajib
+     * (role, permission, master data pilihan dropdown). TIDAK PERNAH
+     * memanggil DemoSeeder di sini lagi, di environment MANAPUN termasuk
+     * local - dev DB sekarang berisi data real (planner import + Instagram
+     * API), jadi `migrate:fresh --seed` harus aman dijalankan kapan saja
+     * tanpa mencemari operational data dengan client/content/metric fiktif.
+     *
+     * Butuh data demo buat testing/eksplorasi fitur baru? Jalankan eksplisit:
+     *   php artisan db:seed --class=DemoSeeder
      */
     public function run(): void
     {
@@ -16,14 +24,5 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             MasterDataSeeder::class,
         ]);
-
-        // Data demo (client/konten/metrik fiktif) - cuma buat dev/testing,
-        // sama seperti akun Manager Demo di RoleSeeder. Jangan pernah
-        // ter-seed otomatis di staging/production - env-gate eksplisit
-        // (bukan cuma di-comment-out) biar aman walau baris ini ketinggalan
-        // ter-uncomment di suatu deploy.
-        if (app()->environment('local')) {
-            $this->call(DemoSeeder::class);
-        }
     }
 }

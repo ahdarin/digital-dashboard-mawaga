@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\DelayRiskScore;
 use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
+use App\Services\TeamMemberContentResolver;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,7 +19,7 @@ class TeamPerformanceController extends Controller
     private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
     private int $overloadThreshold = 5;
 
-    public function index(Request $request, AttendanceService $attendanceService)
+    public function index(Request $request, AttendanceService $attendanceService, TeamMemberContentResolver $contentResolver)
     {
         $tab = $request->input('tab', 'performa');
 
@@ -69,20 +71,22 @@ class TeamPerformanceController extends Controller
             ]);
         }
 
-        $membersQuery = User::whereNull('client_id')
-            ->where('status', 'active')
-            ->with(['roles', 'assignments.contentItem.workflow']);
+        // TeamMember = primary entity (Langkah "Performa Tim - migrasi
+        // domain User ke TeamMember"), BUKAN User lagi - roster 13 orang
+        // real dari GUIDE, User cuma relasi opsional lewat team_members.user_id.
+        // Content attribution (assignment User + external_pic_email) di-union
+        // lewat TeamMemberContentResolver, SATU sumber kebenaran yang sama
+        // dipakai ContentItemController::show() buat kandidat reassign.
+        $teamMembers = TeamMember::with('user')->orderBy('name')->get();
+        $contentItemsByMember = $contentResolver->resolveContentItems($teamMembers);
 
-        $allUsers = $membersQuery->get();
-
-        // Kumpulkan seluruh content_item_id lintas user dulu, biar revision
-        // count dan delay risk score bisa diambil lewat 2 query agregat
-        // total (bukan 2 query per user - dulu O(n) query terhadap jumlah
-        // staf, sekarang tetap O(1) berapa pun jumlah anggota tim).
-        $allContentItemIds = $allUsers
-            ->flatMap(fn ($user) => $user->assignments
-                ->filter(fn ($a) => $a->contentItem && $a->contentItem->workflow)
-                ->pluck('content_item_id'))
+        // Kumpulkan seluruh content_item_id lintas TeamMember dulu, biar
+        // revision count dan delay risk score bisa diambil lewat 2 query
+        // agregat total (bukan per-anggota) - flat terhadap jumlah TeamMember.
+        $allContentItemIds = $contentItemsByMember
+            ->flatten(1)
+            ->filter(fn ($item) => $item->workflow)
+            ->pluck('id')
             ->unique()
             ->values();
 
@@ -101,29 +105,29 @@ class TeamPerformanceController extends Controller
             })
             ->pluck('risk_score', 'content_item_id');
 
-        $members = $allUsers->map(function ($user) use ($revisionCountByItem, $riskScoreByItem) {
-            $assignments = $user->assignments
-                ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
+        $members = $teamMembers->map(function (TeamMember $tm) use ($contentItemsByMember, $revisionCountByItem, $riskScoreByItem) {
+            $allItems = $contentItemsByMember->get($tm->id) ?? collect();
+            $items = $allItems->filter(fn ($item) => $item->workflow);
 
-            $activeCount = $assignments->filter(
-                fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses)
+            $activeCount = $items->filter(
+                fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses)
             )->count();
 
-            $overdueCount = $assignments->filter(
-                fn($a) => $a->contentItem->workflow->is_overdue
+            $overdueCount = $items->filter(
+                fn ($item) => $item->workflow->is_overdue
             )->count();
 
-            $doneCount = $assignments->filter(
-                fn($a) => $a->contentItem->workflow->current_status === 'uploaded'
+            $doneCount = $items->filter(
+                fn ($item) => $item->workflow->current_status === 'uploaded'
             )->count();
 
-            $revisionCount = $assignments
-                ->pluck('content_item_id')
+            $revisionCount = $items
+                ->pluck('id')
                 ->sum(fn ($id) => $revisionCountByItem[$id] ?? 0);
 
-            $activeContentItemIds = $assignments
-                ->filter(fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses))
-                ->pluck('content_item_id');
+            $activeContentItemIds = $items
+                ->filter(fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses))
+                ->pluck('id');
 
             $activeRiskScores = $activeContentItemIds
                 ->map(fn ($id) => $riskScoreByItem[$id] ?? null)
@@ -132,7 +136,8 @@ class TeamPerformanceController extends Controller
             $avgRiskScore = $activeRiskScores->isNotEmpty() ? $activeRiskScores->avg() : null;
 
             return [
-                'user' => $user,
+                'team_member' => $tm,
+                'content_count' => $allItems->count(),
                 'active_count' => $activeCount,
                 'overdue_count' => $overdueCount,
                 'done_count' => $doneCount,

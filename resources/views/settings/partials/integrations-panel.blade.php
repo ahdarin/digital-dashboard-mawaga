@@ -28,18 +28,24 @@
 
 {{-- Client selector - filter utama halaman, BUKAN assignment integration.
      Ganti client cuma ganti apa yang DITAMPILKAN, nggak nulis apapun. --}}
-<div class="card p-5 mb-6">
-    <form method="GET" class="flex items-center gap-3 flex-wrap">
-        <input type="hidden" name="tab" value="integrasi">
-        <label class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Client</label>
-        <select name="client_id" onchange="this.form.submit()"
-                class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 min-w-[240px]">
-            @foreach ($clientOptions as $c)
-                <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
-            @endforeach
-        </select>
-    </form>
-</div>
+@if ($clientOptions->isEmpty())
+    <div class="card p-8 text-center">
+        <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[26px] mb-2 block">business</span>
+        <p class="text-sm text-[var(--text-muted)]">Belum ada klien yang dapat dikelola.</p>
+    </div>
+@else
+    <div class="card p-5 mb-6">
+        <form method="GET" class="flex items-center gap-3 flex-wrap">
+            <input type="hidden" name="tab" value="integrasi">
+            <label class="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Klien</label>
+            <select name="client_id" onchange="this.form.submit()"
+                    class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 min-w-[240px]">
+                @foreach ($clientOptions as $c)
+                    <option value="{{ $c->id }}" {{ (string) $selectedClientId === (string) $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                @endforeach
+            </select>
+        </form>
+    </div>
 
 @if ($selectedClient)
 
@@ -314,3 +320,5 @@
         <div class="px-6 py-4 border-t border-[var(--surface-muted)]">{{ $syncLogs->links() }}</div>
     @endif
 </div>
+
+@endif {{-- clientOptions->isNotEmpty() --}}

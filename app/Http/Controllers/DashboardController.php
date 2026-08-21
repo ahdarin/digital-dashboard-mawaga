@@ -6,9 +6,11 @@ use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
+use App\Services\PicResolver;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,7 +19,7 @@ class DashboardController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
-    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService)
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PicResolver $picResolver)
     {
         $now = Carbon::now();
         $startOfThisMonth = $now->copy()->startOfMonth();
@@ -41,7 +43,11 @@ class DashboardController extends Controller
         $activeClients = Client::where('status', 'active')->count();
         $newClientsThisMonth = Client::where('created_at', '>=', $startOfThisMonth)->count();
 
-        $activeTeam = User::whereNull('client_id')->where('status', 'active')->count();
+        // TeamMember = roster tim operasional real (Langkah "Performa Tim -
+        // migrasi domain User ke TeamMember"), bukan lagi User - samakan
+        // dengan Team page/Performa Tim, biar KPI ini nggak sendirian masih
+        // pakai domain lama (User cuma akun sistem, jumlahnya jauh lebih kecil).
+        $activeTeam = TeamMember::count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
         $viewsThisMonth = (int) ContentMetric::whereHas('contentItem')
@@ -130,17 +136,17 @@ class DashboardController extends Controller
         $trendMetrics = ContentMetric::whereHas('contentItem')->whereBetween('metric_date', [$trendStart, $trendEnd])->get();
         $viewsTrend = $analyticsSummaryService->buildTrend($trendMetrics, $trendStart, $trendEnd, $period);
 
-        $attentionItems = ContentWorkflow::with(['contentItem.client', 'currentPic'])
+        $attentionItems = ContentWorkflow::with(['contentItem.client', 'contentItem.workflow.currentPic', 'currentPic'])
             ->whereHas('contentItem')
             ->where('is_overdue', true)
             ->oldest('updated_at')
             ->take(4)
             ->get()
-            ->map(function ($workflow) {
+            ->map(function ($workflow) use ($picResolver) {
                 return [
                     'title' => $workflow->contentItem->title ?? 'Tanpa judul',
                     'client' => $workflow->contentItem->client->name ?? '-',
-                    'pic' => $workflow->currentPic->name ?? 'Belum ditugaskan',
+                    'pic' => $workflow->contentItem ? ($picResolver->resolve($workflow->contentItem)['name'] ?? 'Belum ditugaskan') : 'Belum ditugaskan',
                     'status' => $this->statusLabel($workflow->current_status),
                 ];
             });
@@ -154,12 +160,12 @@ class DashboardController extends Controller
             ->get()
             ->sortByDesc(fn ($item) => $item->latestDelayRisk->risk_score)
             ->take(4)
-            ->map(function ($item) {
+            ->map(function ($item) use ($picResolver) {
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
                     'client' => $item->client->name ?? '-',
-                    'pic' => $item->workflow->currentPic->name ?? 'Belum ditugaskan',
+                    'pic' => $picResolver->resolve($item)['name'] ?? 'Belum ditugaskan',
                     'risk_score' => $item->latestDelayRisk->risk_score,
                     'top_factor' => $item->latestDelayRisk->top_factor,
                 ];

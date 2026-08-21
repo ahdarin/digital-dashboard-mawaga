@@ -283,14 +283,50 @@
 
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">PIC Ditugaskan</h2>
-                    <button type="button" @click="showPicModal = true" {{ $canManageClient ? '' : 'disabled' }}
-                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur PIC' }}"
-                            class="text-xs font-medium text-[var(--brand)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">Atur PIC</button>
+                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Tim yang Menangani</h2>
                 </div>
 
+                {{-- TeamMember real (dari GUIDE/import Content Planner) yang menangani
+                     client ini lewat team_member_client - domain TERPISAH dari "Akun
+                     Sistem yang Ditugaskan" di bawah. TIDAK ada konsep "Primary PIC"
+                     tunggal di sini (audit membuktikan workbook sumber cuma punya 1
+                     nama per client sebagai snapshot account-manager historis, BUKAN
+                     bukti kuat siapa satu-satunya penanggung jawab permanen - beberapa
+                     client real terbukti ditangani lebih dari 1 orang). --}}
+                @if ($client->teamMembers->isEmpty())
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada anggota tim tercatat untuk client ini.</p>
+                @else
+                    <div class="space-y-2.5">
+                        @foreach ($client->teamMembers as $tm)
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0 overflow-hidden">
+                                    @if ($tm->user?->avatar_url)
+                                        <img src="{{ $tm->user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-full object-cover">
+                                    @else
+                                        {{ strtoupper(substr($tm->name, 0, 1)) }}
+                                    @endif
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $tm->name }}</p>
+                                    <p class="text-xs text-[var(--text-muted)] truncate">{{ $tm->user ? $tm->user->roleNamesLabel() : 'Belum punya akun sistem' }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Akun Sistem yang Ditugaskan</h2>
+                    <button type="button" @click="showPicModal = true" {{ $canManageClient ? '' : 'disabled' }}
+                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur akun sistem' }}"
+                            class="text-xs font-medium text-[var(--brand)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">Atur</button>
+                </div>
+                <p class="text-[11px] text-[var(--text-muted)] mb-3">Menentukan siapa yang punya akses lihat/kelola data client ini di sistem - bukan daftar tim operasional (lihat "Tim yang Menangani" di atas).</p>
+
                 @if ($client->assignedUsers->isEmpty())
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada PIC ditugaskan - konten untuk klien ini belum bisa dibuat sampai ada yang di-assign.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada akun sistem yang ditugaskan ke client ini.</p>
                 @else
                     <div class="space-y-2.5">
                         @foreach ($client->assignedUsers as $staff)
@@ -423,7 +459,7 @@
                  class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                     <div>
-                        <h3 id="pic-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Atur PIC</h3>
+                        <h3 id="pic-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Atur Akun Sistem</h3>
                         <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->brand_name }}</p>
                     </div>
                     <button type="button" @click="showPicModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
@@ -434,7 +470,7 @@
                 <form action="{{ route('client-management.pic.update', $client) }}" method="POST">
                     @csrf @method('PUT')
                     <div class="px-6 py-5">
-                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Staff yang Jadi PIC</p>
+                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Staff yang Diberi Akses Sistem</p>
                         @error('user_ids') <p class="text-xs text-[var(--danger-text)] mb-3">{{ $message }}</p> @enderror
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">

@@ -8,8 +8,9 @@ use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Client;
 use App\Models\Platform;
-use App\Models\User;
+use App\Models\TeamMember;
 use App\Observers\ContentWorkflowObserver;
+use App\Observers\TeamMemberObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ContentWorkflow::observe(ContentWorkflowObserver::class);
+        TeamMember::observe(TeamMemberObserver::class);
 
         // Sidebar sekarang megang tombol + modal "Jobdesk Tambahan" (pindah
         // dari header Content Plan/Produksi supaya bisa diakses dari halaman
@@ -46,7 +48,12 @@ class AppServiceProvider extends ServiceProvider
                     : $user->assignedClients()->where('status', 'active')->get(),
                 'contentTypeOptions' => ContentType::all(),
                 'platformOptions' => Platform::all(),
-                'picOptions' => User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get(),
+                // PIC operasional dari TeamMember (Langkah "Final QA -
+                // QuickCreateUrgent fix"), bukan lagi User/assignedClients -
+                // sama root-cause dengan blocker Tambah Konten sebelumnya:
+                // 14/15 client real 0 assignedUsers, jadi dropdown ini
+                // selalu kosong buat mereka walau field-nya optional di sini.
+                'teamMemberOptions' => TeamMember::with('clients:id')->orderBy('name')->get(),
             ]);
         });
     }

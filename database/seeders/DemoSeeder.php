@@ -29,6 +29,19 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
 /**
+ * ⚠️ JANGAN JALANKAN DI DEV DB OPERASIONAL (`digidaw`).
+ *
+ * Dev DB sekarang berisi data REAL: 248 ContentItem dari Content Planner
+ * XLSX + Instagram API real (TSA/523 Studio/Metro), 15 Client real, 3 User
+ * tim real (Ahda/Surdik/Ghazi) - hasil "Real Data Only" cleanup Agustus
+ * 2026 (audit lengkap: lihat laporan sesi terkait). Menjalankan seeder ini
+ * di database itu akan mencampur lagi Client/User/ContentItem fiktif ke
+ * data real yang sudah dibersihkan susah payah.
+ *
+ * Hanya aman dipakai di database KOSONG/terpisah buat demo atau testing
+ * manual - `php artisan db:seed --class=DemoSeeder` pada `migrate:fresh`
+ * database baru, bukan pada `digidaw`.
+ *
  * DemoSeeder v5 -- satu-satunya seeder demo data, gantikan v4 ke bawah.
  *
  * Update dari v4:
@@ -70,12 +83,10 @@ use Illuminate\Support\Carbon;
  *   approved) buat TechNova, biar ada 1 client yang bisa langsung dipakai
  *   testing kanban tanpa perlu klik-klik ubah status manual dulu
  *
- * Cara pakai, di DatabaseSeeder.php:
- *   $this->call([
- *       RoleSeeder::class,
- *       PermissionSeeder::class,
- *       DemoSeeder::class,
- *   ]);
+ * TIDAK dipanggil otomatis oleh DatabaseSeeder (per audit dummy-data
+ * Agustus 2026 - dev DB sekarang berisi data real, jadi `migrate:fresh
+ * --seed` wajib bersih dari fiktif). Jalankan eksplisit kalau butuh:
+ *   php artisan db:seed --class=DemoSeeder
  *
  * TIDAK IDEMPOTEN buat content_items/content_metrics/audience_insights
  * (sengaja, biar datanya variatif). Jalankan sekali abis migrate:fresh,
@@ -96,6 +107,21 @@ class DemoSeeder extends Seeder
         // kayak label yang dipakai buat latih model Delay Risk (lihat
         // storage/ai/delay_risk).
         $this->call(MasterDataSeeder::class);
+
+        // "Manager Demo" - login lokal dengan password diketahui ("password"),
+        // dipindah dari RoleSeeder ke sini (audit dummy-data Agustus 2026) -
+        // bukan bootstrap tim beneran, jadi harus explicit-demo-only, bukan
+        // ikut ter-create tiap `migrate:fresh --seed` default.
+        $managerRole = Role::firstOrCreate(['name' => 'Manager']);
+        $managerDemo = User::firstOrCreate(
+            ['email' => 'admin@523studio.test'],
+            [
+                'name' => 'Manager Demo',
+                'password' => bcrypt('password'),
+                'status' => 'active',
+            ]
+        );
+        $managerDemo->roles()->syncWithoutDetaching([$managerRole->id]);
 
         $pillars = ContentPillar::all();
         $contentTypes = ContentType::all();

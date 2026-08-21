@@ -50,7 +50,14 @@
             @else
                 <div class="divide-y divide-[var(--surface-muted)]">
                     @foreach ($unmatched as $media)
-                        <div class="p-5 flex flex-col sm:flex-row sm:items-start gap-4" x-data="{ open: false }">
+                        {{-- id="post-{external_post_id}" - dipakai action "Hubungkan
+                             Konten" dari Performance Table/Top Content (Langkah 6) buat
+                             preselect: post ini otomatis ke-scroll & form-nya kebuka
+                             begitu halaman ini dibuka dengan #post-{id} di URL. --}}
+                        <div id="post-{{ $media['id'] }}" class="p-5 flex flex-col sm:flex-row sm:items-start gap-4 scroll-mt-4"
+                             x-data="{ open: false, preselected: window.location.hash === '#post-{{ $media['id'] }}' }"
+                             x-init="if (preselected) { open = true; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'center' })) }"
+                             :class="preselected ? 'ring-2 ring-[var(--brand)] rounded-lg' : ''">
                             <div class="w-16 h-16 rounded-lg bg-[var(--surface-muted)] flex items-center justify-center shrink-0 text-[var(--text-muted)] overflow-hidden">
                                 @if ($media['thumbnail_url'])
                                     <img src="{{ $media['thumbnail_url'] }}" alt="" class="w-full h-full object-cover"
@@ -71,13 +78,19 @@
                                     <span>{{ $media['media_type'] ?? '-' }}</span>
                                     @if ($media['permalink'])
                                         <span>&middot;</span>
-                                        <a href="{{ $media['permalink'] }}" target="_blank" rel="noopener" class="text-[var(--brand)] hover:underline">Lihat post</a>
+                                        <a href="{{ $media['permalink'] }}" target="_blank" rel="noopener noreferrer" class="text-[var(--brand)] hover:underline">Lihat post</a>
                                     @endif
                                 </div>
                                 @if ($media['ambiguous_reason'])
                                     <p class="text-xs text-[var(--warning-text,#92600a)] mt-1.5">
                                         <span class="material-symbols-outlined text-[13px] align-middle">warning</span>
                                         {{ $media['ambiguous_reason'] }}
+                                    </p>
+                                @endif
+                                @if ($media['suggestion'])
+                                    <p class="text-xs mt-1.5 {{ $media['suggestion']['classification'] === 'AMBIGUOUS' ? 'text-[var(--warning-text,#92600a)]' : 'text-[var(--brand)]' }}">
+                                        <span class="material-symbols-outlined text-[13px] align-middle">auto_awesome</span>
+                                        Ada saran dari histori Content Planner - klik "Link to Content" untuk lihat.
                                     </p>
                                 @endif
                             </div>
@@ -88,6 +101,63 @@
                             </button>
 
                             <div x-show="open" x-cloak x-transition class="w-full sm:w-auto sm:basis-full order-last">
+                                @if ($media['suggestion'])
+                                    @php $sugg = $media['suggestion']; @endphp
+                                    {{-- Saran HistoricalContentMatcher (read-only, dry-run) -
+                                         cuma info + tombol "isi form", TIDAK PERNAH auto-submit.
+                                         Staff tetap wajib klik "Simpan" manual di bawah. --}}
+                                    <div class="mt-3 p-3 rounded-lg border {{ $sugg['classification'] === 'AMBIGUOUS' ? 'bg-[var(--warning-tint,#fff8e6)] border-[var(--warning-border,#f0d999)]' : 'bg-[var(--brand-tint)] border-[var(--brand-tint-border)]' }}">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full text-white
+                                                {{ match ($sugg['classification']) {
+                                                    'HIGH' => 'bg-emerald-600',
+                                                    'MEDIUM' => 'bg-amber-500',
+                                                    default => 'bg-orange-500',
+                                                } }}">
+                                                {{ $sugg['classification'] === 'AMBIGUOUS' ? 'Perlu Review' : $sugg['classification'].' CONFIDENCE' }}
+                                            </span>
+                                            <span class="text-xs text-[var(--text-muted)]">Saran dari histori Content Planner (bukan auto-link)</span>
+                                        </div>
+
+                                        @if ($sugg['classification'] === 'AMBIGUOUS')
+                                            <p class="text-xs text-[var(--text-secondary)] mb-1.5">Kemungkinan konten - review manual, tidak dipilihkan otomatis:</p>
+                                            <ol class="space-y-1.5">
+                                                @foreach ($sugg['candidates'] as $i => $cand)
+                                                    <li class="flex items-center justify-between gap-2 text-sm">
+                                                        <span class="min-w-0">
+                                                            {{ $i + 1 }}. #{{ $cand['content_item_id'] }} - {{ $cand['content_item_title'] }}
+                                                            <span class="block text-xs text-[var(--text-muted)]">
+                                                                {{ $cand['diff_days'] === 0 ? 'tanggal sama' : '±'.$cand['diff_days'].' hari' }},
+                                                                similarity {{ $cand['similarity'] }}%{{ $cand['format_compatible'] ? ', format cocok' : '' }}
+                                                            </span>
+                                                        </span>
+                                                        <button type="button" @click="$refs['select-{{ $media['id'] }}'].value = '{{ $cand['content_item_id'] }}'"
+                                                                class="text-xs font-medium text-[var(--brand)] hover:underline shrink-0">
+                                                            Pilih
+                                                        </button>
+                                                    </li>
+                                                @endforeach
+                                            </ol>
+                                        @else
+                                            @php $top = $sugg['candidates'][0]; $others = array_slice($sugg['candidates'], 1); @endphp
+                                            <p class="text-sm text-[var(--text-primary)]">
+                                                Saran konten: <strong>#{{ $top['content_item_id'] }} - {{ $top['content_item_title'] }}</strong>
+                                            </p>
+                                            <p class="text-xs text-[var(--text-muted)] mt-1">
+                                                Alasan: {{ $top['diff_days'] === 0 ? 'tanggal sama' : '±'.$top['diff_days'].' hari' }},
+                                                similarity {{ $top['similarity'] }}%{{ $top['format_compatible'] ? ', format cocok' : '' }}.
+                                                @if (count($others))
+                                                    Kandidat kompetitor lebih lemah: #{{ $others[0]['content_item_id'] }} (skor {{ $others[0]['score'] }} vs {{ $top['score'] }}).
+                                                @endif
+                                            </p>
+                                            <button type="button" @click="$refs['select-{{ $media['id'] }}'].value = '{{ $top['content_item_id'] }}'"
+                                                    class="text-xs font-medium text-[var(--brand)] hover:underline mt-1.5">
+                                                Pakai saran ini
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endif
+
                                 <form action="{{ route('publishing-tracker.instagram.link', $apiIntegration) }}" method="POST"
                                       class="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[var(--surface-page)] rounded-lg p-3">
                                     @csrf
@@ -96,7 +166,7 @@
                                     <input type="hidden" name="timestamp" value="{{ $media['timestamp']?->toDateTimeString() }}">
                                     <input type="hidden" name="caption" value="{{ $media['caption'] }}">
 
-                                    <select name="content_item_id" required
+                                    <select name="content_item_id" required x-ref="select-{{ $media['id'] }}"
                                             class="flex-1 text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                                         <option value="">Pilih content item ({{ $apiIntegration->client->name }})...</option>
                                         @foreach ($contentItemOptions as $option)

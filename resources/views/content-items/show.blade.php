@@ -291,7 +291,23 @@
                                 </div>
                             </div>
                         @empty
-                            <p class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab.</p>
+                            @php $detailPic = $picResolver->resolve($contentItem); @endphp
+                            @if ($detailPic['name'])
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-[var(--surface-muted)] text-[var(--text-secondary)] text-xs font-semibold flex items-center justify-center">
+                                        {{ strtoupper(substr($detailPic['name'], 0, 1)) }}
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-medium text-[var(--text-primary)]">{{ $detailPic['name'] }}</p>
+                                        @if ($detailPic['email'])
+                                            <p class="text-[10px] text-[var(--text-muted)]">{{ $detailPic['email'] }}</p>
+                                        @endif
+                                        <p class="text-[10px] text-[var(--text-muted)] italic">PIC operasional - belum memiliki akun</p>
+                                    </div>
+                                </div>
+                            @else
+                                <p class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab.</p>
+                            @endif
                         @endforelse
                     </div>
                 </div>
@@ -433,22 +449,24 @@
                         <p class="text-[11px] text-[var(--text-muted)] mb-3">Diurutkan dari yang task aktifnya paling sedikit.</p>
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">
-                            @foreach ($reassignCandidates as $candidate)
+                            @forelse ($reassignCandidates as $candidate)
+                                @php $candidateActiveCount = $activeCountsByMember[$candidate->id] ?? 0; @endphp
                                 <label class="flex items-center justify-between gap-3 p-3 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-page)] cursor-pointer">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <input type="radio" name="user_id" value="{{ $candidate->id }}"
-                                               {{ $workflow->current_pic_id === $candidate->id ? 'checked' : '' }}
+                                        <input type="radio" name="team_member_id" value="{{ $candidate->id }}"
                                                class="border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $candidate->name }}</p>
-                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->roleNamesLabel() }}</p>
+                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->user ? $candidate->user->roleNamesLabel() : 'Belum punya akun sistem' }}</p>
                                         </div>
                                     </div>
-                                    <span class="badge {{ $candidate->active_task_count > 8 ? 'badge-danger' : 'badge-success' }} shrink-0">
-                                        {{ $candidate->active_task_count }} task aktif
+                                    <span class="badge {{ $candidateActiveCount > 8 ? 'badge-danger' : 'badge-success' }} shrink-0">
+                                        {{ $candidateActiveCount }} task aktif
                                     </span>
                                 </label>
-                            @endforeach
+                            @empty
+                                <p class="text-sm text-[var(--text-muted)]">Belum ada anggota tim tercatat untuk client ini.</p>
+                            @endforelse
                         </div>
                     </div>
 

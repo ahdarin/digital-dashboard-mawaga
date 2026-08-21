@@ -20,4 +20,27 @@ class InstagramMediaSnapshot extends Model
     public function apiIntegration() { return $this->belongsTo(ApiIntegration::class); }
     public function contentPublication() { return $this->belongsTo(ContentPublication::class); }
     public function contentMetric() { return $this->hasOne(ContentMetric::class); }
+
+    /**
+     * Label format post buat display SAJA (Performance Table/Top Content) -
+     * BUKAN ContentType internal, TIDAK pernah dipakai buat isi
+     * content_type_id. Cuma menangani combo media_type+media_product_type
+     * yang TERBUKTI ada di data real (diaudit langsung dari DB, bukan
+     * dokumentasi Meta): CAROUSEL_ALBUM+FEED, VIDEO+REELS, IMAGE+FEED.
+     * Combo lain (belum pernah muncul) SENGAJA balikin null, bukan ditebak -
+     * caller wajib fallback ke '-'.
+     */
+    public function getDisplayFormatAttribute(): ?string
+    {
+        if ($this->media_product_type === 'REELS') {
+            return 'Reels';
+        }
+
+        return match ($this->media_type) {
+            'CAROUSEL_ALBUM' => 'Carousel',
+            'IMAGE' => 'Image',
+            'VIDEO' => 'Video',
+            default => null,
+        };
+    }
 }

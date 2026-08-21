@@ -32,10 +32,10 @@
     @else
     <div class="space-y-5">
 
-        {{-- Account --}}
+        {{-- Akun --}}
         <div class="card p-6">
             <div class="flex items-center justify-between mb-5">
-                <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Account</h2>
+                <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Akun</h2>
                 <a href="{{ route('profile.show', auth()->id()) }}" class="text-sm font-medium text-[var(--brand)] hover:underline">Lihat Profile</a>
             </div>
 

@@ -92,7 +92,12 @@ class UserWorkSummaryService
             $assignments->pluck('content_item_id')
         )->count();
 
-        $assignedClients = $user->assignedClients()->where('status', 'active')->get();
+        // Client yang ditangani DISPLAY dari TeamMember->clients() (team_member_client)
+        // - bukan user_client_assignments (itu domain scoping akses dashboard,
+        // sekarang kosong buat hampir semua akun real karena tanggung jawab
+        // operasional sudah pindah ke TeamMember, lihat audit "Kelola Tim").
+        // User tanpa TeamMember terkait -> tetap collection kosong, bukan error.
+        $assignedClients = $user->teamMember?->clients()->where('status', 'active')->get() ?? collect();
 
         return compact(
             'assignments', 'activeCount', 'overdueCount',

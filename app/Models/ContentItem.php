@@ -28,6 +28,11 @@ class ContentItem extends Model
         'ai_strategy_insight_id',
         'estimated_duration_seconds',
         'estimated_slide_count',
+        'import_source',
+        'import_batch_id',
+        'external_reference',
+        'external_pic_name',
+        'external_pic_email',
     ];
 
     protected $casts = [
