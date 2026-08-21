@@ -109,7 +109,7 @@
 
     {{-- Koreksi Status - khusus Manager & CEO, buat kasus status terlanjur
          salah dipindahkan. Dicatat terpisah dari revisi biasa. --}}
-    @if (in_array(auth()->user()->role?->name, ['Manager', 'CEO']) && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
+    @if (auth()->user()->hasAnyRole([\App\Enums\UserRole::Manager, \App\Enums\UserRole::CEO]) && ! in_array($workflow->current_status, ['uploaded', 'cancelled']))
         <div class="mt-5 pt-4 border-t border-[var(--surface-muted)]" x-data="{ showCorrection: false, correctTo: '', correctReason: '' }">
             <button type="button" @click="showCorrection = !showCorrection" class="text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[15px]">build</span> Koreksi Status (kesalahan input)

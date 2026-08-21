@@ -16,7 +16,7 @@
         <tbody>
             @forelse ($publications as $pub)
                 <tr x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
-                    onclick="window.location='{{ route('content-items.show', $pub->contentItem) }}'"
+                    onclick="navigateTo('{{ route('content-items.show', $pub->contentItem) }}')"
                     class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer">
                     <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
                         {{ $pub->contentItem->title }}

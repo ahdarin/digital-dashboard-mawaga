@@ -441,7 +441,7 @@
                                                class="border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $candidate->name }}</p>
-                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->role->name ?? '-' }}</p>
+                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->roleNamesLabel() }}</p>
                                         </div>
                                     </div>
                                     <span class="badge {{ $candidate->active_task_count > 8 ? 'badge-danger' : 'badge-success' }} shrink-0">

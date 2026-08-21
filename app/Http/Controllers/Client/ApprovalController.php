@@ -12,27 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class ApprovalController extends Controller
 {
-    public function index(Request $request)
-    {
-        $clientId = $request->user()->client_id;
-
-        $items = ContentItem::with(['contentType', 'platform', 'workflow'])
-            ->where('client_id', $clientId)
-            ->whereHas('workflow', fn ($q) => $q->where('current_status', 'waiting_review'))
-            ->orderBy('deadline_at')
-            ->get();
-
-        $pendingItems = $items->whereNull('workflow.client_reviewed_at')->values();
-        $reviewedItems = $items->whereNotNull('workflow.client_reviewed_at')->values();
-
-        return view('client.approval.index', compact('pendingItems', 'reviewedItems'));
-    }
-
     public function show(Request $request, ContentItem $contentItem)
     {
         abort_unless($contentItem->client_id === $request->user()->client_id, 403);
 
-        $contentItem->load(['contentType', 'platform', 'workflow']);
+        $contentItem->load(['contentType', 'platform', 'workflow', 'publications.platform']);
 
         $alreadyReviewed = ! is_null($contentItem->workflow->client_reviewed_at);
 
@@ -55,7 +39,7 @@ class ApprovalController extends Controller
 
         NotificationService::notifyInternalCheckers($contentItem);
 
-        return redirect()->route('client.approval.index')
+        return redirect(route('client.dashboard') . '#persetujuan')
             ->with('status', 'Terima kasih! Persetujuan kamu sudah dicatat dan akan dicek oleh tim internal sebelum konten resmi disetujui.');
     }
 
@@ -94,7 +78,14 @@ class ApprovalController extends Controller
             ]);
         });
 
-        return redirect()->route('client.approval.index')
+        NotificationService::notifyAssignedUsers(
+            $contentItem,
+            'Klien Meminta Revisi',
+            'client_revision_requested',
+            "\"{$contentItem->title}\" diminta revisi oleh klien: \"{$validated['revision_note']}\""
+        );
+
+        return redirect(route('client.dashboard') . '#persetujuan')
             ->with('status', 'Catatan revisi berhasil dikirim.');
     }
 }

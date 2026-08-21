@@ -24,7 +24,7 @@
                 @forelse ($revisions as $revision)
                     @php $revStatusStyle = $revisionStatusStyles[$revision->status] ?? $revisionStatusStyles['resolved']; @endphp
                     <tr x-show="matches('{{ addslashes($revision->contentItem->title) }}', '{{ addslashes($revision->contentItem->client->name ?? '') }}', '{{ addslashes($revision->revision_note) }}')"
-                        onclick="window.location='{{ route('content-items.show', $revision->contentItem) }}'"
+                        onclick="navigateTo('{{ route('content-items.show', $revision->contentItem) }}')"
                         class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer">
                         <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
                             {{ $revision->contentItem->title }}

@@ -12,7 +12,30 @@
      (dipakai components/sidebar.blade.php) - default-nya tombol CTA merah
      solid seperti semula. --}}
 @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-    <div x-data="{ urgentOpen: {{ $errors->any() ? 'true' : 'false' }} }">
+    <div x-data="{
+            urgentOpen: {{ $errors->any() ? 'true' : 'false' }},
+            // PIC dibatasi ke tim yang sudah di-assign ke client yang
+            // dipilih (lewat Assign Klien di Kelola Pengguna) - client
+            // di form ini dipilih dinamis, jadi filternya di client side
+            // berdasarkan data-client-ids tiap opsi, bukan query per-client
+            // dari server.
+            filterPicOptions() {
+                const clientSelect = this.$refs.urgentClientSelect;
+                const picSelect = this.$refs.urgentPicSelect;
+                if (!clientSelect || !picSelect) return;
+                const clientId = clientSelect.value;
+                let selectedStillValid = false;
+                Array.from(picSelect.options).forEach((opt) => {
+                    if (!opt.value) return;
+                    const clientIds = (opt.dataset.clientIds || '').split(',');
+                    const visible = clientId !== '' && clientIds.includes(clientId);
+                    opt.hidden = !visible;
+                    if (visible && opt.value === picSelect.value) selectedStillValid = true;
+                });
+                if (!selectedStillValid) picSelect.value = '';
+            },
+        }"
+        x-init="$nextTick(() => filterPicOptions())">
         @if (($urgentTriggerStyle ?? null) === 'sidebar')
             <button type="button" @click="urgentOpen = true"
                     aria-label="Jobdesk Tambahan"
@@ -45,7 +68,7 @@
                     <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                         <div>
                             <h3 id="urgent-content-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Jobdesk Tambahan</h3>
-                            <p class="text-xs text-[var(--text-muted)] mt-0.5">Permintaan mendadak dari client - langsung masuk Production Workflow.</p>
+                            <p class="text-xs text-[var(--text-muted)] mt-0.5">Permintaan mendadak dari klien yang langsung dikerjakan tanpa lewat rencana bulanan.</p>
                         </div>
                         <button type="button" @click="urgentOpen = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                             <span class="material-symbols-outlined text-[19px]">close</span>
@@ -56,9 +79,10 @@
                         <div>
                             <label for="urgent_client_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Klien <span class="text-[var(--danger-text)]">*</span></label>
                             <select id="urgent_client_id" name="client_id" required {{ isset($urgentPreselectClientId) ? 'disabled' : '' }}
+                                x-ref="urgentClientSelect" @change="filterPicOptions()"
                                 class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 disabled:bg-[var(--surface-page)] disabled:text-[var(--text-secondary)] {{ $errors->has('client_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 @unless (isset($urgentPreselectClientId))
-                                    <option value="">Pilih client...</option>
+                                    <option value="">Pilih klien...</option>
                                 @endunless
                                 @foreach ($clientOptions as $client)
                                     <option value="{{ $client->id }}"
@@ -110,25 +134,27 @@
                         </div>
                         <div>
                             <label for="urgent_pic_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab</label>
-                            <select id="urgent_pic_id" name="pic_id" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            <select id="urgent_pic_id" name="pic_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 <option value="">Belum ditentukan</option>
                                 @foreach ($picOptions as $pic)
-                                    <option value="{{ $pic->id }}" {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option>
+                                    <option value="{{ $pic->id }}" data-client-ids="{{ $pic->assignedClients->pluck('id')->join(',') }}"
+                                        {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option>
                                 @endforeach
                             </select>
+                            <p class="text-[11px] text-[var(--text-muted)] mt-1">Cuma menampilkan tim yang sudah di-assign ke klien yang dipilih di atas.</p>
                             @error('pic_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="urgent_brief" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Catatan / Brief Singkat</label>
-                            <textarea id="urgent_brief" name="brief" rows="3" placeholder="Detail permintaan client..."
+                            <textarea id="urgent_brief" name="brief" rows="3" placeholder="Detail permintaan klien..."
                                 class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('brief') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">{{ old('brief') }}</textarea>
                             @error('brief') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
-                        <button type="submit" class="bg-[var(--danger-solid)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors">
-                            Tambahkan ke Production Workflow
+                        <button type="submit" class="flex items-center gap-2 bg-[var(--danger-solid)] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[var(--danger-dark)] transition-colors">
+                            <span class="material-symbols-outlined text-[17px]">save</span> Simpan Jobdesk Tambahan
                         </button>
                         <button type="button" @click="urgentOpen = false" class="btn-secondary">
                             Batal

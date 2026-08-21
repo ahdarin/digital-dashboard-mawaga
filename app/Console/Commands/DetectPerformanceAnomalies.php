@@ -45,7 +45,7 @@ class DetectPerformanceAnomalies extends Command
         // direkam dipakai juga sama AiStrategyService (buildPerformanceSummary())
         // buat konteks AI Strategy bulan berikutnya, jadi jangan berhenti
         // total kalau notifyUsers kosong, cukup lewatin loop notifikasinya.
-        $notifyUsers = User::with('role')->get()->filter(fn ($u) => $u->canSeeAllClients());
+        $notifyUsers = User::with('roles')->get()->filter(fn ($u) => $u->canSeeAllClients());
 
         if ($notifyUsers->isEmpty()) {
             $this->warn('Nggak ada user CEO/Admin - anomali tetap direkam, notifikasi dilewati.');

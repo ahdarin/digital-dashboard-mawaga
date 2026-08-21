@@ -25,7 +25,7 @@
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     @foreach ($stats as $stat)
                         @php $c = $statStyles[$loop->index % 4]; @endphp
-                        <div class="card p-3.5 sm:p-5">
+                        <a href="{{ $stat['link'] }}" class="card p-3.5 sm:p-5 hover:shadow-md transition-shadow">
                             <div class="flex items-center gap-3 mb-4">
                                 <div class="w-9 h-9 rounded-lg {{ $c['chip'] }} flex items-center justify-center">
                                     <span
@@ -49,7 +49,7 @@
                                 @endif
                                 {{ $stat['change'] }}
                             </p>
-                        </div>
+                        </a>
                     @endforeach
                 </div>
 
@@ -76,7 +76,7 @@
                 </div>
 
                 {{-- Views trend (domain PIC 3) --}}
-                <div class="card p-6">
+                <div id="tren-views" class="card p-6 scroll-mt-6">
                     <div class="flex items-center justify-between mb-1">
                         <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Tren Views</h2>
                         <form method="GET">

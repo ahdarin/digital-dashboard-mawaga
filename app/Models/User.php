@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['role_id', 'client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
+#[Fillable(['client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
@@ -36,9 +37,14 @@ class User extends Authenticatable
         return $this->preferences['theme'] ?? 'system';
     }
 
-    public function role(): BelongsTo
+    public function roles(): BelongsToMany
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    public function roleNamesLabel(): string
+    {
+        return $this->roles->pluck('name')->join(', ') ?: '-';
     }
 
     public function client(): BelongsTo
@@ -79,12 +85,12 @@ class User extends Authenticatable
     public function hasAnyRole(array $roles): bool
     {
         $roleValues = array_map(fn (UserRole $r) => $r->value, $roles);
-        return in_array($this->role?->name, $roleValues, true);
+        return $this->roles->pluck('name')->intersect($roleValues)->isNotEmpty();
     }
 
     public function hasPermissionTo(string $module, string $action): bool
     {
-        return $this->role?->hasPermission($module, $action) ?? false;
+        return $this->roles->contains(fn (Role $role) => $role->hasPermission($module, $action));
     }
 
     public function isClientUser(): bool

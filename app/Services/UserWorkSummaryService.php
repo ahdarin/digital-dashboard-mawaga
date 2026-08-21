@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
@@ -20,7 +21,7 @@ class UserWorkSummaryService
 
     public function isCopywriter(User $user): bool
     {
-        return $user->role?->name === 'Copywriter';
+        return $user->hasAnyRole([UserRole::Copywriter]);
     }
 
     /**

@@ -1,7 +1,7 @@
 <x-mail::message>
 # Halo, {{ $invitedUser->name }}
 
-Kamu diundang bergabung ke **523 Studio** sebagai **{{ $invitedUser->role->name ?? '-' }}**.
+Kamu diundang bergabung ke **523 Studio** sebagai **{{ $invitedUser->roleNamesLabel() }}**.
 
 Akunmu sudah dibuat dengan email ini ({{ $invitedUser->email }}). Cara masuk:
 

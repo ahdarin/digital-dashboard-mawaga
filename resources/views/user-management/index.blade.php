@@ -2,7 +2,7 @@
 @section('title', 'Kelola Pengguna')
 @section('content')
 
-<div x-data="{ openAssign: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+<div x-data="{ openAssign: null, editRoles: null, confirmDeactivate: null, confirmActivate: null, showCreateModal: {{ $errors->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
@@ -50,7 +50,7 @@
                             </div>
                         </td>
                         <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $user->email }}</td>
-                        <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $user->role->name ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $user->roleNamesLabel() }}</td>
                         <td class="px-6 py-3.5">
                             @if ($user->assignedClients->isEmpty())
                                 <span class="text-xs text-[var(--text-muted)] italic">Belum ada client ditangani</span>
@@ -72,6 +72,10 @@
                         </td>
                         <td class="px-6 py-3.5">
                             <div class="flex items-center justify-end gap-1">
+                                <button type="button" @click="editRoles = {{ $user->id }}"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Edit Role">
+                                    <span class="material-symbols-outlined text-[17px]">manage_accounts</span>
+                                </button>
                                 <button type="button" @click="openAssign = {{ $user->id }}"
                                         class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Assign Klien">
                                     <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
@@ -105,7 +109,7 @@
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                                     <div>
                                         <h3 id="assign-client-modal-title-{{ $user->id }}" class="font-display text-lg font-semibold text-[var(--text-primary)]">Assign Klien</h3>
-                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $user->name }} ({{ $user->roleNamesLabel() }})</p>
                                     </div>
                                     <button type="button" @click="openAssign = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                                         <span class="material-symbols-outlined text-[19px]">close</span>
@@ -148,6 +152,57 @@
                         </div>
                     </template>
 
+                    {{-- Modal Edit Role --}}
+                    <template x-teleport="body">
+                        <div x-show="editRoles === {{ $user->id }}" x-cloak
+                             x-on:keydown.escape.window="editRoles = null"
+                             class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                            <div class="absolute inset-0 bg-[#14181a]/40" @click="editRoles = null"></div>
+
+                            <div x-show="editRoles === {{ $user->id }}" x-transition
+                                 role="dialog" aria-modal="true" aria-labelledby="edit-roles-modal-title-{{ $user->id }}" x-trap="editRoles === {{ $user->id }}"
+                                 class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                                <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
+                                    <div>
+                                        <h3 id="edit-roles-modal-title-{{ $user->id }}" class="font-display text-lg font-semibold text-[var(--text-primary)]">Edit Role</h3>
+                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $user->name }}</p>
+                                    </div>
+                                    <button type="button" @click="editRoles = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+                                        <span class="material-symbols-outlined text-[19px]">close</span>
+                                    </button>
+                                </div>
+
+                                <form action="{{ route('user-management.roles.update', $user) }}" method="POST">
+                                    @csrf @method('PUT')
+                                    <div class="px-6 py-5">
+                                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Role</p>
+
+                                        <div class="space-y-2 max-h-72 overflow-y-auto">
+                                            @php $assignedRoleIds = $user->roles->pluck('id')->toArray(); @endphp
+                                            @foreach ($roles as $role)
+                                                <label class="flex items-center gap-3 p-3 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-page)] cursor-pointer">
+                                                    <input type="checkbox" name="role_ids[]" value="{{ $role->id }}"
+                                                           {{ in_array($role->id, $assignedRoleIds) ? 'checked' : '' }}
+                                                           class="rounded border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
+                                                    <p class="text-sm font-medium text-[var(--text-primary)]">{{ $role->name }}</p>
+                                                </label>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
+                                        <button type="submit" class="btn-primary">
+                                            Simpan
+                                        </button>
+                                        <button type="button" @click="editRoles = null" class="btn-secondary">
+                                            Batal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </template>
+
                     {{-- Modal Konfirmasi Nonaktifkan --}}
                     <template x-teleport="body">
                         <div x-show="confirmDeactivate === {{ $user->id }}" x-cloak
@@ -161,22 +216,40 @@
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                                     <div>
                                         <h3 id="deactivate-user-modal-title-{{ $user->id }}" class="font-display text-lg font-semibold text-[var(--text-primary)]">Nonaktifkan User</h3>
-                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->name }} ({{ $user->roleNamesLabel() }})</p>
                                     </div>
                                     <button type="button" @click="confirmDeactivate = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                                         <span class="material-symbols-outlined text-[19px]">close</span>
                                     </button>
                                 </div>
 
-                                <div class="px-6 py-5">
-                                    <p class="text-sm text-[var(--text-secondary)]">Yakin ingin menonaktifkan <strong class="text-[var(--text-primary)]">{{ $user->name }}</strong>? User tidak akan bisa login sampai diaktifkan kembali.</p>
-                                </div>
-
                                 <form action="{{ route('user-management.destroy', $user) }}" method="POST">
                                     @csrf @method('DELETE')
+                                    <div class="px-6 py-5 space-y-4">
+                                        <p class="text-sm text-[var(--text-secondary)]">Yakin ingin menonaktifkan <strong class="text-[var(--text-primary)]">{{ $user->name }}</strong>? User tidak akan bisa login sampai diaktifkan kembali.</p>
+
+                                        @if ($user->active_task_count > 0)
+                                            <div class="bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg">
+                                                {{ $user->name }} masih PIC di <strong>{{ $user->active_task_count }} konten aktif</strong>. Pilih pengganti supaya konten-konten itu tidak nyangkut ke akun yang sudah tidak bisa login.
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Pindahkan Semua Tugas Ke</label>
+                                                <select name="replacement_user_id" required
+                                                        class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                                    <option value="">-- Pilih Pengganti --</option>
+                                                    @foreach ($replacementOptions as $candidate)
+                                                        @if ($candidate->id !== $user->id)
+                                                            <option value="{{ $candidate->id }}">{{ $candidate->name }} ({{ $candidate->roleNamesLabel() }})</option>
+                                                        @endif
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        @endif
+                                    </div>
+
                                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                                         <button type="submit" class="btn-danger">
-                                            Ya, Nonaktifkan
+                                            {{ $user->active_task_count > 0 ? 'Pindahkan Tugas & Nonaktifkan' : 'Ya, Nonaktifkan' }}
                                         </button>
                                         <button type="button" @click="confirmDeactivate = null" class="btn-secondary">
                                             Batal
@@ -200,7 +273,7 @@
                                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                                     <div>
                                         <h3 id="activate-user-modal-title-{{ $user->id }}" class="font-display text-lg font-semibold text-[var(--text-primary)]">Aktifkan User</h3>
-                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->name }} ({{ $user->role->name ?? '-' }})</p>
+                                        <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $user->name }} ({{ $user->roleNamesLabel() }})</p>
                                     </div>
                                     <button type="button" @click="confirmActivate = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                                         <span class="material-symbols-outlined text-[19px]">close</span>
@@ -255,7 +328,7 @@
                         <div class="min-w-0">
                             <p class="font-medium text-[var(--text-primary)] truncate">{{ $user->name }}</p>
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="text-xs text-[var(--text-secondary)]">{{ $user->role->name ?? '-' }}</span>
+                                <span class="text-xs text-[var(--text-secondary)]">{{ $user->roleNamesLabel() }}</span>
                                 <span class="badge
                                     {{ $user->status === 'active' ? 'badge-success' : '' }}
                                     {{ $user->status === 'invited' ? 'badge-warning' : '' }}
@@ -288,6 +361,10 @@
                     </div>
 
                     <div class="flex items-center gap-2 pt-1">
+                        <button type="button" @click="editRoles = {{ $user->id }}"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Edit Role">
+                            <span class="material-symbols-outlined text-[17px]">manage_accounts</span>
+                        </button>
                         <button type="button" @click="openAssign = {{ $user->id }}"
                                 class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Assign Klien">
                             <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
@@ -351,14 +428,19 @@
                     </div>
 
                     <div>
-                        <label for="invite_role_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Role</label>
-                        <select id="invite_role_id" name="role_id" required class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                            <option value="">-- Pilih Role --</option>
+                        <p class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Role</p>
+                        <div class="space-y-2 max-h-48 overflow-y-auto">
+                            @php $oldRoleIds = old('role_ids', []); @endphp
                             @foreach ($roles as $role)
-                                <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
+                                <label class="flex items-center gap-3 p-3 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-page)] cursor-pointer">
+                                    <input type="checkbox" name="role_ids[]" value="{{ $role->id }}"
+                                           {{ in_array($role->id, $oldRoleIds) ? 'checked' : '' }}
+                                           class="rounded border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
+                                    <p class="text-sm font-medium text-[var(--text-primary)]">{{ $role->name }}</p>
+                                </label>
                             @endforeach
-                        </select>
-                        @error('role_id') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                        </div>
+                        @error('role_ids') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

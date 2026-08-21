@@ -96,7 +96,7 @@ class ContentPlanController extends Controller
 
         $contentTypeOptions = ContentType::all();
         $platformOptions = Platform::all();
-        $picOptions = User::whereNull('client_id')->where('status', 'active')->get();
+        $picOptions = User::whereNull('client_id')->where('status', 'active')->with('assignedClients:id')->get();
 
         return view('content-plan.index', compact(
             'plans',
@@ -195,7 +195,13 @@ class ContentPlanController extends Controller
         $pillars = ContentPillar::all();
         $types = ContentType::all();
         $platforms = Platform::all();
-        $picOptions = User::whereNull('client_id')->where('status', 'active')->get();
+        // Cuma tim yang sudah di-assign ke client rencana ini (lewat "Assign
+        // Klien" di Kelola Pengguna) yang bisa dipilih jadi PIC - bukan
+        // semua staff internal.
+        $picOptions = User::whereNull('client_id')
+            ->where('status', 'active')
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
+            ->get();
 
         return view('content-plan.create-item', compact('contentPlan', 'pillars', 'types', 'platforms', 'picOptions'));
     }

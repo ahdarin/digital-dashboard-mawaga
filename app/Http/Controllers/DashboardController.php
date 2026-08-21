@@ -62,15 +62,17 @@ class DashboardController extends Controller
                 'change' => $contentChange['label'],
                 'trend' => $contentChange['trend'],
                 'icon' => 'draft',
+                'link' => route('content-plan.index', ['view' => 'calendar']),
             ],
             [
-                'label' => 'Client Aktif',
+                'label' => 'Klien Aktif',
                 'value' => number_format($activeClients),
                 'change' => $newClientsThisMonth > 0
                     ? "+{$newClientsThisMonth} klien baru bulan ini"
                     : 'Tidak ada klien baru bulan ini',
                 'trend' => $newClientsThisMonth > 0 ? 'up' : 'flat',
                 'icon' => 'group',
+                'link' => route('client-management.index'),
             ],
             [
                 'label' => 'Tim Aktif',
@@ -78,6 +80,7 @@ class DashboardController extends Controller
                 'change' => 'Anggota internal berstatus aktif',
                 'trend' => 'flat',
                 'icon' => 'badge',
+                'link' => route('team-performance.index'),
             ],
             [
                 'label' => 'Item Overdue',
@@ -85,6 +88,7 @@ class DashboardController extends Controller
                 'change' => "{$overdueRate}% dari total workflow berjalan",
                 'trend' => $overdueCount > 0 ? 'down' : 'up',
                 'icon' => 'schedule',
+                'link' => route('production-workflow.index'),
             ],
             [
                 'label' => 'Total Views Bulan Ini',
@@ -92,6 +96,7 @@ class DashboardController extends Controller
                 'change' => $viewsChange['label'],
                 'trend' => $viewsChange['trend'],
                 'icon' => 'visibility',
+                'link' => '#tren-views',
             ],
             [
                 'label' => 'Konten Tayang',
@@ -99,6 +104,7 @@ class DashboardController extends Controller
                 'change' => 'Bulan berjalan',
                 'trend' => 'flat',
                 'icon' => 'cloud_done',
+                'link' => route('production-workflow.index', ['tab' => 'published']),
             ],
         ];
 

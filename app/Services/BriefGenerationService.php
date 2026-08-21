@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\ContentBriefDraft;
 use App\Models\ContentItem;
+use App\Models\ContentItemAssignment;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -32,6 +34,7 @@ class BriefGenerationService
     public function generate(ContentItem $rawIdea, ?int $createdBy = null): ContentBriefDraft
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($rawIdea));
+        $feasibility = $this->assessFeasibility($rawIdea, $parsed);
 
         return ContentBriefDraft::create([
             'content_item_id' => $rawIdea->id,
@@ -49,6 +52,8 @@ class BriefGenerationService
             'talent_count' => $parsed['talent_count'] ?? null,
             'location_count' => $parsed['location_count'] ?? null,
             'complexity_level' => $parsed['complexity_level'] ?? null,
+            'feasibility_level' => $feasibility['feasibility_level'] ?? null,
+            'feasibility_notes' => $feasibility['feasibility_notes'] ?? null,
             'status' => 'draft',
         ]);
     }
@@ -62,6 +67,7 @@ class BriefGenerationService
     public function regenerate(ContentBriefDraft $brief): ContentBriefDraft
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($brief->contentItem));
+        $feasibility = $this->assessFeasibility($brief->contentItem, $parsed);
 
         $brief->update([
             'previous_snapshot' => $brief->only(self::EDITABLE_FIELDS),
@@ -78,6 +84,8 @@ class BriefGenerationService
             'talent_count' => $parsed['talent_count'] ?? null,
             'location_count' => $parsed['location_count'] ?? null,
             'complexity_level' => $parsed['complexity_level'] ?? null,
+            'feasibility_level' => $feasibility['feasibility_level'] ?? null,
+            'feasibility_notes' => $feasibility['feasibility_notes'] ?? null,
             'status' => 'draft',
         ]);
 
@@ -206,6 +214,105 @@ class BriefGenerationService
         PENTING: Balas HANYA dengan JSON valid, tanpa teks lain, tanpa markdown code fence
         (markdown HANYA dipakai DI DALAM value string copywriting_script, bukan untuk membungkus
         JSON-nya).
+        PROMPT;
+    }
+
+    /**
+     * Analisis kelayakan jadwal & beban kerja - INI yang bikin fitur ini
+     * beda dari sekadar "lanjutin ide dari AI PIC 1": bukan cuma
+     * mengelaborasi teks ide jadi naskah, tapi mengecek data operasional
+     * riil (deadline, jadwal PIC minggu itu) dan menilai apakah brief yang
+     * baru saja disusun realistis dikerjakan atau berisiko.
+     */
+    private function assessFeasibility(ContentItem $idea, array $parsedBrief): array
+    {
+        if (! $idea->deadline_at) {
+            return [];
+        }
+
+        $deadline = $idea->deadline_at;
+        $postDate = ! empty($parsedBrief['post_date']) ? Carbon::parse($parsedBrief['post_date']) : null;
+
+        $marginDays = $postDate
+            ? intdiv($deadline->copy()->startOfDay()->timestamp - $postDate->copy()->startOfDay()->timestamp, 86400)
+            : null;
+
+        $picWorkload = $idea->assignments()
+            ->with('user')
+            ->get()
+            ->filter(fn ($assignment) => $assignment->user)
+            ->map(function ($assignment) use ($idea, $deadline) {
+                $conflictCount = ContentItemAssignment::where('user_id', $assignment->user_id)
+                    ->where('content_item_id', '!=', $idea->id)
+                    ->whereHas('contentItem', function ($q) use ($deadline) {
+                        $q->whereNotNull('deadline_at')
+                            ->whereRaw('YEARWEEK(deadline_at, 3) = YEARWEEK(?, 3)', [$deadline->toDateString()])
+                            ->whereHas('workflow', fn ($wq) => $wq->whereNotIn('current_status', ['uploaded', 'cancelled']));
+                    })
+                    ->count();
+
+                return [
+                    'name' => $assignment->user->name,
+                    'other_items_same_week' => $conflictCount,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $prompt = $this->buildFeasibilityPrompt($idea, $parsedBrief, $marginDays, $picWorkload);
+        $parsed = $this->callGemini($prompt);
+
+        if (empty($parsed['feasibility_level'])) {
+            return [];
+        }
+
+        return [
+            'feasibility_level' => $parsed['feasibility_level'],
+            'feasibility_notes' => $parsed['feasibility_notes'] ?? null,
+        ];
+    }
+
+    private function buildFeasibilityPrompt(ContentItem $idea, array $parsedBrief, ?int $marginDays, array $picWorkload): string
+    {
+        $deadlineText = $idea->deadline_at->format('d M Y');
+        $marginText = $marginDays === null
+            ? 'Tidak diketahui (AI belum menentukan tanggal posting)'
+            : ($marginDays >= 0
+                ? "{$marginDays} hari buffer sebelum deadline"
+                : abs($marginDays)." hari MELEWATI deadline (tanggal posting yang direncanakan sudah lewat deadline)");
+
+        $workloadText = empty($picWorkload)
+            ? 'Belum ada PIC yang ditugaskan ke item ini.'
+            : collect($picWorkload)->map(function ($w) {
+                return $w['other_items_same_week'] > 0
+                    ? "{$w['name']}: sudah punya {$w['other_items_same_week']} content item aktif lain dengan deadline di minggu yang sama"
+                    : "{$w['name']}: tidak ada bentrok jadwal minggu itu";
+            })->implode('; ');
+
+        $complexity = $parsedBrief['complexity_level'] ?? 'tidak diketahui';
+        $duration = $parsedBrief['estimated_duration_seconds'] ?? null;
+        $talentCount = $parsedBrief['talent_count'] ?? 0;
+        $locationCount = $parsedBrief['location_count'] ?? 0;
+
+        return <<<PROMPT
+        Kamu asisten produksi yang menilai KELAYAKAN eksekusi sebuah brief konten, berdasarkan
+        data operasional riil (bukan menebak-nebak). Data berikut FAKTA dari sistem, bukan asumsi:
+
+        - Deadline content item: {$deadlineText}
+        - Margin waktu (selisih tanggal posting rencana vs deadline): {$marginText}
+        - Kompleksitas produksi hasil brief: {$complexity} (durasi: {$duration} detik, talent: {$talentCount} orang, lokasi: {$locationCount})
+        - Beban kerja PIC yang ditugaskan minggu deadline ini: {$workloadText}
+
+        Berdasarkan fakta di atas SAJA (jangan mengarang data lain), nilai kelayakan produksi ini:
+        - "ok": margin waktu cukup DAN tidak ada bentrok jadwal berarti
+        - "warning": margin waktu mepet (kurang dari 2 hari) ATAU PIC punya beberapa item lain
+          minggu itu (2-3 item) ATAU kompleksitas complex dengan margin pas-pasan
+        - "critical": margin waktu sudah lewat deadline ATAU PIC overload berat (4+ item lain
+          minggu itu) ATAU kombinasi kompleksitas tinggi dengan margin sangat mepet/negatif
+
+        PENTING: Balas HANYA dengan JSON valid, format:
+        {"feasibility_level": "ok|warning|critical", "feasibility_notes": "2-3 kalimat Bahasa Indonesia, sebutkan angka konkret dari data di atas sebagai alasan, jangan generic"}
+        Tanpa markdown code fence, tanpa teks lain di luar JSON.
         PROMPT;
     }
 

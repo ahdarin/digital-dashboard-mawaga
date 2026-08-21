@@ -34,7 +34,7 @@
                     <span class="badge badge-success">Anda</span>
                 @endif
             </div>
-            <p class="text-sm text-[var(--text-secondary)]">{{ $user->role->name ?? '-' }}</p>
+            <p class="text-sm text-[var(--text-secondary)]">{{ $user->roleNamesLabel() }}</p>
             <p class="text-xs text-[var(--text-muted)] mt-1">Bergabung sejak {{ $user->created_at->format('d M Y') }}</p>
         </div>
     </div>

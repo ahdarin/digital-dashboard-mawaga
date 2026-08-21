@@ -8,14 +8,16 @@ use App\Models\AnalyticsSyncLog;
 use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ClientCategory;
+use App\Models\ClientPackage;
+use App\Models\PackageTemplate;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PhoneNumberNormalizer;
+use App\Services\PicReassignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class ClientManagementController extends Controller
 {
@@ -32,7 +34,7 @@ class ClientManagementController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('brand_name', 'like', "%{$search}%")
-                        ->orWhereHas('owner', fn ($oq) => $oq->where('email', 'like', "%{$search}%"));
+                        ->orWhereHas('owner', fn ($oq) => $oq->where('phone_number', 'like', "%{$search}%"));
                 });
             })
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
@@ -48,8 +50,9 @@ class ClientManagementController extends Controller
         $this->authorizeManage();
 
         $categories = ClientCategory::all();
+        $packageTemplates = PackageTemplate::where('is_active', true)->orderBy('name')->get();
 
-        return view('client-management.create', compact('categories'));
+        return view('client-management.create', compact('categories', 'packageTemplates'));
     }
 
     public function store(Request $request)
@@ -61,11 +64,10 @@ class ClientManagementController extends Controller
             'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'logo' => 'nullable|image|max:2048', // max 2MB
-            'color' => 'nullable|string|max:7',
             'asset_link' => 'nullable|url|max:255',
             'owner_name' => 'required|string|max:255',
-            'owner_email' => 'required|email|unique:users,email',
             'owner_phone' => 'required|string',
+            'package_template_id' => 'nullable|exists:package_templates,id',
         ]);
 
         DB::transaction(function () use ($validated, $request) {
@@ -78,32 +80,38 @@ class ClientManagementController extends Controller
                 'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
                 'logo_path' => $logoPath,
-                'color' => $validated['color'] ?? null,
                 'asset_link' => $validated['asset_link'] ?? null,
                 'status' => 'active',
             ]);
 
             $ownerRole = Role::firstOrCreate(['name' => 'Client Owner']);
 
-            User::create([
-                'role_id' => $ownerRole->id,
+            $owner = User::create([
                 'client_id' => $client->id,
                 'name' => $validated['owner_name'],
-                'email' => $validated['owner_email'],
                 'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                 'status' => 'invited',
             ]);
+            $owner->roles()->attach($ownerRole->id);
+
+            if (filled($validated['package_template_id'] ?? null)) {
+                $this->assignPackage($client, PackageTemplate::find($validated['package_template_id']));
+            }
         });
 
         return redirect()->route('client-management.index')
-            ->with('status', 'Client & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
+            ->with('status', 'Klien & akun Owner berhasil dibuat. Owner bisa login via WhatsApp menggunakan nomor yang didaftarkan.');
     }
 
-    public function show(Client $client)
+    public function show(Client $client, PicReassignmentService $picReassignmentService)
     {
-        $this->authorizeManage();
+        // Otorisasi dipegang route middleware (permission:client,view +
+        // client.scope:client,id) - dibuka ke semua role internal yang
+        // di-assign ke client ini, bukan cuma client,manage seperti aksi
+        // lain di controller ini. Tombol ubah data di-gate di view lewat
+        // hasPermissionTo('client','manage').
 
-        $client->load(['category', 'owner', 'activePackage', 'packages']);
+        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.roles']);
 
         $recentContentItems = $client->contentItems()
             ->with(['contentType', 'workflow'])
@@ -113,6 +121,15 @@ class ClientManagementController extends Controller
 
         $contentCount = $client->contentItems()->count();
         $planCount = $client->contentPlans()->count();
+        $packageTemplates = PackageTemplate::where('is_active', true)->orderBy('name')->get();
+        $staffOptions = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
+
+        // Berapa konten aktif per PIC yang di-assign ke client ini - dipakai
+        // buat memutuskan apakah dia bisa dikeluarkan dari roster langsung
+        // atau butuh reassignment dulu (lihat "Keluarkan dari PIC").
+        $picActiveCounts = $client->assignedUsers->mapWithKeys(
+            fn (User $staff) => [$staff->id => $picReassignmentService->countActive($staff, $client->id)]
+        );
 
         // Integrasi Instagram client ini (hasil OAuth connect) - dipakai
         // buat card "Integrasi Analytics" di halaman ini.
@@ -179,7 +196,7 @@ class ClientManagementController extends Controller
         }
 
         return view('client-management.show', compact(
-            'client', 'recentContentItems', 'contentCount', 'planCount',
+            'client', 'recentContentItems', 'contentCount', 'planCount', 'packageTemplates', 'staffOptions', 'picActiveCounts',
             'instagramIntegration', 'instagramOauthConfigured',
             'instagramLastSyncLog', 'instagramSyncing',
             'instagramAudienceLastSyncLog', 'instagramAudienceLastSuccessAt', 'instagramAudienceSyncing'
@@ -256,15 +273,9 @@ class ClientManagementController extends Controller
             'status' => 'required|in:active,past_due,paused',
             'logo' => 'nullable|image|max:2048',
             'remove_logo' => 'nullable|boolean',
-            'color' => 'nullable|string|max:7',
             'asset_link' => 'nullable|url|max:255',
-            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_email,owner_phone|string|max:255',
-            'owner_email' => [
-                $hasOwner ? 'nullable' : 'nullable|required_with:owner_name,owner_phone',
-                'email',
-                Rule::unique('users', 'email')->ignore($client->owner?->id),
-            ],
-            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name,owner_email|string',
+            'owner_name' => $hasOwner ? 'nullable|string|max:255' : 'nullable|required_with:owner_phone|string|max:255',
+            'owner_phone' => $hasOwner ? 'nullable|string' : 'nullable|required_with:owner_name|string',
         ]);
 
         DB::transaction(function () use ($validated, $client, $request) {
@@ -286,14 +297,12 @@ class ClientManagementController extends Controller
                 'client_category_id' => $validated['client_category_id'],
                 'status' => $validated['status'],
                 'logo_path' => $logoPath,
-                'color' => $validated['color'] ?? $client->color,
                 'asset_link' => $validated['asset_link'] ?? null,
             ]);
 
             if ($client->owner && filled($validated['owner_name'] ?? null)) {
                 $client->owner->update([
                     'name' => $validated['owner_name'],
-                    'email' => $validated['owner_email'] ?? $client->owner->email,
                     'phone_number' => filled($validated['owner_phone'] ?? null)
                         ? PhoneNumberNormalizer::normalize($validated['owner_phone'])
                         : $client->owner->phone_number,
@@ -301,19 +310,57 @@ class ClientManagementController extends Controller
             } elseif (! $client->owner && filled($validated['owner_name'] ?? null)) {
                 $ownerRole = Role::firstOrCreate(['name' => 'Client Owner']);
 
-                User::create([
-                    'role_id' => $ownerRole->id,
+                $owner = User::create([
                     'client_id' => $client->id,
                     'name' => $validated['owner_name'],
-                    'email' => $validated['owner_email'],
                     'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                     'status' => 'invited',
                 ]);
+                $owner->roles()->attach($ownerRole->id);
             }
         });
 
         return redirect()->route('client-management.show', $client)
-            ->with('status', 'Data client berhasil diperbarui.');
+            ->with('status', 'Data klien berhasil diperbarui.');
+    }
+
+    public function updatePackage(Request $request, Client $client)
+    {
+        $this->authorizeManage();
+
+        $validated = $request->validate([
+            'package_template_id' => 'required|exists:package_templates,id',
+        ]);
+
+        $template = PackageTemplate::findOrFail($validated['package_template_id']);
+
+        DB::transaction(fn () => $this->assignPackage($client, $template));
+
+        return redirect()->route('client-management.show', $client)
+            ->with('status', "Paket {$client->brand_name} berhasil diperbarui.");
+    }
+
+    /**
+     * Assign paket ke client - kalau sudah ada paket aktif, ditandai
+     * 'ended' (bukan dihapus, biar riwayat kuota per periode tetap
+     * kelihatan), lalu dibuatkan ClientPackage baru sebagai snapshot
+     * (nama & kuota disalin dari template saat itu juga, supaya perubahan
+     * template di kemudian hari nggak diam-diam mengubah kuota client yang
+     * sudah berjalan).
+     */
+    private function assignPackage(Client $client, PackageTemplate $template): void
+    {
+        $client->activePackage?->update(['status' => 'ended', 'end_date' => now()]);
+
+        ClientPackage::create([
+            'client_id' => $client->id,
+            'package_template_id' => $template->id,
+            'package_name_snapshot' => $template->name,
+            'monthly_content_quota' => $template->monthly_content_quota,
+            'monthly_design_quota' => $template->monthly_design_quota,
+            'start_date' => now(),
+            'status' => 'active',
+        ]);
     }
 
     public function destroy(Client $client)
@@ -326,7 +373,7 @@ class ClientManagementController extends Controller
             $client->update(['status' => 'paused']);
 
             return redirect()->route('client-management.index')
-                ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Paused.");
+                ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
         }
 
         DB::transaction(function () use ($client) {
@@ -342,7 +389,7 @@ class ClientManagementController extends Controller
         });
 
         return redirect()->route('client-management.index')
-            ->with('status', 'Client berhasil dihapus.');
+            ->with('status', 'Klien berhasil dihapus.');
     }
 
     private function authorizeManage(): void

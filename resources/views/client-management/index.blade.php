@@ -25,7 +25,7 @@
     <form method="GET" action="{{ route('client-management.index') }}" class="card p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3">
         <div class="flex-1 relative">
             <span class="material-symbols-outlined absolute inset-y-0 left-0 flex items-center pl-3.5 text-[var(--text-muted)] text-[19px]">search</span>
-            <input type="text" name="search" value="{{ $search }}" placeholder="Cari klien, email, atau paket..."
+            <input type="text" name="search" value="{{ $search }}" placeholder="Cari klien, nomor WhatsApp, atau paket..."
                    class="bg-[var(--surface-card)] w-full pl-10 pr-4 py-2.5 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:border-[#044b46]/40">
         </div>
 
@@ -45,7 +45,7 @@
             <thead class="bg-[var(--surface-page)]">
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
                     <th class="px-6 py-3 font-medium whitespace-nowrap">Nama Klien</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Email</th>
+                    <th class="px-4 py-3 font-medium whitespace-nowrap">Nomor WhatsApp</th>
                     <th class="px-4 py-3 font-medium whitespace-nowrap">Paket</th>
                     <th class="px-4 py-3 font-medium whitespace-nowrap">Aset</th>
                     <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
@@ -55,7 +55,7 @@
             <tbody>
                 @forelse ($clients as $client)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                        onclick="window.location='{{ route('client-management.show', $client) }}'">
+                        onclick="navigateTo('{{ route('client-management.show', $client) }}')">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden {{ $client->logo_url ? 'bg-[var(--brand-tint)]' : 'bg-[var(--brand-solid)] text-white' }}">
@@ -71,7 +71,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $client->owner->email ?? '-' }}</td>
+                        <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $client->owner->phone_number ?? '-' }}</td>
                         <td class="px-6 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $client->activePackage->package_name_snapshot ?? '-' }}</td>
                         <td class="px-6 py-3.5" onclick="event.stopPropagation()">
                             @if ($client->asset_link)
@@ -98,11 +98,11 @@
                         <td colspan="6" class="px-6 py-12 text-center">
                             <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">apartment</span>
                             @if ($search || $status !== 'all')
-                                <p class="text-sm text-[var(--text-muted)]">Tidak ada client yang cocok dengan filter ini.</p>
+                                <p class="text-sm text-[var(--text-muted)]">Tidak ada klien yang cocok dengan filter ini.</p>
                                 <a href="{{ route('client-management.index') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Reset filter</a>
                             @else
-                                <p class="text-sm text-[var(--text-muted)]">Belum ada client.</p>
-                                <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah client pertama</a>
+                                <p class="text-sm text-[var(--text-muted)]">Belum ada klien.</p>
+                                <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
                             @endif
                         </td>
                     </tr>
@@ -145,8 +145,8 @@
 
                 <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[var(--text-muted)]">Email</span>
-                        <span class="text-[var(--text-primary)] font-medium truncate ml-3">{{ $client->owner->email ?? '-' }}</span>
+                        <span class="text-[var(--text-muted)]">Nomor WhatsApp</span>
+                        <span class="text-[var(--text-primary)] font-medium truncate ml-3">{{ $client->owner->phone_number ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Aset</span>
@@ -173,11 +173,11 @@
             <div class="card p-8 text-center">
                 <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">apartment</span>
                 @if ($search || $status !== 'all')
-                    <p class="text-sm text-[var(--text-muted)]">Tidak ada client yang cocok dengan filter ini.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Tidak ada klien yang cocok dengan filter ini.</p>
                     <a href="{{ route('client-management.index') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Reset filter</a>
                 @else
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada client.</p>
-                    <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah client pertama</a>
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada klien.</p>
+                    <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
                 @endif
             </div>
         @endforelse

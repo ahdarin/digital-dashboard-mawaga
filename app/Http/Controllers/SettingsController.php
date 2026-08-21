@@ -10,6 +10,7 @@ use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\PackageTemplate;
 use App\Models\Platform;
 use App\Services\InstagramAnalyticsSyncService;
 use Illuminate\Http\Request;
@@ -50,12 +51,17 @@ class SettingsController extends Controller
         $mdSearch = null;
         if ($section === 'data-pilihan') {
             $mdTab = $request->input('type', 'content-pillar');
-            abort_unless(array_key_exists($mdTab, MasterDataController::TYPES), 404);
+            abort_unless(array_key_exists($mdTab, MasterDataController::TYPES) || $mdTab === 'package-template', 404);
             $mdSearch = $request->input('search');
-            $mdItems = MasterDataController::TYPES[$mdTab]::query()
-                ->when($mdSearch, fn ($q) => $q->where('name', 'like', "%{$mdSearch}%"))
-                ->orderBy('name')
-                ->get();
+            $mdItems = $mdTab === 'package-template'
+                ? PackageTemplate::query()
+                    ->when($mdSearch, fn ($q) => $q->where('name', 'like', "%{$mdSearch}%"))
+                    ->orderBy('name')
+                    ->get()
+                : MasterDataController::TYPES[$mdTab]::query()
+                    ->when($mdSearch, fn ($q) => $q->where('name', 'like', "%{$mdSearch}%"))
+                    ->orderBy('name')
+                    ->get();
         }
 
         // Integrasi SEKARANG client-centric (dulu: 1 kartu Instagram global

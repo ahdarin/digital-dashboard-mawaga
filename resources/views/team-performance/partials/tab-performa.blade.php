@@ -81,7 +81,7 @@
             <tbody>
                 @forelse ($members as $m)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                        onclick="window.location='{{ route('profile.show', $m['user']) }}'">
+                        onclick="navigateTo('{{ route('profile.show', $m['user']) }}')">
                         <td class="px-6 py-3.5">
                             <div class="flex items-center gap-3">
                                 @if ($m['user']->avatar_url)
@@ -93,7 +93,7 @@
                                 @endif
                                 <div>
                                     <p class="font-medium text-[var(--text-primary)]">{{ $m['user']->name }}</p>
-                                    <p class="text-xs text-[var(--text-muted)]">{{ $m['user']->role->name ?? '-' }}</p>
+                                    <p class="text-xs text-[var(--text-muted)]">{{ $m['user']->roleNamesLabel() }}</p>
                                 </div>
                             </div>
                         </td>

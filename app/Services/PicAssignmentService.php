@@ -47,41 +47,38 @@ class PicAssignmentService
         return $this->usedFallbackRole;
     }
 
+    /**
+     * Kandidat SELALU dibatasi ke tim yang sudah di-assign ke client ini
+     * (lewat "Assign Klien" di Kelola Pengguna) - tidak ada fallback ke
+     * seluruh staff internal lagi. Kalau tim yang ditugaskan belum cukup
+     * (kosong sama sekali, atau tidak ada yang role-nya cocok), itu harus
+     * diselesaikan dengan menugaskan orang yang tepat ke client-nya dulu -
+     * bukan dibuka diam-diam ke siapa saja oleh sistem.
+     */
     private function candidatesFor(Client $client, ?string $contentTypeName): \Illuminate\Support\Collection
     {
         $wantedRole = $this->roleByContentType[$contentTypeName ?? ''] ?? null;
 
-        // Kandidat utama: tim yang di-assign ke client ini, role-nya cocok
-        // jenis konten.
         $assignedUserIds = \App\Models\UserClientAssignment::where('client_id', $client->id)->pluck('user_id');
 
         $query = User::whereIn('id', $assignedUserIds)->where('status', 'active');
-        if ($wantedRole) {
-            $query->whereHas('role', fn ($q) => $q->where('name', $wantedRole));
-        }
-        $candidates = $query->get();
 
-        if ($candidates->isNotEmpty()) {
-            return $candidates;
+        if (! $wantedRole) {
+            return $query->get();
         }
 
-        // Cadangan: client belum punya tim ter-assign - semua internal aktif
-        // dengan role yang cocok.
-        $fallbackQuery = User::whereNull('client_id')->where('status', 'active');
-        if ($wantedRole) {
-            $fallbackQuery->whereHas('role', fn ($q) => $q->where('name', $wantedRole));
-        }
-        $fallback = $fallbackQuery->get();
+        $withMatchingRole = (clone $query)->whereHas('roles', fn ($q) => $q->where('name', $wantedRole))->get();
 
-        if ($fallback->isNotEmpty()) {
-            return $fallback;
+        if ($withMatchingRole->isNotEmpty()) {
+            return $withMatchingRole;
         }
 
-        // Cadangan terakhir: tidak ada role yang cocok sama sekali - tetap
-        // dibagi ke semua internal aktif, ditandai lewat usedFallbackRole().
+        // Nggak ada yang role-nya persis cocok di antara tim yang
+        // ditugaskan - tetap dibatasi ke tim itu saja (bukan dibuka ke
+        // semua staff), cuma ditandai biar caller tahu ini kurang ideal.
         $this->usedFallbackRole = true;
 
-        return User::whereNull('client_id')->where('status', 'active')->get();
+        return $query->get();
     }
 
     private function baseLoad(User $user): int

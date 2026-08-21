@@ -1,49 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    @include('partials._theme-init-script')
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics | 523 Studio</title>
+@extends('layouts.client')
+@section('title', 'Analytics')
+@section('content')
 
-    <link rel="icon" href="{{ asset('images/favicon.png') }}">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..500,0..1&display=swap" rel="stylesheet">
-
-    <script src="https://cdn.tailwindcss.com"></script>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <style>
-        @include('partials._theme-tokens')
-        body { font-family: 'Inter', sans-serif; background-color: var(--surface-page); color: var(--text-primary); }
-        .font-display { font-family: 'Fraunces', serif; }
-        .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; }
-    </style>
-</head>
-<body class="min-h-screen">
-
-    <header class="bg-[var(--surface-card)] border-b border-[var(--border)] px-5 py-4 sticky top-0 z-10 flex items-center gap-2.5">
-        <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-7 w-auto">
-        <div>
-            <h1 class="font-display text-base font-semibold text-[var(--text-primary)] leading-tight">523 Studio</h1>
-            <p class="text-xs text-[var(--text-muted)] leading-tight">Analytics</p>
-        </div>
-    </header>
-
-    <nav class="bg-[var(--surface-card)] border-b border-[var(--border)] px-5 flex items-center gap-1 sticky top-[65px] z-10">
-        <a href="{{ route('client.approval.index') }}"
-           class="text-sm font-medium px-3 py-3 border-b-2 border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
-            Approval
-        </a>
-        <a href="{{ route('client.analytics') }}"
-           class="text-sm font-medium px-3 py-3 border-b-2 border-[var(--brand)] text-[var(--brand)] transition-colors">
-            Analytics
-        </a>
-    </nav>
-
-    <div class="p-5 space-y-4">
+    <div class="p-4 sm:p-5 space-y-4">
 
         <div class="flex items-center gap-1.5">
             @foreach ([7 => '7 Hari', 30 => '30 Hari', 90 => '90 Hari'] as $value => $label)
@@ -55,21 +14,19 @@
             @endforeach
         </div>
 
-        <div class="grid grid-cols-1 gap-3">
+        <div class="grid grid-cols-3 gap-2 sm:gap-3">
             @foreach ($stats as $stat)
                 @continue($stat['label'] === 'Platforms Tracked')
-                <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)] flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-[var(--text-muted)] mb-1">{{ $stat['label'] }}</p>
-                        <p class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $stat['value'] }}</p>
-                        <p class="text-[11px] mt-1
-                            {{ $stat['trend'] === 'up' ? 'text-[var(--success-text)]' : ($stat['trend'] === 'down' ? 'text-[var(--danger-text)]' : 'text-[var(--text-muted)]') }}">
-                            {{ $stat['change'] }}
-                        </p>
+                <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-2.5 sm:p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
+                    <div class="w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-[var(--brand-tint)] flex items-center justify-center shrink-0 mb-2">
+                        <span class="material-symbols-outlined text-[var(--brand)] text-[15px] sm:text-[19px]">{{ $stat['icon'] }}</span>
                     </div>
-                    <div class="w-10 h-10 rounded-lg bg-[var(--brand-tint)] flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-[var(--brand)] text-[19px]">{{ $stat['icon'] }}</span>
-                    </div>
+                    <p class="text-[10px] sm:text-xs text-[var(--text-muted)] mb-1 leading-tight">{{ $stat['label'] }}</p>
+                    <p class="font-display text-base sm:text-2xl font-semibold text-[var(--text-primary)] leading-tight">{{ $stat['value'] }}</p>
+                    <p class="text-[10px] sm:text-[11px] mt-1
+                        {{ $stat['trend'] === 'up' ? 'text-[var(--success-text)]' : ($stat['trend'] === 'down' ? 'text-[var(--danger-text)]' : 'text-[var(--text-muted)]') }}">
+                        {{ $stat['change'] }}
+                    </p>
                 </div>
             @endforeach
         </div>
@@ -124,5 +81,4 @@
         </div>
 
     </div>
-</body>
-</html>
+@endsection
