@@ -8,12 +8,11 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
+#[Fillable(['client_id', 'name', 'email', 'phone_number', 'google_id', 'avatar_url', 'password', 'status', 'preferences', 'role_id', 'login_enabled', 'source', 'external_reference'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {
@@ -37,14 +36,21 @@ class User extends Authenticatable
         return $this->preferences['theme'] ?? 'system';
     }
 
-    public function roles(): BelongsToMany
+    /**
+     * "Satu orang = satu record, satu role = satu role" (keputusan final
+     * user, Agustus 2026) - role_id adalah SATU-SATUNYA sumber role, dipakai
+     * langsung buat operational identity (jabatan) DAN authorization
+     * dashboard sekaligus. Tidak ada lagi TeamMember/effectiveRoles/
+     * observer sync - satu FK, dibaca live setiap saat.
+     */
+    public function role(): BelongsTo
     {
-        return $this->belongsToMany(Role::class, 'user_roles');
+        return $this->belongsTo(Role::class);
     }
 
     public function roleNamesLabel(): string
     {
-        return $this->roles->pluck('name')->join(', ') ?: '-';
+        return $this->role->name ?? '-';
     }
 
     public function client(): BelongsTo
@@ -84,13 +90,16 @@ class User extends Authenticatable
 
     public function hasAnyRole(array $roles): bool
     {
+        if (! $this->role) {
+            return false;
+        }
         $roleValues = array_map(fn (UserRole $r) => $r->value, $roles);
-        return $this->roles->pluck('name')->intersect($roleValues)->isNotEmpty();
+        return in_array($this->role->name, $roleValues, true);
     }
 
     public function hasPermissionTo(string $module, string $action): bool
     {
-        return $this->roles->contains(fn (Role $role) => $role->hasPermission($module, $action));
+        return $this->role?->hasPermission($module, $action) ?? false;
     }
 
     public function isClientUser(): bool
@@ -106,11 +115,6 @@ class User extends Authenticatable
     public function assignedClients()
     {
         return $this->belongsToMany(Client::class, 'user_client_assignments');
-    }
-
-    public function teamMember()
-    {
-        return $this->hasOne(TeamMember::class);
     }
 
     public function canSeeAllClients(): bool

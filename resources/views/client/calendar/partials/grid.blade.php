@@ -47,6 +47,11 @@
 </div>
 
 <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-5 shadow-[0_1px_2px_rgba(20,24,26,0.03)] hidden sm:block">
+    {{-- Exception documented (responsive sweep): 7-day grid is intrinsically
+         wide - each day cell needs enough room to stay tappable/readable,
+         can't be narrowed like a data table. Desktop-only (hidden sm:block),
+         mobile gets a separate list view, so this scroll never reaches
+         mobile users. --}}
     <div class="overflow-x-auto thin-autohide-scrollbar">
         <div class="min-w-[700px]">
             <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[var(--text-muted)] uppercase mb-2">

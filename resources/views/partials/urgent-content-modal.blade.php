@@ -5,7 +5,7 @@
      nyambung ke Alpine scope milik halaman itu.
 
      Variabel yang dibutuhkan dari controller: $clientOptions,
-     $contentTypeOptions, $platformOptions, $teamMemberOptions.
+     $contentTypeOptions, $platformOptions, $picOptions.
      Opsional: $urgentPreselectClientId (kunci pilihan client, dipakai di
      halaman Content Plan per-client).
      Opsional: $urgentTriggerStyle = 'sidebar' buat gaya tombol nav sidebar
@@ -133,16 +133,16 @@
                             @error('deadline_at') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label for="urgent_team_member_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab</label>
-                            <select id="urgent_team_member_id" name="team_member_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('team_member_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            <label for="urgent_pic_user_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab</label>
+                            <select id="urgent_pic_user_id" name="pic_user_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('pic_user_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 <option value="">Belum ditentukan</option>
-                                @foreach ($teamMemberOptions as $tm)
-                                    <option value="{{ $tm->id }}" data-client-ids="{{ $tm->clients->pluck('id')->join(',') }}"
-                                        {{ (string) old('team_member_id') === (string) $tm->id ? 'selected' : '' }}>{{ $tm->name }}{{ $tm->hasAccount() ? '' : ' (belum punya akun sistem)' }}</option>
+                                @foreach ($picOptions as $picUser)
+                                    <option value="{{ $picUser->id }}" data-client-ids="{{ $picUser->assignedClients->pluck('id')->join(',') }}"
+                                        {{ (string) old('pic_user_id') === (string) $picUser->id ? 'selected' : '' }}>{{ $picUser->name }}{{ $picUser->login_enabled ? '' : ' (belum memiliki akses dashboard)' }}</option>
                                 @endforeach
                             </select>
                             <p class="text-[11px] text-[var(--text-muted)] mt-1">Cuma menampilkan tim yang menangani klien yang dipilih di atas.</p>
-                            @error('team_member_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                            @error('pic_user_id') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="urgent_brief" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Catatan / Brief Singkat</label>

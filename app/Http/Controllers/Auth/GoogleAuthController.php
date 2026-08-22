@@ -34,6 +34,17 @@ class GoogleAuthController extends Controller
                 ->withErrors(['email' => 'Akun Anda belum aktif. Status: ' . $user->status]);
         }
 
+        // login_enabled = kapabilitas login eksplisit, TERPISAH dari status
+        // (lifecycle akun). Staf internal real dari GUIDE (mis. UUN, HAGI)
+        // punya status=active (mereka staf yang sedang bekerja) tapi
+        // login_enabled=false (belum diberi akses login) - status aktif
+        // saja TIDAK cukup buat login.
+        if (!$user->login_enabled) {
+            $this->logAttempt($user, 'login_failed', $request);
+            return redirect()->route('login')
+                ->withErrors(['email' => 'Akun Anda belum memiliki akses login. Hubungi CEO/Manager untuk mengaktifkan akses dashboard.']);
+        }
+
         $updates = [];
         if (!$user->google_id) {
             $updates['google_id'] = $googleUser->getId();

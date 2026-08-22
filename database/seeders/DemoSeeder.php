@@ -149,14 +149,14 @@ class DemoSeeder extends Seeder
         // dibikin pool staff produksi asli (role Content Creator/Graphic
         // Designer/SMO/Copywriter) biar tiap content item di-assign ke orang
         // yang beda-beda dan beban kerja antar PIC kelihatan bervariasi.
-        $staffRoleNames = ['Content Creator', 'Graphic Designer', 'SMO', 'Copywriter'];
+        $staffRoleNames = ['Content Creator', 'Desain Grafis', 'SMO', 'Copywriter'];
         $staffRoles = collect($staffRoleNames)->mapWithKeys(fn ($name) => [$name => Role::firstOrCreate(['name' => $name])]);
 
         $staffDefs = [
             ['name' => 'Dinda Pratiwi', 'email' => 'dinda.pratiwi@523studio.test', 'role' => 'Content Creator'],
             ['name' => 'Raka Wijaya', 'email' => 'raka.wijaya@523studio.test', 'role' => 'Content Creator'],
-            ['name' => 'Sari Amelia', 'email' => 'sari.amelia@523studio.test', 'role' => 'Graphic Designer'],
-            ['name' => 'Fajar Nugroho', 'email' => 'fajar.nugroho@523studio.test', 'role' => 'Graphic Designer'],
+            ['name' => 'Sari Amelia', 'email' => 'sari.amelia@523studio.test', 'role' => 'Desain Grafis'],
+            ['name' => 'Fajar Nugroho', 'email' => 'fajar.nugroho@523studio.test', 'role' => 'Desain Grafis'],
             ['name' => 'Made Wirawan', 'email' => 'made.wirawan@523studio.test', 'role' => 'SMO'],
             ['name' => 'Nadia Kusuma', 'email' => 'nadia.kusuma@523studio.test', 'role' => 'Copywriter'],
         ];
@@ -178,7 +178,7 @@ class DemoSeeder extends Seeder
                 'user' => $user,
                 'assignment_role' => match ($def['role']) {
                     'Content Creator' => 'content_creator',
-                    'Graphic Designer' => 'designer',
+                    'Desain Grafis' => 'designer',
                     'SMO' => 'smo',
                     'Copywriter' => 'copywriter',
                 },

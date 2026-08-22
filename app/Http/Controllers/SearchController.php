@@ -54,14 +54,14 @@ class SearchController extends Controller
         return User::whereNull('client_id')
             ->where('status', 'active')
             ->where('name', 'like', "%{$term}%")
-            ->with('roles')
+            ->with('role')
             ->take($this->perCategoryLimit)
             ->get()
             ->map(fn (User $member) => [
                 'type' => 'user',
                 'id' => $member->id,
                 'title' => $member->name,
-                'subtitle' => $member->roles->pluck('name')->join(', ') ?: null,
+                'subtitle' => $member->role->name ?? null,
                 'url' => route('profile.show', $member),
             ])->all();
     }

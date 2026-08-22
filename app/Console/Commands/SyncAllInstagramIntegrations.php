@@ -38,7 +38,7 @@ class SyncAllInstagramIntegrations extends Command
             return self::SUCCESS;
         }
 
-        $userId = User::whereHas('roles', fn ($q) => $q->where('name', UserRole::CEO->value))->first()?->id
+        $userId = User::whereHas('role', fn ($q) => $q->where('name', UserRole::CEO->value))->first()?->id
             ?? User::first()?->id;
 
         if (! $userId) {

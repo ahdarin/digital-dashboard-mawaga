@@ -104,22 +104,22 @@
                         <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten yang tercatat.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
-                            <table class="w-full text-sm text-left">
+                            <table class="w-full table-fixed text-sm text-left">
                                 <thead class="bg-[var(--surface-page)]">
                                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                                        <th class="w-[34%] px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="w-[14%] px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
+                                        <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                                        <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($recentItems as $item)
                                         <tr class="border-t border-[var(--surface-muted)]">
-                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item['title'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item['client'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item['type'] }}</td>
+                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item['title'] }}">{{ $item['title'] }}</td>
+                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item['client'] }}</td>
+                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item['type'] }}</td>
                                             <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">
                                                 {{ $item['deadline'] ? $item['deadline']->translatedFormat('d M Y') : '-' }}</td>
                                             <td class="px-4 py-3.5">
@@ -176,24 +176,24 @@
                         <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada data performa konten bulan ini.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
-                            <table class="w-full text-sm text-left">
+                            <table class="w-full table-fixed text-sm text-left">
                                 <thead class="bg-[var(--surface-page)]">
                                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Views</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Engagement</th>
+                                        <th class="w-[34%] px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                                        <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Views</th>
+                                        <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Engagement</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($topContent as $item)
                                         <tr class="border-t border-[var(--surface-muted)]">
-                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item['title'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item['client'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item['platform'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ number_format($item['views']) }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item['engagement_rate'] }}%</td>
+                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item['title'] }}">{{ $item['title'] }}</td>
+                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item['client'] }}</td>
+                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item['platform'] }}</td>
+                                            <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ number_format($item['views']) }}</td>
+                                            <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $item['engagement_rate'] }}%</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -247,22 +247,22 @@
                         <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada data performa client bulan ini.</p>
                     @else
                         <div class="overflow-x-auto hidden sm:block">
-                            <table class="w-full text-sm text-left">
+                            <table class="w-full table-fixed text-sm text-left">
                                 <thead class="bg-[var(--surface-page)]">
                                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                        <th class="px-6 py-3 font-medium whitespace-nowrap">Klien</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Views</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Engagement</th>
-                                        <th class="px-4 py-3 font-medium whitespace-nowrap">Jumlah Konten</th>
+                                        <th class="w-[40%] px-6 py-3 font-medium whitespace-nowrap">Klien</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Views</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Engagement</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Konten</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($topClients as $client)
                                         <tr class="border-t border-[var(--surface-muted)]">
-                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $client['name'] }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ number_format($client['views']) }}</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $client['engagement_rate'] }}%</td>
-                                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $client['content_count'] }}</td>
+                                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $client['name'] }}">{{ $client['name'] }}</td>
+                                            <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ number_format($client['views']) }}</td>
+                                            <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $client['engagement_rate'] }}%</td>
+                                            <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $client['content_count'] }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>

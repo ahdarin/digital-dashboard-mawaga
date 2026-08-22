@@ -91,8 +91,9 @@ class ClientManagementController extends Controller
                 'name' => $validated['owner_name'],
                 'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                 'status' => 'invited',
+                'role_id' => $ownerRole->id,
+                'login_enabled' => true,
             ]);
-            $owner->roles()->attach($ownerRole->id);
 
             if (filled($validated['package_template_id'] ?? null)) {
                 $this->assignPackage($client, PackageTemplate::find($validated['package_template_id']));
@@ -111,7 +112,7 @@ class ClientManagementController extends Controller
         // lain di controller ini. Tombol ubah data di-gate di view lewat
         // hasPermissionTo('client','manage').
 
-        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.roles', 'teamMembers.user']);
+        $client->load(['category', 'owner', 'activePackage', 'packages', 'assignedUsers.role']);
 
         $recentContentItems = $client->contentItems()
             ->with(['contentType', 'workflow'])
@@ -315,8 +316,9 @@ class ClientManagementController extends Controller
                     'name' => $validated['owner_name'],
                     'phone_number' => PhoneNumberNormalizer::normalize($validated['owner_phone']),
                     'status' => 'invited',
+                    'role_id' => $ownerRole->id,
+                    'login_enabled' => true,
                 ]);
-                $owner->roles()->attach($ownerRole->id);
             }
         });
 

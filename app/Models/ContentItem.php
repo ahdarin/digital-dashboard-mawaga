@@ -16,6 +16,7 @@ class ContentItem extends Model
         'client_id',
         'content_pillar_id',
         'content_type_id',
+        'content_format',
         'platform_id',
         'title',
         'brief',

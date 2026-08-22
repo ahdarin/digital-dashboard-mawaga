@@ -61,7 +61,7 @@ class RecomputeDelayRiskScores extends Command
 
         $recipients = User::whereNull('client_id')
             ->where('status', 'active')
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', [UserRole::CEO->value, UserRole::Manager->value]))
+            ->whereHas('role', fn ($q) => $q->whereIn('name', [UserRole::CEO->value, UserRole::Manager->value]))
             ->get();
 
         $body = "Prediksi AI Delay Risk cuma berhasil untuk {$succeeded} dari {$requested} item aktif. Kemungkinan model/script prediksi bermasalah - cek log server.";

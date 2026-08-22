@@ -9,7 +9,7 @@ use App\Models\ContentPlan;
 use App\Models\ContentType;
 use App\Models\ContentWorkflow;
 use App\Models\Platform;
-use App\Models\TeamMember;
+use App\Models\User;
 use App\Rules\AssignedClient;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -193,14 +193,12 @@ class ContentPlanController extends Controller
         $pillars = ContentPillar::all();
         $types = ContentType::all();
         $platforms = Platform::all();
-        // PIC operasional sekarang dari TeamMember (Langkah "Final Fix Batch"
-        // A1) lewat team_member_client, BUKAN lagi User/assignedClients -
-        // audit membuktikan hampir semua client real 0 assignedUsers padahal
-        // punya 2-4 TeamMember real yang menanganinya, jadi dropdown lama
-        // selalu kosong dan form ini nggak bisa disubmit sama sekali.
-        $teamMemberOptions = $contentPlan->client->teamMembers()->orderBy('name')->get();
+        // PIC operasional dari User yang di-assign ke client ini lewat
+        // user_client_assignments ("satu orang = satu record", tidak ada
+        // TeamMember terpisah lagi).
+        $picOptions = $contentPlan->client->assignedUsers()->orderBy('name')->get();
 
-        return view('content-plan.create-item', compact('contentPlan', 'pillars', 'types', 'platforms', 'teamMemberOptions'));
+        return view('content-plan.create-item', compact('contentPlan', 'pillars', 'types', 'platforms', 'picOptions'));
     }
 
     public function storeItem(ContentPlan $contentPlan, Request $request)
@@ -212,18 +210,18 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'team_member_id' => ['required', 'exists:team_members,id'],
+            'pic_user_id' => ['required', 'exists:users,id'],
             'estimated_duration_seconds' => 'nullable|integer',
             'estimated_slide_count' => 'nullable|integer',
         ]);
 
-        // Jangan percaya ID dari form saja - TeamMember harus beneran
-        // terkait client rencana ini (team_member_client), bukan cuma exists
-        // di tabel team_members manapun.
-        $teamMember = TeamMember::where('id', $validated['team_member_id'])
-            ->whereHas('clients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
+        // Jangan percaya ID dari form saja - User harus beneran terkait
+        // client rencana ini lewat user_client_assignments, bukan cuma
+        // exists di tabel users manapun.
+        $picUser = User::where('id', $validated['pic_user_id'])
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
             ->first();
-        abort_unless($teamMember, 422, 'PIC operasional yang dipilih tidak terkait dengan client ini.');
+        abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
 
         $item = ContentItem::create([
             'content_plan_id' => $contentPlan->id,
@@ -236,30 +234,23 @@ class ContentPlanController extends Controller
             'deadline_at' => Carbon::parse($validated['deadline_at']),
             'estimated_duration_seconds' => $validated['estimated_duration_seconds'] ?? null,
             'estimated_slide_count' => $validated['estimated_slide_count'] ?? null,
-            // Selalu simpan identitas PIC operasional apa adanya, terlepas
-            // dari apakah dia punya User/login atau tidak - PicResolver
+            // Selalu simpan identitas PIC operasional apa adanya - PicResolver
             // pakai kolom ini buat display begitu current_pic_id kosong.
-            'external_pic_name' => $teamMember->name,
-            'external_pic_email' => $teamMember->email,
+            'external_pic_name' => $picUser->name,
+            'external_pic_email' => $picUser->email,
         ]);
 
         ContentWorkflow::create([
             'content_item_id' => $item->id,
-            'current_pic_id' => $teamMember->user_id,
+            'current_pic_id' => $picUser->id,
             'current_status' => 'brief_ready',
             'is_overdue' => false,
         ]);
 
-        // TeamMember dengan akun sistem -> ikutkan alur assignment existing
-        // (dipakai kapasitas/reassign/notifikasi User-based). TeamMember
-        // tanpa akun -> JANGAN bikin User/ContentItemAssignment palsu,
-        // external_pic_* di atas sudah cukup buat PicResolver menampilkannya.
-        if ($teamMember->user_id) {
-            $item->assignments()->create([
-                'user_id' => $teamMember->user_id,
-                'assignment_role' => 'primary',
-            ]);
-        }
+        $item->assignments()->create([
+            'user_id' => $picUser->id,
+            'assignment_role' => 'primary',
+        ]);
 
         return redirect()->route('content-plan.show', $contentPlan)
             ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Siap Dikerjakan.');
@@ -283,22 +274,21 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'team_member_id' => ['nullable', 'exists:team_members,id'],
+            'pic_user_id' => ['nullable', 'exists:users,id'],
         ]);
 
         $client = Client::findOrFail($validated['client_id']);
 
-        // Sama pola dengan storeItem() - PIC operasional dari TeamMember,
-        // bukan User/assignedClients (Langkah "Final QA - QuickCreateUrgent
-        // fix"). Optional di sini (beda dari storeItem yang wajib), tapi
-        // kalau diisi WAJIB terbukti terkait client ini - jangan percaya ID
-        // dari form saja.
-        $teamMember = null;
-        if (! empty($validated['team_member_id'])) {
-            $teamMember = TeamMember::where('id', $validated['team_member_id'])
-                ->whereHas('clients', fn ($q) => $q->where('clients.id', $client->id))
+        // Sama pola dengan storeItem() - PIC operasional dari User lewat
+        // user_client_assignments. Optional di sini (beda dari storeItem
+        // yang wajib), tapi kalau diisi WAJIB terbukti terkait client ini -
+        // jangan percaya ID dari form saja.
+        $picUser = null;
+        if (! empty($validated['pic_user_id'])) {
+            $picUser = User::where('id', $validated['pic_user_id'])
+                ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $client->id))
                 ->first();
-            abort_unless($teamMember, 422, 'PIC operasional yang dipilih tidak terkait dengan client ini.');
+            abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
         }
 
         // client_package_id nullable (Langkah 1-2) - sama seperti store(),
@@ -317,25 +307,25 @@ class ContentPlanController extends Controller
             'title' => $validated['title'],
             'brief' => $validated['brief'] ?? null,
             'deadline_at' => Carbon::parse($validated['deadline_at']),
-            'external_pic_name' => $teamMember?->name,
-            'external_pic_email' => $teamMember?->email,
+            'external_pic_name' => $picUser?->name,
+            'external_pic_email' => $picUser?->email,
         ]);
 
         ContentWorkflow::create([
             'content_item_id' => $item->id,
-            'current_pic_id' => $teamMember?->user_id,
+            'current_pic_id' => $picUser?->id,
             'current_status' => 'brief_ready',
             'is_overdue' => false,
         ]);
 
-        if ($teamMember?->user_id) {
+        if ($picUser) {
             $item->assignments()->create([
-                'user_id' => $teamMember->user_id,
+                'user_id' => $picUser->id,
                 'assignment_role' => 'primary',
             ]);
 
             NotificationService::notify(
-                $teamMember->user,
+                $picUser,
                 'Jobdesk tambahan baru buat kamu',
                 'task',
                 "\"{$item->title}\" ({$client->name}) - permintaan mendadak, deadline {$item->deadline_at->format('d M Y, H:i')}.",

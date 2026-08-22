@@ -6,11 +6,10 @@ use App\Exceptions\PinException;
 use App\Exceptions\WorkflowTransitionException;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
-use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
 use App\Services\PinService;
-use App\Services\TeamMemberContentResolver;
+use App\Services\UserContentResolver;
 use App\Services\WorkflowStatusService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
@@ -19,7 +18,7 @@ class ContentItemController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
-    public function show(ContentItem $contentItem, \App\Services\PicResolver $picResolver, TeamMemberContentResolver $contentResolver)
+    public function show(ContentItem $contentItem, \App\Services\PicResolver $picResolver, UserContentResolver $contentResolver)
     {
         $contentItem->load([
             'client',
@@ -35,17 +34,16 @@ class ContentItemController extends Controller
             'contentBriefDraft.takeByUser',
         ]);
 
-        // Kandidat reassign PIC sekarang dari TeamMember client ini (lewat
-        // team_member_client) - bukan lagi User/assignedClients (Langkah
-        // "Final Fix Batch" A4, sama alasan dengan fix A1 di Content Plan:
-        // domain PIC operasional = TeamMember, User cuma akun sistem
-        // opsional). Diurutkan dari yang paling longgar (task aktif paling
-        // sedikit) lewat TeamMemberContentResolver - satu sumber kebenaran
-        // yang sama dipakai Performa Tim, bukan hitung ulang di sini.
-        $reassignCandidates = $contentItem->client->teamMembers()->with('user.roles')->orderBy('name')->get();
+        // Kandidat reassign PIC dari User yang di-assign ke client ini lewat
+        // user_client_assignments ("satu orang = satu record", tidak ada
+        // TeamMember terpisah lagi). Diurutkan dari yang paling longgar
+        // (task aktif paling sedikit) lewat UserContentResolver - satu
+        // sumber kebenaran yang sama dipakai Performa Tim, bukan hitung
+        // ulang di sini.
+        $reassignCandidates = $contentItem->client->assignedUsers()->with('role')->orderBy('name')->get();
         $activeCountsByMember = $contentResolver->resolveContentItems($reassignCandidates)
             ->map(fn ($items) => $items->filter(fn ($item) => $item->workflow && ! in_array($item->workflow->current_status, $this->doneStatuses))->count());
-        $reassignCandidates = $reassignCandidates->sortBy(fn (TeamMember $tm) => $activeCountsByMember->get($tm->id, 0))->values();
+        $reassignCandidates = $reassignCandidates->sortBy(fn (User $user) => $activeCountsByMember->get($user->id, 0))->values();
 
         $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
         $canApprove = auth()->user()->hasPermissionTo('workflow', 'approve');
@@ -215,44 +213,32 @@ class ContentItemController extends Controller
     public function reassign(ContentItem $contentItem, Request $request, DelayRiskPredictionService $delayRiskService)
     {
         $validated = $request->validate([
-            'team_member_id' => 'required|exists:team_members,id',
+            'pic_user_id' => 'required|exists:users,id',
         ]);
 
-        // Jangan percaya ID dari form saja - TeamMember harus beneran
-        // terkait client konten ini, sama pola validasi dengan A1 di
-        // ContentPlanController::storeItem().
-        $teamMember = TeamMember::where('id', $validated['team_member_id'])
-            ->whereHas('clients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
+        // Jangan percaya ID dari form saja - User harus beneran terkait
+        // client konten ini lewat user_client_assignments, sama pola
+        // validasi dengan A1 di ContentPlanController::storeItem().
+        $user = User::where('id', $validated['pic_user_id'])
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
             ->first();
-        abort_unless($teamMember, 422, 'PIC operasional yang dipilih tidak terkait dengan client ini.');
+        abort_unless($user, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
 
         $workflow = $contentItem->workflow;
-        $workflow->update(['current_pic_id' => $teamMember->user_id]);
+        $workflow->update(['current_pic_id' => $user->id]);
 
         $contentItem->update([
-            'external_pic_name' => $teamMember->name,
-            'external_pic_email' => $teamMember->email,
+            'external_pic_name' => $user->name,
+            'external_pic_email' => $user->email,
         ]);
 
-        if ($teamMember->user_id) {
-            ContentItemAssignment::updateOrCreate(
-                ['content_item_id' => $contentItem->id, 'assignment_role' => 'primary'],
-                ['user_id' => $teamMember->user_id]
-            );
-        } else {
-            // TeamMember baru belum punya akun sistem - hapus assignment
-            // User lama biar nggak nyangkut nunjukkin PIC lama sebagai
-            // assignee saat ini, sedangkan current_pic_id sudah null di
-            // atas. content_item_assignments cuma nyimpen state SAAT INI
-            // (1 baris per role, bukan audit trail - histori beneran ada di
-            // content_status_logs/content_revisions), jadi aman dihapus.
-            ContentItemAssignment::where('content_item_id', $contentItem->id)
-                ->where('assignment_role', 'primary')
-                ->delete();
-        }
+        ContentItemAssignment::updateOrCreate(
+            ['content_item_id' => $contentItem->id, 'assignment_role' => 'primary'],
+            ['user_id' => $user->id]
+        );
 
         $delayRiskService->predictForItems([$contentItem->id]);
 
-        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$teamMember->name}.");
+        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$user->name}.");
     }
 }

@@ -83,21 +83,21 @@
                     <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk klien ini.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
+                        <table class="w-full table-fixed text-sm text-left">
                             <thead class="bg-[var(--surface-page)]">
                                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                    <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                                    <th class="w-[38%] px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                    <th class="w-[15%] px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
+                                    <th class="w-[18%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                                    <th class="w-[29%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($recentContentItems as $item)
                                     <tr class="border-t border-[var(--surface-muted)]">
-                                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item->title }}</td>
-                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
-                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
+                                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</td>
+                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->contentType->name ?? '-' }}</td>
+                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
                                         <td class="px-4 py-3.5">
                                             <span class="badge {{ ($item->workflow->is_overdue ?? false) ? 'badge-danger' : 'badge-success' }}">
                                                 {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
@@ -284,47 +284,19 @@
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Tim yang Menangani</h2>
-                </div>
-
-                {{-- TeamMember real (dari GUIDE/import Content Planner) yang menangani
-                     client ini lewat team_member_client - domain TERPISAH dari "Akun
-                     Sistem yang Ditugaskan" di bawah. TIDAK ada konsep "Primary PIC"
-                     tunggal di sini (audit membuktikan workbook sumber cuma punya 1
-                     nama per client sebagai snapshot account-manager historis, BUKAN
-                     bukti kuat siapa satu-satunya penanggung jawab permanen - beberapa
-                     client real terbukti ditangani lebih dari 1 orang). --}}
-                @if ($client->teamMembers->isEmpty())
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada anggota tim tercatat untuk client ini.</p>
-                @else
-                    <div class="space-y-2.5">
-                        @foreach ($client->teamMembers as $tm)
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-7 h-7 rounded-full bg-[var(--brand-solid)] text-white flex items-center justify-center text-xs font-semibold shrink-0 overflow-hidden">
-                                    @if ($tm->user?->avatar_url)
-                                        <img src="{{ $tm->user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-full h-full object-cover">
-                                    @else
-                                        {{ strtoupper(substr($tm->name, 0, 1)) }}
-                                    @endif
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $tm->name }}</p>
-                                    <p class="text-xs text-[var(--text-muted)] truncate">{{ $tm->user ? $tm->user->roleNamesLabel() : 'Belum punya akun sistem' }}</p>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-
-            <div class="card p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Akun Sistem yang Ditugaskan</h2>
                     <button type="button" @click="showPicModal = true" {{ $canManageClient ? '' : 'disabled' }}
-                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur akun sistem' }}"
+                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur tim' }}"
                             class="text-xs font-medium text-[var(--brand)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">Atur</button>
                 </div>
-                <p class="text-[11px] text-[var(--text-muted)] mb-3">Menentukan siapa yang punya akses lihat/kelola data client ini di sistem - bukan daftar tim operasional (lihat "Tim yang Menangani" di atas).</p>
 
+                {{-- Satu-satunya sumber "siapa yang menangani client ini"
+                     (user_client_assignments) - "satu orang = satu record",
+                     tidak ada domain TeamMember terpisah lagi. TIDAK ada
+                     konsep "Primary PIC" tunggal di sini (audit membuktikan
+                     workbook sumber cuma punya 1 nama per client sebagai
+                     snapshot account-manager historis, BUKAN bukti kuat
+                     siapa satu-satunya penanggung jawab permanen - beberapa
+                     client real terbukti ditangani lebih dari 1 orang). --}}
                 @if ($client->assignedUsers->isEmpty())
                     <p class="text-sm text-[var(--text-muted)]">Belum ada akun sistem yang ditugaskan ke client ini.</p>
                 @else

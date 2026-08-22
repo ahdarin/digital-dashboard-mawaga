@@ -78,6 +78,16 @@
                             <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Deadline</p>
                             <p class="text-[var(--text-secondary)]">{{ $contentItem->deadline_at->format('d M Y, H:i') }}</p>
                         </div>
+                        <div>
+                            <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Tipe</p>
+                            <p class="text-[var(--text-secondary)]">{{ $contentItem->contentType->name ?? '-' }}</p>
+                        </div>
+                        @if ($contentItem->content_format)
+                            <div>
+                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Format</p>
+                                <p class="text-[var(--text-secondary)]">{{ $contentItem->content_format }}</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -453,11 +463,11 @@
                                 @php $candidateActiveCount = $activeCountsByMember[$candidate->id] ?? 0; @endphp
                                 <label class="flex items-center justify-between gap-3 p-3 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-page)] cursor-pointer">
                                     <div class="flex items-center gap-3 min-w-0">
-                                        <input type="radio" name="team_member_id" value="{{ $candidate->id }}"
+                                        <input type="radio" name="pic_user_id" value="{{ $candidate->id }}"
                                                class="border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $candidate->name }}</p>
-                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->user ? $candidate->user->roleNamesLabel() : 'Belum punya akun sistem' }}</p>
+                                            <p class="text-xs text-[var(--text-muted)]">{{ $candidate->roleNamesLabel() }}{{ $candidate->login_enabled ? '' : ' (belum memiliki akses dashboard)' }}</p>
                                         </div>
                                     </div>
                                     <span class="badge {{ $candidateActiveCount > 8 ? 'badge-danger' : 'badge-success' }} shrink-0">

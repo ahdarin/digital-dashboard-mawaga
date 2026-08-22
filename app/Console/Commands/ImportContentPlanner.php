@@ -175,11 +175,25 @@ class ImportContentPlanner extends Command
                 $pillarName = trim((string) $sheet->getCell("H{$r}")->getValue());
                 $jenis = trim((string) $sheet->getCell("I{$r}")->getValue());
                 $title = trim((string) $sheet->getCell("J{$r}")->getValue());
-                $briefCell = $sheet->getCell("K{$r}");
+                // Brief/Output hyperlinks MUST be extracted atomically at
+                // fetch time (Langkah "Excel Coverage Audit" - proven bug):
+                // a PhpSpreadsheet Cell object returned by getCell() goes
+                // STALE the instant another getCell() call happens on the
+                // same worksheet - calling ->getHyperlink() on a held-onto
+                // Cell reference later silently returns whatever cell was
+                // MOST RECENTLY fetched (e.g. column S), not K/R. Holding
+                // $briefCell/$outputLinkCell across the L/O/P/S reads below
+                // (as this code used to do) made every real Brief/Output URL
+                // resolve to null or a wrong neighboring cell - confirmed via
+                // reproduction, root cause of 247/247 imported rows having
+                // brief=NULL/content_file_link=NULL despite real hyperlinks
+                // existing in the source file. Extract-then-store as a plain
+                // string immediately, never keep the Cell object around.
+                $briefUrl = $this->extractHyperlink($sheet->getCell("K{$r}"));
+                $outputLinkUrl = $this->extractHyperlink($sheet->getCell("R{$r}"));
                 $caption = trim((string) $sheet->getCell("L{$r}")->getValue());
                 $uploadDateRaw = $sheet->getCell("O{$r}")->getValue();
                 $uploadTimeRaw = $sheet->getCell("P{$r}")->getValue();
-                $outputLinkCell = $sheet->getCell("R{$r}");
                 $uploadedTiktok = trim((string) $sheet->getCell("S{$r}")->getValue());
 
                 // Baris junk (teks instruksi template yang nyasar ke kolom
@@ -353,9 +367,9 @@ class ImportContentPlanner extends Command
                     'client_id' => $clientId,
                     'content_plan_id' => $contentPlan?->id,
                     'platform_id' => $platform?->id,
-                    'brief_url' => $this->extractHyperlink($briefCell),
+                    'brief_url' => $briefUrl,
                     'caption' => $caption !== '' ? $caption : null,
-                    'output_link_url' => $this->extractHyperlink($outputLinkCell),
+                    'output_link_url' => $outputLinkUrl,
                     'scheduled_upload_at' => $scheduledUploadAt,
                     'identity_key' => $identityKey,
                     'valid' => $isValid,
@@ -399,7 +413,7 @@ class ImportContentPlanner extends Command
         // sistem" - pola SAMA PERSIS dipakai DemoSeeder ($picUser fallback).
         // TIDAK dipakai buat current_pic_id (itu tetap null kalau memang
         // unresolved - jangan salah tempatkan tanggung jawab).
-        $systemActorId = User::whereHas('roles', fn ($q) => $q->where('name', 'CEO'))->first()?->id
+        $systemActorId = User::whereHas('role', fn ($q) => $q->where('name', 'CEO'))->first()?->id
             ?? User::first()?->id;
 
         if (! $systemActorId) {
@@ -426,6 +440,12 @@ class ImportContentPlanner extends Command
                     'client_id' => $row['client_id'],
                     'content_pillar_id' => $row['pillar_id'],
                     'content_type_id' => $row['content_type_id'],
+                    // Kolom Excel "Jenis" - dipreservasi apa adanya, TANPA
+                    // menebak nilai kosong (Langkah "Excel Coverage Audit
+                    // Pre-Freeze Cleanup"). ContentType tetap yang menjawab
+                    // "Desain atau Video?"; ini menjawab "format output-nya
+                    // apa?" (Single Feed/Carousel Feed/dst).
+                    'content_format' => $row['jenis_raw'] !== '' ? $row['jenis_raw'] : null,
                     'platform_id' => $row['platform_id'],
                     'title' => $row['title'],
                     'brief' => $row['brief_url'],
@@ -463,7 +483,7 @@ class ImportContentPlanner extends Command
 
                 if ($row['pic_resolved_user_id']) {
                     // Role assignment dari prefix Kode (C=Content Creator,
-                    // D=Graphic Designer) - konsisten dengan konvensi
+                    // D=Desain Grafis) - konsisten dengan konvensi
                     // 'content_creator'/'designer' yang sudah dipakai di
                     // seluruh sistem (lihat DemoSeeder/MasterDataSeeder).
                     $assignmentRole = str_starts_with(strtoupper($row['code']), 'D') ? 'designer' : 'content_creator';
@@ -609,10 +629,36 @@ class ImportContentPlanner extends Command
         };
     }
 
+    /**
+     * Deterministic URL extraction, priority: (1) hyperlink relationship -
+     * covers 100% of real Brief/Output links in the current workbook
+     * (confirmed via audit: 235/247 brief + 215/247 output, rest genuinely
+     * empty), (2) HYPERLINK() formula target, (3) plain-text http/https URL
+     * - defensive fallback for a future workbook export that doesn't use
+     * Excel/Sheets hyperlink relationships. Never infer a URL from non-URL
+     * text. MUST be called with a freshly-fetched Cell (see call sites -
+     * holding a Cell object across another getCell() call on the same sheet
+     * makes it go stale).
+     */
     private function extractHyperlink(Cell $cell): ?string
     {
-        $hyperlink = $cell->getHyperlink();
-        $url = $hyperlink->getUrl();
-        return $url !== '' ? $url : null;
+        $hyperlinkUrl = $cell->getHyperlink()->getUrl();
+        if ($hyperlinkUrl !== '') {
+            return $hyperlinkUrl;
+        }
+
+        $raw = $cell->getValue();
+        if (is_string($raw) && str_starts_with($raw, '=') && stripos($raw, 'HYPERLINK') !== false) {
+            if (preg_match('/HYPERLINK\s*\(\s*"([^"]+)"/i', $raw, $m)) {
+                return $m[1];
+            }
+        }
+
+        $displayValue = trim((string) $cell->getCalculatedValue());
+        if (preg_match('#^https?://\S+$#i', $displayValue)) {
+            return $displayValue;
+        }
+
+        return null;
     }
 }

@@ -41,7 +41,7 @@ class NotificationService
      */
     public static function notifyPlanApprovers(\App\Models\ContentPlan $contentPlan): void
     {
-        $approvers = User::whereHas('roles', fn ($q) => $q->whereHas('permissions', fn ($p) => $p->where('module', 'content_plan')->where('action', 'approve')))
+        $approvers = User::whereHas('role', fn ($q) => $q->whereHas('permissions', fn ($p) => $p->where('module', 'content_plan')->where('action', 'approve')))
             ->where('status', 'active')
             ->where('id', '!=', $contentPlan->created_by)
             ->get();
@@ -63,7 +63,7 @@ class NotificationService
      */
     public static function notifyInternalCheckers(ContentItem $contentItem): void
     {
-        $checkers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['Manager', 'SMO']))
+        $checkers = User::whereHas('role', fn ($q) => $q->whereIn('name', ['Manager', 'SMO']))
             ->where('status', 'active')
             ->get();
 

@@ -6,7 +6,6 @@ use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentWorkflow;
-use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
@@ -43,11 +42,11 @@ class DashboardController extends Controller
         $activeClients = Client::where('status', 'active')->count();
         $newClientsThisMonth = Client::where('created_at', '>=', $startOfThisMonth)->count();
 
-        // TeamMember = roster tim operasional real (Langkah "Performa Tim -
-        // migrasi domain User ke TeamMember"), bukan lagi User - samakan
-        // dengan Team page/Performa Tim, biar KPI ini nggak sendirian masih
-        // pakai domain lama (User cuma akun sistem, jumlahnya jauh lebih kecil).
-        $activeTeam = TeamMember::count();
+        // User internal staff (client_id NULL) = roster tim operasional real
+        // ("satu orang = satu record", tidak ada TeamMember terpisah lagi) -
+        // TIDAK difilter login_enabled, jabatan operasional tidak bergantung
+        // pada akses login.
+        $activeTeam = User::whereNull('client_id')->count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
         $viewsThisMonth = (int) ContentMetric::whereHas('contentItem')
@@ -83,7 +82,7 @@ class DashboardController extends Controller
             [
                 'label' => 'Tim Aktif',
                 'value' => number_format($activeTeam),
-                'change' => 'Anggota internal berstatus aktif',
+                'change' => 'Total staf internal (dengan/tanpa akses login)',
                 'trend' => 'flat',
                 'icon' => 'badge',
                 'link' => route('team-performance.index'),

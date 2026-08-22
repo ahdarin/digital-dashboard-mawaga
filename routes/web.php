@@ -151,20 +151,17 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
-        Route::put('/user-management/{user}/roles', [UserManagementController::class, 'updateRoles'])->name('user-management.roles.update');
+        // Kelola Tim - primary entity User ("satu orang = satu record",
+        // keputusan final user). Edit Role -> User.role_id (satu-satunya
+        // role di sistem, dipakai langsung buat authorization - lihat
+        // User::hasPermissionTo()). Assign Klien -> user_client_assignments
+        // langsung (satu-satunya sumber "client yang ditangani", bukan dua
+        // pivot terpisah lagi).
+        Route::put('/user-management/{user}/role', [UserManagementController::class, 'updateRole'])
+            ->name('user-management.role.update');
+        Route::put('/user-management/{user}/clients', [UserManagementController::class, 'updateClientAssignments'])
+            ->name('user-management.clients.update');
 
-        // Kelola Tim - primary entity TeamMember (Langkah "Kelola Tim
-        // Actions fix"): Edit Role & Assign Klien di row TeamMember WAJIB
-        // mengedit TeamMember (operational_role/team_member_client), bukan
-        // User - sebelumnya row TeamMember malah membuka modal yang
-        // mengedit User terkait, jadi 1 row nyampur 2 entity berbeda.
-        Route::put('/team-members/{teamMember}/operational-role', [UserManagementController::class, 'updateOperationalRole'])
-            ->name('team-members.operational-role.update');
-        Route::put('/team-members/{teamMember}/clients', [UserManagementController::class, 'updateTeamMemberClients'])
-            ->name('team-members.clients.update');
-
-        Route::put('/user-management/{user}/clients', [UserClientAssignmentController::class, 'update'])
-            ->name('user-client-assignment.update');
         Route::put('/client-management/{client}/pic', [UserClientAssignmentController::class, 'updateForClient'])
             ->name('client-management.pic.update');
         Route::delete('/client-management/{client}/pic/{user}', [UserClientAssignmentController::class, 'removeFromClient'])

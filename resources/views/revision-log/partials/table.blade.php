@@ -2,15 +2,15 @@
      Expects: $revisions, $selectedStatus --}}
 <div class="card overflow-hidden">
     <div class="overflow-x-auto hidden sm:block">
-        <table class="w-full text-sm text-left">
+        <table class="w-full table-fixed text-sm text-left">
             <thead class="bg-[var(--surface-page)]">
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Konten</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Round</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Catatan</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Diminta Oleh</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                    <th class="w-[20%] px-6 py-3 font-medium whitespace-nowrap">Konten</th>
+                    <th class="w-[14%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                    <th class="w-[9%] px-4 py-3 font-medium whitespace-nowrap">Round</th>
+                    <th class="w-[26%] px-4 py-3 font-medium whitespace-nowrap">Catatan</th>
+                    <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Diminta Oleh</th>
+                    <th class="w-[15%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -26,13 +26,13 @@
                     <tr x-show="matches('{{ addslashes($revision->contentItem->title) }}', '{{ addslashes($revision->contentItem->client->name ?? '') }}', '{{ addslashes($revision->revision_note) }}')"
                         onclick="navigateTo('{{ route('content-items.show', $revision->contentItem) }}')"
                         class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer">
-                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
+                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $revision->contentItem->title }}">
                             {{ $revision->contentItem->title }}
                         </td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $revision->contentItem->client->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $revision->contentItem->client->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">Revisi #{{ $revision->revision_round }}</td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] max-w-xs truncate">{{ $revision->revision_note }}</td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $revision->requestedBy->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $revision->revision_note }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $revision->requestedBy->name ?? '-' }}</td>
                         <td class="px-4 py-3.5">
                             <span class="badge {{ $revStatusStyle['class'] }}">{{ $revStatusStyle['label'] }}</span>
                         </td>

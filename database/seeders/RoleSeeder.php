@@ -14,7 +14,7 @@ class RoleSeeder extends Seeder
             'CEO',
             'Manager',
             'Content Creator',
-            'Graphic Designer',
+            'Desain Grafis',
             'SMO',
             'Copywriter',
             'Client Owner',

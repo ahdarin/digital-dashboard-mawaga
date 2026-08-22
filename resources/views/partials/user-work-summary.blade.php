@@ -57,13 +57,13 @@
             <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Task ({{ $assignments->count() }})</h2>
         </div>
         <div class="overflow-auto max-h-[420px] thin-autohide-scrollbar hidden sm:block">
-            <table class="w-full text-sm text-left">
+            <table class="w-full table-fixed text-sm text-left">
                 <thead class="bg-[var(--surface-page)] text-[var(--text-muted)] text-[11px] uppercase tracking-wide sticky top-0 z-10">
                     <tr>
-                        <th class="px-6 py-3 font-medium">Konten</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Risiko Terlambat</th>
+                        <th class="w-[42%] px-6 py-3 font-medium">Konten</th>
+                        <th class="w-[21%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                        <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                        <th class="w-[21%] px-4 py-3 font-medium whitespace-nowrap">Risiko</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -82,18 +82,18 @@
                         <tr class="border-t border-[var(--surface-muted)] transition-colors cursor-pointer {{ $isPinned ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)]' : 'hover:bg-[var(--surface-page)]' }}"
                             onclick="navigateTo('{{ route('content-items.show', $item) }}')">
                             <td class="px-6 py-3.5">
-                                <div class="flex items-start gap-2">
+                                <div class="flex items-start gap-2 min-w-0">
                                     @if ($showPinButton)
                                         <x-pin-button :item="$item" :pinned="$isPinned" class="mt-0.5" />
                                     @endif
                                     <div class="min-w-0">
-                                        <p class="font-medium text-[var(--text-primary)] truncate max-w-[280px]">{{ $item->title }}</p>
-                                        <p class="text-xs text-[var(--text-muted)] truncate max-w-[280px]">{{ $item->client->name ?? '-' }}</p>
+                                        <p class="font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</p>
+                                        <p class="text-xs text-[var(--text-muted)] truncate">{{ $item->client->name ?? '-' }}</p>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-4 py-3.5">
-                                <div class="flex items-center gap-1.5 whitespace-nowrap">
+                                <div class="flex items-center gap-1.5 flex-wrap">
                                     <span class="badge badge-success">
                                         {{ $statusLabels[$item->workflow->current_status] ?? $item->workflow->current_status }}
                                     </span>

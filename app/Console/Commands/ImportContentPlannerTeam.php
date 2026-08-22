@@ -3,17 +3,23 @@
 namespace App\Console\Commands;
 
 use App\Models\Client;
-use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 /**
- * Import roster tim REAL dari sheet GUIDE (Content Planner XLSX) ke
- * TeamMember - TERPISAH dari User (audit "Real Data Only - Team koreksi"
- * Agustus 2026): GUIDE cuma daftar nama+email per client, BUKAN roster akun
- * login. Orang di GUIDE yang belum punya User TETAP harus tercatat sebagai
- * anggota tim real, bukan dipaksa jadi akun dengan password fabrikasi.
+ * Import roster tim REAL dari sheet GUIDE (Content Planner XLSX) langsung ke
+ * User internal staff ("satu orang = satu record", tidak ada TeamMember
+ * terpisah lagi - keputusan final Agustus 2026). GUIDE cuma daftar
+ * nama+email per client, BUKAN roster akun login - orang di GUIDE yang
+ * belum punya akses login TETAP dibuatkan User real (login_enabled=false),
+ * bukan dipaksa jadi akun dengan password fabrikasi, dan BUKAN dummy
+ * creation (Section 29 - staff real GUIDE wajib tercatat sebagai person
+ * nyata di sistem).
+ *
+ * Exact-email-only matching, TIDAK PERNAH fuzzy - kalau nama GUIDE cocok
+ * dengan User existing tapi emailnya beda, baris itu ditandai CONFLICT dan
+ * DILEWATI di real import (dilaporkan, bukan digabung/ditebak).
  *
  * Client assignment TIDAK cuma diambil dari 1 baris GUIDE orang itu -
  * di-cross-reference ke SELURUH sheet client (kolom PIC/email tiap baris
@@ -28,7 +34,7 @@ class ImportContentPlannerTeam extends Command
         {path : Path ke file .xlsx, relatif ke storage/app atau absolut}
         {--dry-run : WAJIB dipakai dulu - zero database write, cuma laporan}';
 
-    protected $description = 'Import roster tim real dari sheet GUIDE ke TeamMember (dry-run WAJIB sebelum real import)';
+    protected $description = 'Import roster tim real dari sheet GUIDE langsung ke User internal staff (dry-run WAJIB sebelum real import)';
 
     private const IMPORT_SOURCE = 'content_planner_guide';
 
@@ -57,7 +63,6 @@ class ImportContentPlannerTeam extends Command
         $people = $this->extractGuidePeople($guideSheet);
         $clientEmailMap = $this->scanContentSheetsForEmails($spreadsheet);
 
-        $existingByEmail = TeamMember::whereNotNull('email')->pluck('id', 'email');
         $usersByEmailLower = [];
         foreach (User::all(['id', 'email']) as $u) {
             if ($u->email) $usersByEmailLower[strtolower(trim($u->email))] = $u->id;
@@ -71,20 +76,20 @@ class ImportContentPlannerTeam extends Command
         foreach ($people as $p) {
             $emailKey = $p['email'] ? strtolower($p['email']) : null;
 
+            $linkedUserId = $emailKey && isset($usersByEmailLower[$emailKey]) ? $usersByEmailLower[$emailKey] : null;
+
             $classification = 'NEW';
             if ($emailKey === null || $p['name'] === '') {
                 $classification = 'INVALID_ROW';
-            } elseif (isset($existingByEmail[$p['email']])) {
+            } elseif ($linkedUserId) {
                 $classification = 'EXISTING';
             }
-
-            $linkedUserId = $emailKey && isset($usersByEmailLower[$emailKey]) ? $usersByEmailLower[$emailKey] : null;
 
             $conflict = null;
             if (! $linkedUserId && $emailKey) {
                 $nameKey = strtolower($p['name']);
                 if (isset($usersByNameLower[$nameKey])) {
-                    $conflict = "nama '{$p['name']}' cocok dengan User existing (id={$usersByNameLower[$nameKey]}), tapi email GUIDE ({$p['email']}) beda dari email User tsb - TIDAK di-link otomatis.";
+                    $conflict = "nama '{$p['name']}' cocok dengan User existing (id={$usersByNameLower[$nameKey]}), tapi email GUIDE ({$p['email']}) beda dari email User tsb - TIDAK di-merge otomatis.";
                 }
             }
 
@@ -248,49 +253,54 @@ class ImportContentPlannerTeam extends Command
     {
         $created = 0;
         $existing = 0;
-        $linked = 0;
         $skippedInvalid = 0;
+        $skippedConflict = 0;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($rows, &$created, &$existing, &$linked, &$skippedInvalid) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($rows, &$created, &$existing, &$skippedInvalid, &$skippedConflict) {
             foreach ($rows as $r) {
                 if ($r['classification'] === 'INVALID_ROW') {
                     $skippedInvalid++;
                     continue;
                 }
 
-                $teamMember = TeamMember::firstOrCreate(
+                // Identity ambigu (nama cocok User existing, email GUIDE
+                // beda) - STOP khusus baris ini, jangan fuzzy-merge. Sudah
+                // dilaporkan lewat printSummary() di atas.
+                if ($r['conflict']) {
+                    $skippedConflict++;
+                    continue;
+                }
+
+                // User adalah satu-satunya entity person ("satu orang = satu
+                // record") - GUIDE person yang emailnya sudah match User
+                // existing (login-enabled atau tidak) dianggap orang yang
+                // sama, bukan dibuatkan record baru. Staff baru dari GUIDE
+                // dibuat dengan login_enabled=false (bukan dummy - ini
+                // person real, cuma belum diberi akses login).
+                $user = User::firstOrCreate(
                     ['email' => $r['email']],
                     [
                         'name' => $r['name'],
+                        // 'active' - orang GUIDE ini staf real yang sedang
+                        // bekerja, cuma belum diberi akses login. 'inactive'
+                        // salah dipakai di sini sebelumnya - itu berarti
+                        // "dinonaktifkan/resign", bukan "belum login".
+                        'status' => 'active',
+                        'login_enabled' => false,
                         'source' => self::IMPORT_SOURCE,
                         'external_reference' => $r['external_reference'],
-                        'user_id' => $r['linked_user_id'],
                     ]
                 );
 
-                // Sinkronisasi system role User terhubung ke operational_role
-                // (kalau sudah di-backfill) ditangani otomatis oleh
-                // TeamMemberObserver - baik lewat create() di atas maupun
-                // update() di bawah, jadi tidak perlu dipanggil manual di sini.
-                if ($teamMember->wasRecentlyCreated) {
+                if ($user->wasRecentlyCreated) {
                     $created++;
                 } else {
                     $existing++;
-                    // Idempotent re-run - link user_id kalau belum ke-set
-                    // sebelumnya tapi sekarang deterministic ketemu (mis.
-                    // User-nya baru dibuat setelah TeamMember-nya).
-                    if (! $teamMember->user_id && $r['linked_user_id']) {
-                        $teamMember->update(['user_id' => $r['linked_user_id']]);
-                    }
-                }
-
-                if ($r['linked_user_id']) {
-                    $linked++;
                 }
 
                 foreach ($r['client_ids'] as $clientId) {
                     if (Client::find($clientId)) {
-                        $teamMember->clients()->syncWithoutDetaching([$clientId]);
+                        $user->assignedClients()->syncWithoutDetaching([$clientId]);
                     }
                 }
             }
@@ -298,9 +308,9 @@ class ImportContentPlannerTeam extends Command
 
         $this->newLine();
         $this->info('=== REAL IMPORT SELESAI ===');
-        $this->line("TeamMember dibuat: {$created}");
-        $this->line("TeamMember sudah ada sebelumnya: {$existing}");
-        $this->line("Ter-link ke User: {$linked}");
+        $this->line("User dibuat: {$created}");
+        $this->line("User sudah ada sebelumnya (matched by email): {$existing}");
         $this->line("Dilewati (invalid row): {$skippedInvalid}");
+        $this->line("Dilewati (email conflict, perlu review manual): {$skippedConflict}");
     }
 }

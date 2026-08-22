@@ -12,13 +12,13 @@
         <p class="text-xs text-[var(--text-muted)] mt-1">Konten yang briefnya belum diterapkan ke tim produksi - baik yang belum digarap sama sekali maupun yang masih draft/diskusi.</p>
     </div>
     <div class="overflow-auto max-h-[520px] thin-autohide-scrollbar hidden sm:block">
-        <table class="w-full text-sm text-left">
+        <table class="w-full table-fixed text-sm text-left">
             <thead class="bg-[var(--surface-page)] text-[var(--text-muted)] text-[11px] uppercase tracking-wide sticky top-0 z-10">
                 <tr>
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Konten</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Status Brief</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                    <th class="w-[38%] px-6 py-3 font-medium whitespace-nowrap">Konten</th>
+                    <th class="w-[22%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                    <th class="w-[22%] px-4 py-3 font-medium whitespace-nowrap">Status Brief</th>
+                    <th class="w-[18%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,15 +34,15 @@
                     @endphp
                     <tr class="border-t border-[var(--surface-muted)] transition-colors cursor-pointer {{ $isPinned ? 'bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)]' : 'hover:bg-[var(--surface-page)]' }}"
                         onclick="navigateTo('{{ route('content-items.show', $item) }}')">
-                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
-                            <div class="flex items-center gap-2">
+                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)]">
+                            <div class="flex items-center gap-2 min-w-0">
                                 @if ($showPinButton)
                                     <x-pin-button :item="$item" :pinned="$isPinned" />
                                 @endif
-                                <span>{{ $item->title }}</span>
+                                <span class="truncate" title="{{ $item->title }}">{{ $item->title }}</span>
                             </div>
                         </td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->client->name ?? '-' }}</td>
                         <td class="px-4 py-3.5">
                             <span class="badge {{ $briefStatus['class'] }}">
                                 {{ $briefStatus['label'] }}

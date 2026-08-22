@@ -72,26 +72,26 @@
 
     <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
+        <table class="w-full table-fixed text-sm text-left">
             <thead class="bg-[var(--surface-page)]">
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Detail Item</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Kategori</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Penanggung Jawab</th>
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                    <th class="w-[30%] px-6 py-3 font-medium">Detail Item</th>
+                    <th class="w-[13%] px-4 py-3 font-medium">Kategori</th>
+                    <th class="w-[10%] px-4 py-3 font-medium">Platform</th>
+                    <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                    <th class="w-[17%] px-4 py-3 font-medium">Penanggung Jawab</th>
+                    <th class="w-[13%] px-6 py-3 font-medium">Status</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($items as $item)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
                         onclick="navigateTo('{{ route('content-items.show', $item) }}')">
-                        <td class="px-6 py-3.5 whitespace-nowrap">
-                            <p class="font-medium text-[var(--text-primary)]">{{ $item->title }}</p>
-                            <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                        <td class="px-6 py-3.5">
+                            <p class="font-medium text-[var(--text-primary)] line-clamp-2" title="{{ $item->title }}">{{ $item->title }}</p>
+                            <p class="text-xs text-[var(--text-muted)] mt-0.5 truncate">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
                         </td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
+                        <td class="px-4 py-3.5">
                             @php
                                 $typeColor = match ($item->contentType->name ?? null) {
                                     'Video' => '#3452a8',
@@ -102,18 +102,21 @@
                             <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
                                 {{ $item->contentType->name ?? '-' }}
                             </span>
+                            @if ($item->content_format)
+                                <span class="block text-[10px] text-[var(--text-muted)] mt-1">{{ $item->content_format }}</span>
+                            @endif
                         </td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->deadline_at->format('d M Y') }}</td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
+                        <td class="px-4 py-3.5">
                             @php $pic = $picResolver->resolve($item); @endphp
                             @if ($pic['name'])
-                                <span class="text-xs text-[var(--text-secondary)]">{{ $pic['name'] }}</span>
+                                <span class="text-xs text-[var(--text-secondary)] block truncate" title="{{ $pic['name'] }}">{{ $pic['name'] }}</span>
                                 @if (! $pic['has_account'])
                                     <span class="block text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
                                 @endif
                             @else
-                                <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
+                                <span class="text-xs text-[var(--text-muted)] italic">Belum ditugaskan</span>
                             @endif
                         </td>
                         <td class="px-6 py-3.5">
@@ -165,6 +168,12 @@
                             {{ $item->contentType->name ?? '-' }}
                         </span>
                     </div>
+                    @if ($item->content_format)
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-[var(--text-muted)]">Format</span>
+                            <span class="text-[var(--text-primary)] font-medium">{{ $item->content_format }}</span>
+                        </div>
+                    @endif
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Platform</span>
                         <span class="text-[var(--text-primary)] font-medium">{{ $item->platform->name ?? '-' }}</span>

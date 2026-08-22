@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Mail\UserInvitationMail;
 use App\Models\Client;
 use App\Models\Role;
-use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\PicReassignmentService;
 use App\Support\WorkflowTransitions;
@@ -17,38 +16,43 @@ use Illuminate\Validation\Rule;
 class UserManagementController extends Controller
 {
     /**
-     * Canonical operational role values (Langkah "Final Fix Batch - revisi
-     * ROLE") - dropdown tetap, bukan free text, biar konsisten dengan 13
-     * TeamMember real yang sudah di-backfill dengan salah satu nilai ini.
+     * "Satu orang = satu record" (keputusan final user, Agustus 2026) -
+     * User adalah satu-satunya entity person, tidak ada TeamMember terpisah
+     * lagi. Kelola Tim query LANGSUNG ke User internal staff (client_id
+     * NULL) - roster real dari GUIDE/manual, terlepas dari apakah mereka
+     * punya akses login (login_enabled) atau tidak. Role dari
+     * User.role_id (satu-satunya role di sistem), Client Ditangani dari
+     * user_client_assignments (satu-satunya sumber, bukan dua pivot
+     * terpisah lagi).
      */
-    private const OPERATIONAL_ROLES = ['CEO', 'Manager', 'Desain Grafis', 'SMO', 'Content Creator'];
-
     public function index(Request $request)
     {
         $this->authorizeManage();
 
-        // SATU tabel, TeamMember sebagai primary dataset (Langkah "Final Fix
-        // Batch - revisi ROLE") - bukan lagi 2 tab Tim/Akun Sistem. Role
-        // ditampilkan dari TeamMember.operational_role (role operasional
-        // real), BUKAN users.roles (itu domain authorization terpisah -
-        // TeamMember boleh tidak punya User sama sekali). Client Ditangani
-        // pakai team_member_client, bukan user_client_assignments.
-        $teamMembers = TeamMember::with([
-            'clients',
-            'user' => fn ($q) => $q->with(['roles', 'assignedClients'])
-                ->withCount(['currentWorkflows as active_task_count' => fn ($qq) => $qq->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)]),
-        ])->orderBy('name')->get();
+        $users = User::whereNull('client_id')
+            ->with(['role', 'assignedClients'])
+            ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
+            ->orderBy('name')
+            ->get();
 
         $allClients = Client::where('status', 'active')->orderBy('name')->get();
+        // Master Role asli (bukan daftar hardcoded) - otomatis mencakup
+        // Copywriter juga, Client Owner dikecualikan (domain client portal
+        // terpisah, bukan staf internal).
         $roles = Role::whereNotIn('name', ['Client Owner'])->get();
         // Kandidat pengganti buat modal nonaktifkan - staff aktif lain,
         // dipopulasi selalu (bukan cuma pas ada yang nonaktifkan) biar
         // dropdown-nya nggak perlu request tambahan per baris.
         $replacementOptions = User::whereNull('client_id')->where('status', 'active')->orderBy('name')->get();
 
-        return view('user-management.index', compact('teamMembers', 'allClients', 'roles', 'replacementOptions'));
+        return view('user-management.index', compact('users', 'allClients', 'roles', 'replacementOptions'));
     }
 
+    /**
+     * "Undang User" - buat person BARU sekaligus aktifkan akses login-nya
+     * (undangan = login_enabled=true, beda dari roster GUIDE yang di-import
+     * tanpa akses). Role tunggal (bukan checkbox banyak role lagi).
+     */
     public function store(Request $request)
     {
         $this->authorizeManage();
@@ -56,19 +60,19 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            // Client Owner sengaja dikecualikan dari checkbox (lihat index()
-            // di atas) - dikunci juga di validasi biar nggak bisa dikirim
-            // manual lewat request langsung.
-            'role_ids' => 'required|array|min:1',
-            'role_ids.*' => Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner')),
+            // Client Owner sengaja dikecualikan (lihat index() di atas) -
+            // dikunci juga di validasi biar nggak bisa dikirim manual lewat
+            // request langsung.
+            'role_id' => ['required', Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner'))],
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'status' => 'invited',
+            'role_id' => $validated['role_id'],
+            'login_enabled' => true,
         ]);
-        $user->roles()->sync($validated['role_ids']);
 
         // Kegagalan kirim email (mis. SMTP belum dikonfigurasi) sengaja
         // tidak menggagalkan pembuatan user - akun tetap bisa aktif sendiri
@@ -76,7 +80,7 @@ class UserManagementController extends Controller
         // flash kalau emailnya gagal terkirim.
         $emailSent = true;
         try {
-            Mail::to($user->email)->send(new UserInvitationMail($user->load('roles')));
+            Mail::to($user->email)->send(new UserInvitationMail($user->load('role')));
         } catch (\Throwable $e) {
             $emailSent = false;
             Log::warning('Gagal mengirim email undangan user: '.$e->getMessage(), ['user_id' => $user->id]);
@@ -134,82 +138,53 @@ class UserManagementController extends Controller
         return back()->with('status', 'User berhasil diaktifkan kembali.');
     }
 
-    public function updateRoles(Request $request, User $user)
+    /**
+     * "Edit Role" pada row Kelola Tim - mengedit User.role_id, SATU-SATUNYA
+     * role di sistem (keputusan final user: "gabungkan sistem role dengan
+     * operational role karena tetap saja sama fungsinya"). Berlaku sama
+     * untuk User dengan atau tanpa login_enabled - jabatan operasional
+     * TIDAK bergantung pada apakah orang itu bisa login.
+     */
+    public function updateRole(Request $request, User $user)
     {
         $this->authorizeManage();
 
         abort_if($user->isClientUser(), 404);
 
         $validated = $request->validate([
-            'role_ids' => 'required|array|min:1',
-            'role_ids.*' => Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner')),
+            'role_id' => ['required', Rule::exists('roles', 'id')->where(fn ($q) => $q->where('name', '!=', 'Client Owner'))],
         ]);
 
-        $user->roles()->sync($validated['role_ids']);
+        $user->update(['role_id' => $validated['role_id']]);
 
-        return redirect()->route('user-management.index')
-            ->with('status', "Role untuk {$user->name} berhasil diperbarui.");
+        return back()->with('status', "Role {$user->name} berhasil diperbarui.");
     }
 
     /**
-     * "Edit Role" pada row Kelola Tim - mengedit TeamMember.operational_role
-     * (jabatan operasional), satu-satunya role yang ada sekarang (Langkah
-     * "Gabungkan sistem role dengan operational role" - keputusan eksplisit
-     * user). System role User terkait (kalau ada) otomatis ikut berubah
-     * lewat TeamMemberObserver, bukan dipanggil manual di sini - biar
-     * sinkronisasinya berlaku di jalur manapun operational_role berubah,
-     * bukan cuma dari controller ini.
+     * "Assign Klien" pada row Kelola Tim - mengedit user_client_assignments
+     * LANGSUNG, satu-satunya sumber "client yang ditangani" di sistem
+     * (Langkah "Hapus dual concept team_member_client vs
+     * user_client_assignments"). Berlaku SELALU, termasuk CEO/Manager -
+     * relasi ini tetap mencatat tanggung jawab operasional real mereka,
+     * terlepas dari canSeeAllClients() yang tetap jadi override akses
+     * dashboard global (dua hal berbeda: siapa yang SECARA OPERASIONAL
+     * menangani client apa, vs siapa yang BOLEH LIHAT semua client di
+     * dashboard).
      */
-    public function updateOperationalRole(Request $request, TeamMember $teamMember)
+    public function updateClientAssignments(Request $request, User $user)
     {
         $this->authorizeManage();
 
-        $validated = $request->validate([
-            'operational_role' => ['required', Rule::in(self::OPERATIONAL_ROLES)],
-        ]);
-
-        $teamMember->update(['operational_role' => $validated['operational_role']]);
-
-        $message = "Role {$teamMember->name} berhasil diperbarui.";
-        if ($teamMember->user_id) {
-            $message .= ' Akses sistem ikut disesuaikan.';
-        }
-
-        return back()->with('status', $message);
-    }
-
-    /**
-     * "Assign Klien" pada row Kelola Tim - mengedit team_member_client
-     * (client yang ditangani TeamMember), BUKAN user_client_assignments
-     * (Langkah "Kelola Tim Actions fix"). team_member_client adalah source
-     * of truth operasional saat ini - JANGAN fuzzy/manual reconstruction
-     * dari XLSX di sini, cukup exists-validated client_ids dari form.
-     *
-     * Kalau TeamMember ini linked ke User DAN User itu BUKAN CEO/Manager
-     * (global access) - sinkronkan juga user_client_assignments ke client
-     * IDs yang sama, biar visibilitas dashboard User itu nggak divergen
-     * dari tanggung jawab operasional TeamMember-nya. CEO/Manager sengaja
-     * dikecualikan - mereka sudah canSeeAllClients()=true, fabricate
-     * assignedClients buat mereka cuma bikin data yang nggak ada efeknya.
-     */
-    public function updateTeamMemberClients(Request $request, TeamMember $teamMember)
-    {
-        $this->authorizeManage();
+        abort_if($user->isClientUser(), 404);
 
         $validated = $request->validate([
             'client_ids' => 'array',
             'client_ids.*' => 'exists:clients,id',
         ]);
 
-        $clientIds = $validated['client_ids'] ?? [];
+        $user->assignedClients()->sync($validated['client_ids'] ?? []);
 
-        $teamMember->clients()->sync($clientIds);
-
-        if ($teamMember->user_id && ! $teamMember->user->canSeeAllClients()) {
-            $teamMember->user->assignedClients()->sync($clientIds);
-        }
-
-        return back()->with('status', "Client yang ditangani {$teamMember->name} berhasil diperbarui.");
+        return back()->with('status', "Client yang ditangani {$user->name} berhasil diperbarui.");
     }
 
     private function authorizeManage(): void

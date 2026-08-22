@@ -60,15 +60,15 @@
         @endphp
 
         <div class="overflow-x-auto hidden sm:block">
-            <table class="w-full text-sm text-left">
+            <table class="w-full table-fixed text-sm text-left">
                 <thead class="bg-[var(--surface-page)]">
                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">
+                        <th class="w-[19%] px-6 py-3 font-medium whitespace-nowrap">
                             <a href="{{ $sortLink('title') }}" class="flex items-center gap-1 hover:text-[var(--brand)] transition-colors">
                                 Content <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('title') }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                        <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
                         {{-- "Tipe / Format" (bukan cuma "Type") - kolom ini
                              bisa isi ContentType internal (taksonomi produksi,
                              mis. Video/Desain) ATAU format Instagram
@@ -76,34 +76,34 @@
                              terhubung ke konten internal) - dua domain beda,
                              judul kolom sengaja dibuat netral biar nggak
                              menyiratkan itu selalu taksonomi internal. --}}
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe / Format</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">
-                            <a href="{{ $sortLink('total_views') }}" class="flex items-center gap-1 hover:text-[var(--brand)] transition-colors">
+                        <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Tipe/Format</th>
+                        <th class="w-[9%] px-4 py-3 font-medium text-right whitespace-nowrap">
+                            <a href="{{ $sortLink('total_views') }}" class="flex items-center justify-end gap-1 hover:text-[var(--brand)] transition-colors">
                                 Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">
-                            <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center gap-1 hover:text-[var(--brand)] transition-colors">
+                        <th class="w-[10%] px-4 py-3 font-medium text-right whitespace-nowrap">
+                            <a href="{{ $sortLink('avg_engagement') }}" class="flex items-center justify-end gap-1 hover:text-[var(--brand)] transition-colors">
                                 Engagement <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('avg_engagement') }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">
+                        <th class="w-[10%] px-4 py-3 font-medium whitespace-nowrap">
                             <a href="{{ $sortLink('deadline_at') }}" class="flex items-center gap-1 hover:text-[var(--brand)] transition-colors">
                                 Deadline <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('deadline_at') }}</span>
                             </a>
                         </th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
-                        <th class="px-6 py-3"></th>
+                        <th class="w-[13%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                        <th class="w-[17%] px-6 py-3"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($items as $item)
                         <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors">
-                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] max-w-[240px] truncate">{{ $item->title }}</td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }}</td>
-                            <td class="px-4 py-3.5 whitespace-nowrap {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">{{ $item->type ?? '-' }}</td>
-                            <td class="px-4 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
-                            <td class="px-4 py-3.5 whitespace-nowrap">
+                            <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform }}</td>
+                            <td class="px-4 py-3.5 truncate {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">{{ $item->type ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-right font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
+                            <td class="px-4 py-3.5 text-right">
                                 @if ($item->avg_engagement !== null)
                                     <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ round($item->avg_engagement, 2) }}%</span>
                                 @else
@@ -111,9 +111,9 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') ?? '-' }}</td>
-                            <td class="px-4 py-3.5 whitespace-nowrap">
+                            <td class="px-4 py-3.5">
                                 @if (! $item->linked)
-                                    <span class="badge badge-neutral">Belum terhubung ke konten internal</span>
+                                    <span class="badge badge-neutral">Belum terhubung</span>
                                 @elseif ($item->is_posted)
                                     <span class="badge badge-success">Published</span>
                                 @elseif ($item->is_overdue)
@@ -122,14 +122,14 @@
                                     <span class="badge badge-warning">On Progress</span>
                                 @endif
                             </td>
-                            <td class="px-6 py-3.5 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-2.5">
+                            <td class="px-6 py-3.5 text-right">
+                                <div class="flex items-center justify-end gap-2.5 flex-wrap">
                                     @if ($item->linked)
                                         {{-- Dashboard ini dashboard workflow agensi, bukan
                                              sekadar pintu ke Instagram - detail internal SELALU
                                              jadi primary destination, permalink cuma supporting
                                              action eksternal (Langkah 11). --}}
-                                        <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Lihat Detail</a>
+                                        <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded whitespace-nowrap">Detail</a>
                                         @if ($item->permalink)
                                             <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" title="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
                                                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
@@ -138,10 +138,12 @@
                                     @else
                                         @if ($item->api_integration_id)
                                             <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}#post-{{ $item->external_post_id }}"
-                                               class="text-xs font-medium text-[var(--brand)] hover:underline">Hubungkan Konten</a>
+                                               class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                         @endif
                                         @if ($item->permalink)
-                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">Lihat Post</a>
+                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" title="Lihat Post" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                            </a>
                                         @endif
                                     @endif
                                 </div>
