@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ContentMetric extends Model
 {
     protected $fillable = [
-        'content_item_id', 'client_id', 'instagram_media_snapshot_id',
+        'content_item_id', 'client_id', 'instagram_media_snapshot_id', 'tiktok_video_snapshot_id',
         'platform_id', 'sync_log_id', 'imported_by',
         'metric_date', 'views', 'engagement_rate',
         'watch_time_avg', 'completion_rate', 'shares', 'saves',
@@ -26,6 +26,7 @@ class ContentMetric extends Model
     public function contentItem() { return $this->belongsTo(ContentItem::class); }
     public function client() { return $this->belongsTo(Client::class); }
     public function instagramMediaSnapshot() { return $this->belongsTo(InstagramMediaSnapshot::class); }
+    public function tiktokVideoSnapshot() { return $this->belongsTo(TikTokVideoSnapshot::class); }
     public function platform() { return $this->belongsTo(Platform::class); }
     public function syncLog() { return $this->belongsTo(AnalyticsSyncLog::class, 'sync_log_id'); }
     public function importedBy() { return $this->belongsTo(User::class, 'imported_by'); }
@@ -45,6 +46,10 @@ class ContentMetric extends Model
 
         if ($this->instagram_media_snapshot_id) {
             return 'snapshot-'.$this->instagram_media_snapshot_id;
+        }
+
+        if ($this->tiktok_video_snapshot_id) {
+            return 'tiktok-snapshot-'.$this->tiktok_video_snapshot_id;
         }
 
         // Fallback ekstrem (CSV lama/data lain yang dua-duanya kosong) -

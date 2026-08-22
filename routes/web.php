@@ -20,6 +20,7 @@ use App\Console\Commands\UpdateOverdueContentItems;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\InstagramIntegrationController;
+use App\Http\Controllers\TikTokIntegrationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
 use App\Http\Controllers\Client\AnalyticsController as ClientAnalyticsController;
@@ -191,6 +192,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
             ->name('client-management.instagram.connect');
         Route::post('/client-management/{client}/instagram/sync-audience', [ClientManagementController::class, 'syncInstagramAudience'])
             ->name('client-management.instagram.sync-audience');
+
+        // TikTok - mirror pola Instagram connect() persis (client_id
+        // dititipkan lewat session, redirect_uri statis) - TIDAK ada
+        // sync-audience TikTok (Display API standar tidak menyediakan
+        // demografis, lihat docs/TIKTOK_INTEGRATION.md).
+        Route::get('/client-management/{client}/tiktok/connect', [TikTokIntegrationController::class, 'connect'])
+            ->name('client-management.tiktok.connect');
     });
 
     // Callback OAuth Instagram - sengaja di luar group permission di atas dan
@@ -200,6 +208,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
     // dan tetap butuh user login (middleware 'auth' dari parent group).
     Route::get('/client-management/instagram/callback', [InstagramIntegrationController::class, 'callback'])
         ->name('client-management.instagram.callback');
+
+    // Callback OAuth TikTok - sama alasan persis (TikTok Developer Portal
+    // juga mewajibkan redirect_uri statis/exact-match, tidak boleh segmen
+    // dinamis {client}).
+    Route::get('/client-management/tiktok/callback', [TikTokIntegrationController::class, 'callback'])
+        ->name('client-management.tiktok.callback');
 
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])
         ->middleware('permission:team_performance,view')
@@ -246,6 +260,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
             ->name('settings.detect-anomalies');
         Route::post('/settings/sync-instagram', [SettingsController::class, 'syncInstagram'])
             ->name('settings.sync-instagram');
+        Route::post('/settings/sync-tiktok', [SettingsController::class, 'syncTiktok'])
+            ->name('settings.sync-tiktok');
     });
 
     Route::middleware('permission:content_plan,view')->group(function () {
@@ -306,6 +322,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::post('/publishing-tracker/instagram/{apiIntegration}/link', [ContentPublicationController::class, 'linkInstagramMedia'])
         ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
         ->name('publishing-tracker.instagram.link');
+
+    Route::get('/publishing-tracker/tiktok/{apiIntegration}/unmatched', [ContentPublicationController::class, 'unmatchedTiktok'])
+        ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
+        ->name('publishing-tracker.tiktok.unmatched');
+    Route::post('/publishing-tracker/tiktok/{apiIntegration}/link', [ContentPublicationController::class, 'linkTiktokMedia'])
+        ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
+        ->name('publishing-tracker.tiktok.link');
 
     Route::get('/revision-log', [ContentRevisionController::class, 'index'])
         ->middleware('permission:workflow,view')

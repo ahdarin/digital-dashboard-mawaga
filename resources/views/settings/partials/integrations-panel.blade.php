@@ -160,16 +160,102 @@
             @endif
         </div>
 
-        {{-- TikTok - BELUM diimplementasikan sama sekali (API belum
-             dibangun). SENGAJA statis, tidak query ApiIntegration apapun -
-             sebelumnya row placeholder DemoSeeder (status=active acak,
-             tanpa token) bikin badge "Active" palsu muncul. --}}
-        <div class="border border-[var(--border)] rounded-xl p-5 opacity-75">
+        {{-- TikTok - Official TikTok for Developers (Login Kit + Display
+             API v2). Mirror struktur kartu Instagram di atas, TANPA
+             "Audience Insights" (TikTok Display API standar tidak
+             menyediakan demografis - lihat docs/TIKTOK_INTEGRATION.md).
+             follower_count (kalau scope user.info.stats granted) tampil
+             ringkas di dalam kartu Content Analytics, bukan card terpisah. --}}
+        <div class="border border-[var(--border)] rounded-xl p-5">
             <div class="flex items-center justify-between mb-1">
                 <p class="text-sm font-semibold text-[var(--text-primary)]">TikTok</p>
-                <span class="badge badge-neutral">Coming Soon</span>
+                @if ($tiktokCard['connected'])
+                    <span class="badge badge-success inline-flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Connected
+                    </span>
+                @else
+                    <span class="badge badge-neutral">Not Connected</span>
+                @endif
             </div>
-            <p class="text-xs text-[var(--text-muted)]">TikTok Analytics integration belum tersedia.</p>
+
+            @if ($tiktokCard['connected'])
+                @php $tiktokIntegration = $tiktokCard['integration']; @endphp
+                <p class="text-xs text-[var(--text-muted)] mb-4">&commat;{{ $tiktokIntegration->external_username }}</p>
+
+                <div class="border-t border-[var(--surface-muted)] pt-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                        @php
+                            $ttContentBadgeClass = $tiktokCard['content_syncing'] ? 'badge-warning' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
+                            $ttContentBadgeLabel = $tiktokCard['content_syncing'] ? 'Syncing' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'Failed' : ($tiktokIntegration->last_synced_at ? 'Synced' : 'Not Synced'));
+                        @endphp
+                        <span class="badge {{ $ttContentBadgeClass }}">{{ $ttContentBadgeLabel }}</span>
+                    </div>
+                    <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                        Last Sync: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                    </p>
+                    @if (! $tiktokCard['content_syncing'] && $tiktokCard['content_last_sync_log']?->status === 'failed')
+                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $tiktokCard['content_last_sync_log']->error_message }}</p>
+                    @endif
+
+                    {{-- follower_count dkk - NULL != 0 (Langkah 9): kalau
+                         scope user.info.stats belum granted, baris ini
+                         disembunyikan sama sekali, BUKAN tampil "0". --}}
+                    @if ($tiktokCard['has_stats_scope'])
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                            Followers: {{ $tiktokCard['follower_count'] !== null ? number_format($tiktokCard['follower_count']) : 'Belum pernah sync' }}
+                        </p>
+                    @else
+                        <p class="text-[11px] text-[var(--text-muted)] italic mb-2">Data followers tidak tersedia melalui TikTok API (scope belum disetujui).</p>
+                    @endif
+
+                    <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="inline-block mb-2">
+                        @csrf
+                        <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                        <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[14px]">sync</span>
+                            {{ $tiktokCard['content_syncing'] ? 'Syncing...' : 'Sync Content' }}
+                        </button>
+                    </form>
+
+                    <details class="text-xs mt-1">
+                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Content Sync</summary>
+                        <div class="mt-2 flex items-center gap-2">
+                            <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                                @csrf
+                                <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                                <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                       class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Sync Selected Month
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="border-t border-[var(--surface-muted)] pt-3 mt-3 flex items-center gap-3 flex-wrap">
+                    <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
+                       class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
+                    @if ($tiktokOauthConfigured)
+                        <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
+                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reconnect TikTok</a>
+                    @endif
+                </div>
+            @elseif ($tiktokOauthConfigured)
+                <p class="text-sm text-[var(--text-secondary)] mb-4 max-w-md">Hubungkan akun TikTok client untuk mengambil data performa video secara otomatis.</p>
+                <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
+                   class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
+                    <span class="material-symbols-outlined text-[14px]">link</span> Connect TikTok
+                </a>
+            @else
+                <p class="text-xs text-[var(--text-muted)]">
+                    OAuth belum dikonfigurasi. Isi <code>TIKTOK_CLIENT_KEY</code>/<code>TIKTOK_CLIENT_SECRET</code> di <code>.env</code>
+                    dan daftarkan redirect URI di TikTok Developer Portal dulu.
+                </p>
+            @endif
         </div>
     </div>
 

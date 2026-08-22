@@ -31,4 +31,20 @@ return [
     // manual lewat historical sync per bulan (--month=YYYY-MM).
     'instagram_default_sync_months' => 2,
 
+    /*
+    |--------------------------------------------------------------------------
+    | TikTok Sync
+    |--------------------------------------------------------------------------
+    |
+    | Mirror konfigurasi Instagram di atas, dipakai ContentPublicationMatcher
+    | (matcher SAMA, cuma toleransi window beda per platform) &
+    | TikTokAnalyticsSyncService. Nilai SAMA dengan Instagram sebagai starting
+    | point (belum ada data operasional TikTok real buat kalibrasi ulang -
+    | sama seperti catatan instagram_schedule_match_tolerance_minutes di atas).
+    |
+    */
+
+    'tiktok_schedule_match_tolerance_minutes' => 120,
+    'tiktok_default_sync_months' => 2,
+
 ];

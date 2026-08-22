@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncInstagramAnalyticsJob;
 use App\Jobs\SyncInstagramAudienceJob;
+use App\Jobs\SyncTikTokAnalyticsJob;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
 use App\Models\AudienceInsight;
@@ -13,6 +14,7 @@ use App\Models\ContentMetric;
 use App\Models\PackageTemplate;
 use App\Models\Platform;
 use App\Services\InstagramAnalyticsSyncService;
+use App\Services\TikTokAnalyticsSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -81,6 +83,8 @@ class SettingsController extends Controller
         $selectedClient = null;
         $instagramCard = null;
         $instagramOauthConfigured = false;
+        $tiktokCard = null;
+        $tiktokOauthConfigured = false;
         $syncLogs = null;
         $logsAllClients = false;
         if ($section === 'integrasi') {
@@ -94,6 +98,8 @@ class SettingsController extends Controller
             $selectedClientId = $selectedClient?->id;
             $instagramCard = $selectedClient ? $this->buildInstagramCard($selectedClient) : null;
             $instagramOauthConfigured = filled(config('services.instagram.client_id')) && filled(config('services.instagram.client_secret'));
+            $tiktokCard = $selectedClient ? $this->buildTikTokCard($selectedClient) : null;
+            $tiktokOauthConfigured = filled(config('services.tiktok.client_key')) && filled(config('services.tiktok.client_secret'));
 
             // "All Clients" cuma valid buat yang canSeeAllClients() - user
             // ter-assign spesifik tidak boleh lihat log client lain lewat
@@ -142,7 +148,8 @@ class SettingsController extends Controller
         return view('settings.index', compact(
             'user', 'clientOptions', 'systemConnections',
             'section', 'mdTab', 'mdItems', 'mdSearch', 'syncLogs',
-            'selectedClientId', 'selectedClient', 'instagramCard', 'instagramOauthConfigured', 'logsAllClients'
+            'selectedClientId', 'selectedClient', 'instagramCard', 'instagramOauthConfigured',
+            'tiktokCard', 'tiktokOauthConfigured', 'logsAllClients'
         ));
     }
 
@@ -191,6 +198,49 @@ class SettingsController extends Controller
             'audience_last_sync_log' => $audienceLastSyncLog,
             'audience_last_success_at' => $audienceLastSuccessAt,
             'audience_syncing' => $this->isLocked(SyncInstagramAudienceJob::cacheLockKey($integration->id)),
+        ];
+    }
+
+    /**
+     * MIRROR buildInstagramCard() - TANPA "Audience Insights" (TikTok
+     * Display API standar tidak menyediakan demografis, cuma follower_count
+     * dkk kalau scope user.info.stats granted - itu disimpan sekaligus di
+     * dalam sync Content lewat TikTokAnalyticsSyncService::saveProfileSnapshot(),
+     * BUKAN tombol/Job terpisah, lihat docs/TIKTOK_INTEGRATION.md).
+     */
+    private function buildTikTokCard(Client $client): array
+    {
+        $platform = Platform::where('name', 'TikTok')->first();
+
+        $integration = $client->apiIntegrations()
+            ->where('platform_id', $platform?->id)
+            ->whereNotNull('access_token')
+            ->first();
+
+        if (! $integration) {
+            return ['connected' => false];
+        }
+
+        $contentLastSyncLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', 'api_sync')->latest()->first();
+
+        $latestFollowerSnapshot = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $integration->platform_id)
+            ->where('source', AudienceInsight::SOURCE_TIKTOK_API)
+            ->summary()
+            ->latest('snapshot_date')
+            ->first();
+
+        return [
+            'connected' => true,
+            'integration' => $integration,
+            'content_last_sync_log' => $contentLastSyncLog,
+            'content_syncing' => $this->isLocked(SyncTikTokAnalyticsJob::cacheLockKey($integration->id)),
+            // NULL != 0 (Langkah 9) - kalau scope user.info.stats belum
+            // granted, snapshot ini memang tidak pernah dibuat sama sekali
+            // (lihat saveProfileSnapshot()), BUKAN follower_count=0.
+            'follower_count' => $latestFollowerSnapshot?->follower_count,
+            'has_stats_scope' => $integration->scopes && str_contains($integration->scopes, 'user.info.stats'),
         ];
     }
 
@@ -451,6 +501,52 @@ class SettingsController extends Controller
         );
 
         return back()->with('import_success', 'Sinkronisasi Instagram dimulai.');
+    }
+
+    /**
+     * MIRROR syncInstagram() - identik strukturnya (scope check, lock peek,
+     * dispatch Job), cuma menunjuk platform/Job/Service TikTok.
+     */
+    public function syncTiktok(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => ['required', 'exists:clients,id'],
+            'month' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+        ]);
+
+        $user = $request->user();
+        abort_unless(
+            $user->canSeeAllClients() || $user->assignedClients()->whereKey($validated['client_id'])->exists(),
+            403,
+            'Anda tidak punya akses ke client ini.'
+        );
+
+        $platform = Platform::where('name', 'TikTok')->first();
+        $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
+
+        if (! $integration || ! filled($integration->access_token)) {
+            return back()->with('import_error', 'Client ini belum connect TikTok (OAuth). Hubungkan dulu lewat tombol "Connect TikTok".');
+        }
+
+        $lock = Cache::lock(SyncTikTokAnalyticsJob::cacheLockKey($integration->id), 10);
+        if (! $lock->get()) {
+            return back()->with('import_error', 'Sinkronisasi TikTok untuk akun ini sedang berjalan.');
+        }
+        $lock->release();
+
+        try {
+            [$syncMode, $since, $until] = app(TikTokAnalyticsSyncService::class)
+                ->resolveSyncWindow($validated['month'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('import_error', $e->getMessage());
+        }
+
+        SyncTikTokAnalyticsJob::dispatch(
+            $integration->id, $syncMode,
+            $since->toDateString(), $until->toDateString(), auth()->id()
+        );
+
+        return back()->with('import_success', 'Sinkronisasi TikTok dimulai.');
     }
 
     /**

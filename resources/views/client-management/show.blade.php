@@ -279,6 +279,91 @@
                         dan daftarkan redirect URI di Meta App Dashboard dulu.
                     </p>
                 @endif
+
+                {{-- TikTok - MIRROR blok Instagram di atas, TANPA Audience
+                     Insights (TikTok Display API standar tidak menyediakan
+                     demografis - lihat docs/TIKTOK_INTEGRATION.md). --}}
+                @php $ttConnected = $tiktokIntegration && $tiktokIntegration->status === 'active'; @endphp
+
+                <div class="flex items-center justify-between mb-2 mt-5 pt-5 border-t border-[var(--surface-muted)]">
+                    <p class="text-sm font-medium text-[var(--text-primary)]">TikTok</p>
+                    <span class="badge {{ $tiktokSyncing ? 'badge-warning' : ($ttConnected ? 'badge-success' : 'badge-danger') }}">
+                        {{ $tiktokSyncing ? 'Syncing' : ($ttConnected ? 'Active' : 'Disconnected') }}
+                    </span>
+                </div>
+
+                @if ($ttConnected)
+                    <p class="text-xs text-[var(--text-muted)] mb-3">&commat;{{ $tiktokIntegration->external_username }}</p>
+
+                    <div class="border-t border-[var(--surface-muted)] pt-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                            @php
+                                $ttSyncBadgeClass = $tiktokSyncing ? 'badge-warning' : ($tiktokLastSyncLog?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
+                                $ttSyncBadgeLabel = $tiktokSyncing ? 'Syncing' : ($tiktokLastSyncLog?->status === 'failed' ? 'Failed' : ($tiktokIntegration->last_synced_at ? 'Synced' : 'Not Synced'));
+                            @endphp
+                            <span class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
+                        </div>
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                            Last Sync: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                        </p>
+                        @if (! $tiktokSyncing && $tiktokLastSyncLog?->status === 'failed')
+                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $tiktokLastSyncLog->error_message }}</p>
+                        @endif
+
+                        <div class="flex items-center gap-2 flex-wrap mb-2">
+                            <form action="{{ route('settings.sync-tiktok') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="client_id" value="{{ $client->id }}">
+                                <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span class="material-symbols-outlined text-[14px]">sync</span>
+                                    {{ $tiktokSyncing ? 'Syncing...' : 'Sync Content Analytics' }}
+                                </button>
+                            </form>
+                            <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
+                               class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
+                        </div>
+                        @if ($tiktokSyncing)
+                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Content Analytics TikTok.</p>
+                        @endif
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
+
+                        <details class="text-xs">
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Sync (bulan lama)</summary>
+                            <div class="mt-2 space-y-1.5">
+                                <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
+                                <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                    <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Sync Selected Month
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    </div>
+                @elseif ($tiktokOauthConfigured)
+                    @if ($tiktokIntegration && $tiktokIntegration->last_error)
+                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">TikTok connection needs attention</p>
+                        <p class="text-xs text-[var(--danger-text)] mb-3">{{ $tiktokIntegration->last_error }}</p>
+                    @else
+                        <p class="text-xs text-[var(--text-muted)] mb-3">Belum terhubung.</p>
+                    @endif
+                    <a href="{{ route('client-management.tiktok.connect', $client) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
+                        <span class="material-symbols-outlined text-[14px]">link</span>
+                        {{ $tiktokIntegration && $tiktokIntegration->last_error ? 'Reconnect TikTok' : 'Connect TikTok' }}
+                    </a>
+                @else
+                    <p class="text-xs text-[var(--text-muted)]">
+                        OAuth belum dikonfigurasi. Isi <code>TIKTOK_CLIENT_KEY</code>/<code>TIKTOK_CLIENT_SECRET</code> di <code>.env</code>
+                        dan daftarkan redirect URI di TikTok Developer Portal dulu.
+                    </p>
+                @endif
             </div>
 
             <div class="card p-6">

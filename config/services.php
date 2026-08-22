@@ -60,4 +60,16 @@ return [
         'redirect' => env('INSTAGRAM_REDIRECT_URI'),
     ],
 
+    // Global TikTok for Developers App credentials doang - token milik
+    // masing-masing client TIDAK di sini, cuma di api_integrations.access_token
+    // (encrypted, per client) hasil OAuth connect. Base API selalu
+    // https://open.tiktokapis.com/v2/... - TikTok tidak punya konsep
+    // "api_version" yang dipilih bebas seperti Meta Graph API, jadi tidak
+    // ada key versi di sini (beda dari config('services.instagram.api_version')).
+    'tiktok' => [
+        'client_key' => env('TIKTOK_CLIENT_KEY'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'redirect' => env('TIKTOK_REDIRECT_URI'),
+    ],
+
 ];
