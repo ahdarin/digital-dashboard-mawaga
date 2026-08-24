@@ -413,7 +413,7 @@ class ImportContentPlanner extends Command
         // sistem" - pola SAMA PERSIS dipakai DemoSeeder ($picUser fallback).
         // TIDAK dipakai buat current_pic_id (itu tetap null kalau memang
         // unresolved - jangan salah tempatkan tanggung jawab).
-        $systemActorId = User::whereHas('role', fn ($q) => $q->where('name', 'CEO'))->first()?->id
+        $systemActorId = User::whereHas('roles', fn ($q) => $q->where('name', 'CEO'))->first()?->id
             ?? User::first()?->id;
 
         if (! $systemActorId) {

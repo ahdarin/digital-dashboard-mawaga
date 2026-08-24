@@ -128,7 +128,7 @@ class SyncTikTokAnalytics extends Command
             return (int) $optionUser;
         }
 
-        $ceo = User::whereHas('role', fn ($q) => $q->where('name', UserRole::CEO->value))->first();
+        $ceo = User::whereHas('roles', fn ($q) => $q->where('name', UserRole::CEO->value))->first();
 
         return $ceo?->id ?? User::first()?->id;
     }

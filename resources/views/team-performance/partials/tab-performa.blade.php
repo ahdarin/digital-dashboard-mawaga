@@ -95,7 +95,7 @@
                                 @endif
                                 <div class="min-w-0">
                                     <p class="font-medium text-[var(--text-primary)] truncate">{{ $user->name }}</p>
-                                    <p class="text-xs text-[var(--text-muted)] truncate">{{ $user->role->name ?? '-' }}</p>
+                                    <p class="text-xs text-[var(--text-muted)] truncate">{{ $user->roleNamesLabel() }}</p>
                                     @unless ($user->login_enabled)
                                         <span class="badge badge-neutral">Belum ada akses</span>
                                     @endunless

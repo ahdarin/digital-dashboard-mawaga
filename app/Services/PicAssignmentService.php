@@ -67,7 +67,7 @@ class PicAssignmentService
             return $query->get();
         }
 
-        $withMatchingRole = (clone $query)->whereHas('role', fn ($q) => $q->where('name', $wantedRole))->get();
+        $withMatchingRole = (clone $query)->whereHas('roles', fn ($q) => $q->where('name', $wantedRole))->get();
 
         if ($withMatchingRole->isNotEmpty()) {
             return $withMatchingRole;

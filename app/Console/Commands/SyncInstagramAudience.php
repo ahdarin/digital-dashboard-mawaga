@@ -102,7 +102,7 @@ class SyncInstagramAudience extends Command
             return (int) $optionUser;
         }
 
-        return User::whereHas('role', fn ($q) => $q->where('name', UserRole::CEO->value))->first()?->id
+        return User::whereHas('roles', fn ($q) => $q->where('name', UserRole::CEO->value))->first()?->id
             ?? User::first()?->id;
     }
 }

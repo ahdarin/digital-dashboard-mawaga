@@ -18,10 +18,11 @@ class UserManagementController extends Controller
     /**
      * "Satu orang = satu record" (keputusan final user, Agustus 2026) -
      * User adalah satu-satunya entity person, tidak ada TeamMember terpisah
-     * lagi. Kelola Tim query LANGSUNG ke User internal staff (client_id
-     * NULL) - roster real dari GUIDE/manual, terlepas dari apakah mereka
-     * punya akses login (login_enabled) atau tidak. Role dari
-     * User.role_id (satu-satunya role di sistem), Client Ditangani dari
+     * lagi. User HANYA internal staff (Client bukan User sama sekali, lihat
+     * Client::portal_token), jadi Kelola Tim query semua User tanpa filter -
+     * roster real dari GUIDE/manual, terlepas dari apakah mereka punya akses
+     * login (login_enabled) atau tidak. Role dari user_roles (many-to-many,
+     * satu user bisa punya beberapa role), Client Ditangani dari
      * user_client_assignments (satu-satunya sumber, bukan dua pivot
      * terpisah lagi).
      */
@@ -29,8 +30,8 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
-        $users = User::whereNull('client_id')
-            ->with(['role', 'assignedClients'])
+        $users = User::query()
+            ->with(['roles', 'assignedClients'])
             ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
             ->latest()->get();
 
@@ -47,7 +48,8 @@ class UserManagementController extends Controller
     /**
      * "Undang User" - buat person BARU sekaligus aktifkan akses login-nya
      * (undangan = login_enabled=true, beda dari roster GUIDE yang di-import
-     * tanpa akses). Role tunggal (bukan checkbox banyak role lagi).
+     * tanpa akses). Role many-to-many (RBAC multi-role) - satu user bisa
+     * diundang langsung dengan beberapa role sekaligus.
      */
     public function store(Request $request)
     {
@@ -69,9 +71,9 @@ class UserManagementController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'status' => 'invited',
-            'role_id' => $validated['role_id'],
             'login_enabled' => true,
         ]);
+        $user->roles()->attach($validated['role_ids']);
 
         // Kegagalan kirim email (mis. SMTP belum dikonfigurasi) sengaja
         // tidak menggagalkan pembuatan user - akun tetap bisa aktif sendiri
@@ -79,7 +81,7 @@ class UserManagementController extends Controller
         // flash kalau emailnya gagal terkirim.
         $emailSent = true;
         try {
-            Mail::to($user->email)->send(new UserInvitationMail($user->load('role')));
+            Mail::to($user->email)->send(new UserInvitationMail($user->load('roles')));
         } catch (\Throwable $e) {
             $emailSent = false;
             Log::warning('Gagal mengirim email undangan user: '.$e->getMessage(), ['user_id' => $user->id]);
@@ -132,11 +134,10 @@ class UserManagementController extends Controller
     }
 
     /**
-     * "Edit Role" pada row Kelola Tim - mengedit User.role_id, SATU-SATUNYA
-     * role di sistem (keputusan final user: "gabungkan sistem role dengan
-     * operational role karena tetap saja sama fungsinya"). Berlaku sama
-     * untuk User dengan atau tanpa login_enabled - jabatan operasional
-     * TIDAK bergantung pada apakah orang itu bisa login.
+     * "Edit Role" pada row Kelola Tim - mengedit user_roles (many-to-many,
+     * RBAC multi-role) - satu User bisa punya beberapa role sekaligus.
+     * Berlaku sama untuk User dengan atau tanpa login_enabled - jabatan
+     * operasional TIDAK bergantung pada apakah orang itu bisa login.
      */
     public function updateRole(Request $request, User $user)
     {
@@ -148,7 +149,7 @@ class UserManagementController extends Controller
             'role_ids.*' => 'exists:roles,id',
         ]);
 
-        $user->update(['role_id' => $validated['role_id']]);
+        $user->roles()->sync($validated['role_ids']);
 
         return back()->with('status', "Role {$user->name} berhasil diperbarui.");
     }
