@@ -473,7 +473,7 @@ class ImportContentPlanner extends Command
 
                 ContentStatusLog::create([
                     'content_item_id' => $item->id,
-                    'changed_by' => $row['pic_resolved_user_id'] ?? $systemActorId,
+                    'changed_by_user_id' => $row['pic_resolved_user_id'] ?? $systemActorId,
                     'from_status' => null,
                     'to_status' => $row['status_mapped'],
                     'approval_type' => null,
@@ -482,16 +482,18 @@ class ImportContentPlanner extends Command
                 ]);
 
                 if ($row['pic_resolved_user_id']) {
-                    // Role assignment dari prefix Kode (C=Content Creator,
-                    // D=Desain Grafis) - konsisten dengan konvensi
-                    // 'content_creator'/'designer' yang sudah dipakai di
-                    // seluruh sistem (lihat DemoSeeder/MasterDataSeeder).
-                    $assignmentRole = str_starts_with(strtoupper($row['code']), 'D') ? 'designer' : 'content_creator';
-
+                    // 'primary' - SAMA PERSIS dengan konvensi assignment_role
+                    // yang dipakai alur live app (ContentPlanController,
+                    // ContentItemController, PicReassignmentService), bukan
+                    // 'content_creator'/'designer'. Kalau beda, PicReassignmentService
+                    // (yang query berdasarkan assignment_role='primary') tidak
+                    // akan menemukan baris ini saat staff dinonaktifkan/
+                    // tugasnya dipindahkan - malah bikin baris 'primary' baru
+                    // di samping baris lama yang jadi basi, bukan meng-update-nya.
                     ContentItemAssignment::create([
                         'content_item_id' => $item->id,
                         'user_id' => $row['pic_resolved_user_id'],
-                        'assignment_role' => $assignmentRole,
+                        'assignment_role' => 'primary',
                     ]);
                 }
 
