@@ -224,10 +224,7 @@ class ProductionWorkflowController extends Controller
             'selectedStatus' => $request->input('status', 'open'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
-<<<<<<< HEAD
             'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
-=======
->>>>>>> a2c055d757da5ff92a3db5efaaa6e7a7bf9f7223
         ]);
     }
 
@@ -270,10 +267,7 @@ class ProductionWorkflowController extends Controller
             'platformOptions' => $platformOptions,
             'selectedPlatformId' => $request->input('platform_id'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
-<<<<<<< HEAD
             'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
-=======
->>>>>>> a2c055d757da5ff92a3db5efaaa6e7a7bf9f7223
         ]);
     }
 
