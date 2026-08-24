@@ -15,11 +15,22 @@ use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
 {
-    public function index()
+    /**
+     * "Satu orang = satu record" (keputusan final user, Agustus 2026) -
+     * User adalah satu-satunya entity person, tidak ada TeamMember terpisah
+     * lagi. Kelola Tim query LANGSUNG ke User internal staff (client_id
+     * NULL) - roster real dari GUIDE/manual, terlepas dari apakah mereka
+     * punya akses login (login_enabled) atau tidak. Role dari
+     * User.role_id (satu-satunya role di sistem), Client Ditangani dari
+     * user_client_assignments (satu-satunya sumber, bukan dua pivot
+     * terpisah lagi).
+     */
+    public function index(Request $request)
     {
         $this->authorizeManage();
 
-        $users = User::with(['roles', 'assignedClients'])
+        $users = User::whereNull('client_id')
+            ->with(['role', 'assignedClients'])
             ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
             ->latest()->get();
 
@@ -33,6 +44,11 @@ class UserManagementController extends Controller
         return view('user-management.index', compact('users', 'allClients', 'roles', 'replacementOptions'));
     }
 
+    /**
+     * "Undang User" - buat person BARU sekaligus aktifkan akses login-nya
+     * (undangan = login_enabled=true, beda dari roster GUIDE yang di-import
+     * tanpa akses). Role tunggal (bukan checkbox banyak role lagi).
+     */
     public function store(Request $request)
     {
         $this->authorizeManage();
@@ -53,8 +69,9 @@ class UserManagementController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'status' => 'invited',
+            'role_id' => $validated['role_id'],
+            'login_enabled' => true,
         ]);
-        $user->roles()->sync($validated['role_ids']);
 
         // Kegagalan kirim email (mis. SMTP belum dikonfigurasi) sengaja
         // tidak menggagalkan pembuatan user - akun tetap bisa aktif sendiri
@@ -62,7 +79,7 @@ class UserManagementController extends Controller
         // flash kalau emailnya gagal terkirim.
         $emailSent = true;
         try {
-            Mail::to($user->email)->send(new UserInvitationMail($user->load('roles')));
+            Mail::to($user->email)->send(new UserInvitationMail($user->load('role')));
         } catch (\Throwable $e) {
             $emailSent = false;
             Log::warning('Gagal mengirim email undangan user: '.$e->getMessage(), ['user_id' => $user->id]);
@@ -114,7 +131,14 @@ class UserManagementController extends Controller
         return back()->with('status', 'User berhasil diaktifkan kembali.');
     }
 
-    public function updateRoles(Request $request, User $user)
+    /**
+     * "Edit Role" pada row Kelola Tim - mengedit User.role_id, SATU-SATUNYA
+     * role di sistem (keputusan final user: "gabungkan sistem role dengan
+     * operational role karena tetap saja sama fungsinya"). Berlaku sama
+     * untuk User dengan atau tanpa login_enabled - jabatan operasional
+     * TIDAK bergantung pada apakah orang itu bisa login.
+     */
+    public function updateRole(Request $request, User $user)
     {
         $this->authorizeManage();
 
@@ -124,10 +148,36 @@ class UserManagementController extends Controller
             'role_ids.*' => 'exists:roles,id',
         ]);
 
-        $user->roles()->sync($validated['role_ids']);
+        $user->update(['role_id' => $validated['role_id']]);
 
-        return redirect()->route('user-management.index')
-            ->with('status', "Role untuk {$user->name} berhasil diperbarui.");
+        return back()->with('status', "Role {$user->name} berhasil diperbarui.");
+    }
+
+    /**
+     * "Assign Klien" pada row Kelola Tim - mengedit user_client_assignments
+     * LANGSUNG, satu-satunya sumber "client yang ditangani" di sistem
+     * (Langkah "Hapus dual concept team_member_client vs
+     * user_client_assignments"). Berlaku SELALU, termasuk CEO/Manager -
+     * relasi ini tetap mencatat tanggung jawab operasional real mereka,
+     * terlepas dari canSeeAllClients() yang tetap jadi override akses
+     * dashboard global (dua hal berbeda: siapa yang SECARA OPERASIONAL
+     * menangani client apa, vs siapa yang BOLEH LIHAT semua client di
+     * dashboard).
+     */
+    public function updateClientAssignments(Request $request, User $user)
+    {
+        $this->authorizeManage();
+
+        abort_if($user->isClientUser(), 404);
+
+        $validated = $request->validate([
+            'client_ids' => 'array',
+            'client_ids.*' => 'exists:clients,id',
+        ]);
+
+        $user->assignedClients()->sync($validated['client_ids'] ?? []);
+
+        return back()->with('status', "Client yang ditangani {$user->name} berhasil diperbarui.");
     }
 
     private function authorizeManage(): void

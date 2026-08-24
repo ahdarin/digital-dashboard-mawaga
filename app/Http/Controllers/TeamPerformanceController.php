@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\DelayRiskScore;
 use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
+use App\Services\UserContentResolver;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,7 +18,7 @@ class TeamPerformanceController extends Controller
     private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
     private int $overloadThreshold = 5;
 
-    public function index(Request $request, AttendanceService $attendanceService)
+    public function index(Request $request, AttendanceService $attendanceService, UserContentResolver $contentResolver)
     {
         $tab = $request->input('tab', 'performa');
 
@@ -73,16 +74,13 @@ class TeamPerformanceController extends Controller
             ->where('status', 'active')
             ->with(['roles', 'assignments.contentItem.workflow']);
 
-        $allUsers = $membersQuery->get();
-
-        // Kumpulkan seluruh content_item_id lintas user dulu, biar revision
+        // Kumpulkan seluruh content_item_id lintas User dulu, biar revision
         // count dan delay risk score bisa diambil lewat 2 query agregat
-        // total (bukan 2 query per user - dulu O(n) query terhadap jumlah
-        // staf, sekarang tetap O(1) berapa pun jumlah anggota tim).
-        $allContentItemIds = $allUsers
-            ->flatMap(fn ($user) => $user->assignments
-                ->filter(fn ($a) => $a->contentItem && $a->contentItem->workflow)
-                ->pluck('content_item_id'))
+        // total (bukan per-anggota) - flat terhadap jumlah User.
+        $allContentItemIds = $contentItemsByMember
+            ->flatten(1)
+            ->filter(fn ($item) => $item->workflow)
+            ->pluck('id')
             ->unique()
             ->values();
 
@@ -101,29 +99,29 @@ class TeamPerformanceController extends Controller
             })
             ->pluck('risk_score', 'content_item_id');
 
-        $members = $allUsers->map(function ($user) use ($revisionCountByItem, $riskScoreByItem) {
-            $assignments = $user->assignments
-                ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
+        $members = $users->map(function (User $user) use ($contentItemsByMember, $revisionCountByItem, $riskScoreByItem) {
+            $allItems = $contentItemsByMember->get($user->id) ?? collect();
+            $items = $allItems->filter(fn ($item) => $item->workflow);
 
-            $activeCount = $assignments->filter(
-                fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses)
+            $activeCount = $items->filter(
+                fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses)
             )->count();
 
-            $overdueCount = $assignments->filter(
-                fn($a) => $a->contentItem->workflow->is_overdue
+            $overdueCount = $items->filter(
+                fn ($item) => $item->workflow->is_overdue
             )->count();
 
-            $doneCount = $assignments->filter(
-                fn($a) => $a->contentItem->workflow->current_status === 'uploaded'
+            $doneCount = $items->filter(
+                fn ($item) => $item->workflow->current_status === 'uploaded'
             )->count();
 
-            $revisionCount = $assignments
-                ->pluck('content_item_id')
+            $revisionCount = $items
+                ->pluck('id')
                 ->sum(fn ($id) => $revisionCountByItem[$id] ?? 0);
 
-            $activeContentItemIds = $assignments
-                ->filter(fn($a) => !in_array($a->contentItem->workflow->current_status, $this->doneStatuses))
-                ->pluck('content_item_id');
+            $activeContentItemIds = $items
+                ->filter(fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses))
+                ->pluck('id');
 
             $activeRiskScores = $activeContentItemIds
                 ->map(fn ($id) => $riskScoreByItem[$id] ?? null)
@@ -133,6 +131,7 @@ class TeamPerformanceController extends Controller
 
             return [
                 'user' => $user,
+                'content_count' => $allItems->count(),
                 'active_count' => $activeCount,
                 'overdue_count' => $overdueCount,
                 'done_count' => $doneCount,

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncInstagramAnalyticsJob;
 use App\Jobs\SyncInstagramAudienceJob;
+use App\Jobs\SyncTikTokAnalyticsJob;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
 use App\Models\AudienceInsight;
@@ -13,6 +14,7 @@ use App\Models\ContentMetric;
 use App\Models\PackageTemplate;
 use App\Models\Platform;
 use App\Services\InstagramAnalyticsSyncService;
+use App\Services\TikTokAnalyticsSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -42,7 +44,15 @@ class SettingsController extends Controller
         $section = $request->input('tab', 'umum');
 
         $user = auth()->user();
-        $clientOptions = Client::where('status', 'active')->get();
+
+        // Scoped sama seperti Content Plan/Analytics/Production Workflow -
+        // 'settings,manage' juga digenggam SMO (bukan cuma CEO/Manager yang
+        // canSeeAllClients()), jadi tanpa scoping ini SMO bisa lihat DAN
+        // trigger sync buat client yang bukan assignment-nya (audit
+        // "Settings Integrasi client-centric" Langkah 15/16).
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
 
         // Tahap 6.2 - Data Pilihan (dulu Master Data) & Integrasi digabung
         // jadi tab di Pengaturan, bukan halaman menu terpisah lagi.
@@ -73,17 +83,32 @@ class SettingsController extends Controller
         $selectedClient = null;
         $instagramCard = null;
         $instagramOauthConfigured = false;
+        $tiktokCard = null;
+        $tiktokOauthConfigured = false;
         $syncLogs = null;
         $logsAllClients = false;
         if ($section === 'integrasi') {
-            $selectedClientId = $request->input('client_id') ?: $clientOptions->first()?->id;
-            $selectedClient = $selectedClientId ? Client::find($selectedClientId) : null;
+            $requestedClientId = $request->input('client_id') ?: $clientOptions->first()?->id;
+            // $clientOptions SUDAH scoped di atas - cari di situ (bukan
+            // Client::find() langsung) biar ?client_id=X hasil tebak/ketik
+            // manual tidak bisa nembus scope (lihat EnsureClientScope, pola
+            // yang sama diterapkan manual di sini karena client_id datang
+            // dari query string, bukan route-model-binding).
+            $selectedClient = $requestedClientId ? $clientOptions->firstWhere('id', (int) $requestedClientId) : null;
+            $selectedClientId = $selectedClient?->id;
             $instagramCard = $selectedClient ? $this->buildInstagramCard($selectedClient) : null;
             $instagramOauthConfigured = filled(config('services.instagram.client_id')) && filled(config('services.instagram.client_secret'));
+            $tiktokCard = $selectedClient ? $this->buildTikTokCard($selectedClient) : null;
+            $tiktokOauthConfigured = filled(config('services.tiktok.client_key')) && filled(config('services.tiktok.client_secret'));
 
-            $logsAllClients = $request->boolean('all_clients');
+            // "All Clients" cuma valid buat yang canSeeAllClients() - user
+            // ter-assign spesifik tidak boleh lihat log client lain lewat
+            // toggle ini walau query string-nya dipaksa manual.
+            $logsAllClients = $user->canSeeAllClients() && $request->boolean('all_clients');
+            $assignedClientIds = $user->canSeeAllClients() ? null : $clientOptions->pluck('id');
 
             $syncLogs = AnalyticsSyncLog::with(['client', 'platform', 'importedBy'])
+                ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
                 ->when(! $logsAllClients && $selectedClientId, fn ($q) => $q->where('client_id', $selectedClientId))
                 ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
                 ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->input('date')))
@@ -119,7 +144,8 @@ class SettingsController extends Controller
         return view('settings.index', compact(
             'user', 'clientOptions', 'systemConnections',
             'section', 'mdTab', 'mdItems', 'mdSearch', 'syncLogs',
-            'selectedClientId', 'selectedClient', 'instagramCard', 'instagramOauthConfigured', 'logsAllClients'
+            'selectedClientId', 'selectedClient', 'instagramCard', 'instagramOauthConfigured',
+            'tiktokCard', 'tiktokOauthConfigured', 'logsAllClients'
         ));
     }
 
@@ -168,6 +194,49 @@ class SettingsController extends Controller
             'audience_last_sync_log' => $audienceLastSyncLog,
             'audience_last_success_at' => $audienceLastSuccessAt,
             'audience_syncing' => $this->isLocked(SyncInstagramAudienceJob::cacheLockKey($integration->id)),
+        ];
+    }
+
+    /**
+     * MIRROR buildInstagramCard() - TANPA "Audience Insights" (TikTok
+     * Display API standar tidak menyediakan demografis, cuma follower_count
+     * dkk kalau scope user.info.stats granted - itu disimpan sekaligus di
+     * dalam sync Content lewat TikTokAnalyticsSyncService::saveProfileSnapshot(),
+     * BUKAN tombol/Job terpisah, lihat docs/TIKTOK_INTEGRATION.md).
+     */
+    private function buildTikTokCard(Client $client): array
+    {
+        $platform = Platform::where('name', 'TikTok')->first();
+
+        $integration = $client->apiIntegrations()
+            ->where('platform_id', $platform?->id)
+            ->whereNotNull('access_token')
+            ->first();
+
+        if (! $integration) {
+            return ['connected' => false];
+        }
+
+        $contentLastSyncLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', 'api_sync')->latest()->first();
+
+        $latestFollowerSnapshot = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $integration->platform_id)
+            ->where('source', AudienceInsight::SOURCE_TIKTOK_API)
+            ->summary()
+            ->latest('snapshot_date')
+            ->first();
+
+        return [
+            'connected' => true,
+            'integration' => $integration,
+            'content_last_sync_log' => $contentLastSyncLog,
+            'content_syncing' => $this->isLocked(SyncTikTokAnalyticsJob::cacheLockKey($integration->id)),
+            // NULL != 0 (Langkah 9) - kalau scope user.info.stats belum
+            // granted, snapshot ini memang tidak pernah dibuat sama sekali
+            // (lihat saveProfileSnapshot()), BUKAN follower_count=0.
+            'follower_count' => $latestFollowerSnapshot?->follower_count,
+            'has_stats_scope' => $integration->scopes && str_contains($integration->scopes, 'user.info.stats'),
         ];
     }
 
@@ -385,6 +454,19 @@ class SettingsController extends Controller
             'month' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
         ]);
 
+        // client_id lewat form field, BUKAN route-model-binding, jadi
+        // EnsureClientScope middleware tidak bisa dipasang di route - cek
+        // manual di sini (pola sama: canSeeAllClients() atau memang
+        // ter-assign ke client ini). Tanpa ini, siapapun yang punya
+        // 'settings,manage' (termasuk SMO yang di-scope ke client tertentu
+        // di seluruh halaman lain) bisa submit client_id client manapun.
+        $user = $request->user();
+        abort_unless(
+            $user->canSeeAllClients() || $user->assignedClients()->whereKey($validated['client_id'])->exists(),
+            403,
+            'Anda tidak punya akses ke client ini.'
+        );
+
         $platform = Platform::where('name', 'Instagram')->first();
         $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
 
@@ -415,6 +497,52 @@ class SettingsController extends Controller
         );
 
         return back()->with('import_success', 'Sinkronisasi Instagram dimulai.');
+    }
+
+    /**
+     * MIRROR syncInstagram() - identik strukturnya (scope check, lock peek,
+     * dispatch Job), cuma menunjuk platform/Job/Service TikTok.
+     */
+    public function syncTiktok(Request $request)
+    {
+        $validated = $request->validate([
+            'client_id' => ['required', 'exists:clients,id'],
+            'month' => ['nullable', 'regex:/^\d{4}-(0[1-9]|1[0-2])$/'],
+        ]);
+
+        $user = $request->user();
+        abort_unless(
+            $user->canSeeAllClients() || $user->assignedClients()->whereKey($validated['client_id'])->exists(),
+            403,
+            'Anda tidak punya akses ke client ini.'
+        );
+
+        $platform = Platform::where('name', 'TikTok')->first();
+        $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
+
+        if (! $integration || ! filled($integration->access_token)) {
+            return back()->with('import_error', 'Client ini belum connect TikTok (OAuth). Hubungkan dulu lewat tombol "Connect TikTok".');
+        }
+
+        $lock = Cache::lock(SyncTikTokAnalyticsJob::cacheLockKey($integration->id), 10);
+        if (! $lock->get()) {
+            return back()->with('import_error', 'Sinkronisasi TikTok untuk akun ini sedang berjalan.');
+        }
+        $lock->release();
+
+        try {
+            [$syncMode, $since, $until] = app(TikTokAnalyticsSyncService::class)
+                ->resolveSyncWindow($validated['month'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('import_error', $e->getMessage());
+        }
+
+        SyncTikTokAnalyticsJob::dispatch(
+            $integration->id, $syncMode,
+            $since->toDateString(), $until->toDateString(), auth()->id()
+        );
+
+        return back()->with('import_success', 'Sinkronisasi TikTok dimulai.');
     }
 
     /**

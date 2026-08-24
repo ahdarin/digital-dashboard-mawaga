@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncInstagramAnalyticsJob;
 use App\Jobs\SyncInstagramAudienceJob;
+use App\Jobs\SyncTikTokAnalyticsJob;
 use App\Models\AnalyticsSyncLog;
 use App\Models\AudienceInsight;
 use App\Models\Client;
@@ -188,11 +189,34 @@ class ClientManagementController extends Controller
             }
         }
 
+        // Integrasi TikTok client ini - MIRROR blok Instagram di atas persis,
+        // TANPA Audience Insights (TikTok Display API standar tidak
+        // menyediakan demografis - lihat docs/TIKTOK_INTEGRATION.md).
+        $tiktokIntegration = $client->apiIntegrations()
+            ->whereHas('platform', fn ($q) => $q->where('name', 'TikTok'))
+            ->first();
+        $tiktokOauthConfigured = filled(config('services.tiktok.client_key')) && filled(config('services.tiktok.client_secret'));
+
+        $tiktokLastSyncLog = $tiktokIntegration
+            ? AnalyticsSyncLog::where('api_integration_id', $tiktokIntegration->id)
+                ->where('source_type', 'api_sync')->latest()->first()
+            : null;
+        $tiktokSyncing = false;
+        if ($tiktokIntegration) {
+            $lock = Cache::lock(SyncTikTokAnalyticsJob::cacheLockKey($tiktokIntegration->id), 10);
+            if ($lock->get()) {
+                $lock->release();
+            } else {
+                $tiktokSyncing = true;
+            }
+        }
+
         return view('client-management.show', compact(
             'client', 'recentContentItems', 'contentCount', 'planCount', 'packageTemplates', 'staffOptions', 'picActiveCounts',
             'instagramIntegration', 'instagramOauthConfigured',
             'instagramLastSyncLog', 'instagramSyncing',
-            'instagramAudienceLastSyncLog', 'instagramAudienceLastSuccessAt', 'instagramAudienceSyncing'
+            'instagramAudienceLastSyncLog', 'instagramAudienceLastSuccessAt', 'instagramAudienceSyncing',
+            'tiktokIntegration', 'tiktokOauthConfigured', 'tiktokLastSyncLog', 'tiktokSyncing'
         ));
     }
 

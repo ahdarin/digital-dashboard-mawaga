@@ -1,7 +1,8 @@
 # Runtime Setup — Queue Worker & Scheduler
 
 Catatan operasional untuk fitur background sync Instagram (`SyncInstagramAnalyticsJob`)
-dan command terjadwal lain di `routes/console.php`. **Tidak ada secret/token di file ini.**
+dan TikTok (`SyncTikTokAnalyticsJob`), serta command terjadwal lain di
+`routes/console.php`. **Tidak ada secret/token di file ini.**
 
 ## Kenapa ini penting
 
@@ -24,10 +25,31 @@ Jalankan di 2 terminal terpisah (selain `php artisan serve` / Laragon):
 php artisan queue:work
 
 # Terminal 2 - simulasikan cron tiap menit, buat tes command terjadwal
-# (analytics:sync-all-instagram, analytics:refresh-instagram-tokens, dst)
+# (analytics:sync-all-instagram, analytics:refresh-instagram-tokens,
+# analytics:sync-all-tiktok, analytics:refresh-tiktok-tokens, dst)
 # tanpa perlu setup cron/Task Scheduler asli
 php artisan schedule:work
 ```
+
+## Command terjadwal — ringkasan
+
+| Command | Cadence | Fungsi |
+|---|---|---|
+| `analytics:refresh-instagram-tokens` | daily | Refresh long-lived Instagram token yang mendekati expired (~60 hari) |
+| `analytics:sync-all-instagram` | daily | Dispatch `SyncInstagramAnalyticsJob` untuk semua client yang connect Instagram |
+| `analytics:sync-all-instagram-audience` | daily | Sync Audience Insights (follower/reach/demografi) Instagram, terpisah dari sync konten |
+| `analytics:refresh-tiktok-tokens` | daily | Refresh TikTok `access_token` (~24 jam) via `refresh_token` — lihat catatan kontrak berbeda di bawah |
+| `analytics:sync-all-tiktok` | daily | Dispatch `SyncTikTokAnalyticsJob` untuk semua client yang connect TikTok |
+
+Kontrak refresh token TikTok **berbeda total** dari Instagram: Instagram punya satu
+long-lived token yang di-refresh pakai token itu sendiri (`ig_refresh_token`).
+TikTok punya `access_token` (~24 jam) dan `refresh_token` (~365 hari) terpisah,
+dan `refresh_token` **dirotasi** (nilai baru diterbitkan) tiap kali dipakai untuk
+refresh — `RefreshTikTokTokens` menyimpan `refresh_token` baru itu tiap jalan,
+bukan cuma `access_token`-nya. Tidak ada sync Audience Insights terpisah untuk
+TikTok — TikTok Display API standar tidak punya endpoint demografis seperti
+Instagram Insights; `follower_count` (kalau scope `user.info.stats` di-grant)
+disatukan ke job sync konten yang sama.
 
 Kalau sedang aktif ubah-ubah kode Job, `queue:work` **tidak** otomatis reload kode
 baru (proses PHP-nya sudah "membeku" isi class saat start) - restart manual

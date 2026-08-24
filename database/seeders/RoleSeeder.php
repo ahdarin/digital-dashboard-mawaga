@@ -14,7 +14,7 @@ class RoleSeeder extends Seeder
             'CEO',
             'Manager',
             'Content Creator',
-            'Graphic Designer',
+            'Desain Grafis',
             'SMO',
             'Copywriter',
         ];
@@ -25,23 +25,13 @@ class RoleSeeder extends Seeder
             ]);
         }
 
-        // Manager Demo (local/dev only — seeded account has a known password,
-        // so it must never be created in staging/production environments)
-        if (app()->environment('local')) {
-            $managerRole = Role::where('name', 'Manager')->first();
-
-            $managerDemo = User::firstOrCreate(
-                [
-                    'email' => 'admin@523studio.test',
-                ],
-                [
-                    'name' => 'Manager Demo',
-                    'password' => bcrypt('password'),
-                    'status' => 'active',
-                ]
-            );
-            $managerDemo->roles()->syncWithoutDetaching([$managerRole->id]);
-        }
+        // "Manager Demo" (password diketahui: "password") DIPINDAH ke
+        // DemoSeeder (audit dummy-data Agustus 2026) - sebelumnya cuma
+        // di-env-gate 'local', tapi dev DB kita SENDIRI selalu 'local', jadi
+        // tetap ikut ter-create tiap `migrate:fresh --seed` default. Ini
+        // bukan bootstrap tim beneran (beda dari Ahda/Surdik/Ghazi di bawah
+        // yang emailnya asli), jadi lebih tepat jadi bagian data demo
+        // eksplisit, bukan default seeding.
 
         // CEO
         $ceoRole = Role::where('name', 'CEO')->first();

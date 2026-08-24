@@ -8,6 +8,8 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\ContentPublication;
 use App\Models\InstagramMediaSnapshot;
+use App\Models\TikTokVideoSnapshot;
+use App\Services\HistoricalContentMatcher;
 use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -101,7 +103,7 @@ class ContentPublicationController extends Controller
      * API cuma kepakai lewat 3 jalur: sync (default/historical), tombol
      * Sync Now, dan connect/reconnect OAuth - bukan di sini.
      */
-    public function unmatchedInstagram(Request $request, ApiIntegration $apiIntegration)
+    public function unmatchedInstagram(Request $request, ApiIntegration $apiIntegration, HistoricalContentMatcher $historicalMatcher)
     {
         abort_unless($apiIntegration->platform->name === 'Instagram', 404);
 
@@ -109,6 +111,8 @@ class ContentPublicationController extends Controller
             ->whereIn('match_status', ['unmatched', 'ambiguous'])
             ->orderByDesc('published_at')
             ->get();
+
+        $suggestions = $this->buildHistoricalSuggestions($apiIntegration, $snapshots, $historicalMatcher);
 
         $unmatched = $snapshots->map(fn ($s) => [
             'id' => $s->external_post_id,
@@ -118,6 +122,7 @@ class ContentPublicationController extends Controller
             'media_type' => $s->media_type,
             'thumbnail_url' => $s->thumbnail_url,
             'ambiguous_reason' => $s->match_status === 'ambiguous' ? "Ada beberapa kandidat content item, perlu dipilih manual." : null,
+            'suggestion' => $suggestions[$s->id] ?? null,
         ])->all();
 
         $lastFetchedAt = InstagramMediaSnapshot::where('api_integration_id', $apiIntegration->id)
@@ -135,6 +140,64 @@ class ContentPublicationController extends Controller
             'lastFetchedAt' => $lastFetchedAt ? Carbon::parse($lastFetchedAt) : null,
             'contentItemOptions' => $contentItemOptions,
         ]);
+    }
+
+    /**
+     * Saran (BUKAN auto-link) dari HistoricalContentMatcher - read-only,
+     * cuma dipakai buat TAMPILAN di halaman ini. Scope SENGAJA dipersempit ke
+     * ContentItem hasil "Content Planner Import" (import_source=
+     * content_planner_xlsx) yang belum punya ContentPublication Instagram -
+     * TIDAK menyentuh ContentPublicationMatcher/tolerance ±120 menit
+     * operasional sama sekali, dan TIDAK pernah membuat/mengubah baris
+     * apapun di sini. Staff tetap wajib klik "Simpan" manual buat link
+     * beneran, lewat form existing (route publishing-tracker.instagram.link)
+     * yang sudah ada jauh sebelum ini.
+     */
+    private function buildHistoricalSuggestions(ApiIntegration $apiIntegration, $snapshots, HistoricalContentMatcher $historicalMatcher): array
+    {
+        $plannerItems = ContentItem::where('client_id', $apiIntegration->client_id)
+            ->where('import_source', 'content_planner_xlsx')
+            ->whereDoesntHave('publications', fn ($q) => $q->where('platform_id', $apiIntegration->platform_id))
+            ->with('contentType')
+            ->get();
+
+        if ($plannerItems->isEmpty()) {
+            return [];
+        }
+
+        $candidatesBySnapshot = [];
+        foreach ($snapshots as $snapshot) {
+            $candidatesBySnapshot[$snapshot->id] = $historicalMatcher->candidatesForSnapshot($snapshot, $plannerItems);
+        }
+        $candidatesBySnapshot = $historicalMatcher->applyUniqueDateBonus($candidatesBySnapshot, $plannerItems, $snapshots);
+
+        $suggestions = [];
+        foreach ($snapshots as $snapshot) {
+            $candidates = $candidatesBySnapshot[$snapshot->id];
+            if (empty($candidates)) {
+                continue;
+            }
+
+            $classification = $historicalMatcher->classify($candidates);
+            if ($classification['status'] === 'NO_MATCH') {
+                continue;
+            }
+
+            $suggestions[$snapshot->id] = [
+                'classification' => $classification['status'],
+                'reason' => $classification['reason'],
+                'candidates' => array_map(fn ($c) => [
+                    'content_item_id' => $c['item']->id,
+                    'content_item_title' => $c['item']->title,
+                    'diff_days' => $c['diff_days'],
+                    'similarity' => $c['similarity'],
+                    'format_compatible' => $c['format_score'] > 0,
+                    'score' => $c['score'],
+                ], array_slice($candidates, 0, 3)),
+            ];
+        }
+
+        return $suggestions;
     }
 
     /**
@@ -213,5 +276,117 @@ class ContentPublicationController extends Controller
         }
 
         return back()->with('import_success', "Media berhasil dihubungkan ke \"{$contentItem->title}\".");
+    }
+
+    /**
+     * MIRROR unmatchedInstagram() - TAPI TANPA "suggestion" (HistoricalContentMatcher
+     * cuma buat rekonsiliasi data Content Planner Excel LAMA yang memang
+     * Instagram-only, tidak ada padanan histori TikTok - lihat audit
+     * arsitektur di docs/TIKTOK_INTEGRATION.md Section "Content Matching").
+     * Selebihnya pola identik: daftar video unmatched/ambiguous, manual link
+     * lewat linkTiktokMedia() di bawah.
+     */
+    public function unmatchedTiktok(Request $request, ApiIntegration $apiIntegration)
+    {
+        abort_unless($apiIntegration->platform->name === 'TikTok', 404);
+
+        $snapshots = TikTokVideoSnapshot::where('api_integration_id', $apiIntegration->id)
+            ->whereIn('match_status', ['unmatched', 'ambiguous'])
+            ->orderByDesc('published_at')
+            ->get();
+
+        $unmatched = $snapshots->map(fn ($s) => [
+            'id' => $s->external_post_id,
+            'caption' => Str::limit($s->video_description ?? $s->title ?? '(tanpa deskripsi)', 120),
+            'timestamp' => $s->published_at,
+            'permalink' => $s->share_url,
+            'media_type' => 'Video',
+            'thumbnail_url' => $s->cover_image_url,
+            'ambiguous_reason' => $s->match_status === 'ambiguous' ? 'Ada beberapa kandidat content item, perlu dipilih manual.' : null,
+        ])->all();
+
+        $lastFetchedAt = TikTokVideoSnapshot::where('api_integration_id', $apiIntegration->id)
+            ->max('last_fetched_at');
+        $totalSnapshotted = TikTokVideoSnapshot::where('api_integration_id', $apiIntegration->id)->count();
+
+        $contentItemOptions = ContentItem::where('client_id', $apiIntegration->client_id)
+            ->orderByDesc('id')
+            ->get(['id', 'title']);
+
+        return view('publishing-tracker.tiktok-unmatched', [
+            'apiIntegration' => $apiIntegration->load('client'),
+            'unmatched' => $unmatched,
+            'totalSnapshotted' => $totalSnapshotted,
+            'lastFetchedAt' => $lastFetchedAt ? Carbon::parse($lastFetchedAt) : null,
+            'contentItemOptions' => $contentItemOptions,
+        ]);
+    }
+
+    /**
+     * MIRROR linkInstagramMedia() - identik strukturnya, cuma menunjuk
+     * TikTokVideoSnapshot + tiktok_video_snapshot_id, bukan
+     * InstagramMediaSnapshot + instagram_media_snapshot_id.
+     */
+    public function linkTiktokMedia(Request $request, ApiIntegration $apiIntegration)
+    {
+        abort_unless($apiIntegration->platform->name === 'TikTok', 404);
+
+        $validated = $request->validate([
+            'content_item_id' => ['required', 'integer'],
+            'external_post_id' => ['required', 'string'],
+            'permalink' => ['nullable', 'url'],
+            'caption' => ['nullable', 'string'],
+            'timestamp' => ['nullable', 'date'],
+        ]);
+
+        $contentItem = ContentItem::where('id', $validated['content_item_id'])
+            ->where('client_id', $apiIntegration->client_id)
+            ->first();
+
+        if (! $contentItem) {
+            return back()->with('import_error', 'Content item tidak ditemukan atau bukan milik client yang sama dengan integration ini.');
+        }
+
+        $alreadyLinkedElsewhere = ContentPublication::where('platform_id', $apiIntegration->platform_id)
+            ->where('external_post_id', $validated['external_post_id'])
+            ->where('content_item_id', '!=', $contentItem->id)
+            ->exists();
+
+        if ($alreadyLinkedElsewhere) {
+            return back()->with('import_error', 'Video TikTok ini sudah terhubung ke content item lain.');
+        }
+
+        try {
+            DB::transaction(function () use ($validated, $contentItem, $apiIntegration) {
+                $publication = ContentPublication::updateOrCreate(
+                    ['content_item_id' => $contentItem->id, 'platform_id' => $apiIntegration->platform_id],
+                    [
+                        'external_post_id' => $validated['external_post_id'],
+                        'api_integration_id' => $apiIntegration->id,
+                        'published_by' => auth()->id(),
+                        'published_at' => $validated['timestamp'] ?? now(),
+                        'post_url' => $validated['permalink'] ?? null,
+                        'caption_final' => $validated['caption'] ?? null,
+                    ]
+                );
+
+                $snapshot = TikTokVideoSnapshot::where('api_integration_id', $apiIntegration->id)
+                    ->where('external_post_id', $validated['external_post_id'])
+                    ->first();
+
+                if ($snapshot) {
+                    $snapshot->update(['match_status' => 'matched', 'content_publication_id' => $publication->id]);
+
+                    ContentMetric::where('tiktok_video_snapshot_id', $snapshot->id)
+                        ->update(['content_item_id' => $contentItem->id, 'client_id' => $apiIntegration->client_id]);
+                }
+            });
+        } catch (\Illuminate\Database\QueryException $e) {
+            Log::error('Manual link TikTok gagal (kemungkinan race condition unique constraint)', ['error' => $e->getMessage()]);
+
+            return back()->with('import_error', 'Gagal menghubungkan - video ini kemungkinan baru saja terhubung dari proses lain.');
+        }
+
+        return back()->with('import_success', "Video berhasil dihubungkan ke \"{$contentItem->title}\".");
     }
 }

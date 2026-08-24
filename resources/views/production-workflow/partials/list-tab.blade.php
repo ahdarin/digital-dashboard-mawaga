@@ -16,16 +16,16 @@
 <div class="px-4 sm:px-6 lg:px-8 pb-8">
     <div class="card overflow-hidden hidden sm:block">
         <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
+            <table class="w-full table-fixed text-sm text-left">
                 <thead class="bg-[var(--surface-page)]">
                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">{!! $sortLink('title', 'Konten') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('client', 'Klien') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('type', 'Tipe') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('status', 'Status') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('pic', 'Penanggung Jawab') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('deadline', 'Deadline') !!}</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('risk', 'Risiko Terlambat') !!}</th>
+                        <th class="w-[22%] px-6 py-3 font-medium whitespace-nowrap">{!! $sortLink('title', 'Konten') !!}</th>
+                        <th class="w-[12%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('client', 'Klien') !!}</th>
+                        <th class="w-[9%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('type', 'Tipe') !!}</th>
+                        <th class="w-[15%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('status', 'Status') !!}</th>
+                        <th class="w-[14%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('pic', 'PIC') !!}</th>
+                        <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('deadline', 'Deadline') !!}</th>
+                        <th class="w-[17%] px-4 py-3 font-medium whitespace-nowrap">{!! $sortLink('risk', 'Risiko') !!}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -50,13 +50,13 @@
                                         <span class="text-white text-[8px] font-bold uppercase tracking-wider whitespace-nowrap" style="transform: rotate(-90deg);">Tambahan</span>
                                     </div>
                                 @endif
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-2 min-w-0">
                                     <x-pin-button :item="$item" :pinned="$isPinned" />
-                                    <p class="font-medium text-[var(--text-primary)]">{{ $item->title }}</p>
+                                    <p class="font-medium text-[var(--text-primary)] line-clamp-2" title="{{ $item->title }}">{{ $item->title }}</p>
                                 </div>
                             </td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->client->name ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate" title="{{ $item->client->name ?? '-' }}">{{ $item->client->name ?? '-' }}</td>
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->contentType->name ?? '-' }}</td>
                             <td class="px-4 py-3.5" onclick="event.stopPropagation()">
                                 <div class="flex items-center gap-1.5 whitespace-nowrap">
                                     <span class="badge badge-success">
@@ -65,7 +65,7 @@
                                 </div>
 
                                 @if (($item->contentType->name ?? '') === 'Video' && $item->workflow->current_status === 'in_progress')
-                                    <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mt-1.5 w-[180px]">
+                                    <div data-footage-toggle data-item-id="{{ $item->id }}" class="footage-toggle-fade mt-1.5 w-full max-w-[180px]">
                                         @if ($item->footage_captured_at)
                                             <div class="flex items-center justify-between gap-1 text-[10px] font-medium text-[var(--success-text)] bg-[var(--success-tint)] px-2 py-1.5 rounded-lg">
                                                 <span class="flex items-center gap-1 whitespace-nowrap">
@@ -88,7 +88,13 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</td>
+                            @php $listPic = $picResolver->resolve($item); @endphp
+                            <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate" title="{{ $listPic['name'] ?? 'Belum ditugaskan' }}">
+                                {{ $listPic['name'] ?? 'Belum ditugaskan' }}
+                                @if ($listPic['name'] && ! $listPic['has_account'])
+                                    <span class="block text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 whitespace-nowrap {{ $isOverdue ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-secondary)]' }}">{{ $item->deadline_at->format('d M Y') }}</td>
                             <td class="px-4 py-3.5">
                                 @if ($risk)
@@ -172,7 +178,13 @@
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Penanggung Jawab</span>
-                        <span class="text-[var(--text-primary)] font-medium">{{ $item->workflow->currentPic->name ?? 'Belum ditugaskan' }}</span>
+                        @php $mobilePic = $picResolver->resolve($item); @endphp
+                        <span class="text-right">
+                            <span class="text-[var(--text-primary)] font-medium block">{{ $mobilePic['name'] ?? 'Belum ditugaskan' }}</span>
+                            @if ($mobilePic['name'] && ! $mobilePic['has_account'])
+                                <span class="text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                            @endif
+                        </span>
                     </div>
                     @if ($risk && $risk->top_factor)
                         <div class="flex items-center justify-between text-xs gap-3">

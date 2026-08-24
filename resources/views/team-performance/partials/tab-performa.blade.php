@@ -67,48 +67,54 @@
     <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Team Members</h2>
     <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
+        <table class="w-full table-fixed text-sm text-left">
             <thead class="bg-[var(--surface-page)]">
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Anggota</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Task Aktif</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Terlambat</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Selesai Bulan Ini</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Jumlah Revisi</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Rata-rata Risiko Terlambat</th>
+                    <th class="w-[28%] px-6 py-3 font-medium whitespace-nowrap">Anggota</th>
+                    <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Konten</th>
+                    <th class="w-[14%] px-4 py-3 font-medium text-right whitespace-nowrap">Task Aktif</th>
+                    <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Terlambat</th>
+                    <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Selesai</th>
+                    <th class="w-[10%] px-4 py-3 font-medium text-right whitespace-nowrap">Revisi</th>
+                    <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Risiko</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($members as $m)
+                    @php $user = $m['user']; @endphp
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
-                        onclick="navigateTo('{{ route('profile.show', $m['user']) }}')">
+                        onclick="navigateTo('{{ route('profile.show', $user) }}')">
                         <td class="px-6 py-3.5">
-                            <div class="flex items-center gap-3">
-                                @if ($m['user']->avatar_url)
-                                    <img src="{{ $m['user']->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover">
+                            <div class="flex items-center gap-3 min-w-0">
+                                @if ($user->avatar_url)
+                                    <img src="{{ $user->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover shrink-0">
                                 @else
                                     <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
-                                        {{ strtoupper(substr($m['user']->name, 0, 1)) }}
+                                        {{ strtoupper(substr($user->name, 0, 1)) }}
                                     </div>
                                 @endif
-                                <div>
-                                    <p class="font-medium text-[var(--text-primary)]">{{ $m['user']->name }}</p>
-                                    <p class="text-xs text-[var(--text-muted)]">{{ $m['user']->roleNamesLabel() }}</p>
+                                <div class="min-w-0">
+                                    <p class="font-medium text-[var(--text-primary)] truncate">{{ $user->name }}</p>
+                                    <p class="text-xs text-[var(--text-muted)] truncate">{{ $user->role->name ?? '-' }}</p>
+                                    @unless ($user->login_enabled)
+                                        <span class="badge badge-neutral">Belum ada akses</span>
+                                    @endunless
                                 </div>
                             </div>
                         </td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
-                            <span class="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                                <span class="w-1.5 h-1.5 rounded-full {{ $m['is_overloaded'] ? 'bg-[var(--danger-text)]' : 'bg-[var(--brand)]' }}"></span>
-                                {{ $m['active_count'] }} Task Aktif
+                        <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $m['content_count'] }}</td>
+                        <td class="px-4 py-3.5 text-right [font-variant-numeric:tabular-nums]">
+                            <span class="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
+                                <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $m['is_overloaded'] ? 'bg-[var(--danger-text)]' : 'bg-[var(--brand)]' }}"></span>
+                                {{ $m['active_count'] }}
                             </span>
                         </td>
-                        <td class="px-4 py-3.5 whitespace-nowrap {{ $m['overdue_count'] > 0 ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-muted)]' }}">
+                        <td class="px-4 py-3.5 text-right [font-variant-numeric:tabular-nums] {{ $m['overdue_count'] > 0 ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-muted)]' }}">
                             {{ $m['overdue_count'] }}
                         </td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $m['done_count'] }}</td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $m['revision_count'] }}</td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
+                        <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $m['done_count'] }}</td>
+                        <td class="px-4 py-3.5 text-right text-[var(--text-secondary)] [font-variant-numeric:tabular-nums]">{{ $m['revision_count'] }}</td>
+                        <td class="px-4 py-3.5 text-right">
                             @if ($m['avg_risk_score'] !== null)
                                 <span class="badge {{ $m['avg_risk_score'] >= 70 ? 'badge-danger' : ($m['avg_risk_score'] >= 40 ? 'badge-warning' : 'badge-success') }}">
                                     {{ $m['avg_risk_score'] }}%
@@ -120,7 +126,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-[var(--text-muted)] text-sm">Belum ada personel internal aktif.</td>
+                        <td colspan="7" class="px-6 py-10 text-center text-[var(--text-muted)] text-sm">Belum ada anggota tim tercatat.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -131,28 +137,31 @@
     {{-- Mobile accordion list --}}
     <div class="sm:hidden space-y-3">
         @forelse ($members as $m)
+            @php $userMobile = $m['user']; @endphp
             <div class="card p-3.5" x-data="{ open: false }">
                 <button type="button" class="w-full text-left flex items-center justify-between gap-3 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="flex items-center gap-3 min-w-0">
-                        @if ($m['user']->avatar_url)
-                            <img src="{{ $m['user']->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover shrink-0">
+                        @if ($userMobile->avatar_url)
+                            <img src="{{ $userMobile->avatar_url }}" alt="" referrerpolicy="no-referrer" class="w-9 h-9 rounded-full object-cover shrink-0">
                         @else
                             <div class="w-9 h-9 rounded-full bg-[var(--brand-solid)] text-white text-sm font-semibold flex items-center justify-center shrink-0">
-                                {{ strtoupper(substr($m['user']->name, 0, 1)) }}
+                                {{ strtoupper(substr($userMobile->name, 0, 1)) }}
                             </div>
                         @endif
                         <div class="min-w-0">
-                            <p class="font-medium text-[var(--text-primary)] truncate">{{ $m['user']->name }}</p>
+                            <p class="font-medium text-[var(--text-primary)] truncate">{{ $userMobile->name }}</p>
                             <div class="flex items-center gap-2 mt-1">
-                                <span class="text-xs {{ $m['overdue_count'] > 0 ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-muted)]' }}">Terlambat: {{ $m['overdue_count'] }}</span>
+                                <span class="text-xs text-[var(--text-muted)]">{{ $m['content_count'] }} konten</span>
+                                <span class="text-xs {{ $m['overdue_count'] > 0 ? 'text-[var(--danger-text)] font-semibold' : 'text-[var(--text-muted)]' }}">&middot; Terlambat: {{ $m['overdue_count'] }}</span>
                                 @if ($m['avg_risk_score'] !== null)
                                     <span class="badge {{ $m['avg_risk_score'] >= 70 ? 'badge-danger' : ($m['avg_risk_score'] >= 40 ? 'badge-warning' : 'badge-success') }}">
                                         {{ $m['avg_risk_score'] }}%
                                     </span>
-                                @else
-                                    <span class="text-xs text-[var(--text-muted)]">-</span>
                                 @endif
                             </div>
+                            @unless ($userMobile->login_enabled)
+                                <span class="badge badge-neutral mt-1">Belum memiliki akses dashboard</span>
+                            @endunless
                         </div>
                     </div>
                     <span class="shrink-0 w-8 h-8 flex items-center justify-center">
@@ -169,21 +178,21 @@
                         </span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[var(--text-muted)]">Selesai Bulan Ini</span>
+                        <span class="text-[var(--text-muted)]">Total Selesai</span>
                         <span class="text-[var(--text-primary)] font-medium">{{ $m['done_count'] }}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Jumlah Revisi</span>
                         <span class="text-[var(--text-primary)] font-medium">{{ $m['revision_count'] }}</span>
                     </div>
-                    <a href="{{ route('profile.show', $m['user']) }}"
+                    <a href="{{ route('profile.show', $userMobile) }}"
                         class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
                         Lihat Profil <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
                     </a>
                 </div>
             </div>
         @empty
-            <div class="card p-6 text-center text-sm text-[var(--text-muted)]">Belum ada personel internal aktif.</div>
+            <div class="card p-6 text-center text-sm text-[var(--text-muted)]">Belum ada anggota tim tercatat.</div>
         @endforelse
     </div>
 </div>

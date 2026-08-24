@@ -98,7 +98,14 @@ class ContentPublicationMatcher
             return ContentPublicationMatchResult::unmatched();
         }
 
-        $toleranceMinutes = config('analytics.instagram_schedule_match_tolerance_minutes');
+        // Config key per platform ('instagram_...'/'tiktok_...') - matcher ini
+        // dipakai kedua platform apa adanya (lihat docblock kelas), jadi
+        // toleransinya juga harus per platform, bukan hardcode Instagram.
+        // Fallback ke instagram_* kalau platform lain belum py config sendiri,
+        // biar tidak pernah null/error buat platform yang belum dipikirkan.
+        $platformKey = strtolower($integration->platform->name ?? 'instagram');
+        $toleranceMinutes = config("analytics.{$platformKey}_schedule_match_tolerance_minutes")
+            ?? config('analytics.instagram_schedule_match_tolerance_minutes');
         $mediaTime = Carbon::parse($media['timestamp']);
         $windowStart = $mediaTime->copy()->subMinutes($toleranceMinutes);
         $windowEnd = $mediaTime->copy()->addMinutes($toleranceMinutes);

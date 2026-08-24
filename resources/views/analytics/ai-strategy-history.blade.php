@@ -81,6 +81,12 @@
                             digenerate oleh {{ $insight->generatedBy->name ?? '-' }}
                         </p>
 
+                        @unless ($insight->applied_at || $insight->client->activePackage)
+                            <p class="text-[11px] text-[var(--text-muted)] mb-2 flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[13px]">info</span>
+                                Paket belum tercatat - ide diterapkan tanpa validasi kuota paket.
+                            </p>
+                        @endunless
                         <div class="flex items-center gap-2">
                             @if (! $insight->applied_at)
                                 <form action="{{ route('analytics.ai-strategy.apply', $insight) }}" method="POST">

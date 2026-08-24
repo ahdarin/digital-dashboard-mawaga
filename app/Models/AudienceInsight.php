@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class AudienceInsight extends Model
 {
     public const SOURCE_API = 'instagram_api';
+    public const SOURCE_TIKTOK_API = 'tiktok_api';
     public const SOURCE_CSV = 'csv_import';
     public const SOURCE_LEGACY = 'legacy';
 
@@ -35,9 +36,16 @@ class AudienceInsight extends Model
     public function client() { return $this->belongsTo(Client::class); }
     public function platform() { return $this->belongsTo(Platform::class); }
 
+    /**
+     * "API-sourced" ANTAR platform (bukan cuma Instagram) - aman karena
+     * SEMUA caller sudah menyempitkan platform_id lebih dulu sebelum
+     * memanggil scope ini (mis. AiStrategyService::resolveAudienceForPlatform,
+     * ClientManagementController::show()), jadi menambah TikTok ke daftar
+     * ini TIDAK PERNAH bikin data lintas-platform ketuker.
+     */
     public function scopeApiSourced(Builder $query): Builder
     {
-        return $query->where('source', self::SOURCE_API);
+        return $query->whereIn('source', [self::SOURCE_API, self::SOURCE_TIKTOK_API]);
     }
 
     public function scopeCsvSourced(Builder $query): Builder

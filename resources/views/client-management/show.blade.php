@@ -95,21 +95,21 @@
                     <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk klien ini.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
+                        <table class="w-full table-fixed text-sm text-left">
                             <thead class="bg-[var(--surface-page)]">
                                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                    <th class="px-6 py-3 font-medium whitespace-nowrap">Judul</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                                    <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
+                                    <th class="w-[38%] px-6 py-3 font-medium whitespace-nowrap">Judul</th>
+                                    <th class="w-[15%] px-4 py-3 font-medium whitespace-nowrap">Tipe</th>
+                                    <th class="w-[18%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                                    <th class="w-[29%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($recentContentItems as $item)
                                     <tr class="border-t border-[var(--surface-muted)]">
-                                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item->title }}</td>
-                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->contentType->name ?? '-' }}</td>
-                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
+                                        <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</td>
+                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->contentType->name ?? '-' }}</td>
+                                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</td>
                                         <td class="px-4 py-3.5">
                                             <span class="badge {{ ($item->workflow->is_overdue ?? false) ? 'badge-danger' : 'badge-success' }}">
                                                 {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
@@ -355,18 +355,111 @@
                         dan daftarkan redirect URI di Meta App Dashboard dulu.
                     </p>
                 @endif
+
+                {{-- TikTok - MIRROR blok Instagram di atas, TANPA Audience
+                     Insights (TikTok Display API standar tidak menyediakan
+                     demografis - lihat docs/TIKTOK_INTEGRATION.md). --}}
+                @php $ttConnected = $tiktokIntegration && $tiktokIntegration->status === 'active'; @endphp
+
+                <div class="flex items-center justify-between mb-2 mt-5 pt-5 border-t border-[var(--surface-muted)]">
+                    <p class="text-sm font-medium text-[var(--text-primary)]">TikTok</p>
+                    <span class="badge {{ $tiktokSyncing ? 'badge-warning' : ($ttConnected ? 'badge-success' : 'badge-danger') }}">
+                        {{ $tiktokSyncing ? 'Syncing' : ($ttConnected ? 'Active' : 'Disconnected') }}
+                    </span>
+                </div>
+
+                @if ($ttConnected)
+                    <p class="text-xs text-[var(--text-muted)] mb-3">&commat;{{ $tiktokIntegration->external_username }}</p>
+
+                    <div class="border-t border-[var(--surface-muted)] pt-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                            @php
+                                $ttSyncBadgeClass = $tiktokSyncing ? 'badge-warning' : ($tiktokLastSyncLog?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
+                                $ttSyncBadgeLabel = $tiktokSyncing ? 'Syncing' : ($tiktokLastSyncLog?->status === 'failed' ? 'Failed' : ($tiktokIntegration->last_synced_at ? 'Synced' : 'Not Synced'));
+                            @endphp
+                            <span class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
+                        </div>
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                            Last Sync: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                        </p>
+                        @if (! $tiktokSyncing && $tiktokLastSyncLog?->status === 'failed')
+                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $tiktokLastSyncLog->error_message }}</p>
+                        @endif
+
+                        <div class="flex items-center gap-2 flex-wrap mb-2">
+                            <form action="{{ route('settings.sync-tiktok') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="client_id" value="{{ $client->id }}">
+                                <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span class="material-symbols-outlined text-[14px]">sync</span>
+                                    {{ $tiktokSyncing ? 'Syncing...' : 'Sync Content Analytics' }}
+                                </button>
+                            </form>
+                            <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
+                               class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
+                        </div>
+                        @if ($tiktokSyncing)
+                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Content Analytics TikTok.</p>
+                        @endif
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
+
+                        <details class="text-xs">
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Sync (bulan lama)</summary>
+                            <div class="mt-2 space-y-1.5">
+                                <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
+                                <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="client_id" value="{{ $client->id }}">
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                    <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Sync Selected Month
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    </div>
+                @elseif ($tiktokOauthConfigured)
+                    @if ($tiktokIntegration && $tiktokIntegration->last_error)
+                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">TikTok connection needs attention</p>
+                        <p class="text-xs text-[var(--danger-text)] mb-3">{{ $tiktokIntegration->last_error }}</p>
+                    @else
+                        <p class="text-xs text-[var(--text-muted)] mb-3">Belum terhubung.</p>
+                    @endif
+                    <a href="{{ route('client-management.tiktok.connect', $client) }}"
+                       class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
+                        <span class="material-symbols-outlined text-[14px]">link</span>
+                        {{ $tiktokIntegration && $tiktokIntegration->last_error ? 'Reconnect TikTok' : 'Connect TikTok' }}
+                    </a>
+                @else
+                    <p class="text-xs text-[var(--text-muted)]">
+                        OAuth belum dikonfigurasi. Isi <code>TIKTOK_CLIENT_KEY</code>/<code>TIKTOK_CLIENT_SECRET</code> di <code>.env</code>
+                        dan daftarkan redirect URI di TikTok Developer Portal dulu.
+                    </p>
+                @endif
             </div>
 
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">PIC Ditugaskan</h2>
+                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Tim yang Menangani</h2>
                     <button type="button" @click="showPicModal = true" {{ $canManageClient ? '' : 'disabled' }}
-                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur PIC' }}"
-                            class="text-xs font-medium text-[var(--brand)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">Atur PIC</button>
+                            title="{{ $canManageClient ? '' : 'Cuma CEO/Manager yang bisa mengatur tim' }}"
+                            class="text-xs font-medium text-[var(--brand)] hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">Atur</button>
                 </div>
 
+                {{-- Satu-satunya sumber "siapa yang menangani client ini"
+                     (user_client_assignments) - "satu orang = satu record",
+                     tidak ada domain TeamMember terpisah lagi. TIDAK ada
+                     konsep "Primary PIC" tunggal di sini (audit membuktikan
+                     workbook sumber cuma punya 1 nama per client sebagai
+                     snapshot account-manager historis, BUKAN bukti kuat
+                     siapa satu-satunya penanggung jawab permanen - beberapa
+                     client real terbukti ditangani lebih dari 1 orang). --}}
                 @if ($client->assignedUsers->isEmpty())
-                    <p class="text-sm text-[var(--text-muted)]">Belum ada PIC ditugaskan - konten untuk klien ini belum bisa dibuat sampai ada yang di-assign.</p>
+                    <p class="text-sm text-[var(--text-muted)]">Belum ada akun sistem yang ditugaskan ke client ini.</p>
                 @else
                     <div class="space-y-2.5">
                         @foreach ($client->assignedUsers as $staff)
@@ -499,7 +592,7 @@
                  class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                     <div>
-                        <h3 id="pic-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Atur PIC</h3>
+                        <h3 id="pic-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Atur Akun Sistem</h3>
                         <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->brand_name }}</p>
                     </div>
                     <button type="button" @click="showPicModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
@@ -510,7 +603,7 @@
                 <form action="{{ route('client-management.pic.update', $client) }}" method="POST">
                     @csrf @method('PUT')
                     <div class="px-6 py-5">
-                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Staff yang Jadi PIC</p>
+                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-3">Pilih Staff yang Diberi Akses Sistem</p>
                         @error('user_ids') <p class="text-xs text-[var(--danger-text)] mb-3">{{ $message }}</p> @enderror
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">

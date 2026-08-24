@@ -92,6 +92,9 @@ class UserWorkSummaryService
             $assignments->pluck('content_item_id')
         )->count();
 
+        // Client yang ditangani dari user_client_assignments - satu-satunya
+        // sumber "client yang ditangani" di sistem ("satu orang = satu
+        // record", tidak ada TeamMember/team_member_client terpisah lagi).
         $assignedClients = $user->assignedClients()->where('status', 'active')->get();
 
         return compact(

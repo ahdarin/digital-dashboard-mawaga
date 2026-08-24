@@ -31,6 +31,21 @@ Schedule::command('analytics:sync-all-instagram')->daily();
 // "Instagram Audience Insights").
 Schedule::command('analytics:sync-all-instagram-audience')->daily();
 
+// TikTok - access_token JAUH lebih pendek umurnya dari Instagram (~24 jam,
+// bukan ~60 hari), jadi refresh dijadwalkan harian juga (lihat
+// RefreshTikTokTokens docblock - kontrak refresh token TikTok beda total
+// dari Instagram, refresh_token terpisah + dirotasi tiap dipakai).
+Schedule::command('analytics:refresh-tiktok-tokens')->daily();
+
+// Sync default (2 bulan terakhir) semua client yang sudah connect TikTok -
+// cadence disamakan dengan Instagram (Langkah "TikTok Official API
+// Integration" Section 24, "align reasonably with Instagram"). TIDAK ada
+// jadwal audience/stats terpisah - follower_count (kalau scope granted)
+// disatukan ke sync content ini (lihat TikTokAnalyticsSyncService::
+// saveProfileSnapshot()), TikTok Display API standar tidak punya endpoint
+// audience demografis seperti Instagram Insights.
+Schedule::command('analytics:sync-all-tiktok')->daily();
+
 // PENTING - dependency operasional yang harus disetup terpisah, BUKAN
 // otomatis aktif cuma karena baris ini ada:
 // 1. Baris Schedule:: di file ini cuma "terdaftar", baru benar-benar jalan

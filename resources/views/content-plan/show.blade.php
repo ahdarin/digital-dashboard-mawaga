@@ -32,8 +32,14 @@
                     @endif
                 </div>
                 <p class="text-[var(--text-secondary)] text-sm mt-1">
-                    Target: {{ $contentPlan->clientPackage->monthly_content_quota ?? 0 }} Content /
-                    {{ $contentPlan->clientPackage->monthly_design_quota ?? 0 }} Design
+                    @if ($contentPlan->clientPackage)
+                        Target: {{ $contentPlan->clientPackage->monthly_content_quota }} Content /
+                        {{ $contentPlan->clientPackage->monthly_design_quota }} Design
+                    @else
+                        {{-- client_package_id NULL = data paket belum tercatat, BUKAN client
+                             tanpa paket - jangan tampilkan "0 Content / 0 Design" (Langkah 2). --}}
+                        <span class="text-[var(--text-muted)] italic">Paket belum tercatat</span>
+                    @endif
                 </p>
             </div>
         </div>
@@ -66,26 +72,26 @@
 
     <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
+        <table class="w-full table-fixed text-sm text-left">
             <thead class="bg-[var(--surface-page)]">
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Detail Item</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Kategori</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">Penanggung Jawab</th>
-                    <th class="px-6 py-3 font-medium whitespace-nowrap">Status</th>
+                    <th class="w-[30%] px-6 py-3 font-medium">Detail Item</th>
+                    <th class="w-[13%] px-4 py-3 font-medium">Kategori</th>
+                    <th class="w-[10%] px-4 py-3 font-medium">Platform</th>
+                    <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Deadline</th>
+                    <th class="w-[17%] px-4 py-3 font-medium">Penanggung Jawab</th>
+                    <th class="w-[13%] px-6 py-3 font-medium">Status</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($items as $item)
                     <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
                         onclick="navigateTo('{{ route('content-items.show', $item) }}')">
-                        <td class="px-6 py-3.5 whitespace-nowrap">
-                            <p class="font-medium text-[var(--text-primary)]">{{ $item->title }}</p>
-                            <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                        <td class="px-6 py-3.5">
+                            <p class="font-medium text-[var(--text-primary)] line-clamp-2" title="{{ $item->title }}">{{ $item->title }}</p>
+                            <p class="text-xs text-[var(--text-muted)] mt-0.5 truncate">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
                         </td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
+                        <td class="px-4 py-3.5">
                             @php
                                 $typeColor = match ($item->contentType->name ?? null) {
                                     'Video' => '#3452a8',
@@ -96,15 +102,21 @@
                             <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
                                 {{ $item->contentType->name ?? '-' }}
                             </span>
+                            @if ($item->content_format)
+                                <span class="block text-[10px] text-[var(--text-muted)] mt-1">{{ $item->content_format }}</span>
+                            @endif
                         </td>
-                        <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform->name ?? '-' }}</td>
+                        <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform->name ?? '-' }}</td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $item->deadline_at->format('d M Y') }}</td>
-                        <td class="px-4 py-3.5 whitespace-nowrap">
-                            @php $pic = $item->assignments->first()?->user; @endphp
-                            @if ($pic)
-                                <span class="text-xs text-[var(--text-secondary)]">{{ $pic->name }}</span>
+                        <td class="px-4 py-3.5">
+                            @php $pic = $picResolver->resolve($item); @endphp
+                            @if ($pic['name'])
+                                <span class="text-xs text-[var(--text-secondary)] block truncate" title="{{ $pic['name'] }}">{{ $pic['name'] }}</span>
+                                @if (! $pic['has_account'])
+                                    <span class="block text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
                             @else
-                                <span class="text-xs text-[var(--text-muted)] italic">Belum ada Penanggung Jawab</span>
+                                <span class="text-xs text-[var(--text-muted)] italic">Belum ditugaskan</span>
                             @endif
                         </td>
                         <td class="px-6 py-3.5">
@@ -130,7 +142,7 @@
                     'Desain' => '#b3427e',
                     default => '#9aa0a4',
                 };
-                $pic = $item->assignments->first()?->user;
+                $pic = $picResolver->resolve($item);
             @endphp
             <div x-data="{ open: false }" class="card p-3.5">
                 <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
@@ -156,14 +168,25 @@
                             {{ $item->contentType->name ?? '-' }}
                         </span>
                     </div>
+                    @if ($item->content_format)
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-[var(--text-muted)]">Format</span>
+                            <span class="text-[var(--text-primary)] font-medium">{{ $item->content_format }}</span>
+                        </div>
+                    @endif
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Platform</span>
                         <span class="text-[var(--text-primary)] font-medium">{{ $item->platform->name ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between text-xs">
                         <span class="text-[var(--text-muted)]">Penanggung Jawab</span>
-                        @if ($pic)
-                            <span class="text-[var(--text-primary)] font-medium">{{ $pic->name }}</span>
+                        @if ($pic['name'])
+                            <span class="text-right">
+                                <span class="text-[var(--text-primary)] font-medium block">{{ $pic['name'] }}</span>
+                                @if (! $pic['has_account'])
+                                    <span class="text-[10px] text-[var(--text-muted)] italic">Belum memiliki akun</span>
+                                @endif
+                            </span>
                         @else
                             <span class="text-[var(--text-muted)] italic">Belum ada</span>
                         @endif

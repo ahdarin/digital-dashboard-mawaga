@@ -136,9 +136,9 @@
                             <label for="urgent_pic_id" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Penanggung Jawab</label>
                             <select id="urgent_pic_id" name="pic_id" x-ref="urgentPicSelect" class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('pic_id') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
                                 <option value="">Belum ditentukan</option>
-                                @foreach ($picOptions as $pic)
-                                    <option value="{{ $pic->id }}" data-client-ids="{{ $pic->assignedClients->pluck('id')->join(',') }}"
-                                        {{ (string) old('pic_id') === (string) $pic->id ? 'selected' : '' }}>{{ $pic->name }}</option>
+                                @foreach ($picOptions as $picUser)
+                                    <option value="{{ $picUser->id }}" data-client-ids="{{ $picUser->assignedClients->pluck('id')->join(',') }}"
+                                        {{ (string) old('pic_user_id') === (string) $picUser->id ? 'selected' : '' }}>{{ $picUser->name }}{{ $picUser->login_enabled ? '' : ' (belum memiliki akses dashboard)' }}</option>
                                 @endforeach
                             </select>
                             <p class="text-[11px] text-[var(--text-muted)] mt-1">Cuma menampilkan tim yang sudah di-assign ke klien yang dipilih di atas.</p>

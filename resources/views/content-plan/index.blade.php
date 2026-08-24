@@ -215,8 +215,11 @@
                         <select id="create_plan_client_id" name="client_id" required class="w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                             <option value="">Pilih client...</option>
                             @foreach ($clientOptions as $c)
-                                <option value="{{ $c->id }}" {{ !$c->activePackage ? 'disabled' : '' }}>
-                                    {{ $c->name }} {{ !$c->activePackage ? '(belum ada paket aktif)' : '' }}
+                                {{-- client_package_id nullable (Langkah 2) - paket belum
+                                     tercatat BUKAN alasan blokir bikin Content Plan, cuma
+                                     info buat staff. Tidak di-disable lagi. --}}
+                                <option value="{{ $c->id }}">
+                                    {{ $c->name }} {{ !$c->activePackage ? '(paket belum tercatat)' : '' }}
                                 </option>
                             @endforeach
                         </select>

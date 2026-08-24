@@ -42,9 +42,21 @@ class DelayRiskAccuracyService
             ];
         }
 
-        $items = ContentItem::whereIn('id', $firstUploadedLogs->pluck('content_item_id'))
+        $itemIds = $firstUploadedLogs->pluck('content_item_id');
+
+        $items = ContentItem::whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
+
+        // Preload SEMUA skor sekaligus (1 query, bukan 1 query per item di
+        // dalam loop - dulu 211 query buat ~223 total) - diurutkan ascending
+        // by id per content_item_id, jadi "skor terakhir dengan created_at
+        // <= changed_at" tinggal filter+last() di memori, hasilnya identik
+        // dengan query lama (`where created_at <= .. -> latest('id')->first()`).
+        $scoresByItem = DelayRiskScore::whereIn('content_item_id', $itemIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('content_item_id');
 
         foreach ($firstUploadedLogs as $log) {
             $item = $items->get($log->content_item_id);
@@ -53,10 +65,9 @@ class DelayRiskAccuracyService
                 continue;
             }
 
-            $scoreBeforeUpload = DelayRiskScore::where('content_item_id', $item->id)
-                ->where('created_at', '<=', $log->changed_at)
-                ->latest('id')
-                ->first();
+            $scoreBeforeUpload = ($scoresByItem->get($log->content_item_id) ?? collect())
+                ->filter(fn ($score) => $score->created_at->lte($log->changed_at))
+                ->last();
 
             if (!$scoreBeforeUpload) {
                 continue;

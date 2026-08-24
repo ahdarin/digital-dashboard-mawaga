@@ -61,7 +61,7 @@
             </div>
 
             @if (($audienceSource ?? null) === 'instagram_api')
-                <p class="text-[11px] text-[var(--warning-text)] mt-2">Client ini sudah pakai data Instagram API real - import CSV tetap tersimpan, tapi TIDAK ditampilkan di sini selama data API tersedia.</p>
+                <p class="text-[11px] text-[var(--warning-text)] mt-2">Klien ini sudah pakai data Instagram API real - import CSV tetap tersimpan, tapi TIDAK ditampilkan di sini selama data API tersedia.</p>
             @endif
 
             <details class="mt-3">

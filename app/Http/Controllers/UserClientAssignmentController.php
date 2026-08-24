@@ -12,21 +12,6 @@ use Illuminate\Validation\ValidationException;
 
 class UserClientAssignmentController extends Controller
 {
-    public function update(Request $request, User $user)
-    {
-        $this->authorizeManage();
-
-        $validated = $request->validate([
-            'client_ids' => 'nullable|array',
-            'client_ids.*' => 'exists:clients,id',
-        ]);
-
-        $this->sync(['user_id' => $user->id], 'client_id', $validated['client_ids'] ?? []);
-
-        return redirect()->route('user-management.index')
-            ->with('status', "Client untuk {$user->name} berhasil diperbarui.");
-    }
-
     /**
      * Kebalikan dari update() - dari sisi client, pilih staff mana saja
      * yang jadi PIC-nya. Dipakai tombol "PIC Ditugaskan" di halaman detail

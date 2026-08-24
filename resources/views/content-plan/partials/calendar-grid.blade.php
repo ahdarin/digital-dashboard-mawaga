@@ -113,6 +113,11 @@
     </div>
 
     <div class="card p-5 hidden sm:block">
+      {{-- Exception documented (responsive sweep): 7-day grid is intrinsically
+           wide - each day cell needs enough room to stay tappable/readable,
+           can't be narrowed like a data table. Desktop-only (hidden sm:block),
+           mobile gets a separate list view, so this scroll never reaches
+           mobile users. --}}
       <div class="overflow-x-auto">
         <div class="min-w-[700px]">
         <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-medium text-[var(--text-muted)] uppercase mb-2">

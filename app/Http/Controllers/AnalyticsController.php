@@ -306,14 +306,28 @@ class AnalyticsController extends Controller
                     'title' => $item?->title ?? \Illuminate\Support\Str::limit($snapshot?->caption ?: 'Instagram Post', 60),
                     'platform' => $first->platform->name ?? '-',
                     'content_type_id' => $item?->content_type_id,
-                    'type' => $item?->contentType->name ?? '-',
+                    // Linked: SELALU ContentType internal (taxonomy produksi) -
+                    // walau content_type_id-nya kosong, JANGAN jatuh ke format
+                    // Instagram (itu domain beda, jangan campur - tampil '-').
+                    // Unmatched: fallback DISPLAY-ONLY dari format Instagram
+                    // (Reels/Carousel/Image/Video) - BUKAN ContentType, tidak
+                    // pernah ditulis ke content_type_id (lihat docblock
+                    // InstagramMediaSnapshot::getDisplayFormatAttribute()).
+                    'type' => $item ? $item->contentType?->name : $snapshot?->display_format,
                     'total_views' => (int) $group->sum('views'),
                     'avg_engagement' => round($group->avg('engagement_rate'), 2),
+                    // Deadline HANYA dari workflow internal - null kalau
+                    // unmatched, TIDAK PERNAH diisi dari published_at/
+                    // snapshot_date/created_at (itu bukan deadline).
                     'deadline_at' => $item?->deadline_at,
                     'is_posted' => $item?->is_posted,
                     'is_overdue' => $item?->workflow?->is_overdue ?? false,
                     'linked' => (bool) $item,
                     'permalink' => $snapshot?->permalink,
+                    // Dipakai action "Hubungkan Konten" - arahkan ke halaman
+                    // unmatched management dgn post ini di-preselect (anchor).
+                    'api_integration_id' => $snapshot?->api_integration_id,
+                    'external_post_id' => $snapshot?->external_post_id,
                 ];
             })
             ->values();
@@ -638,24 +652,30 @@ class AnalyticsController extends Controller
         $client = $aiStrategyInsight->client;
         $activePackage = $client->activePackage;
 
-        abort_unless($activePackage, 422, 'Client ini belum punya paket aktif, tidak bisa dibuatkan content plan.');
+        // client_package_id nullable (Langkah 1-2, audit Agustus 2026) -
+        // client tanpa paket aktif TETAP boleh Apply, cuma jumlah draft yang
+        // dibuat nggak lagi dari kuota paket (Langkah "Final Fix Batch" E:
+        // jangan fabricate quota palsu begitu ClientPackage dummy dibersihkan).
+        $ideaCount = collect($aiStrategyInsight->content_ideas)->count();
+        abort_if(! $activePackage && $ideaCount === 0, 422, 'Client ini belum punya paket aktif, dan analisis ini tidak menyimpan ide konten apapun untuk diterapkan.');
 
         $now = Carbon::now();
 
         $plan = \App\Models\ContentPlan::firstOrCreate(
             ['client_id' => $client->id, 'month' => $now->month, 'year' => $now->year],
             [
-                'client_package_id' => $activePackage->id,
+                'client_package_id' => $activePackage?->id,
                 'created_by' => auth()->id(),
                 'status' => 'draft',
             ]
         );
 
-        // Total draft = kuota konten + kuota desain bulanan client (bukan
-        // dibatasi angka tetap) - AI diminta nandain tipe tiap ide (lihat
-        // AiStrategyService::contentTypeOptions()) biar draft-nya beneran
-        // kehitung sesuai porsi Content vs Design pas dibuka di Content Plan.
-        $totalItems = (($activePackage->monthly_content_quota ?: 0) + ($activePackage->monthly_design_quota ?: 0)) ?: 10;
+        // Package aktif -> pola lama (kuota bulanan nentuin jumlah draft).
+        // Package belum tercatat -> JANGAN klaim kuota palsu, pakai jumlah
+        // ide yang memang tersimpan dari hasil AI Strategy ini apa adanya.
+        $totalItems = $activePackage
+            ? ((($activePackage->monthly_content_quota ?: 0) + ($activePackage->monthly_design_quota ?: 0)) ?: 10)
+            : $ideaCount;
         $split = collect($aiStrategyInsight->suggested_split);
         $splitSum = $split->sum('value') ?: 100;
         $daysInMonth = $now->daysInMonth;

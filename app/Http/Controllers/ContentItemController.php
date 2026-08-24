@@ -9,6 +9,7 @@ use App\Models\ContentItemAssignment;
 use App\Models\User;
 use App\Services\DelayRiskPredictionService;
 use App\Services\PinService;
+use App\Services\UserContentResolver;
 use App\Services\WorkflowStatusService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class ContentItemController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
 
-    public function show(ContentItem $contentItem)
+    public function show(ContentItem $contentItem, \App\Services\PicResolver $picResolver, UserContentResolver $contentResolver)
     {
         $contentItem->load([
             'client',
@@ -52,7 +53,7 @@ class ContentItemController extends Controller
         $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
         $canApprove = auth()->user()->hasPermissionTo('workflow', 'approve');
 
-        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow', 'canApprove'));
+        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'activeCountsByMember', 'canUpdateWorkflow', 'canApprove', 'picResolver'));
     }
 
     /**
@@ -217,21 +218,26 @@ class ContentItemController extends Controller
     public function reassign(ContentItem $contentItem, Request $request, DelayRiskPredictionService $delayRiskService)
     {
         $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'pic_user_id' => 'required|exists:users,id',
         ]);
 
         $newPic = User::query()->where('status', 'active')->findOrFail($validated['user_id']);
 
         $workflow = $contentItem->workflow;
-        $workflow->update(['current_pic_id' => $newPic->id]);
+        $workflow->update(['current_pic_id' => $user->id]);
+
+        $contentItem->update([
+            'external_pic_name' => $user->name,
+            'external_pic_email' => $user->email,
+        ]);
 
         ContentItemAssignment::updateOrCreate(
             ['content_item_id' => $contentItem->id, 'assignment_role' => 'primary'],
-            ['user_id' => $newPic->id]
+            ['user_id' => $user->id]
         );
 
         $delayRiskService->predictForItems([$contentItem->id]);
 
-        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$newPic->name} - notifikasi otomatis terkirim ke yang bersangkutan.");
+        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$user->name}.");
     }
 }

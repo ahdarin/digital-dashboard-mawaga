@@ -14,7 +14,6 @@ use App\Rules\AssignedClient;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 
 class ContentPlanController extends Controller
 {
@@ -113,8 +112,7 @@ class ContentPlanController extends Controller
             'typeOptions',
             'selectedType',
             'contentTypeOptions',
-            'platformOptions',
-            'picOptions'
+            'platformOptions'
         ));
     }
 
@@ -131,13 +129,14 @@ class ContentPlanController extends Controller
         ]);
 
         $client = Client::findOrFail($validated['client_id']);
-        $activePackage = $client->activePackage;
 
-        abort_unless($activePackage, 422, 'Client ini belum punya paket aktif, tidak bisa dibuatkan content plan.');
-
+        // client_package_id nullable (Langkah 1-2, audit Agustus 2026) -
+        // NULL berarti "data paket belum tercatat", BUKAN "client tidak
+        // boleh punya Content Plan". Client real (mis. hasil import Content
+        // Planner) yang belum ada catatan paketnya TETAP boleh dibuatkan plan.
         $plan = ContentPlan::create([
             'client_id' => $client->id,
-            'client_package_id' => $activePackage->id,
+            'client_package_id' => $client->activePackage?->id,
             'created_by' => auth()->id(),
             'month' => $validated['month'],
             'year' => $validated['year'],
@@ -148,16 +147,16 @@ class ContentPlanController extends Controller
             ->with('status', 'Content plan berhasil dibuat. Silakan tambahkan content item-nya.');
     }
 
-    public function show(ContentPlan $contentPlan)
+    public function show(ContentPlan $contentPlan, \App\Services\PicResolver $picResolver)
     {
         $contentPlan->load(['client', 'clientPackage', 'creator', 'approver']);
 
         $items = $contentPlan->contentItems()
-            ->with(['contentType', 'platform', 'workflow', 'assignments.user', 'client'])
+            ->with(['contentType', 'platform', 'workflow.currentPic', 'assignments.user', 'client'])
             ->orderBy('deadline_at')
             ->get();
 
-        return view('content-plan.show', compact('contentPlan', 'items'));
+        return view('content-plan.show', compact('contentPlan', 'items', 'picResolver'));
     }
 
     /**
@@ -224,6 +223,14 @@ class ContentPlanController extends Controller
             'estimated_slide_count' => 'nullable|integer',
         ]);
 
+        // Jangan percaya ID dari form saja - User harus beneran terkait
+        // client rencana ini lewat user_client_assignments, bukan cuma
+        // exists di tabel users manapun.
+        $picUser = User::where('id', $validated['pic_user_id'])
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
+            ->first();
+        abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
+
         $item = ContentItem::create([
             'content_plan_id' => $contentPlan->id,
             'client_id' => $contentPlan->client_id,
@@ -235,21 +242,23 @@ class ContentPlanController extends Controller
             'deadline_at' => Carbon::parse($validated['deadline_at']),
             'estimated_duration_seconds' => $validated['estimated_duration_seconds'] ?? null,
             'estimated_slide_count' => $validated['estimated_slide_count'] ?? null,
+            // Selalu simpan identitas PIC operasional apa adanya - PicResolver
+            // pakai kolom ini buat display begitu current_pic_id kosong.
+            'external_pic_name' => $picUser->name,
+            'external_pic_email' => $picUser->email,
         ]);
 
         ContentWorkflow::create([
             'content_item_id' => $item->id,
-            'current_pic_id' => $validated['pic_id'] ?? null,
+            'current_pic_id' => $picUser->id,
             'current_status' => 'brief_ready',
             'is_overdue' => false,
         ]);
 
-        if (!empty($validated['pic_id'])) {
-            $item->assignments()->create([
-                'user_id' => $validated['pic_id'],
-                'assignment_role' => 'primary',
-            ]);
-        }
+        $item->assignments()->create([
+            'user_id' => $picUser->id,
+            'assignment_role' => 'primary',
+        ]);
 
         return redirect()->route('content-plan.show', $contentPlan)
             ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Siap Dikerjakan.');
@@ -282,13 +291,24 @@ class ContentPlanController extends Controller
         ]);
 
         $client = Client::findOrFail($validated['client_id']);
-        $activePackage = $client->activePackage;
 
-        abort_unless($activePackage, 422, 'Client ini belum punya paket aktif, tidak bisa ditambahkan konten.');
+        // Sama pola dengan storeItem() - PIC operasional dari User lewat
+        // user_client_assignments. Optional di sini (beda dari storeItem
+        // yang wajib), tapi kalau diisi WAJIB terbukti terkait client ini -
+        // jangan percaya ID dari form saja.
+        $picUser = null;
+        if (! empty($validated['pic_user_id'])) {
+            $picUser = User::where('id', $validated['pic_user_id'])
+                ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $client->id))
+                ->first();
+            abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
+        }
 
+        // client_package_id nullable (Langkah 1-2) - sama seperti store(),
+        // paket belum tercatat tidak lagi memblokir penambahan konten.
         $plan = ContentPlan::firstOrCreate(
             ['client_id' => $client->id, 'month' => now()->month, 'year' => now()->year],
-            ['client_package_id' => $activePackage->id, 'created_by' => auth()->id(), 'status' => 'draft']
+            ['client_package_id' => $client->activePackage?->id, 'created_by' => auth()->id(), 'status' => 'draft']
         );
 
         $item = ContentItem::create([
@@ -300,23 +320,25 @@ class ContentPlanController extends Controller
             'title' => $validated['title'],
             'brief' => $validated['brief'] ?? null,
             'deadline_at' => Carbon::parse($validated['deadline_at']),
+            'external_pic_name' => $picUser?->name,
+            'external_pic_email' => $picUser?->email,
         ]);
 
         ContentWorkflow::create([
             'content_item_id' => $item->id,
-            'current_pic_id' => $validated['pic_id'] ?? null,
+            'current_pic_id' => $picUser?->id,
             'current_status' => 'brief_ready',
             'is_overdue' => false,
         ]);
 
-        if (!empty($validated['pic_id'])) {
+        if ($picUser) {
             $item->assignments()->create([
-                'user_id' => $validated['pic_id'],
+                'user_id' => $picUser->id,
                 'assignment_role' => 'primary',
             ]);
 
             NotificationService::notify(
-                User::findOrFail($validated['pic_id']),
+                $picUser,
                 'Jobdesk tambahan baru buat kamu',
                 'task',
                 "\"{$item->title}\" ({$client->name}) - permintaan mendadak, deadline {$item->deadline_at->format('d M Y, H:i')}.",

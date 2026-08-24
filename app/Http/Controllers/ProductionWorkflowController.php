@@ -22,7 +22,7 @@ class ProductionWorkflowController extends Controller
         'cancelled',
     ];
 
-    public function index(Request $request, PinService $pinService)
+    public function index(Request $request, PinService $pinService, \App\Services\PicResolver $picResolver)
     {
         $user = $request->user();
         $tab = $request->input('tab', 'board');
@@ -111,7 +111,10 @@ class ProductionWorkflowController extends Controller
                 $index = array_search($item->workflow->current_status, $this->statuses);
                 return $index !== false ? $index : PHP_INT_MAX;
             },
-            'pic' => fn ($item) => strtolower($item->workflow->currentPic->name ?? ''),
+            // Resolver sama yang dipakai buat display (Langkah "TeamMember <->
+            // Legacy PIC") - sort by PIC ikut nangkep legacy PIC (Uun dkk),
+            // bukan cuma yang punya User beneran.
+            'pic' => fn ($item) => strtolower($picResolver->resolve($item)['name'] ?? ''),
             'deadline' => fn ($item) => $item->deadline_at,
             'risk' => fn ($item) => $item->latestDelayRisk->risk_score ?? -1,
         ];
@@ -176,6 +179,7 @@ class ProductionWorkflowController extends Controller
             'selectedStatus' => $selectedStatus,
             'canUpdateWorkflow' => $user->hasPermissionTo('workflow', 'update'),
             'canCreateContent' => $user->hasPermissionTo('content_plan', 'create'),
+            'picResolver' => $picResolver,
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
             'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
@@ -220,7 +224,10 @@ class ProductionWorkflowController extends Controller
             'selectedStatus' => $request->input('status', 'open'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
             'platformOptions' => \App\Models\Platform::all(),
+<<<<<<< HEAD
             'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
+=======
+>>>>>>> a2c055d757da5ff92a3db5efaaa6e7a7bf9f7223
         ]);
     }
 
@@ -263,7 +270,10 @@ class ProductionWorkflowController extends Controller
             'platformOptions' => $platformOptions,
             'selectedPlatformId' => $request->input('platform_id'),
             'contentTypeOptions' => \App\Models\ContentType::all(),
+<<<<<<< HEAD
             'picOptions' => \App\Models\User::query()->where('status', 'active')->with('assignedClients:id')->get(),
+=======
+>>>>>>> a2c055d757da5ff92a3db5efaaa6e7a7bf9f7223
         ]);
     }
 

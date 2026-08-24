@@ -169,7 +169,8 @@
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: 500;
-            white-space: nowrap;
+            width: max-content;
+            max-width: 100%;
         }
         .badge-success { background: var(--success-tint); color: var(--success-text); }
         .badge-danger  { background: var(--danger-tint); color: var(--danger-text); }

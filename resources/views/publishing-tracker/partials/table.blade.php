@@ -2,15 +2,15 @@
      Expects: $publications --}}
 <div class="card overflow-hidden">
   <div class="overflow-x-auto hidden sm:block">
-    <table class="w-full text-sm text-left">
+    <table class="w-full table-fixed text-sm text-left">
         <thead class="bg-[var(--surface-page)]">
             <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                <th class="px-6 py-3 font-medium whitespace-nowrap">Konten</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Tanggal Tayang</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Diunggah Oleh</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Link</th>
+                <th class="w-[26%] px-6 py-3 font-medium whitespace-nowrap">Konten</th>
+                <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
+                <th class="w-[10%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
+                <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Tanggal Tayang</th>
+                <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Diunggah Oleh</th>
+                <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Link</th>
             </tr>
         </thead>
         <tbody>
@@ -18,17 +18,17 @@
                 <tr x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
                     onclick="navigateTo('{{ route('content-items.show', $pub->contentItem) }}')"
                     class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer">
-                    <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">
+                    <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $pub->contentItem->title }}">
                         {{ $pub->contentItem->title }}
                     </td>
-                    <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $pub->contentItem->client->name ?? '-' }}</td>
-                    <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $pub->platform->name ?? '-' }}</td>
+                    <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $pub->contentItem->client->name ?? '-' }}</td>
+                    <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $pub->platform->name ?? '-' }}</td>
                     <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $pub->published_at->format('d M Y, H:i') }}</td>
-                    <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap">{{ $pub->publishedBy->name ?? '-' }}</td>
-                    <td class="px-4 py-3.5 whitespace-nowrap" onclick="event.stopPropagation()">
+                    <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $pub->publishedBy->name ?? '-' }}</td>
+                    <td class="px-4 py-3.5" onclick="event.stopPropagation()">
                         @if ($pub->post_url)
                             <a href="{{ $pub->post_url }}" target="_blank"
-                                class="inline-flex items-center gap-1 bg-[var(--brand-solid)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors">
+                                class="inline-flex items-center gap-1 bg-[var(--brand-solid)] text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--brand-dark)] transition-colors whitespace-nowrap">
                                 <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Post
                             </a>
                         @else

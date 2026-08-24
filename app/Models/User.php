@@ -38,14 +38,21 @@ class User extends Authenticatable
         return $this->preferences['theme'] ?? 'system';
     }
 
-    public function roles(): BelongsToMany
+    /**
+     * "Satu orang = satu record, satu role = satu role" (keputusan final
+     * user, Agustus 2026) - role_id adalah SATU-SATUNYA sumber role, dipakai
+     * langsung buat operational identity (jabatan) DAN authorization
+     * dashboard sekaligus. Tidak ada lagi TeamMember/effectiveRoles/
+     * observer sync - satu FK, dibaca live setiap saat.
+     */
+    public function role(): BelongsTo
     {
-        return $this->belongsToMany(Role::class, 'user_roles');
+        return $this->belongsTo(Role::class);
     }
 
     public function roleNamesLabel(): string
     {
-        return $this->roles->pluck('name')->join(', ') ?: '-';
+        return $this->role->name ?? '-';
     }
 
     public function assignments(): HasMany
@@ -75,13 +82,16 @@ class User extends Authenticatable
 
     public function hasAnyRole(array $roles): bool
     {
+        if (! $this->role) {
+            return false;
+        }
         $roleValues = array_map(fn (UserRole $r) => $r->value, $roles);
-        return $this->roles->pluck('name')->intersect($roleValues)->isNotEmpty();
+        return in_array($this->role->name, $roleValues, true);
     }
 
     public function hasPermissionTo(string $module, string $action): bool
     {
-        return $this->roles->contains(fn (Role $role) => $role->hasPermission($module, $action));
+        return $this->role?->hasPermission($module, $action) ?? false;
     }
 
     public function clientAssignments(): HasMany
