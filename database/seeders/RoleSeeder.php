@@ -43,6 +43,10 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Ahda',
                 'status' => 'active',
+                // CEO bootstrap real (bukan staf GUIDE) - langsung dikasih
+                // akses login, beda dari roster import yang login_enabled=false
+                // sampai diaktifkan manual.
+                'login_enabled' => true,
             ]
         );
         $ahda->roles()->syncWithoutDetaching([$ceoRole->id]);
@@ -54,6 +58,7 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Surdik',
                 'status' => 'active',
+                'login_enabled' => true,
             ]
         );
         $surdik->roles()->syncWithoutDetaching([$ceoRole->id]);
@@ -65,6 +70,7 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Ghazi',
                 'status' => 'active',
+                'login_enabled' => true,
             ]
         );
         $ghazi->roles()->syncWithoutDetaching([$ceoRole->id]);

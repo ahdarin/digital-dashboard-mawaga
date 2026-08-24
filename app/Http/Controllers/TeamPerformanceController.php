@@ -70,9 +70,17 @@ class TeamPerformanceController extends Controller
             ]);
         }
 
-        $membersQuery = User::query()
+        $users = User::query()
             ->where('status', 'active')
-            ->with(['roles', 'assignments.contentItem.workflow']);
+            ->with(['roles', 'assignments.contentItem.workflow'])
+            ->get();
+
+        // Content item per anggota, dikelompokkan dari assignments yang
+        // sudah di-eager-load - keyed by user_id biar bisa diambil per
+        // anggota (Collection::get()) di map() di bawah.
+        $contentItemsByMember = $users->mapWithKeys(
+            fn (User $user) => [$user->id => $user->assignments->pluck('contentItem')->filter()->unique('id')->values()]
+        );
 
         // Kumpulkan seluruh content_item_id lintas User dulu, biar revision
         // count dan delay risk score bisa diambil lewat 2 query agregat
