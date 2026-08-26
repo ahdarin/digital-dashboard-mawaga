@@ -4,7 +4,7 @@
 
 <div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
-        <h3 class="text-sm font-semibold text-[var(--text-primary)]">Status Management</h3>
+        <h3 class="text-sm font-semibold text-[var(--text-primary)]">Manajemen Status</h3>
     </div>
     <p class="text-xs text-[var(--text-muted)] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
 
@@ -79,7 +79,7 @@
     @elseif ($workflow->current_status === 'revision')
         <div class="flex items-start gap-2 bg-[var(--surface-page)] text-[var(--text-secondary)] text-xs p-3 rounded-lg">
             <span class="material-symbols-outlined text-[16px] shrink-0">rate_review</span>
-            <span>Konten lagi dalam siklus revisi. Kelola & mulai kerjakan revisinya di bagian <strong>Revision Log</strong> di bawah.</span>
+            <span>Konten lagi dalam siklus revisi. Kelola & mulai kerjakan revisinya di bagian <strong>Catatan Revisi</strong> di bawah.</span>
         </div>
     @elseif ($workflow->current_status === 'approved')
         <div class="mb-3">

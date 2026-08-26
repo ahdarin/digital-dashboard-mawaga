@@ -7,7 +7,7 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa Konten</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa</h1>
             <p class="text-[var(--text-secondary)] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
         </div>
 
@@ -15,7 +15,7 @@
             @if ($selectedClientId && $activeTab === 'overview')
                 <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
                    class="btn-primary ml-1">
-                    <span class="material-symbols-outlined text-[17px]">download</span> Export
+                    <span class="material-symbols-outlined text-[17px]">download</span> Ekspor
                 </a>
             @endif
         </div>
@@ -244,7 +244,7 @@
 
                                     @if (! empty($latestAiInsight->action_items))
                                         <div>
-                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Action Items</p>
+                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Item Tindakan</p>
                                             <ul class="space-y-2.5">
                                                 @foreach ($latestAiInsight->action_items as $item)
                                                     <li class="flex items-start gap-2.5 text-sm text-[var(--text-primary)]">
@@ -262,7 +262,7 @@
                                 <div class="space-y-5">
                                     @if (! empty($latestAiInsight->suggested_split))
                                         <div class="bg-[var(--surface-page)] rounded-xl p-4">
-                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Suggested Split</p>
+                                            <p class="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Komposisi Disarankan</p>
                                             <div class="space-y-3">
                                                 @foreach ($latestAiInsight->suggested_split as $i => $row)
                                                     <div>
@@ -517,7 +517,7 @@
 
                 {{-- Divider zona: dari "AI insight" pindah ke "raw metrics" --}}
                 <div class="flex items-center gap-3 pt-2">
-                    <span class="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider whitespace-nowrap">Performance Details</span>
+                    <span class="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider whitespace-nowrap">Detail Performa</span>
                     <div class="flex-1 h-px bg-[var(--border)]"></div>
                 </div>
 

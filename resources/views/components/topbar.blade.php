@@ -81,7 +81,7 @@
                      class="absolute right-0 mt-2 w-[min(24rem,calc(100vw-2rem))] card z-50 overflow-hidden">
                     <div class="px-5 pt-5 pb-4">
                         <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-display text-lg font-semibold text-[var(--text-primary)] leading-none">Notifications</h3>
+                            <h3 class="font-display text-lg font-semibold text-[var(--text-primary)] leading-none">Notifikasi</h3>
                             <div class="flex items-center gap-3">
                                 @if ($unreadCount > 0)
                                     <form action="{{ route('notifications.mark-all-read') }}" method="POST" class="leading-none">

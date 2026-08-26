@@ -12,7 +12,7 @@
 {{-- Kartu Ringkasan --}}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
     <div class="card p-5">
-        <p class="text-xs text-[var(--text-muted)] mb-1">Task Aktif</p>
+        <p class="text-xs text-[var(--text-muted)] mb-1">Tugas Aktif</p>
         <p class="font-display text-[26px] font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $activeCount }}</p>
     </div>
     <div class="card p-5">

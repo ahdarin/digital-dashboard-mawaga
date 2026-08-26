@@ -49,9 +49,9 @@
 
 @if ($selectedClient)
 
-    {{-- Automatic Integrations --}}
+    {{-- Integrasi Otomatis --}}
     <div class="card p-6 mb-6">
-        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Automatic Integrations</h2>
+        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Integrasi Otomatis</h2>
         <p class="text-xs text-[var(--text-muted)] mb-5">Koneksi API real-time untuk {{ $selectedClient->name }}.</p>
 
         {{-- Instagram --}}
@@ -60,10 +60,10 @@
                 <p class="text-sm font-semibold text-[var(--text-primary)]">Instagram</p>
                 @if ($instagramCard['connected'])
                     <span class="badge badge-success inline-flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Connected
+                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Terhubung
                     </span>
                 @else
-                    <span class="badge badge-neutral">Not Connected</span>
+                    <span class="badge badge-neutral">Belum Terhubung</span>
                 @endif
             </div>
 
@@ -74,16 +74,16 @@
                 {{-- Content Analytics --}}
                 <div class="border-t border-[var(--surface-muted)] pt-3">
                     <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                        <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
                         <span class="badge {{ $instagramCard['content_syncing'] ? 'badge-warning' : ($instagramCard['content_last_sync_log']?->status === 'failed' ? 'badge-danger' : 'badge-success') }}">
-                            {{ $instagramCard['content_syncing'] ? 'Syncing' : ($instagramCard['content_last_sync_log']?->status === 'failed' ? 'Failed' : 'Synced') }}
+                            {{ $instagramCard['content_syncing'] ? 'Menyinkronkan' : ($instagramCard['content_last_sync_log']?->status === 'failed' ? 'Gagal' : 'Tersinkron') }}
                         </span>
                     </div>
                     <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Last Sync: {{ $integration->last_synced_at ? $integration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                        Sinkronisasi terakhir: {{ $integration->last_synced_at ? $integration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
                     </p>
                     @if (! $instagramCard['content_syncing'] && $instagramCard['content_last_sync_log']?->status === 'failed')
-                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $instagramCard['content_last_sync_log']->error_message }}</p>
+                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $instagramCard['content_last_sync_log']->error_message }}</p>
                     @endif
 
                     <form action="{{ route('settings.sync-instagram') }}" method="POST" class="inline-block mb-2">
@@ -92,12 +92,12 @@
                         <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
                                 class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="material-symbols-outlined text-[14px]">sync</span>
-                            {{ $instagramCard['content_syncing'] ? 'Syncing...' : 'Sync Content' }}
+                            {{ $instagramCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
                         </button>
                     </form>
 
                     <details class="text-xs mt-1">
-                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Content Sync</summary>
+                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                         <div class="mt-2 flex items-center gap-2">
                             <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
@@ -106,26 +106,26 @@
                                        class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                                 <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
                                         class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Sync Selected Month
+                                    Sinkronkan Bulan Terpilih
                                 </button>
                             </form>
                         </div>
                     </details>
                 </div>
 
-                {{-- Audience Insights --}}
+                {{-- Insight Audiens --}}
                 <div class="border-t border-[var(--surface-muted)] pt-3 mt-3">
                     <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Audience Insights</p>
+                        <p class="text-xs font-semibold text-[var(--text-primary)]">Insight Audiens</p>
                         <span class="badge {{ $instagramCard['audience_syncing'] ? 'badge-warning' : ($instagramCard['audience_last_sync_log']?->status === 'failed' ? 'badge-danger' : ($instagramCard['audience_last_success_at'] ? 'badge-success' : 'badge-neutral')) }}">
-                            {{ $instagramCard['audience_syncing'] ? 'Syncing' : ($instagramCard['audience_last_sync_log']?->status === 'failed' ? 'Failed' : ($instagramCard['audience_last_success_at'] ? 'Synced' : '-')) }}
+                            {{ $instagramCard['audience_syncing'] ? 'Menyinkronkan' : ($instagramCard['audience_last_sync_log']?->status === 'failed' ? 'Gagal' : ($instagramCard['audience_last_success_at'] ? 'Tersinkron' : '-')) }}
                         </span>
                     </div>
                     <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Last Audience Sync: {{ $instagramCard['audience_last_success_at'] ? \Illuminate\Support\Carbon::parse($instagramCard['audience_last_success_at'])->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
+                        Sinkronisasi audiens terakhir: {{ $instagramCard['audience_last_success_at'] ? \Illuminate\Support\Carbon::parse($instagramCard['audience_last_success_at'])->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
                     </p>
                     @if (! $instagramCard['audience_syncing'] && $instagramCard['audience_last_sync_log']?->status === 'failed')
-                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi Audience terakhir gagal.</p>
+                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi audiens terakhir gagal.</p>
                     @endif
 
                     <form action="{{ route('client-management.instagram.sync-audience', $selectedClient) }}" method="POST">
@@ -133,7 +133,7 @@
                         <button type="submit" {{ $instagramCard['audience_syncing'] ? 'disabled' : '' }}
                                 class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="material-symbols-outlined text-[14px]">groups</span>
-                            {{ $instagramCard['audience_syncing'] ? 'Syncing...' : 'Sync Audience' }}
+                            {{ $instagramCard['audience_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Audiens' }}
                         </button>
                     </form>
                 </div>
@@ -143,14 +143,14 @@
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
                     @if ($instagramOauthConfigured)
                         <a href="{{ route('client-management.instagram.connect', $selectedClient) }}"
-                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reconnect Instagram</a>
+                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Sambungkan Ulang Instagram</a>
                     @endif
                 </div>
             @elseif ($instagramOauthConfigured)
                 <p class="text-sm text-[var(--text-secondary)] mb-4 max-w-md">Hubungkan akun Instagram Professional client untuk mengambil data performa dan audience secara otomatis.</p>
                 <a href="{{ route('client-management.instagram.connect', $selectedClient) }}"
                    class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
-                    <span class="material-symbols-outlined text-[14px]">link</span> Connect Instagram
+                    <span class="material-symbols-outlined text-[14px]">link</span> Hubungkan Instagram
                 </a>
             @else
                 <p class="text-xs text-[var(--text-muted)]">
@@ -171,10 +171,10 @@
                 <p class="text-sm font-semibold text-[var(--text-primary)]">TikTok</p>
                 @if ($tiktokCard['connected'])
                     <span class="badge badge-success inline-flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Connected
+                        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Terhubung
                     </span>
                 @else
-                    <span class="badge badge-neutral">Not Connected</span>
+                    <span class="badge badge-neutral">Belum Terhubung</span>
                 @endif
             </div>
 
@@ -184,18 +184,18 @@
 
                 <div class="border-t border-[var(--surface-muted)] pt-3">
                     <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                        <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
                         @php
                             $ttContentBadgeClass = $tiktokCard['content_syncing'] ? 'badge-warning' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
-                            $ttContentBadgeLabel = $tiktokCard['content_syncing'] ? 'Syncing' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'Failed' : ($tiktokIntegration->last_synced_at ? 'Synced' : 'Not Synced'));
+                            $ttContentBadgeLabel = $tiktokCard['content_syncing'] ? 'Menyinkronkan' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'Gagal' : ($tiktokIntegration->last_synced_at ? 'Tersinkron' : 'Belum Tersinkron'));
                         @endphp
                         <span class="badge {{ $ttContentBadgeClass }}">{{ $ttContentBadgeLabel }}</span>
                     </div>
                     <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Last Sync: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                        Sinkronisasi terakhir: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
                     </p>
                     @if (! $tiktokCard['content_syncing'] && $tiktokCard['content_last_sync_log']?->status === 'failed')
-                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $tiktokCard['content_last_sync_log']->error_message }}</p>
+                        <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $tiktokCard['content_last_sync_log']->error_message }}</p>
                     @endif
 
                     {{-- follower_count dkk - NULL != 0 (Langkah 9): kalau
@@ -203,7 +203,7 @@
                          disembunyikan sama sekali, BUKAN tampil "0". --}}
                     @if ($tiktokCard['has_stats_scope'])
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Followers: {{ $tiktokCard['follower_count'] !== null ? number_format($tiktokCard['follower_count']) : 'Belum pernah sync' }}
+                            Pengikut: {{ $tiktokCard['follower_count'] !== null ? number_format($tiktokCard['follower_count']) : 'Belum pernah sync' }}
                         </p>
                     @else
                         <p class="text-[11px] text-[var(--text-muted)] italic mb-2">Data followers tidak tersedia melalui TikTok API (scope belum disetujui).</p>
@@ -215,12 +215,12 @@
                         <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
                                 class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                             <span class="material-symbols-outlined text-[14px]">sync</span>
-                            {{ $tiktokCard['content_syncing'] ? 'Syncing...' : 'Sync Content' }}
+                            {{ $tiktokCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
                         </button>
                     </form>
 
                     <details class="text-xs mt-1">
-                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Content Sync</summary>
+                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                         <div class="mt-2 flex items-center gap-2">
                             <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
@@ -229,7 +229,7 @@
                                        class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                                 <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
                                         class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Sync Selected Month
+                                    Sinkronkan Bulan Terpilih
                                 </button>
                             </form>
                         </div>
@@ -241,14 +241,14 @@
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
                     @if ($tiktokOauthConfigured)
                         <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
-                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reconnect TikTok</a>
+                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Sambungkan Ulang TikTok</a>
                     @endif
                 </div>
             @elseif ($tiktokOauthConfigured)
                 <p class="text-sm text-[var(--text-secondary)] mb-4 max-w-md">Hubungkan akun TikTok client untuk mengambil data performa video secara otomatis.</p>
                 <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
                    class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
-                    <span class="material-symbols-outlined text-[14px]">link</span> Connect TikTok
+                    <span class="material-symbols-outlined text-[14px]">link</span> Hubungkan TikTok
                 </a>
             @else
                 <p class="text-xs text-[var(--text-muted)]">
@@ -259,17 +259,17 @@
         </div>
     </div>
 
-    {{-- Manual Data Import - dipisah jelas dari Automatic Integrations di
+    {{-- Import Data Manual - dipisah jelas dari Integrasi Otomatis di
          atas, biar nggak kecampur seolah CSV = API (Langkah 12). --}}
     <div class="card p-6 mb-6">
-        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Manual Data Import</h2>
+        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Import Data Manual</h2>
         <p class="text-xs text-[var(--text-muted)] mb-4">Fallback manual - dipakai kalau API belum tersedia atau perlu isi data historis di luar jangkauan API.</p>
         <div class="flex items-center gap-3 flex-wrap">
             <a href="{{ route('settings.import') }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Performance CSV
+                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Performa
             </a>
             <a href="{{ route('analytics', ['tab' => 'audience', 'client_id' => $selectedClient->id]) }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Audience CSV
+                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Audiens
             </a>
         </div>
     </div>
@@ -292,10 +292,10 @@
             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
             <select name="status" onchange="this.form.submit()"
                     class="text-sm border border-[var(--border)] rounded-lg px-3 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px]">
-                <option value="">All Statuses</option>
-                <option value="success" {{ request('status') === 'success' ? 'selected' : '' }}>Success</option>
-                <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Failed</option>
-                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="">Semua Status</option>
+                <option value="success" {{ request('status') === 'success' ? 'selected' : '' }}>Berhasil</option>
+                <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>Gagal</option>
+                <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Menunggu</option>
             </select>
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
@@ -308,21 +308,22 @@
                    class="text-xs text-[var(--brand)] font-medium hover:underline">Kembali ke {{ $selectedClient->name ?? 'client ini' }}</a>
             @else
                 <a href="{{ route('settings', array_merge(['tab' => 'integrasi', 'all_clients' => 1], request()->only(['status', 'date']))) }}"
-                   class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">All Clients</a>
+                   class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Semua Klien</a>
             @endif
             @if (request('status') || request('date'))
-                <a href="{{ route('settings', ['tab' => 'integrasi', 'client_id' => $selectedClientId, 'all_clients' => $logsAllClients ? 1 : null]) }}" class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reset</a>
+                <a href="{{ route('settings', ['tab' => 'integrasi', 'client_id' => $selectedClientId, 'all_clients' => $logsAllClients ? 1 : null]) }}" class="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Atur Ulang</a>
             @endif
         </form>
     </div>
 
     @php
         $sourceTypeLabels = [
-            'performance_csv_import' => 'Performance CSV Import',
-            'audience_csv_import' => 'Audience CSV Import',
-            'api_sync' => 'Content API Sync',
-            'audience_api_sync' => 'Audience API Sync',
+            'performance_csv_import' => 'Import CSV Performa',
+            'audience_csv_import' => 'Import CSV Audiens',
+            'api_sync' => 'Sinkronisasi API Konten',
+            'audience_api_sync' => 'Sinkronisasi API Audiens',
         ];
+        $syncStatusLabels = ['success' => 'Berhasil', 'failed' => 'Gagal', 'pending' => 'Menunggu'];
     @endphp
 
     @if ($syncLogs->isEmpty())
@@ -336,11 +337,11 @@
             <table class="w-full text-sm text-left">
                 <thead class="bg-[var(--surface-page)]">
                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                        <th class="px-6 py-3 font-medium whitespace-nowrap">Date</th>
+                        <th class="px-6 py-3 font-medium whitespace-nowrap">Tanggal</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
                         <th class="px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Source Type</th>
-                        <th class="px-4 py-3 font-medium whitespace-nowrap">Imported By</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Jenis Sumber</th>
+                        <th class="px-4 py-3 font-medium whitespace-nowrap">Diimpor Oleh</th>
                         <th class="px-6 py-3 font-medium whitespace-nowrap">Status</th>
                     </tr>
                 </thead>
@@ -357,7 +358,7 @@
                                     {{ $log->status === 'success' ? 'badge-success' : '' }}
                                     {{ $log->status === 'failed' ? 'badge-danger' : '' }}
                                     {{ $log->status === 'pending' ? 'badge-warning' : '' }}">
-                                    {{ ucfirst($log->status) }}
+                                    {{ $syncStatusLabels[$log->status] ?? ucfirst($log->status) }}
                                 </span>
                             </td>
                         </tr>
@@ -380,7 +381,7 @@
                                 {{ $log->status === 'success' ? 'badge-success' : '' }}
                                 {{ $log->status === 'failed' ? 'badge-danger' : '' }}
                                 {{ $log->status === 'pending' ? 'badge-warning' : '' }}">
-                                {{ ucfirst($log->status) }}
+                                {{ $syncStatusLabels[$log->status] ?? ucfirst($log->status) }}
                             </span>
                             <span class="material-symbols-outlined text-[var(--text-muted)] text-[18px] transition-transform" :class="open ? 'rotate-180' : ''">expand_more</span>
                         </div>
@@ -391,11 +392,11 @@
                             <span class="text-[var(--text-primary)] text-right">{{ $log->platform->name ?? 'Campuran' }}</span>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <span class="text-[var(--text-muted)]">Source Type</span>
+                            <span class="text-[var(--text-muted)]">Jenis Sumber</span>
                             <span class="text-[var(--text-primary)] text-right">{{ $sourceTypeLabels[$log->source_type] ?? \Illuminate\Support\Str::headline($log->source_type) }}</span>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <span class="text-[var(--text-muted)]">Imported By</span>
+                            <span class="text-[var(--text-muted)]">Diimpor Oleh</span>
                             <span class="text-[var(--text-primary)] text-right">{{ $log->importedBy->name ?? '-' }}</span>
                         </div>
                     </div>

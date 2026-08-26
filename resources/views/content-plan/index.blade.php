@@ -6,13 +6,13 @@
     {{-- Bagian atas — TETAP, tidak berubah saat switch --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Rencana Konten Bulanan</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Rencana Konten</h1>
             <p class="text-[var(--text-secondary)] text-sm mt-1">Kelola dan pantau target konten seluruh client aktif.</p>
         </div>
         @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
             <div class="flex items-center gap-2 flex-wrap">
                 <button type="button" @click="showCreateModal = true" class="btn-primary">
-                    <span class="material-symbols-outlined text-[17px]">add</span> Buat Content Plan Baru
+                    <span class="material-symbols-outlined text-[17px]">add</span> Buat Rencana Konten Baru
                 </button>
             </div>
         @endif
@@ -44,11 +44,11 @@
         <div class="flex items-center bg-[var(--surface-muted)] rounded-lg p-1 sm:ml-auto">
             <a href="{{ request()->fullUrlWithQuery(['view' => 'table']) }}"
                class="text-xs font-medium px-3 py-1.5 rounded-md {{ $view === 'table' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)]' }}">
-                <span class="material-symbols-outlined text-[15px] align-middle">table_rows</span> Table
+                <span class="material-symbols-outlined text-[15px] align-middle">table_rows</span> Tabel
             </a>
             <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar']) }}"
                class="text-xs font-medium px-3 py-1.5 rounded-md {{ $view === 'calendar' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)]' }}">
-                <span class="material-symbols-outlined text-[15px] align-middle">calendar_month</span> Calendar
+                <span class="material-symbols-outlined text-[15px] align-middle">calendar_month</span> Kalender
             </a>
         </div>
     </form>
@@ -56,22 +56,22 @@
     {{-- Target cards — TETAP --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-5 mb-6">
         <div class="card p-3.5 sm:p-6">
-            <p class="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5 sm:mb-2">Content Target vs Realization</p>
+            <p class="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5 sm:mb-2">Target vs Realisasi Konten</p>
             <p class="font-display text-xl sm:text-3xl font-semibold text-[var(--text-primary)] mb-2 sm:mb-3">{{ $realizedContent }} <span class="text-sm sm:text-lg text-[var(--text-muted)] font-normal">/ {{ $targetContent }}</span></p>
             @php $pct = $targetContent > 0 ? min(100, round($realizedContent / $targetContent * 100, 1)) : 0; @endphp
             <div class="flex items-center justify-between text-[10px] sm:text-xs text-[var(--text-muted)] mb-1 sm:mb-1.5">
-                <span>Overall Progress</span><span>{{ $pct }}%</span>
+                <span>Progres Keseluruhan</span><span>{{ $pct }}%</span>
             </div>
             <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
                 <div class="h-full bg-[var(--brand)] rounded-full" style="width: {{ $pct }}%"></div>
             </div>
         </div>
         <div class="card p-3.5 sm:p-6">
-            <p class="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5 sm:mb-2">Design Target vs Realization</p>
+            <p class="text-[10px] sm:text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5 sm:mb-2">Target vs Realisasi Desain</p>
             <p class="font-display text-xl sm:text-3xl font-semibold text-[var(--text-primary)] mb-2 sm:mb-3">{{ $realizedDesign }} <span class="text-sm sm:text-lg text-[var(--text-muted)] font-normal">/ {{ $targetDesign }}</span></p>
             @php $pctD = $targetDesign > 0 ? min(100, round($realizedDesign / $targetDesign * 100, 1)) : 0; @endphp
             <div class="flex items-center justify-between text-[10px] sm:text-xs text-[var(--text-muted)] mb-1 sm:mb-1.5">
-                <span>Overall Progress</span><span>{{ $pctD }}%</span>
+                <span>Progres Keseluruhan</span><span>{{ $pctD }}%</span>
             </div>
             <div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden">
                 <div class="h-full bg-[var(--info-text)] rounded-full" style="width: {{ $pctD }}%"></div>
@@ -129,7 +129,7 @@
                                 <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">event_note</span>
                                 <p class="text-sm text-[var(--text-muted)]">Belum ada content plan untuk periode ini.</p>
                                 @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                                    <button type="button" @click="showCreateModal = true" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1">Buat Content Plan Baru</button>
+                                    <button type="button" @click="showCreateModal = true" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1">Buat Rencana Konten Baru</button>
                                 @endif
                             </td>
                         </tr>
@@ -176,7 +176,7 @@
                     <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">event_note</span>
                     <p class="text-sm text-[var(--text-muted)]">Belum ada content plan untuk periode ini.</p>
                     @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                        <button type="button" @click="showCreateModal = true" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1">Buat Content Plan Baru</button>
+                        <button type="button" @click="showCreateModal = true" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1">Buat Rencana Konten Baru</button>
                     @endif
                 </div>
             @endforelse

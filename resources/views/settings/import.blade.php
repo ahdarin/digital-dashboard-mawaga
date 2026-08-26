@@ -7,7 +7,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Import Data Performa</h1>
         <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1">
-            Lihat Sync Log <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+            Lihat Log Sinkronisasi <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
         </a>
     </div>
     <p class="text-[var(--text-secondary)] text-sm mb-6 max-w-2xl">Upload file CSV berisi metrik performa konten manual. Pastikan data sudah sesuai format sebelum meng-import.</p>
@@ -83,8 +83,8 @@
                 {{-- Preview --}}
                 <div class="card overflow-hidden" x-show="previewRows.length > 0" x-cloak>
                     <div class="p-5 pb-3 flex items-center justify-between">
-                        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Data Preview</h2>
-                        <span class="badge badge-neutral">Sample (First 5 Rows)</span>
+                        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Pratinjau Data</h2>
+                        <span class="badge badge-neutral">Contoh (5 Baris Pertama)</span>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm text-left">
@@ -120,12 +120,12 @@
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-4">
                         <span class="material-symbols-outlined text-[var(--brand)] text-[18px]">info</span>
-                        <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Instructions</h2>
+                        <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Petunjuk</h2>
                     </div>
                     <p class="text-sm text-[var(--text-secondary)] mb-4">Data kamu harus sesuai skema standar berikut sebelum diproses.</p>
 
                     <div class="bg-[var(--surface-page)] rounded-lg p-4">
-                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2.5">Required Columns</p>
+                        <p class="text-xs font-semibold text-[var(--text-muted)] uppercase mb-2.5">Kolom Wajib</p>
                         <ul class="text-xs text-[var(--text-secondary)] space-y-1.5">
                             <li><strong class="text-[var(--text-primary)]">content_title</strong> (persis judul konten)</li>
                             <li><strong class="text-[var(--text-primary)]">platform</strong> (Instagram, TikTok, dst)</li>
@@ -137,7 +137,7 @@
                     </div>
 
                     <button type="button" x-on:click="downloadTemplate()" class="mt-4 text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[16px]">download</span> Download Template CSV
+                        <span class="material-symbols-outlined text-[16px]">download</span> Unduh Template CSV
                     </button>
                 </div>
             </div>

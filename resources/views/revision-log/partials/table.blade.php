@@ -7,7 +7,7 @@
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
                     <th class="w-[20%] px-6 py-3 font-medium whitespace-nowrap">Konten</th>
                     <th class="w-[14%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                    <th class="w-[9%] px-4 py-3 font-medium whitespace-nowrap">Round</th>
+                    <th class="w-[9%] px-4 py-3 font-medium whitespace-nowrap">Revisi</th>
                     <th class="w-[26%] px-4 py-3 font-medium whitespace-nowrap">Catatan</th>
                     <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Diminta Oleh</th>
                     <th class="w-[15%] px-4 py-3 font-medium whitespace-nowrap">Status</th>
@@ -16,9 +16,9 @@
             <tbody>
                 @php
                     $revisionStatusStyles = [
-                        'open' => ['class' => 'badge-warning', 'label' => 'Open'],
+                        'open' => ['class' => 'badge-warning', 'label' => 'Terbuka'],
                         'in_progress' => ['class' => 'badge-info', 'label' => 'Sedang Dikerjakan'],
-                        'resolved' => ['class' => 'badge-success', 'label' => 'Resolved'],
+                        'resolved' => ['class' => 'badge-success', 'label' => 'Selesai'],
                     ];
                 @endphp
                 @forelse ($revisions as $revision)

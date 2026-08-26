@@ -166,7 +166,7 @@ class ContentPlanController extends Controller
      */
     public function submit(ContentPlan $contentPlan)
     {
-        abort_unless(in_array($contentPlan->status, ['draft'], true), 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
+        abort_unless($contentPlan->status === 'draft', 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
 
         $fromStatus = $contentPlan->status;
         $contentPlan->update(['status' => 'pending']);

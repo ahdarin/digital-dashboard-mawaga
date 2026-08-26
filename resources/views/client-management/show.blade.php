@@ -136,7 +136,7 @@
                 </div>
 
                 @if ($client->portal_access_enabled)
-                    <p class="text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Permanent Portal Link</p>
+                    <p class="text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Portal Permanen</p>
                     <div class="flex items-center gap-2 mb-4">
                         <input type="text" readonly value="{{ route('client.portal.dashboard', $client->portal_token) }}"
                                class="flex-1 min-w-0 bg-[var(--surface-page)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-[var(--text-secondary)] truncate">
@@ -238,7 +238,7 @@
 
             <div class="card p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Integrasi Analytics</h2>
+                    <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Integrasi Performa</h2>
                     <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="text-xs text-[var(--brand)] hover:underline">Riwayat sync</a>
                 </div>
 
@@ -247,26 +247,26 @@
                 <div class="flex items-center justify-between mb-2">
                     <p class="text-sm font-medium text-[var(--text-primary)]">Instagram</p>
                     <span class="badge {{ $instagramSyncing ? 'badge-warning' : ($igConnected ? 'badge-success' : 'badge-danger') }}">
-                        {{ $instagramSyncing ? 'Syncing' : ($igConnected ? 'Active' : 'Disconnected') }}
+                        {{ $instagramSyncing ? 'Menyinkronkan' : ($igConnected ? 'Aktif' : 'Terputus') }}
                     </span>
                 </div>
 
                 @if ($igConnected)
                     <p class="text-xs text-[var(--text-muted)] mb-3">&commat;{{ $instagramIntegration->external_username }}</p>
 
-                    {{-- Content Analytics --}}
+                    {{-- Analitik Konten --}}
                     <div class="border-t border-[var(--surface-muted)] pt-3">
                         <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                            <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
                             <span class="badge {{ $instagramSyncing ? 'badge-warning' : ($instagramLastSyncLog?->status === 'failed' ? 'badge-danger' : 'badge-success') }}">
-                                {{ $instagramSyncing ? 'Syncing' : ($instagramLastSyncLog?->status === 'failed' ? 'Failed' : 'Synced') }}
+                                {{ $instagramSyncing ? 'Menyinkronkan' : ($instagramLastSyncLog?->status === 'failed' ? 'Gagal' : 'Tersinkron') }}
                             </span>
                         </div>
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Last Sync: {{ $instagramIntegration->last_synced_at ? $instagramIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                            Sinkronisasi terakhir: {{ $instagramIntegration->last_synced_at ? $instagramIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
                         </p>
                         @if (! $instagramSyncing && $instagramLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $instagramLastSyncLog->error_message }}</p>
+                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $instagramLastSyncLog->error_message }}</p>
                         @endif
 
                         <div class="flex items-center gap-2 flex-wrap mb-2">
@@ -276,19 +276,19 @@
                                 <button type="submit" {{ $instagramSyncing ? 'disabled' : '' }}
                                         class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <span class="material-symbols-outlined text-[14px]">sync</span>
-                                    {{ $instagramSyncing ? 'Syncing...' : 'Sync Content Analytics' }}
+                                    {{ $instagramSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}
                                 </button>
                             </form>
                             <a href="{{ route('publishing-tracker.instagram.unmatched', $instagramIntegration) }}"
                                class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
                         </div>
                         @if ($instagramSyncing)
-                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Content Analytics Instagram.</p>
+                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten Instagram.</p>
                         @endif
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
 
                         <details class="text-xs">
-                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Sync (bulan lama)</summary>
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Historis (bulan lama)</summary>
                             <div class="mt-2 space-y-1.5">
                                 <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
                                 <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
@@ -298,31 +298,31 @@
                                            class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                                     <button type="submit" {{ $instagramSyncing ? 'disabled' : '' }}
                                             class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Sync Selected Month
+                                        Sinkronkan Bulan Terpilih
                                     </button>
                                 </form>
                             </div>
                         </details>
                     </div>
 
-                    {{-- Audience Insights - card & lock TERPISAH dari Content
-                         Analytics di atas (job beda: SyncInstagramAudienceJob). --}}
+                    {{-- Insight Audiens - card & lock TERPISAH dari Analitik
+                         Konten di atas (job beda: SyncInstagramAudienceJob). --}}
                     <div class="border-t border-[var(--surface-muted)] pt-3 mt-3">
                         <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Audience Insights</p>
+                            <p class="text-xs font-semibold text-[var(--text-primary)]">Insight Audiens</p>
                             <span class="badge {{ $instagramAudienceSyncing ? 'badge-warning' : ($instagramAudienceLastSyncLog?->status === 'failed' ? 'badge-danger' : ($instagramAudienceLastSuccessAt ? 'badge-success' : 'badge-neutral')) }}">
-                                {{ $instagramAudienceSyncing ? 'Syncing' : ($instagramAudienceLastSyncLog?->status === 'failed' ? 'Failed' : ($instagramAudienceLastSuccessAt ? 'Synced' : '-')) }}
+                                {{ $instagramAudienceSyncing ? 'Menyinkronkan' : ($instagramAudienceLastSyncLog?->status === 'failed' ? 'Gagal' : ($instagramAudienceLastSuccessAt ? 'Tersinkron' : '-')) }}
                             </span>
                         </div>
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Last Audience Sync: {{ $instagramAudienceLastSuccessAt ? \Illuminate\Support\Carbon::parse($instagramAudienceLastSuccessAt)->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
+                            Sinkronisasi audiens terakhir: {{ $instagramAudienceLastSuccessAt ? \Illuminate\Support\Carbon::parse($instagramAudienceLastSuccessAt)->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
                         </p>
                         {{-- Raw exception Meta TIDAK PERNAH ditampilkan - cuma
-                             pesan aman generik (beda dari Content Analytics di
+                             pesan aman generik (beda dari Analitik Konten di
                              atas yang sudah lama nampilin error_message apa
                              adanya - itu behavior existing, sengaja nggak diubah). --}}
                         @if (! $instagramAudienceSyncing && $instagramAudienceLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi Audience terakhir gagal.</p>
+                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi audiens terakhir gagal.</p>
                         @endif
 
                         <form action="{{ route('client-management.instagram.sync-audience', $client) }}" method="POST" class="mb-1">
@@ -330,7 +330,7 @@
                             <button type="submit" {{ $instagramAudienceSyncing ? 'disabled' : '' }}
                                     class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <span class="material-symbols-outlined text-[14px]">groups</span>
-                                {{ $instagramAudienceSyncing ? 'Syncing...' : 'Sync Audience Insights' }}
+                                {{ $instagramAudienceSyncing ? 'Menyinkronkan...' : 'Sinkronkan Insight Audiens' }}
                             </button>
                         </form>
                         @if ($instagramAudienceSyncing)
@@ -339,7 +339,7 @@
                     </div>
                 @elseif ($instagramOauthConfigured)
                     @if ($instagramIntegration && $instagramIntegration->last_error)
-                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">Instagram connection needs attention</p>
+                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">Koneksi Instagram perlu perhatian</p>
                         <p class="text-xs text-[var(--danger-text)] mb-3">{{ $instagramIntegration->last_error }}</p>
                     @else
                         <p class="text-xs text-[var(--text-muted)] mb-3">Belum terhubung.</p>
@@ -347,7 +347,7 @@
                     <a href="{{ route('client-management.instagram.connect', $client) }}"
                        class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
                         <span class="material-symbols-outlined text-[14px]">link</span>
-                        {{ $instagramIntegration && $instagramIntegration->last_error ? 'Reconnect Instagram' : 'Connect Instagram' }}
+                        {{ $instagramIntegration && $instagramIntegration->last_error ? 'Sambungkan Ulang Instagram' : 'Hubungkan Instagram' }}
                     </a>
                 @else
                     <p class="text-xs text-[var(--text-muted)]">
@@ -364,7 +364,7 @@
                 <div class="flex items-center justify-between mb-2 mt-5 pt-5 border-t border-[var(--surface-muted)]">
                     <p class="text-sm font-medium text-[var(--text-primary)]">TikTok</p>
                     <span class="badge {{ $tiktokSyncing ? 'badge-warning' : ($ttConnected ? 'badge-success' : 'badge-danger') }}">
-                        {{ $tiktokSyncing ? 'Syncing' : ($ttConnected ? 'Active' : 'Disconnected') }}
+                        {{ $tiktokSyncing ? 'Menyinkronkan' : ($ttConnected ? 'Aktif' : 'Terputus') }}
                     </span>
                 </div>
 
@@ -373,18 +373,18 @@
 
                     <div class="border-t border-[var(--surface-muted)] pt-3">
                         <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Content Analytics</p>
+                            <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
                             @php
                                 $ttSyncBadgeClass = $tiktokSyncing ? 'badge-warning' : ($tiktokLastSyncLog?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
-                                $ttSyncBadgeLabel = $tiktokSyncing ? 'Syncing' : ($tiktokLastSyncLog?->status === 'failed' ? 'Failed' : ($tiktokIntegration->last_synced_at ? 'Synced' : 'Not Synced'));
+                                $ttSyncBadgeLabel = $tiktokSyncing ? 'Menyinkronkan' : ($tiktokLastSyncLog?->status === 'failed' ? 'Gagal' : ($tiktokIntegration->last_synced_at ? 'Tersinkron' : 'Belum Tersinkron'));
                             @endphp
                             <span class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
                         </div>
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Last Sync: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
+                            Sinkronisasi terakhir: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
                         </p>
                         @if (! $tiktokSyncing && $tiktokLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Failed - {{ $tiktokLastSyncLog->error_message }}</p>
+                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $tiktokLastSyncLog->error_message }}</p>
                         @endif
 
                         <div class="flex items-center gap-2 flex-wrap mb-2">
@@ -394,19 +394,19 @@
                                 <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
                                         class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <span class="material-symbols-outlined text-[14px]">sync</span>
-                                    {{ $tiktokSyncing ? 'Syncing...' : 'Sync Content Analytics' }}
+                                    {{ $tiktokSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}
                                 </button>
                             </form>
                             <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
                                class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
                         </div>
                         @if ($tiktokSyncing)
-                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Content Analytics TikTok.</p>
+                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten TikTok.</p>
                         @endif
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
 
                         <details class="text-xs">
-                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Historical Sync (bulan lama)</summary>
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Historis (bulan lama)</summary>
                             <div class="mt-2 space-y-1.5">
                                 <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
                                 <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
@@ -416,7 +416,7 @@
                                            class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
                                     <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
                                             class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Sync Selected Month
+                                        Sinkronkan Bulan Terpilih
                                     </button>
                                 </form>
                             </div>
@@ -424,7 +424,7 @@
                     </div>
                 @elseif ($tiktokOauthConfigured)
                     @if ($tiktokIntegration && $tiktokIntegration->last_error)
-                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">TikTok connection needs attention</p>
+                        <p class="text-xs font-medium text-[var(--danger-text)] mb-1">Koneksi TikTok perlu perhatian</p>
                         <p class="text-xs text-[var(--danger-text)] mb-3">{{ $tiktokIntegration->last_error }}</p>
                     @else
                         <p class="text-xs text-[var(--text-muted)] mb-3">Belum terhubung.</p>
@@ -432,7 +432,7 @@
                     <a href="{{ route('client-management.tiktok.connect', $client) }}"
                        class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
                         <span class="material-symbols-outlined text-[14px]">link</span>
-                        {{ $tiktokIntegration && $tiktokIntegration->last_error ? 'Reconnect TikTok' : 'Connect TikTok' }}
+                        {{ $tiktokIntegration && $tiktokIntegration->last_error ? 'Sambungkan Ulang TikTok' : 'Hubungkan TikTok' }}
                     </a>
                 @else
                     <p class="text-xs text-[var(--text-muted)]">

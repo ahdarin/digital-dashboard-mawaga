@@ -2538,6 +2538,119 @@ KI-02/KI-07 sampai perbaikan selesai.
 
 ---
 
+# Terminologi Resmi untuk Dokumentasi
+
+> Ditambahkan saat **Final Pre-Merge Verification** (lihat appendix di
+> `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md`) setelah full sweep
+> terminologi user-facing menyeluruh (sidebar, page title, browser title,
+> heading, tab, tombol, dropdown, modal, validation message, empty state,
+> table heading, filter, form label, tooltip, status label, Client Portal,
+> **dan PDF laporan yang dikirim ke klien**). Tabel ini melengkapi — bukan
+> menggantikan — glosarium di Bagian 25 di bawah; dipakai sebagai rujukan
+> tunggal saat menulis Buku Panduan Pengguna supaya istilah konsisten dari
+> awal sampai akhir.
+>
+> **Prinsip:** istilah resmi mengikuti yang sudah dipakai sidebar/UI utama.
+> Nama produk/fitur yang memang dipertahankan dalam Bahasa Inggris (AI
+> Strategy, AI Brief, OAuth, CSV, dst) TIDAK diterjemahkan. Konsep yang
+> berbeda secara makna (mis. Link File Hasil Produksi vs Link Postingan,
+> Persetujuan Klien vs Review Internal) TIDAK disamakan hanya karena mirip.
+
+| Istilah Resmi | Alias/Internal Term | Digunakan Untuk | Jangan Gunakan |
+|---|---|---|---|
+| Performa | `Analytics` (internal), "Performa Konten" | Menu & halaman analisis performa konten | "Analytics", "Performa Konten" sebagai judul halaman |
+| Produksi | `Production Workflow` (internal) | Papan alur pengerjaan konten | "Production Workflow" di buku |
+| Rencana Konten | `Content Plan` (internal), "Rencana Konten Bulanan" | Perencanaan bulanan per klien | "Content Plan", "Rencana Konten Bulanan" |
+| Kelola Pengguna | `User Management` (internal), "Kelola Tim" | Menu pengelolaan anggota tim | "Kelola Tim" sebagai judul halaman, "User Management" |
+| Kelola Klien | `Client Management` (internal) | Menu pengelolaan data klien & paket | "Client Management" |
+| Laporan | `Report Generator` (internal/tab browser) | Menu pembuatan laporan PDF/Excel | "Report Generator" |
+| Pengaturan | `Settings` (internal/tab browser) | Menu data pilihan, integrasi, akun | "Settings" |
+| Data Pilihan | `Master Data` (internal) | Sub-tab Pengaturan (paket, tipe, dst) | "Master Data" sebagai label tab |
+| Dashboard | — | Ringkasan eksekutif seluruh organisasi | diterjemahkan ("Papan Kontrol", dst) |
+| Beranda | `Home` (internal) | Halaman pribadi tugas & langkah berikutnya | "Home" |
+| Produksi → tab Revisi | `/revision-log` (route lama) | Satu-satunya jalur resmi lihat semua revisi | "Revision Log" sebagai nama halaman terpisah |
+| Produksi → tab Sudah Tayang | `/publishing-tracker` (route lama) | Satu-satunya jalur resmi lihat riwayat publikasi | "Publishing Tracker" sebagai nama halaman terpisah |
+| Manajemen Status | "Status Management" | Panel tombol perpindahan status di Detail Konten | "Status Management" |
+| Catatan Revisi | "Revision Log" (sempat muncul di 2 tempat kode) | Panel/tabel riwayat revisi per konten | "Revision Log" sebagai label panel |
+| Terbuka / Sedang Dikerjakan / Selesai | "Open" / "Sedang Dikerjakan" / "Resolved" (sempat campur di kode) | Status per-catatan revisi (bukan status konten) | Campur bahasa dalam satu daftar status |
+| Risiko Tinggi / Risiko Sedang / Risiko Rendah | "High" / "Medium" / "Low" (risk_level internal) | Label tingkat Skor Risiko Keterlambatan | "High Risk" dst di UI (boleh tetap di kode/nama kolom) |
+| Sudah Tayang / Berlangsung | "Published" / "On Progress" (badge Tabel Performa) | Status ringkas baris Tabel Performa | "Published", "On Progress" |
+| Brief Awal | "Initial Brief" | Field `brief` mentah saat konten dibuat, beda dari AI Brief | "Initial Brief" — jangan disamakan dengan AI Brief |
+| AI Brief / AI Brief Execution Assistant | — | Nama fitur produk, dipertahankan | diterjemahkan |
+| AI Strategy | — | Nama fitur produk, dipertahankan | diterjemahkan |
+| Item Tindakan | "Action Items" | Daftar rekomendasi aksi dari AI Strategy | "Action Items" |
+| Komposisi Disarankan | "Suggested Split" | Rekomendasi pembagian pilar dari AI Strategy | "Suggested Split" |
+| Integrasi Performa / Integrasi Otomatis | "Analytics Integration" / "Automatic Integrations" | Kartu koneksi API Instagram/TikTok per klien | "Automatic Integrations" |
+| Analitik Konten | "Content Analytics" | Sub-bagian sync data konten dalam kartu integrasi | "Content Analytics" |
+| Insight Audiens | "Audience Insights" | Sub-bagian sync data audiens (khusus Instagram) | "Audience Insights" |
+| Import Data Performa / Import Data Audiens | "Import Performance/Audience CSV" | Link import manual CSV di kartu integrasi | Judul link berbahasa Inggris |
+| Terhubung / Belum Terhubung | "Connected" / "Not Connected" | Status koneksi Instagram/TikTok | "Connected", "Not Connected" |
+| Tersinkron / Menyinkronkan / Gagal / Belum Tersinkron | "Synced" / "Syncing" / "Failed" / "Not Synced" | Status sinkronisasi per platform | Versi Inggrisnya |
+| Sambungkan Ulang / Hubungkan | "Reconnect" / "Connect" | Tombol OAuth connect per platform | "Reconnect X", "Connect X" |
+| Log Sinkronisasi | "Sync Log" | Riwayat sync/import di Pengaturan → Integrasi | "Sync Log" |
+| Ekspor PDF / Ekspor Excel / Ekspor | "Export PDF" / "Export Excel" / "Export" | Tombol unduh laporan/data performa | "Export" |
+| Pratinjau Data | "Data Preview" | Preview CSV sebelum konfirmasi import | "Data Preview" |
+| Petunjuk / Kolom Wajib | "Instructions" / "Required Columns" | Panduan format CSV di halaman Import | Versi Inggrisnya |
+| Anggota Tim / Tugas Aktif | "Team Members" / "Task Aktif" | Tabel & kartu ringkasan Performa Tim | "Team Members", "Task Aktif" (campuran) |
+| Tren Views / Tren Reach / Sebaran Views per Platform | "Views Trend" / "Reach Trend" / "Traffic per Platform" | Grafik tren di Performa & Portal Klien Analytics | Versi Inggrisnya |
+| Konten Berkinerja Terbaik | "Top Performing Content" | Daftar konten teratas di Performa/Dashboard/Portal Klien | "Top Performing Content" |
+| Detail Performa | "Performance Details" | Divider seksi grafik/metrik di Performa | "Performance Details" |
+| Laporan Progres Operasional / Laporan Performa Konten | "Operational Progress Report" / "Content Performance Report" | Judul kartu & **judul dokumen PDF** yang dikirim ke klien | Versi Inggrisnya — ini bocor ke dokumen client-facing |
+| Views / Engagement Rate / Reach / Impressions / Completion Rate | — | Istilah data analitik, dipertahankan (lihat Bagian 25) | diterjemahkan paksa ("Tayangan", dst) |
+| Instagram / TikTok / CSV / OAuth / PDF | — | Nama platform/format resmi, dipertahankan | diterjemahkan |
+| Keluar | "Logout" | Tombol keluar di sidebar | "Logout" (tidak konsisten dengan "Masuk dengan Google") |
+| Link Portal Permanen | "Permanent Portal Link" | Label link Portal Klien di Detail Klien | "Permanent Portal Link" |
+| Penanggung Jawab (PIC) | "PIC" / "Penanggung Jawab" | Orang yang bertanggung jawab atas konten | sebut keduanya sekali, lalu pakai PIC |
+
+> **Catatan status field validasi:** `pic_user_id` dan `rejection_note` (dua
+> field baru dari sprint stabilisasi) sekarang punya terjemahan resmi di
+> `lang/id/validation.php` ("penanggung jawab", "alasan penolakan") — pesan
+> error otomatis Laravel untuk kedua field ini sekarang berbahasa Indonesia,
+> bukan fallback ke label auto-generate berbahasa Inggris.
+
+---
+
+# Checklist Keamanan Data Dokumentasi
+
+> Ditambahkan saat **Final Pre-Merge Verification**. Dipakai SEBELUM
+> screenshot final buku panduan diambil — periksa & sensor tiap item berikut
+> yang muncul di frame screenshot sebelum dipublikasikan.
+
+| # | Field/Item | Di mana biasanya muncul | Wajib disensor? |
+|---|---|---|---|
+| 1 | Email pribadi staf (mis. `ahdaalamin2506@gmail.com`, `surdik2811@gmail.com`) | Kelola Pengguna, Profil, Notifikasi | ✅ Ya — pakai akun demo (`@523studio.test`) untuk screenshot, bukan email pribadi asli |
+| 2 | Nomor telepon/WhatsApp | Form client (`owner_phone`), Kelola Klien | ✅ Ya |
+| 3 | **Portal Client token** (`clients.portal_token`, 64 karakter) | Detail Klien → kartu Portal Klien, URL Portal Klien | ✅ Ya — sensor sebagian (sudah jadi kebijakan sejak audit pertama, lihat Bagian 24) |
+| 4 | API identifier (`external_account_id`, `external_username` kalau berupa akun asli) | Kartu Integrasi Instagram/TikTok | ✅ Ya kalau akun asli client; akun demo/test boleh tampil |
+| 5 | OAuth access/refresh token | Tidak pernah tampil di UI manapun (encrypted, `$hidden` di model) — tetap JANGAN screenshot response mentah API/log Laravel yang memuatnya | ✅ Ya kalau sampai terekspos di dev tools/log |
+| 6 | Link asset private (Google Drive/Canva folder client asli) | Detail Konten → Link File Hasil Produksi, Aset Klien | ✅ Ya kalau folder asli berisi data client; boleh pakai link folder dummy publik |
+| 7 | Nama client nyata tanpa izin | Kelola Klien, Detail Klien, Rencana Konten, dsb | ⚠️ Lihat catatan provenance data demo di bawah — minta konfirmasi eksplisit sebelum publish |
+| 8 | Nama akun sosial media private/asli | Kartu Integrasi (`@username`), Unmatched Instagram/TikTok | ✅ Ya kalau akun client asli |
+| 9 | Password demo `"password"` (`admin@523studio.test`) | Tidak tampil di UI manapun (tidak ada form login password) - field ini vestigial/tidak dipakai jalur login manapun saat ini | ⚠️ Jangan disebut di buku sekalipun tidak berbahaya - hindari kesan ada login password |
+| 10 | Session ID / CSRF token | Cookie/dev tools kalau sampai screenshot browser dev tools | ✅ Ya |
+
+## Provenance data demo (Step 9 — Final Pre-Merge Verification)
+
+Database development berisi data demo yang **konfirmasi asalnya**:
+`database/seeders/DemoSeeder.php` (sudah ada di repo sejak commit dasar
+`d637369`, bukan ditambahkan sesi ini) — 10 user (email `@***.test`, aman), 5
+client (Yasmin International Boarding School, PT Guna Griya Abadi, LuxSuits,
+Top Scorer Arena, FTI UNAND), 15 rencana konten, 85 content item, semua
+timestamp identik `2026-08-26 15:32:58` (satu kali jalan `php artisan
+db:seed --class=DemoSeeder` di luar sesi verifikasi ini).
+
+**Klasifikasi: `KNOWN_SOURCE`.**
+
+**Rekomendasi:** data ini AMAN dipakai untuk screenshot buku panduan
+(email fiktif domain `.test`, tidak ada data pribadi asli) — **DENGAN
+SATU catatan yang perlu dikonfirmasi user**: komentar di `DemoSeeder.php`
+menyebut client "mendekati portofolio riil 523 Studio" - pastikan dulu ke
+tim apakah nama-nama client demo ini boleh muncul di buku publik, atau
+sebaiknya diganti nama fiktif yang lebih jelas-jelas bukan referensi ke
+client asli manapun, sebelum screenshot final diambil.
+
+---
+
 # Bagian 25. Glosarium
 
 ## Istilah menu & halaman

@@ -24,7 +24,7 @@
                 <div class="w-9 h-9 rounded-lg bg-[var(--info-tint)] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[var(--info-text)] text-[18px]">fact_check</span>
                 </div>
-                <h2 class="text-sm font-semibold text-[var(--text-primary)]">Operational Progress Report</h2>
+                <h2 class="text-sm font-semibold text-[var(--text-primary)]">Laporan Progres Operasional</h2>
             </div>
             <p class="text-xs text-[var(--text-muted)] mb-5 ml-12">Jumlah konten selesai, overdue, dan revisi.</p>
 
@@ -54,11 +54,11 @@
                 <div class="flex gap-3 pt-1">
                     <button type="submit" name="format" value="pdf"
                             class="flex-1 bg-[var(--info-solid)] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-dark)] transition-colors flex items-center justify-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span> Export PDF
+                        <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span> Ekspor PDF
                     </button>
                     <button type="submit" name="format" value="excel"
                             class="btn-secondary flex-1">
-                        <span class="material-symbols-outlined text-[15px]">table_view</span> Export Excel
+                        <span class="material-symbols-outlined text-[15px]">table_view</span> Ekspor Excel
                     </button>
                 </div>
             </form>
@@ -70,7 +70,7 @@
                 <div class="w-9 h-9 rounded-lg bg-[var(--brand-tint)] flex items-center justify-center">
                     <span class="material-symbols-outlined text-[var(--brand)] text-[18px]">trending_up</span>
                 </div>
-                <h2 class="text-sm font-semibold text-[var(--text-primary)]">Content Performance Report</h2>
+                <h2 class="text-sm font-semibold text-[var(--text-primary)]">Laporan Performa Konten</h2>
             </div>
             <p class="text-xs text-[var(--text-muted)] mb-5 ml-12">Views, engagement rate, top content &amp; breakdown platform.</p>
 
@@ -100,11 +100,11 @@
                 <div class="flex gap-3 pt-1">
                     <button type="submit" name="format" value="pdf"
                             class="btn-primary flex-1">
-                        <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span> Export PDF
+                        <span class="material-symbols-outlined text-[15px]">picture_as_pdf</span> Ekspor PDF
                     </button>
                     <button type="submit" name="format" value="excel"
                             class="btn-secondary flex-1">
-                        <span class="material-symbols-outlined text-[15px]">table_view</span> Export Excel
+                        <span class="material-symbols-outlined text-[15px]">table_view</span> Ekspor Excel
                     </button>
                 </div>
             </form>
@@ -130,10 +130,10 @@
                     <table class="w-full text-sm text-left">
                         <thead class="bg-[var(--surface-page)]">
                             <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                                <th class="px-6 py-3 font-medium whitespace-nowrap">Type</th>
+                                <th class="px-6 py-3 font-medium whitespace-nowrap">Jenis</th>
                                 <th class="px-4 py-3 font-medium whitespace-nowrap">Klien</th>
-                                <th class="px-4 py-3 font-medium whitespace-nowrap">Period</th>
-                                <th class="px-4 py-3 font-medium whitespace-nowrap">Created</th>
+                                <th class="px-4 py-3 font-medium whitespace-nowrap">Periode</th>
+                                <th class="px-4 py-3 font-medium whitespace-nowrap">Dibuat</th>
                                 <th class="px-6 py-3"></th>
                             </tr>
                         </thead>
@@ -142,9 +142,9 @@
                                 <tr class="border-t border-[var(--surface-muted)]">
                                     <td class="px-6 py-3.5 whitespace-nowrap">
                                         @if ($report->report_type === 'performance_summary')
-                                            <span class="badge badge-success">Performance</span>
+                                            <span class="badge badge-success">Performa</span>
                                         @else
-                                            <span class="badge badge-info">Progress</span>
+                                            <span class="badge badge-info">Progres</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $report->client->name ?? 'Semua Klien' }}</td>
@@ -168,9 +168,9 @@
                             <button type="button" class="w-full text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                                 <div class="flex-1 min-w-0">
                                     @if ($report->report_type === 'performance_summary')
-                                        <span class="badge badge-success">Performance</span>
+                                        <span class="badge badge-success">Performa</span>
                                     @else
-                                        <span class="badge badge-info">Progress</span>
+                                        <span class="badge badge-info">Progres</span>
                                     @endif
                                     <p class="font-medium text-[var(--text-primary)] text-sm mt-1.5">{{ $report->client->name ?? 'Semua Klien' }}</p>
                                     <p class="text-xs text-[var(--text-secondary)] mt-0.5">{{ $report->period_start->format('d M') }} - {{ $report->period_end->format('d M Y') }}</p>
@@ -179,7 +179,7 @@
                             </button>
                             <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
                                 <div class="flex items-center justify-between text-xs">
-                                    <span class="text-[var(--text-muted)]">Created</span>
+                                    <span class="text-[var(--text-muted)]">Dibuat</span>
                                     <span class="text-[var(--text-primary)] font-medium">{{ $report->created_at->diffForHumans() }}</span>
                                 </div>
                                 <a href="{{ Storage::url($report->file_path) }}" target="_blank" @click.stop

@@ -32,12 +32,12 @@
         </div>
 
         <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
-            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Views Trend</p>
+            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Tren Views</p>
             <x-trend-chart :trend="$trend" />
         </div>
 
         <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
-            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Traffic per Platform</p>
+            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Sebaran Views per Platform</p>
             @if ($platformBreakdown->isEmpty())
                 <p class="text-sm text-[var(--text-muted)] text-center py-6">Belum ada data pada periode ini.</p>
             @else
@@ -59,7 +59,7 @@
         </div>
 
         <div class="bg-[var(--surface-card)] rounded-2xl border border-[var(--border)] p-4 shadow-[0_1px_2px_rgba(20,24,26,0.03)]">
-            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Top Performing Content</p>
+            <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Konten Berkinerja Terbaik</p>
             @if ($topContent->isEmpty())
                 <p class="text-sm text-[var(--text-muted)] text-center py-6">Belum ada data pada periode ini.</p>
             @else

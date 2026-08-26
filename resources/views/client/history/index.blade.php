@@ -17,7 +17,7 @@
                        class="text-sm border border-[var(--border)] rounded-lg pl-9 pr-3 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]">
             </div>
             @if (request('type') || request('month'))
-                <a href="{{ route('client.portal.history', $portalToken) }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Reset</a>
+                <a href="{{ route('client.portal.history', $portalToken) }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Atur Ulang</a>
             @endif
         </form>
 

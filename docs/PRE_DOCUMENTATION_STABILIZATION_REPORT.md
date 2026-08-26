@@ -213,6 +213,197 @@ peringatan App Review, sesuai rekomendasi audit awal yang masih berlaku.
 
 ---
 
-*Sprint dijalankan di branch `stabilization/pre-user-manual`, dari commit
-dasar `d637369`. Tidak ada push ke remote, tidak ada merge ke `main`. Semua
-perubahan tersedia untuk direview.*
+# Final Pre-Merge Verification
+
+**Tanggal:** 26 Agustus 2026
+**Branch:** `stabilization/pre-user-manual`
+**Commit awal sesi ini:** `ea8f94e` (working tree bersih, sudah tracking
+`origin/stabilization/pre-user-manual` dari sesi stabilisasi sebelumnya)
+**Commit dasar branch:** `d637369`
+
+Sesi ini TIDAK mengulang full stabilization dari awal - fokus pada verifikasi
+akhir sebelum `main` merge manual oleh user. Tidak ada merge/push/reset yang
+dilakukan.
+
+## Terminology Sweep
+
+Laporan sebelumnya cuma menyelaraskan 5 istilah paling jelas. Sweep kali ini
+**menyeluruh** ke seluruh `resources/views/` (sidebar, page title, browser
+title, heading, tab, tombol, dropdown, modal, validation message, empty
+state, table heading, filter, form label, tooltip, status label, Client
+Portal, **dan PDF laporan client-facing**).
+
+- **Issues found:** ~45 string user-facing berbahasa Inggris/campuran di 15
+  file (termasuk 2 **dokumen PDF yang dikirim ke client** — `report/pdf.blade.php`
+  dan `report/performance-pdf.blade.php` — sebelumnya 100% Bahasa Inggris),
+  plus 1 celah validation message (`pic_user_id`/`rejection_note` fallback ke
+  label Inggris auto-generate karena belum terdaftar di `lang/id/validation.php`).
+- **Issues fixed:** Semua ~45 ditemukan, diperbaiki. Tabel referensi lengkap
+  ada di section baru **"Terminologi Resmi untuk Dokumentasi"** di
+  `docs/USER_MANUAL_SOURCE_OF_TRUTH.md`.
+- **Sengaja TIDAK diubah:** "APPROVE KONTEN" (cocok dengan istilah baku yang
+  sudah didokumentasikan Bagian 8 source of truth), istilah data analitik
+  (Views/Engagement Rate/Reach/dst — dipertahankan sesuai glosarium Bagian
+  25), nama fitur produk (AI Brief, AI Strategy), nama platform (Instagram/
+  TikTok/CSV/OAuth).
+- **Verifikasi:** `php artisan view:cache` sukses (seluruh blade template
+  ter-compile tanpa error) + full test suite tetap hijau setelah sweep.
+
+## Golden Path Verification
+
+**Keterbatasan jujur dinyatakan di muka:** tidak ada verifikasi via browser
+sungguhan. Login internal aplikasi ini SATU-SATUNYA lewat Google OAuth (tidak
+ada email+password) - browser automation (Chrome tools tersedia di
+lingkungan ini) tidak bisa melewati layar consent Google tanpa akun Google
+nyata & interaksi manusia, PERSIS blocker eksternal yang sama dengan
+Instagram/TikTok OAuth. Tidak ada verifikasi browser yang dipalsukan.
+
+Pendekatan yang dipakai sebagai gantinya: **satu test otomatis
+berkesinambungan** (`tests/Feature/GoldenPathTest.php`) yang dispatch lewat
+routing/middleware/database Laravel SUNGGUHAN (bukan manipulasi model
+langsung, bukan tersegmentasi per file test seperti sprint sebelumnya).
+`actingAs()` cuma dipakai untuk melewati layar login internal — setiap
+langkah setelahnya (permission check, client scope, transisi status,
+notifikasi, generate PDF) berjalan lewat kode aplikasi asli. Portal Klien
+diverifikasi TANPA `actingAs()` sama sekali (murni token, sama seperti klien
+asli).
+
+**Golden path utama** (Manager buat client → paket → assign PIC → undang
+user → akses login aktif → Rencana Konten → tambah item → AI Brief (tanggal
+divalidasi, KI-07 terbukti tetap bekerja) → finalisasi → Content Creator
+kerjakan → isi link hasil → Menunggu Persetujuan → Portal Klien setuju →
+internal Approve → SMO jadwalkan → catat publikasi → Sudah Tayang → import
+performa → cek Performa → generate Laporan PDF → cek Riwayat Portal Klien):
+**✅ Lulus, 43 assertion.**
+
+**Rejection path** (Draf → Ajukan → Ditolak dengan alasan → buka kembali →
+diperbaiki (tambah konten) → ajukan ulang → Disetujui): **✅ Lulus, 21
+assertion.** Terverifikasi: riwayat status lengkap 5 entri, alasan penolakan
+tidak hilang setelah reopen, TIDAK ada duplicate plan (row ID sama sebelum &
+sesudah), notifikasi terkirim 2x (tiap kali diajukan).
+
+**Revision path** (Menunggu Persetujuan → Minta Revisi → Perlu Revisi →
+Kerjakan Revisi → Sedang Dikerjakan → Konten Telah Selesai → Menunggu
+Persetujuan → Approve): **✅ Lulus, 18 assertion.** Terverifikasi: siapa yang
+membuat revisi tercatat benar, status revisi ikut berubah otomatis
+(open→in_progress→resolved) sinkron dengan status konten, tidak ada revisi
+terbuka tersisa setelah approve, `ContentStatusLog` mencatat aktor yang benar
+di tiap transisi.
+
+**Bug ditemukan saat menyusun test ini (lalu dikonfirmasi BUKAN bug):**
+`ContentItemController::transition()` (dipakai tombol status sederhana di
+Detail Konten) sengaja TIDAK punya field `platform_id`/`published_at`/
+`post_url`/`caption_final`/`revision_note` di validasinya — karena transisi
+`uploaded` dan `revision` punya form/route/controller KHUSUS sendiri
+(`content-publication.store`, `content-revision.store`) dengan validasi
+lengkap. Diverifikasi dengan membaca kedua form Blade yang sebenarnya
+dipakai user (submit ke route yang benar) - bukan bug, desain yang disengaja.
+
+## Role-by-Role Verification
+
+`tests/Feature/RoleAccessMatrixTest.php` (baru) — 63 test case, memakai
+**`PermissionSeeder` produksi sungguhan** (bukan role ad-hoc), menguji 6 role
+internal (CEO, Manager, SMO, Copywriter, Content Creator, Desain Grafis) ×
+10 halaman utama = 60 kombinasi, plus 3 test client-scope dengan crafted
+request. **Semua lulus, 68 assertion.**
+
+| Role | Beranda | Dashboard | Performa | Rencana Konten | Produksi | Performa Tim | Kelola Pengguna | Kelola Klien | Laporan | Pengaturan |
+|---|---|---|---|---|---|---|---|---|---|---|
+| CEO | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
+| Manager | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 | 200 |
+| SMO | 200 | 200 | 200 | 200 | 200 | 403 | 403 | 403 | 200 | 200 |
+| Copywriter | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
+| Content Creator | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
+| Desain Grafis | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
+
+Semua 403 di atas diverifikasi lewat **direct URL access** (bukan cuma
+"tidak ada di sidebar") - membuktikan backend benar-benar jadi enforcement
+utama, bukan cuma UI yang menyembunyikan tombol.
+
+**Client scope dengan crafted request:** staf ter-scope ke Client A (1)
+BISA lihat Client A lewat URL langsung, (2) mendapat 403 saat coba lihat
+Client B, (3) mendapat 403 saat coba PATCH status content item Client B
+langsung (status Client B terbukti TIDAK berubah), (4) mendapat 403 saat
+coba lihat Content Plan Client B. Portal Klien sudah tercakup lewat
+`ClientPortalTest` (26 test pre-existing, masih lulus) + langkah Portal
+Klien di `GoldenPathTest`.
+
+## Authorization Re-Audit
+
+Systematic grep ulang untuk pola "`client_id` divalidasi dari request body
+TANPA `AssignedClient`/`assertClientAccessible`" di SELURUH
+`app/Http/Controllers/*.php` (bukan cuma file yang disentuh sprint
+sebelumnya). **Tidak ada temuan baru** - 2 kandidat yang sempat dicurigai
+(`SettingsController::syncInstagram()`/`syncTiktok()`) ternyata sudah
+punya guard `abort_unless(canSeeAllClients() || assignedClients()->...)`
+inline sejak sebelum sprint ini, cuma polanya beda dari `AssignedClient`
+rule (tiga pola client-scope-guard berbeda kini hidup berdampingan di
+codebase: inline `abort_unless`, `AssignedClient` rule, dan
+`Controller::assertClientAccessible()` helper - semuanya benar secara
+fungsional, TIDAK dikonsolidasi karena itu akan jadi refactor tidak perlu
+terhadap kode yang sudah teruji, di luar cakupan sesi verifikasi ini).
+
+Ketiga IDOR dari Phase L (AI Strategy History, Import Audience CSV, kanban
+drag-drop Produksi) diverifikasi ULANG lewat `RoleAccessMatrixTest` dengan
+crafted request - tetap `Fixed`, tidak regresi.
+
+## Data Demo Provenance
+
+**Klasifikasi: `KNOWN_SOURCE`.** `database/seeders/DemoSeeder.php` (sudah
+ada sejak commit dasar `d637369`, bukan ditambahkan sesi manapun dalam
+percakapan ini) match persis dengan seluruh 10 user, 5 client, dan pola
+timestamp identik (`2026-08-26 15:32:58`) yang ditemukan di database
+development. Data ini kemungkinan besar dijalankan (`php artisan db:seed
+--class=DemoSeeder`) oleh user di terminal terpisah selama sprint
+sebelumnya. Detail lengkap + rekomendasi pemakaian untuk screenshot ada di
+`docs/USER_MANUAL_SOURCE_OF_TRUTH.md` (section "Checklist Keamanan Data
+Dokumentasi").
+
+## Test Result (Final)
+
+| Metrik | Nilai |
+|---|---|
+| Total test | 148 |
+| Passed | 148 |
+| Failed | 0 |
+| Skipped | 0 |
+| Assertion | 363 |
+| Test baru sesi ini | 63 (`RoleAccessMatrixTest`) + 3 (`GoldenPathTest`) |
+| Database testing | `digidaw_testing` (diverifikasi eksplisit: `APP_ENV=testing`, `DB database: digidaw_testing`, mengandung "test") |
+
+## External Blockers (dikonfirmasi ulang, TIDAK ada usaha "perbaiki")
+
+- **Instagram** — seluruh code path yang bisa diuji tanpa consent manusia
+  (redirect, state, callback validation, token exchange fake, persistence)
+  tetap lulus (`SocialIntegrationOAuthTest`, tidak diubah, masih hijau).
+  Live consent tetap bergantung Meta App Review. Status: `EXTERNAL_BLOCKED`.
+- **TikTok** — code path OAuth+PKCE tetap lulus. TikTok Developer Portal
+  masih berpotensi `unauthorized_client` (masalah provider/registrasi app,
+  bukan kode) berdasarkan histori debugging sesi-sesi sebelumnya. Status
+  TETAP `EXTERNAL_BLOCKED` — TIDAK diubah jadi "READY end-to-end".
+- **Delay Risk** — *graceful degradation* dikonfirmasi ulang tidak berubah
+  (model/script gagal → log+skip, bukan crash). Akurasi model TIDAK dinilai
+  ulang sesi ini (di luar cakupan). Status: **"Operationally safe, model
+  accuracy not validated in this sprint."**
+
+## Remaining Risks (setelah Final Pre-Merge Verification)
+
+1. Nama client demo (`DemoSeeder.php`) disebut "mendekati portofolio riil
+   523 Studio" oleh komentar aslinya — perlu konfirmasi eksplisit dari user
+   apakah nama-nama ini aman dipublikasikan di buku sebelum screenshot final.
+2. Tiga pola client-scope-guard berbeda hidup berdampingan (lihat
+   Authorization Re-Audit di atas) — bukan bug, tapi konsolidasi ke satu
+   pola disarankan sebagai technical debt cleanup terpisah, di luar
+   cakupan merge ini.
+3. Golden path/role verification dijalankan lewat automated integration
+   test (routing+middleware+database sungguhan), BUKAN klik manual di
+   browser — batasan ini melekat pada desain login Google-OAuth-only
+   aplikasi, bukan sesuatu yang bisa diperbaiki dari sisi testing.
+
+---
+
+*Sprint stabilisasi awal + Final Pre-Merge Verification, keduanya dijalankan
+di branch `stabilization/pre-user-manual`, dari commit dasar `d637369`.
+Tidak ada push ke remote, tidak ada merge ke `main`, tidak ada reset/rebase
+branch manapun. Semua perubahan tersedia untuk direview oleh user sebelum
+merge manual.*

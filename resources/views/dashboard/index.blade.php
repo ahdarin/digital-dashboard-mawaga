@@ -405,10 +405,10 @@
                             <div class="flex items-baseline gap-2 mt-3">
                                 <p class="font-display text-2xl font-semibold text-[var(--text-primary)]">
                                     {{ $riskAccuracy['high_risk_precision'] }}%</p>
-                                <p class="text-xs text-[var(--text-secondary)]">prediksi <strong>High Risk</strong> benar-benar terlambat</p>
+                                <p class="text-xs text-[var(--text-secondary)]">prediksi <strong>Risiko Tinggi</strong> benar-benar terlambat</p>
                             </div>
                         @else
-                            <p class="text-sm text-[var(--text-muted)] mt-3">Belum ada konten dengan prediksi High Risk yang sudah selesai
+                            <p class="text-sm text-[var(--text-muted)] mt-3">Belum ada konten dengan prediksi Risiko Tinggi yang sudah selesai
                                 upload.</p>
                         @endif
                     @endif

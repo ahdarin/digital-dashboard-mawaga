@@ -66,7 +66,7 @@
                 @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
 
                 <div class="card p-5">
-                    <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Initial Brief</h3>
+                    <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Brief Awal</h3>
                     <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line mb-4">
                         {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -148,16 +148,16 @@
                 @endunless
 
                 <div class="card p-5">
-                    <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-4">Revision Log
+                    <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-4">Catatan Revisi
                         ({{ $contentItem->revisions->count() }})</h3>
 
                     <div class="space-y-2.5 mb-4">
                         @forelse ($contentItem->revisions as $revision)
                             @php
                                 $revisionStyles = [
-                                    'open' => ['card' => 'bg-[var(--warning-tint)]', 'badge' => 'bg-[var(--warning-tint-soft-2)] text-[var(--warning-text)]', 'label' => 'Open'],
+                                    'open' => ['card' => 'bg-[var(--warning-tint)]', 'badge' => 'bg-[var(--warning-tint-soft-2)] text-[var(--warning-text)]', 'label' => 'Terbuka'],
                                     'in_progress' => ['card' => 'bg-[var(--info-tint)]', 'badge' => 'bg-[var(--info-border)] text-[var(--info-text)]', 'label' => 'Sedang Dikerjakan'],
-                                    'resolved' => ['card' => 'bg-[var(--surface-page)]', 'badge' => 'bg-[var(--success-tint)] text-[var(--success-text)]', 'label' => 'Resolved'],
+                                    'resolved' => ['card' => 'bg-[var(--surface-page)]', 'badge' => 'bg-[var(--success-tint)] text-[var(--success-text)]', 'label' => 'Selesai'],
                                 ];
                                 $revisionStyle = $revisionStyles[$revision->status] ?? $revisionStyles['resolved'];
                             @endphp

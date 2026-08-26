@@ -202,13 +202,13 @@
         <form action="{{ route('logout') }}" method="POST">
             @csrf
             <button type="submit" aria-label="Logout"
-                x-data="{ label: 'Logout' }"
+                x-data="{ label: 'Keluar' }"
                 @mouseenter="{{ $tooltipEnter }}"
                 @mouseleave="tooltip.show = false"
                 class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium text-[var(--danger-text)] hover:bg-[var(--danger-tint)] transition-colors duration-100"
                 :class="effectiveCollapsed && 'justify-center px-0'">
                 <span class="material-symbols-outlined text-[19px] shrink-0">logout</span>
-                <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak x-transition.opacity>Logout</span>
+                <span class="whitespace-nowrap" x-show="!effectiveCollapsed" x-cloak x-transition.opacity>Keluar</span>
             </button>
         </form>
     </div>

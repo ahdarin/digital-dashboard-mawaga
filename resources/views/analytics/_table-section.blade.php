@@ -115,11 +115,11 @@
                                 @if (! $item->linked)
                                     <span class="badge badge-neutral">Belum terhubung</span>
                                 @elseif ($item->is_posted)
-                                    <span class="badge badge-success">Published</span>
+                                    <span class="badge badge-success">Sudah Tayang</span>
                                 @elseif ($item->is_overdue)
                                     <span class="badge badge-danger">Terlambat</span>
                                 @else
-                                    <span class="badge badge-warning">On Progress</span>
+                                    <span class="badge badge-warning">Berlangsung</span>
                                 @endif
                             </td>
                             <td class="px-6 py-3.5 text-right">
@@ -161,11 +161,11 @@
                     if (! $item->linked) {
                         $rowStatus = ['class' => 'badge-neutral', 'label' => 'Belum terhubung'];
                     } elseif ($item->is_posted) {
-                        $rowStatus = ['class' => 'badge-success', 'label' => 'Published'];
+                        $rowStatus = ['class' => 'badge-success', 'label' => 'Sudah Tayang'];
                     } elseif ($item->is_overdue) {
                         $rowStatus = ['class' => 'badge-danger', 'label' => 'Terlambat'];
                     } else {
-                        $rowStatus = ['class' => 'badge-warning', 'label' => 'On Progress'];
+                        $rowStatus = ['class' => 'badge-warning', 'label' => 'Berlangsung'];
                     }
                 @endphp
                 <div class="card p-3.5" x-data="{ open: false }">

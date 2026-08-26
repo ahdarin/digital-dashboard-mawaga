@@ -46,11 +46,11 @@
 
         <div class="flex items-center gap-2 flex-wrap shrink-0" x-data="{ rejectOpen: {{ $errors->has('rejection_note') ? 'true' : 'false' }} }">
             @if ($contentPlan->status === 'pending' && auth()->user()->hasPermissionTo('content_plan', 'approve'))
-                <button type="button" @click="rejectOpen = true" class="btn-danger">Reject</button>
+                <button type="button" @click="rejectOpen = true" class="btn-danger">Tolak</button>
                 <form action="{{ route('content-plan.approve', $contentPlan) }}" method="POST">
                     @csrf @method('PATCH')
                     <button class="btn-primary">
-                        <span class="material-symbols-outlined text-[16px]">check</span> Approve Plan
+                        <span class="material-symbols-outlined text-[16px]">check</span> Setujui Rencana
                     </button>
                 </form>
 

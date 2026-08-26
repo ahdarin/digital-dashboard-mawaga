@@ -11,7 +11,7 @@
         <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-lg bg-[var(--info-tint)] flex items-center justify-center mb-2 sm:mb-3">
             <span class="material-symbols-outlined text-[var(--info-text)] text-[15px] sm:text-[18px]">assignment</span>
         </div>
-        <p class="text-[11px] sm:text-sm text-[var(--text-secondary)] mb-1 sm:mb-2">Total Task Aktif</p>
+        <p class="text-[11px] sm:text-sm text-[var(--text-secondary)] mb-1 sm:mb-2">Total Tugas Aktif</p>
         <p class="font-display text-lg sm:text-2xl font-semibold text-[var(--text-primary)]">{{ $summary['total_active_items'] }}</p>
     </div>
     <div class="card p-3 sm:p-6">
@@ -41,14 +41,14 @@
         <div class="flex items-baseline gap-2 mb-4">
             @if ($riskAccuracy['high_risk_precision'] !== null)
                 <p class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $riskAccuracy['high_risk_precision'] }}%</p>
-                <p class="text-xs text-[var(--text-secondary)]">dari konten yang diprediksi <strong>High Risk</strong> benar-benar terlambat</p>
+                <p class="text-xs text-[var(--text-secondary)]">dari konten yang diprediksi <strong>Risiko Tinggi</strong> benar-benar terlambat</p>
             @else
-                <p class="text-sm text-[var(--text-muted)]">Belum ada konten dengan prediksi High Risk yang sudah selesai upload.</p>
+                <p class="text-sm text-[var(--text-muted)]">Belum ada konten dengan prediksi Risiko Tinggi yang sudah selesai upload.</p>
             @endif
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            @foreach (['high' => 'High', 'medium' => 'Medium', 'low' => 'Low'] as $level => $label)
+            @foreach (['high' => 'Risiko Tinggi', 'medium' => 'Risiko Sedang', 'low' => 'Risiko Rendah'] as $level => $label)
                 @php $b = $riskAccuracy['breakdown'][$level]; @endphp
                 <div class="bg-[var(--surface-page)] rounded-lg p-3">
                     <p class="text-[10px] font-semibold text-[var(--text-muted)] uppercase mb-1">{{ $label }}</p>
@@ -62,9 +62,9 @@
     @endif
 </div>
 
-{{-- Tabel Team Members --}}
+{{-- Tabel Anggota Tim --}}
 <div>
-    <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Team Members</h2>
+    <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Anggota Tim</h2>
     <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full table-fixed text-sm text-left">
@@ -72,7 +72,7 @@
                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
                     <th class="w-[28%] px-6 py-3 font-medium whitespace-nowrap">Anggota</th>
                     <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Konten</th>
-                    <th class="w-[14%] px-4 py-3 font-medium text-right whitespace-nowrap">Task Aktif</th>
+                    <th class="w-[14%] px-4 py-3 font-medium text-right whitespace-nowrap">Tugas Aktif</th>
                     <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Terlambat</th>
                     <th class="w-[12%] px-4 py-3 font-medium text-right whitespace-nowrap">Selesai</th>
                     <th class="w-[10%] px-4 py-3 font-medium text-right whitespace-nowrap">Revisi</th>
@@ -171,7 +171,7 @@
 
                 <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[var(--text-muted)]">Task Aktif</span>
+                        <span class="text-[var(--text-muted)]">Tugas Aktif</span>
                         <span class="text-[var(--text-primary)] font-medium flex items-center gap-1.5">
                             <span class="w-1.5 h-1.5 rounded-full {{ $m['is_overloaded'] ? 'bg-[var(--danger-text)]' : 'bg-[var(--brand)]' }}"></span>
                             {{ $m['active_count'] }}

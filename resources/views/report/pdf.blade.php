@@ -14,16 +14,16 @@
     </style>
 </head>
 <body>
-    <h1>Operational Progress Report</h1>
+    <h1>Laporan Progres Operasional</h1>
     <p class="subtitle">{{ $client_name }} · {{ $period_start }} - {{ $period_end }}</p>
 
     <table style="margin-bottom: 20px;">
         <tr>
-            <th>Total Item</th>
-            <th>Completed</th>
-            <th>Overdue</th>
-            <th>Active Revisions</th>
-            <th>Total Revisions</th>
+            <th>Total Konten</th>
+            <th>Selesai</th>
+            <th>Terlambat</th>
+            <th>Revisi Aktif</th>
+            <th>Total Revisi</th>
         </tr>
         <tr>
             <td>{{ $total }}</td>
@@ -37,11 +37,11 @@
     <table>
         <thead>
             <tr>
-                <th>Title</th>
-                <th>Client</th>
+                <th>Judul</th>
+                <th>Klien</th>
                 <th>Status</th>
                 <th>Deadline</th>
-                <th>Revision Count</th>
+                <th>Jumlah Revisi</th>
             </tr>
         </thead>
         <tbody>

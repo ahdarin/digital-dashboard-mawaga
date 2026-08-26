@@ -134,7 +134,7 @@
         </div>
 
         <div class="card p-6">
-            <h2 class="font-display text-sm font-semibold text-[var(--text-primary)] mb-1">Followers Growth</h2>
+            <h2 class="font-display text-sm font-semibold text-[var(--text-primary)] mb-1">Pertumbuhan Followers</h2>
             <p class="text-xs text-[var(--text-muted)] mb-3">Tren total follower {{ $platform->name }}.</p>
             @if ($followerTrend->isEmpty())
                 <p class="text-xs text-[var(--text-muted)] text-center py-6">Belum ada histori followers pada periode ini.</p>
@@ -146,7 +146,7 @@
 
     {{-- Reach trend --}}
     <div class="card p-6 mb-5">
-        <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-1">Reach Trend</h2>
+        <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-1">Tren Reach</h2>
         <p class="text-xs text-[var(--text-muted)] mb-5">Tren reach akun harian {{ $platform->name }}.</p>
         @if ($reachTrend->isEmpty())
             <p class="text-sm text-[var(--text-muted)] text-center py-12">Belum ada histori reach pada periode ini.</p>
@@ -313,7 +313,7 @@
         </div>
 
         <div class="lg:col-span-2 card p-6">
-            <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Followers Growth</h2>
+            <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Pertumbuhan Followers</h2>
             <p class="text-xs text-[var(--text-muted)] mb-5">Tren jumlah follower {{ $platform->name }}.</p>
 
             @if ($followerTrend->isEmpty())
