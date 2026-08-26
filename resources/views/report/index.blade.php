@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Report Generator')
+@section('title', 'Laporan')
 @section('content')
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">

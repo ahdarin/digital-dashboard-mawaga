@@ -460,7 +460,7 @@
 
                         <div class="space-y-2 max-h-72 overflow-y-auto">
                             @forelse ($reassignCandidates as $candidate)
-                                @php $candidateActiveCount = $activeCountsByMember[$candidate->id] ?? 0; @endphp
+                                @php $candidateActiveCount = $candidate->active_task_count ?? 0; @endphp
                                 <label class="flex items-center justify-between gap-3 p-3 border border-[var(--border)] rounded-lg hover:bg-[var(--surface-page)] cursor-pointer">
                                     <div class="flex items-center gap-3 min-w-0">
                                         <input type="radio" name="pic_user_id" value="{{ $candidate->id }}"

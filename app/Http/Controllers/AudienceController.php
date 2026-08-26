@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\Platform;
+use App\Rules\AssignedClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -42,8 +43,14 @@ class AudienceController extends Controller
      */
     public function importCsv(Request $request)
     {
+        // Phase L (re-audit) - client_id lewat form field, bukan
+        // route-model-binding (client.scope middleware tidak bisa dipasang
+        // di /audience/import) - tanpa AssignedClient, SMO ter-scope bisa
+        // MENULIS data audiens client manapun cuma dengan ganti client_id di
+        // form, sama kelas bug dengan KI-09 (Import CSV Performa) tapi ini
+        // sisi tulis, bukan cuma baca.
         $validated = $request->validate([
-            'client_id' => ['required', 'exists:clients,id'],
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
 

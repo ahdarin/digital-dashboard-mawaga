@@ -34,6 +34,7 @@ class BriefGenerationService
     public function generate(ContentItem $rawIdea, ?int $createdBy = null): ContentBriefDraft
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($rawIdea));
+        $parsed = $this->sanitizeDates($parsed);
         $feasibility = $this->assessFeasibility($rawIdea, $parsed);
 
         return ContentBriefDraft::create([
@@ -67,6 +68,7 @@ class BriefGenerationService
     public function regenerate(ContentBriefDraft $brief): ContentBriefDraft
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($brief->contentItem));
+        $parsed = $this->sanitizeDates($parsed);
         $feasibility = $this->assessFeasibility($brief->contentItem, $parsed);
 
         $brief->update([
@@ -121,6 +123,11 @@ class BriefGenerationService
             return $brief;
         }
 
+        // KI-07 - usulan perubahan dari diskusi AI (discuss()) melewati AI
+        // yang sama, jadi rawan tanggal hallucinated juga - sanitasi yang
+        // sama seperti generate()/regenerate(), bukan cuma di titik itu saja.
+        $incoming = $this->sanitizeDates($incoming);
+
         $brief->update(array_merge($incoming, [
             'previous_snapshot' => $brief->only(self::EDITABLE_FIELDS),
         ]));
@@ -142,11 +149,66 @@ class BriefGenerationService
         return $brief->fresh();
     }
 
+    /**
+     * KI-07 - AI (bahasa model tanpa jam) sering mengarang start_date/
+     * post_date dari kebiasaan data latihnya (umumnya jatuh ke tahun 2024)
+     * kalau diminta tanggal relatif ("besok") tanpa titik acuan. Prompt
+     * sekarang SUDAH memberi tanggal hari ini eksplisit (lihat
+     * buildGeneratePrompt()), tapi validasi backend ini tetap WAJIB sebagai
+     * lapis kedua - jangan cuma percaya prompt, karena discuss()/
+     * applyChanges() juga bisa membawa tanggal dari AI yang sama.
+     *
+     * Tanggal yang tidak bisa di-parse, atau berada di masa lalu/terlalu
+     * jauh di masa depan, DIGANTI dengan fallback deterministik (bukan
+     * dibiarkan tersimpan apa adanya) - start_date -> besok, post_date ->
+     * start_date + 4 hari (tengah dari instruksi "3-5 hari setelah
+     * start_date" di prompt). Key yang memang tidak dikirim AI (null/kosong)
+     * TIDAK disentuh - itu bukan "tanggal salah", cuma "belum ada tanggal".
+     */
+    private function sanitizeDates(array $parsed): array
+    {
+        $today = Carbon::now()->startOfDay();
+        $maxFuture = $today->copy()->addDays(90);
+
+        $parseValid = function (?string $raw, Carbon $minDate) use ($maxFuture): ?Carbon {
+            if (empty($raw)) {
+                return null;
+            }
+            try {
+                $date = Carbon::createFromFormat('Y-m-d', $raw)->startOfDay();
+            } catch (\Throwable $e) {
+                return null;
+            }
+
+            return ($date->lt($minDate) || $date->gt($maxFuture)) ? null : $date;
+        };
+
+        if (array_key_exists('start_date', $parsed) && ! empty($parsed['start_date'])) {
+            $valid = $parseValid($parsed['start_date'], $today);
+            $parsed['start_date'] = $valid ? $valid->toDateString() : $today->copy()->addDay()->toDateString();
+        }
+
+        if (array_key_exists('post_date', $parsed) && ! empty($parsed['post_date'])) {
+            $startReference = ! empty($parsed['start_date'])
+                ? Carbon::createFromFormat('Y-m-d', $parsed['start_date'])->startOfDay()
+                : $today;
+            $valid = $parseValid($parsed['post_date'], $startReference);
+            $parsed['post_date'] = $valid ? $valid->toDateString() : $startReference->copy()->addDays(4)->toDateString();
+        }
+
+        return $parsed;
+    }
+
     private function buildGeneratePrompt(ContentItem $idea): string
     {
         $typeName = $idea->contentType->name ?? 'Tidak diketahui';
         $platformName = $idea->platform->name ?? 'Tidak diketahui';
         $isVideo = $typeName === 'Video';
+        $today = Carbon::now()->toDateString();
+        $tomorrow = Carbon::now()->addDay()->toDateString();
+        $deadlineContext = $idea->deadline_at
+            ? "- Deadline konten (jangan lewati ini): {$idea->deadline_at->toDateString()}"
+            : '';
 
         $secondFieldSpec = $isVideo
             ? '* talent_script: naskah/dialog/voice over yang diucapkan talent di adegan ini (teks '
@@ -168,13 +230,19 @@ class BriefGenerationService
         - Deskripsi: {$idea->brief}
         - Tipe konten: {$typeName}
         - Platform: {$platformName}
+        - Tanggal hari ini: {$today}
+        {$deadlineContext}
 
         Susun brief dengan field berikut, DAN sertakan analisis kompleksitas teknis produksinya
         (dipakai modul lain untuk menilai risiko keterlambatan pengerjaan):
 
         - hook_title: judul/hook menarik untuk brief (boleh beda dari judul ide asli)
-        - start_date: perkiraan tanggal mulai produksi (format YYYY-MM-DD), asumsikan mulai besok
-        - post_date: perkiraan tanggal posting (format YYYY-MM-DD), 3-5 hari setelah start_date
+        - start_date: perkiraan tanggal mulai produksi (format YYYY-MM-DD). Hari ini adalah
+          {$today} - asumsikan mulai besok ({$tomorrow}) KECUALI ada alasan kuat dari ide mentah
+          untuk memilih tanggal lain. WAJIB tanggal hari ini atau setelahnya, JANGAN PERNAH
+          tanggal sebelum {$today} atau tahun yang berbeda dari tahun berjalan sekarang.
+        - post_date: perkiraan tanggal posting (format YYYY-MM-DD), 3-5 hari setelah start_date,
+          dan sebelum deadline konten kalau deadline disebutkan di atas
         - platform: platform publikasi
         - scenes: array JSON berisi satu object per SLIDE (Design/Carousel) atau ADEGAN (Video),
           urut dari scene pertama. Tiap object WAJIB punya key:

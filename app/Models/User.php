@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 
 // User = INTERNAL 523 Studio staff SAJA. Client bukan User sama sekali -
 // lihat Client::portal_token untuk akses Client Portal (tanpa akun/login).
-#[Fillable(['name', 'email', 'google_id', 'avatar_url', 'password', 'status', 'preferences'])]
+#[Fillable(['name', 'email', 'google_id', 'avatar_url', 'password', 'status', 'preferences', 'login_enabled'])]
 #[Hidden(['password'])]
 class User extends Authenticatable
 {

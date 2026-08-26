@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Content Plan Bulanan')
+@section('title', 'Rencana Konten')
 @section('content')
 <div x-data="{ showCreateModal: {{ $errors->createContentPlan->any() ? 'true' : 'false' }} }" class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 

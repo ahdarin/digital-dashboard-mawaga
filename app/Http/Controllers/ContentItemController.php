@@ -53,7 +53,7 @@ class ContentItemController extends Controller
         $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
         $canApprove = auth()->user()->hasPermissionTo('workflow', 'approve');
 
-        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'activeCountsByMember', 'canUpdateWorkflow', 'canApprove', 'picResolver'));
+        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow', 'canApprove', 'picResolver'));
     }
 
     /**
@@ -221,23 +221,38 @@ class ContentItemController extends Controller
             'pic_user_id' => 'required|exists:users,id',
         ]);
 
-        $newPic = User::query()->where('status', 'active')->findOrFail($validated['user_id']);
+        // Sama seperti storeItem()/quickCreateUrgent() - PIC baru harus
+        // benar-benar terkait client konten ini lewat assignedClients, bukan
+        // cuma exists di tabel users manapun.
+        $newPic = User::query()
+            ->where('status', 'active')
+            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
+            ->find($validated['pic_user_id']);
+        abort_unless($newPic, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
 
         $workflow = $contentItem->workflow;
-        $workflow->update(['current_pic_id' => $user->id]);
+        $workflow->update(['current_pic_id' => $newPic->id]);
 
         $contentItem->update([
-            'external_pic_name' => $user->name,
-            'external_pic_email' => $user->email,
+            'external_pic_name' => $newPic->name,
+            'external_pic_email' => $newPic->email,
         ]);
 
         ContentItemAssignment::updateOrCreate(
             ['content_item_id' => $contentItem->id, 'assignment_role' => 'primary'],
-            ['user_id' => $user->id]
+            ['user_id' => $newPic->id]
         );
 
         $delayRiskService->predictForItems([$contentItem->id]);
 
-        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$user->name}.");
+        \App\Services\NotificationService::notify(
+            $newPic,
+            'Kamu jadi Penanggung Jawab konten ini',
+            'task',
+            "\"{$contentItem->title}\" ({$contentItem->client->name}) dipindahkan ke kamu.",
+            $contentItem
+        );
+
+        return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$newPic->name}.");
     }
 }

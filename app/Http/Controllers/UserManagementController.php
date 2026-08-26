@@ -134,6 +134,26 @@ class UserManagementController extends Controller
     }
 
     /**
+     * KI-06 - satu-satunya jalur UI untuk memberi/mencabut akses login
+     * (login_enabled), terpisah dari status aktif/nonaktif (lifecycle akun).
+     * Dibutuhkan terutama buat staf roster GUIDE yang di-import dengan
+     * login_enabled=false - sebelum ini tidak ada tombol manapun buat
+     * mengaktifkannya, cuma bisa lewat database langsung.
+     */
+    public function toggleLoginAccess(User $user)
+    {
+        $this->authorizeManage();
+
+        $user->update(['login_enabled' => ! $user->login_enabled]);
+
+        $message = $user->login_enabled
+            ? "Akses login {$user->name} berhasil diaktifkan - sekarang bisa masuk dengan Google."
+            : "Akses login {$user->name} berhasil dicabut.";
+
+        return back()->with('status', $message);
+    }
+
+    /**
      * "Edit Role" pada row Kelola Tim - mengedit user_roles (many-to-many,
      * RBAC multi-role) - satu User bisa punya beberapa role sekaligus.
      * Berlaku sama untuk User dengan atau tanpa login_enabled - jabatan
@@ -168,8 +188,6 @@ class UserManagementController extends Controller
     public function updateClientAssignments(Request $request, User $user)
     {
         $this->authorizeManage();
-
-        abort_if($user->isClientUser(), 404);
 
         $validated = $request->validate([
             'client_ids' => 'array',

@@ -14,6 +14,7 @@ use App\Rules\AssignedClient;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 class ContentPlanController extends Controller
 {
@@ -95,7 +96,6 @@ class ContentPlanController extends Controller
 
         $contentTypeOptions = ContentType::all();
         $platformOptions = Platform::all();
-        $picOptions = User::query()->where('status', 'active')->with('assignedClients:id')->get();
 
         return view('content-plan.index', compact(
             'plans',
@@ -149,7 +149,7 @@ class ContentPlanController extends Controller
 
     public function show(ContentPlan $contentPlan, \App\Services\PicResolver $picResolver)
     {
-        $contentPlan->load(['client', 'clientPackage', 'creator', 'approver']);
+        $contentPlan->load(['client', 'clientPackage', 'creator', 'approver', 'statusLogs.changedByUser']);
 
         $items = $contentPlan->contentItems()
             ->with(['contentType', 'platform', 'workflow.currentPic', 'assignments.user', 'client'])
@@ -166,9 +166,11 @@ class ContentPlanController extends Controller
      */
     public function submit(ContentPlan $contentPlan)
     {
-        abort_unless($contentPlan->status === 'draft', 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
+        abort_unless(in_array($contentPlan->status, ['draft'], true), 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
 
+        $fromStatus = $contentPlan->status;
         $contentPlan->update(['status' => 'pending']);
+        $this->logPlanStatus($contentPlan, $fromStatus, 'pending');
 
         NotificationService::notifyPlanApprovers($contentPlan);
 
@@ -180,17 +182,52 @@ class ContentPlanController extends Controller
         abort_unless($contentPlan->status === 'pending', 422, 'Cuma rencana yang sudah diajukan yang bisa disetujui.');
 
         $contentPlan->update(['status' => 'approved', 'approved_by' => auth()->id()]);
+        $this->logPlanStatus($contentPlan, 'pending', 'approved');
 
         return back()->with('status', 'Content plan disetujui - tim bisa mulai menambahkan content item sesuai rencana ini.');
     }
 
-    public function reject(ContentPlan $contentPlan)
+    public function reject(ContentPlan $contentPlan, Request $request)
     {
         abort_unless($contentPlan->status === 'pending', 422, 'Cuma rencana yang sudah diajukan yang bisa ditolak.');
 
+        // KI-13 - catatan penolakan WAJIB diisi supaya pembuat rencana tahu
+        // apa yang harus diperbaiki sebelum mengajukan ulang (lihat reopen()).
+        $validated = $request->validate([
+            'rejection_note' => 'required|string|max:2000',
+        ]);
+
         $contentPlan->update(['status' => 'rejected', 'approved_by' => auth()->id()]);
+        $this->logPlanStatus($contentPlan, 'pending', 'rejected', $validated['rejection_note']);
 
         return back()->with('status', 'Content plan ditolak, silakan revisi.');
+    }
+
+    /**
+     * KI-13 - satu-satunya jalur balik dari Ditolak: mengembalikan rencana ke
+     * Draf supaya bisa diperbaiki lalu diajukan ulang lewat submit(). Status
+     * "rejected" dan catatan penolakannya TETAP tercatat di statusLogs (tidak
+     * dihapus/ditimpa) - reopen cuma menambah entri baru, bukan mengedit yang lama.
+     */
+    public function reopen(ContentPlan $contentPlan)
+    {
+        abort_unless($contentPlan->status === 'rejected', 422, 'Cuma rencana berstatus Ditolak yang bisa dikembalikan ke Draf.');
+
+        $contentPlan->update(['status' => 'draft']);
+        $this->logPlanStatus($contentPlan, 'rejected', 'draft');
+
+        return back()->with('status', 'Rencana dikembalikan ke Draf. Perbaiki lalu ajukan ulang kalau sudah siap.');
+    }
+
+    private function logPlanStatus(ContentPlan $contentPlan, ?string $from, string $to, ?string $notes = null): void
+    {
+        $contentPlan->statusLogs()->create([
+            'changed_by_user_id' => auth()->id(),
+            'from_status' => $from,
+            'to_status' => $to,
+            'notes' => $notes,
+            'changed_at' => now(),
+        ]);
     }
 
     public function createItem(ContentPlan $contentPlan)
@@ -218,7 +255,7 @@ class ContentPlanController extends Controller
             'content_type_id' => 'nullable|exists:content_types,id',
             'platform_id' => 'nullable|exists:platforms,id',
             'deadline_at' => 'required|date',
-            'pic_id' => ['required', Rule::exists('users', 'id')->where('status', 'active')],
+            'pic_user_id' => ['required', Rule::exists('users', 'id')->where('status', 'active')],
             'estimated_duration_seconds' => 'nullable|integer',
             'estimated_slide_count' => 'nullable|integer',
         ]);
@@ -297,8 +334,8 @@ class ContentPlanController extends Controller
         // yang wajib), tapi kalau diisi WAJIB terbukti terkait client ini -
         // jangan percaya ID dari form saja.
         $picUser = null;
-        if (! empty($validated['pic_user_id'])) {
-            $picUser = User::where('id', $validated['pic_user_id'])
+        if (! empty($validated['pic_id'])) {
+            $picUser = User::where('id', $validated['pic_id'])
                 ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $client->id))
                 ->first();
             abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');

@@ -552,8 +552,13 @@ class AnalyticsController extends Controller
      */
     public function aiStrategyHistory(Request $request)
     {
+        // Phase L (re-audit) - client_id lewat query string, bukan
+        // route-model-binding, jadi client.scope middleware tidak bisa
+        // dipasang di route ini - tanpa AssignedClient, role ter-scope bisa
+        // baca riwayat AI Strategy client manapun cuma dengan ganti query
+        // string, sama kelas bug dengan KI-09.
         $validated = $request->validate([
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => ['required', 'exists:clients,id', new AssignedClient],
         ]);
 
         $client = Client::findOrFail($validated['client_id']);

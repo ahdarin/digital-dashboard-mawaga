@@ -138,7 +138,7 @@
                                 <option value="">Belum ditentukan</option>
                                 @foreach ($picOptions as $picUser)
                                     <option value="{{ $picUser->id }}" data-client-ids="{{ $picUser->assignedClients->pluck('id')->join(',') }}"
-                                        {{ (string) old('pic_user_id') === (string) $picUser->id ? 'selected' : '' }}>{{ $picUser->name }}{{ $picUser->login_enabled ? '' : ' (belum memiliki akses dashboard)' }}</option>
+                                        {{ (string) old('pic_id') === (string) $picUser->id ? 'selected' : '' }}>{{ $picUser->name }}{{ $picUser->login_enabled ? '' : ' (belum memiliki akses dashboard)' }}</option>
                                 @endforeach
                             </select>
                             <p class="text-[11px] text-[var(--text-muted)] mt-1">Cuma menampilkan tim yang sudah di-assign ke klien yang dipilih di atas.</p>

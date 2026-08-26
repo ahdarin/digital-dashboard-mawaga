@@ -26,32 +26,44 @@ class DashboardController extends Controller
         $startOfLastMonth = $now->copy()->subMonthNoOverflow()->startOfMonth();
         $endOfLastMonth = $now->copy()->subMonthNoOverflow()->endOfMonth();
 
-        $contentThisMonth = ContentItem::whereBetween('deadline_at', [$startOfThisMonth, $endOfThisMonth])->count();
-        $contentLastMonth = ContentItem::whereBetween('deadline_at', [$startOfLastMonth, $endOfLastMonth])->count();
+        // KI-10 - Dashboard sebelumnya sama sekali tidak dibatasi per client,
+        // jadi SMO (yang di semua halaman lain cuma lihat roster-nya) bisa
+        // lihat KPI/ranking/overdue/risk seluruh client di sini. Pola sama
+        // persis dengan ContentPlanController::index() - null berarti
+        // CEO/Manager (semua client), array berarti dibatasi roster.
+        $user = $request->user();
+        $assignedClientIds = $user->canSeeAllClients() ? null : $user->assignedClients()->pluck('clients.id');
+        $scopeClient = fn ($q, string $column = 'client_id') => $q->when(
+            $assignedClientIds !== null, fn ($qq) => $qq->whereIn($column, $assignedClientIds)
+        );
+        $scopeViaContentItem = fn ($q) => $q->whereHas('contentItem', fn ($qq) => $scopeClient($qq));
+
+        $contentThisMonth = $scopeClient(ContentItem::whereBetween('deadline_at', [$startOfThisMonth, $endOfThisMonth]))->count();
+        $contentLastMonth = $scopeClient(ContentItem::whereBetween('deadline_at', [$startOfLastMonth, $endOfLastMonth]))->count();
         $contentChange = $this->percentChange($contentLastMonth, $contentThisMonth);
 
-        $overdueCount = ContentWorkflow::whereHas('contentItem')
+        $overdueCount = $scopeViaContentItem(ContentWorkflow::query())
             ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
             ->where('is_overdue', true)
             ->count();
-        $totalWorkflow = ContentWorkflow::whereHas('contentItem')
+        $totalWorkflow = $scopeViaContentItem(ContentWorkflow::query())
             ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
             ->count();
         $overdueRate = $totalWorkflow > 0 ? round(($overdueCount / $totalWorkflow) * 100, 1) : 0;
 
-        $activeClients = Client::where('status', 'active')->count();
-        $newClientsThisMonth = Client::where('created_at', '>=', $startOfThisMonth)->count();
+        $activeClients = $scopeClient(Client::where('status', 'active'), 'id')->count();
+        $newClientsThisMonth = $scopeClient(Client::where('created_at', '>=', $startOfThisMonth), 'id')->count();
 
         $activeTeam = User::query()->where('status', 'active')->count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
-        $viewsThisMonth = (int) ContentMetric::whereHas('contentItem')
+        $viewsThisMonth = (int) $scopeViaContentItem(ContentMetric::query())
             ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])->sum('views');
-        $viewsLastMonth = (int) ContentMetric::whereHas('contentItem')
+        $viewsLastMonth = (int) $scopeViaContentItem(ContentMetric::query())
             ->whereBetween('metric_date', [$startOfLastMonth, $endOfLastMonth])->sum('views');
         $viewsChange = $this->percentChange($viewsLastMonth, $viewsThisMonth);
 
-        $uploadedThisMonth = ContentWorkflow::whereHas('contentItem')
+        $uploadedThisMonth = $scopeViaContentItem(ContentWorkflow::query())
             ->where('current_status', 'uploaded')
             ->whereBetween('updated_at', [$startOfThisMonth, $endOfThisMonth])
             ->count();
@@ -109,12 +121,12 @@ class DashboardController extends Controller
             ],
         ];
 
-        $performance = collect(range(6, 0))->map(function ($monthsAgo) {
+        $performance = collect(range(6, 0))->map(function ($monthsAgo) use ($scopeClient) {
             $month = Carbon::now()->subMonths($monthsAgo);
 
-            $count = ContentItem::whereYear('deadline_at', $month->year)
-                ->whereMonth('deadline_at', $month->month)
-                ->count();
+            $count = $scopeClient(
+                ContentItem::whereYear('deadline_at', $month->year)->whereMonth('deadline_at', $month->month)
+            )->count();
 
             return [
                 'label' => $month->translatedFormat('M'),
@@ -128,11 +140,12 @@ class DashboardController extends Controller
 
         $trendEnd = Carbon::now()->endOfDay();
         $trendStart = Carbon::now()->subDays($period - 1)->startOfDay();
-        $trendMetrics = ContentMetric::whereHas('contentItem')->whereBetween('metric_date', [$trendStart, $trendEnd])->get();
+        $trendMetrics = $scopeViaContentItem(ContentMetric::query())->whereBetween('metric_date', [$trendStart, $trendEnd])->get();
         $viewsTrend = $analyticsSummaryService->buildTrend($trendMetrics, $trendStart, $trendEnd, $period);
 
-        $attentionItems = ContentWorkflow::with(['contentItem.client', 'contentItem.workflow.currentPic', 'currentPic'])
-            ->whereHas('contentItem')
+        $attentionItems = $scopeViaContentItem(
+            ContentWorkflow::with(['contentItem.client', 'contentItem.workflow.currentPic', 'currentPic'])
+        )
             ->where('is_overdue', true)
             ->oldest('updated_at')
             ->take(4)
@@ -149,9 +162,11 @@ class DashboardController extends Controller
         // Panel prediktif (beda dari "Perlu Perhatian" di atas yang reaktif/is_overdue):
         // item aktif yang BELUM overdue tapi skor AI Delay Risk-nya lagi tinggi - biar
         // tim bisa cegah keterlambatan sebelum kejadian, bukan cuma tahu setelah telat.
-        $highRiskItems = ContentItem::with(['client', 'workflow.currentPic', 'latestDelayRisk'])
-            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses)->where('is_overdue', false))
-            ->whereHas('latestDelayRisk', fn ($q) => $q->where('risk_level', 'high'))
+        $highRiskItems = $scopeClient(
+            ContentItem::with(['client', 'workflow.currentPic', 'latestDelayRisk'])
+                ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses)->where('is_overdue', false))
+                ->whereHas('latestDelayRisk', fn ($q) => $q->where('risk_level', 'high'))
+        )
             ->get()
             ->sortByDesc(fn ($item) => $item->latestDelayRisk->risk_score)
             ->take(4)
@@ -166,8 +181,8 @@ class DashboardController extends Controller
                 ];
             });
 
-        // --- Tambahan: teaser Analytics (org-wide, bulan berjalan) ---
-        $monthMetrics = ContentMetric::whereHas('contentItem')
+        // --- Tambahan: teaser Analytics (bulan berjalan, ikut scope client) ---
+        $monthMetrics = $scopeViaContentItem(ContentMetric::query())
             ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
             ->with('contentItem.client', 'contentItem.platform')
             ->get();
@@ -219,7 +234,7 @@ class DashboardController extends Controller
         // --- Tambahan: teaser akurasi prediksi AI Delay Risk (feedback loop) ---
         $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
 
-        $recentItems = ContentItem::with(['client', 'contentType', 'workflow'])
+        $recentItems = $scopeClient(ContentItem::with(['client', 'contentType', 'workflow']))
             ->latest('created_at')
             ->take(6)
             ->get()

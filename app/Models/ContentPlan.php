@@ -16,4 +16,5 @@ class ContentPlan extends Model
     public function contentItems() { return $this->hasMany(ContentItem::class); }
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function approver() { return $this->belongsTo(User::class, 'approved_by'); }
+    public function statusLogs() { return $this->hasMany(ContentPlanStatusLog::class)->latest('changed_at'); }
 }

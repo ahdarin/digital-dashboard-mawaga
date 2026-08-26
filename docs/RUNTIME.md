@@ -18,13 +18,23 @@ memprosesnya** — bukan error, cuma belum diproses.
 
 ## Development (lokal, termasuk Windows)
 
-Jalankan di 2 terminal terpisah (selain `php artisan serve` / Laragon):
+**Cara termudah** - satu perintah yang menjalankan web server, queue listener,
+scheduler simulator, log viewer, dan asset watcher sekaligus (lewat
+`npx concurrently`, tidak OS-specific, jalan sama di Windows/Mac/Linux):
 
 ```bash
-# Terminal 1 - proses job yang di-dispatch (Sync Now, dst)
+composer run dev
+```
+
+Kalau butuh menjalankan komponennya satu-satu (mis. buat debug salah satu
+proses tanpa yang lain ikut jalan), jalankan manual di terminal terpisah
+(selain `php artisan serve` / Laragon):
+
+```bash
+# Proses job yang di-dispatch (Sync Now, dst)
 php artisan queue:work
 
-# Terminal 2 - simulasikan cron tiap menit, buat tes command terjadwal
+# Simulasikan cron tiap menit, buat tes command terjadwal
 # (analytics:sync-all-instagram, analytics:refresh-instagram-tokens,
 # analytics:sync-all-tiktok, analytics:refresh-tiktok-tokens, dst)
 # tanpa perlu setup cron/Task Scheduler asli
@@ -84,6 +94,71 @@ stopwaitsecs=3600
 ```
 * * * * * cd /path/to/523studio && php artisan schedule:run >> /dev/null 2>&1
 ```
+
+**Restart worker setelah deploy** — `queue:work` membekukan kode job di memori
+saat start (lihat catatan di bawah), jadi WAJIB direstart tiap deploy yang
+menyentuh `app/Jobs/`, `app/Services/`, atau `app/Console/Commands/` supaya
+worker memakai kode baru, bukan versi lama yang masih nyangkut di memori:
+
+```bash
+php artisan queue:restart
+```
+
+Ini mengirim sinyal graceful (worker menyelesaikan job yang sedang jalan dulu,
+baru berhenti) - Supervisor (`autorestart=true` di config atas) otomatis
+menyalakannya lagi dengan kode baru.
+
+**Log & error** — `storage/logs/laravel.log` (Laravel default, termasuk semua
+`Log::error()`/`Log::warning()` dari service TikTok/Instagram/AI Brief).
+Job yang gagal permanen (habis retry) tercatat di tabel `failed_jobs` (cek
+lewat `php artisan queue:failed`), TERPISAH dari `analytics_sync_logs` (yang
+menyimpan histori sync per-integration untuk ditampilkan di UI).
+
+**Health-check sederhana** — dua sinyal cepat untuk memastikan queue/scheduler
+benar-benar berjalan, bukan cuma "terdaftar":
+
+```bash
+# Job gagal permanen (menandakan ada masalah berulang, bukan sekali gagal)
+php artisan queue:failed
+
+# AnalyticsSyncLog yang nyangkut 'pending' lebih dari 30 menit = tanda queue
+# worker TIDAK berjalan (job dispatch tapi tidak pernah diproses) - lihat
+# command cleanup di bagian Maintenance di bawah.
+php artisan tinker --execute="echo \App\Models\AnalyticsSyncLog::where('status','pending')->where('created_at','<',now()->subMinutes(30))->count().' log nyangkut pending.';"
+```
+
+## Testing database (KI-15 — isolasi dari database development)
+
+**Test TIDAK PERNAH boleh menyentuh database development (`digidaw`).** Sebelumnya
+`phpunit.xml` menunjuk `DB_DATABASE=digidaw` (sama persis dengan `.env` development)
+padahal ada test (`ClientPortalTest`) memakai `RefreshDatabase` — kombinasi ini
+berisiko menghapus/migrate ulang data development tiap `php artisan test` dijalankan.
+
+Perbaikan:
+
+- `phpunit.xml` sekarang menunjuk `DB_DATABASE=digidaw_testing` — database MySQL
+  terpisah (host/credentials sama, cuma nama database beda), dibuat khusus untuk
+  testing dan aman di-`RefreshDatabase` kapan saja.
+- SQLite/in-memory **tidak dipakai** karena migration awal (`clients`, `users`,
+  `content_plans`, `content_workflows`, `content_revisions`, `api_integrations`,
+  `analytics_sync_logs`, `delay_risk_scores`, `content_brief_drafts`, dan beberapa
+  migration `ALTER TABLE ... MODIFY` lain) memakai `DB::statement()` dengan sintaks
+  MySQL murni (`ALTER TABLE ... ADD CONSTRAINT ... CHECK`, `ALTER TABLE ... MODIFY`)
+  yang tidak didukung SQLite — migrate akan gagal di tengah jalan kalau dipaksa SQLite.
+- `tests/TestCase.php` punya **safeguard runtime**: `setUp()` mengecek
+  `app()->environment('testing')` dan nama database aktif (harus mengandung `"test"`
+  dan tidak boleh persis `"digidaw"`) — kalau salah satu gagal, test langsung
+  di-abort dengan `RuntimeException` SEBELUM `RefreshDatabase` sempat jalan. Ini
+  melindungi dari config yang salah lagi di masa depan (mis. `phpunit.xml` ke-revert,
+  atau `.env.testing` baru yang salah isi).
+- Database `digidaw_testing` dibuat manual sekali (`CREATE DATABASE digidaw_testing`),
+  lalu otomatis di-migrate oleh `RefreshDatabase` tiap test run — tidak perlu
+  `php artisan migrate` manual untuk database ini.
+
+Sebelum test pertama dijalankan setelah audit ini, proof berikut dicetak dan
+diverifikasi (`APP_ENV=testing`, koneksi `mysql`, database `digidaw_testing`,
+BUKAN `digidaw`) — baseline: 26 test lulus (2 `ExampleTest` + 24 `ClientPortalTest`),
+database development (`digidaw`, 3 user) terbukti tidak berubah.
 
 ## Maintenance
 

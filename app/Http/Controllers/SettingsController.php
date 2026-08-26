@@ -31,9 +31,12 @@ use App\Http\Controllers\MasterDataController;
  * 2. Analytics Integration Settings - sesuai PRD 7.3.4 (domain PIC 3):
  *    status koneksi API per platform + jalur import performa via CSV/Excel.
  *
- * Bagian connect/disconnect integration MASIH UI SAJA (belum ada action/route
- * submit-nya) - itu butuh App Review Meta/TikTok dulu sebelum bisa
- * diimplementasi beneran (lihat diskusi soal ini di chat).
+ * Connect/disconnect integration SUDAH FUNGSIONAL - OAuth Instagram (Login
+ * Kit + PKCE) dan TikTok (Login Kit + PKCE) sama-sama sudah diimplementasi
+ * penuh (lihat InstagramIntegrationController/TikTokIntegrationController).
+ * Yang masih jadi batasan eksternal (bukan kode aplikasi) adalah App Review
+ * Meta/TikTok - di mode Development, cuma akun yang didaftarkan manual
+ * sebagai tester di App Dashboard masing-masing platform yang bisa connect.
  *
  * Import CSV SUDAH FUNGSIONAL (lihat importPerformance() di bawah).
  */
@@ -284,6 +287,18 @@ class SettingsController extends Controller
             'client_id' => ['required', 'exists:clients,id'],
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
         ]);
+
+        // KI-09 - sama seperti syncInstagram()/syncTiktok(): client_id lewat
+        // form field, bukan route-model-binding, jadi EnsureClientScope
+        // tidak bisa dipasang di route - cek manual di sini. Tanpa ini SMO
+        // yang di-scope ke client tertentu bisa import data performa buat
+        // client manapun, padahal di semua halaman lain dibatasi roster-nya.
+        $user = $request->user();
+        abort_unless(
+            $user->canSeeAllClients() || $user->assignedClients()->whereKey($validated['client_id'])->exists(),
+            403,
+            'Anda tidak punya akses ke client ini.'
+        );
 
         $client = Client::findOrFail($validated['client_id']);
 
@@ -550,9 +565,15 @@ class SettingsController extends Controller
      * (bukan cuma section kecil di Settings). Form submit-nya tetap ke
      * importPerformance() yang sudah ada, cuma tampilannya dipisah.
      */
-    public function importPage()
+    public function importPage(Request $request)
     {
-        $clientOptions = Client::where('status', 'active')->get();
+        // KI-09 - dropdown ini sebelumnya menampilkan SEMUA client aktif ke
+        // siapa pun yang bisa buka halaman ini (termasuk SMO ter-scope) -
+        // samakan dengan pola scoping index() di atas (baris ~53).
+        $user = $request->user();
+        $clientOptions = $user->canSeeAllClients()
+            ? Client::where('status', 'active')->get()
+            : $user->assignedClients()->where('status', 'active')->get();
 
         return view('settings.import', compact('clientOptions'));
     }

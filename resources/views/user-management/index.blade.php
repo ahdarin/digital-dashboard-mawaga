@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Kelola Tim')
+@section('title', 'Kelola Pengguna')
 @section('content')
 
 <div x-data="{
@@ -19,7 +19,7 @@
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Kelola Tim</h1>
+            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Kelola Pengguna</h1>
             <p class="text-[var(--text-secondary)] text-sm mt-1">
                 Roster staf internal agensi - real dari Content Planner, lengkap dengan role dan status akses dashboard. Tidak semua staf punya akses login.
             </p>
@@ -101,6 +101,21 @@
                                             class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Assign Klien">
                                         <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
                                     </button>
+
+                                    {{-- KI-06 - satu-satunya tombol buat mengaktifkan/mencabut akses
+                                         login (login_enabled), terpisah dari status aktif/nonaktif di
+                                         bawah. Disembunyikan untuk user nonaktif - aktifkan dulu
+                                         statusnya sebelum mengatur akses login. --}}
+                                    @if ($user->status !== 'inactive')
+                                        <form action="{{ route('user-management.toggle-login-access', $user) }}" method="POST">
+                                            @csrf @method('PATCH')
+                                            <button type="submit"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors"
+                                                    title="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}">
+                                                <span class="material-symbols-outlined text-[17px]">{{ $user->login_enabled ? 'no_accounts' : 'login' }}</span>
+                                            </button>
+                                        </form>
+                                    @endif
 
                                     @if ($user->status === 'inactive')
                                         <button type="button" @click="confirmActivate = {{ $user->id }}"
@@ -396,6 +411,17 @@
                                 class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Assign Klien">
                             <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
                         </button>
+
+                        @if ($user->status !== 'inactive')
+                            <form action="{{ route('user-management.toggle-login-access', $user) }}" method="POST">
+                                @csrf @method('PATCH')
+                                <button type="submit"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors"
+                                        title="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}">
+                                    <span class="material-symbols-outlined text-[17px]">{{ $user->login_enabled ? 'no_accounts' : 'login' }}</span>
+                                </button>
+                            </form>
+                        @endif
 
                         @if ($user->status === 'inactive')
                             <button type="button" @click="confirmActivate = {{ $user->id }}"

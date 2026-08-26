@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Settings')
+@section('title', 'Pengaturan')
 @section('content')
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
@@ -17,7 +17,7 @@
         </a>
         <a href="{{ route('settings', ['tab' => 'data-pilihan']) }}"
            class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'data-pilihan' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]' }}">
-            Master Data
+            Data Pilihan
         </a>
         <a href="{{ route('settings', ['tab' => 'integrasi']) }}"
            class="text-sm font-medium px-4 py-2 rounded-md transition-colors {{ $section === 'integrasi' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]' }}">

@@ -44,16 +44,48 @@
             </div>
         </div>
 
-        <div class="flex items-center gap-2 flex-wrap shrink-0">
+        <div class="flex items-center gap-2 flex-wrap shrink-0" x-data="{ rejectOpen: {{ $errors->has('rejection_note') ? 'true' : 'false' }} }">
             @if ($contentPlan->status === 'pending' && auth()->user()->hasPermissionTo('content_plan', 'approve'))
-                <form action="{{ route('content-plan.reject', $contentPlan) }}" method="POST">
-                    @csrf @method('PATCH')
-                    <button class="btn-danger">Reject</button>
-                </form>
+                <button type="button" @click="rejectOpen = true" class="btn-danger">Reject</button>
                 <form action="{{ route('content-plan.approve', $contentPlan) }}" method="POST">
                     @csrf @method('PATCH')
                     <button class="btn-primary">
                         <span class="material-symbols-outlined text-[16px]">check</span> Approve Plan
+                    </button>
+                </form>
+
+                <template x-teleport="body">
+                    <div x-show="rejectOpen" x-cloak x-on:keydown.escape.window="rejectOpen = false" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+                        <div class="absolute inset-0 bg-[#14181a]/40" @click="rejectOpen = false"></div>
+                        <div x-show="rejectOpen" x-transition role="dialog" aria-modal="true" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md">
+                            <form action="{{ route('content-plan.reject', $contentPlan) }}" method="POST">
+                                @csrf @method('PATCH')
+                                <div class="px-6 py-5 border-b border-[var(--border)]">
+                                    <h3 class="font-display text-lg font-semibold text-[var(--text-primary)]">Tolak Rencana</h3>
+                                    <p class="text-xs text-[var(--text-muted)] mt-0.5">Catatan ini akan tersimpan sebagai riwayat dan membantu pembuat rencana memperbaikinya sebelum diajukan ulang.</p>
+                                </div>
+                                <div class="px-6 py-5">
+                                    <label for="rejection_note" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Alasan Penolakan <span class="text-[var(--danger-text)]">*</span></label>
+                                    <textarea id="rejection_note" name="rejection_note" rows="4" required
+                                        class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->has('rejection_note') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}"
+                                        placeholder="Jelaskan apa yang perlu diperbaiki...">{{ old('rejection_note') }}</textarea>
+                                    @error('rejection_note') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
+                                    <button type="submit" class="btn-danger">Tolak Rencana</button>
+                                    <button type="button" @click="rejectOpen = false" class="btn-secondary">Batal</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </template>
+            @endif
+
+            @if ($contentPlan->status === 'rejected' && auth()->user()->hasPermissionTo('content_plan', 'create'))
+                <form action="{{ route('content-plan.reopen', $contentPlan) }}" method="POST">
+                    @csrf @method('PATCH')
+                    <button class="btn-primary whitespace-nowrap">
+                        <span class="material-symbols-outlined text-[16px]">undo</span> Kembalikan ke Draf & Perbaiki
                     </button>
                 </form>
             @endif
@@ -201,6 +233,45 @@
             <div class="card p-8 text-center text-[var(--text-muted)] text-sm">Belum ada content item. Klik "Tambah Konten" buat mulai.</div>
         @endforelse
     </div>
+
+    {{-- KI-13 - riwayat keputusan (Ajukan/Setujui/Tolak/Kembalikan ke Draf).
+         Selalu ditampilkan kalau ada entri, supaya catatan penolakan lama
+         tetap terlihat walau rencana sudah dikembalikan ke Draf & diajukan
+         ulang berkali-kali - bukan cuma status akhir saja. --}}
+    @if ($contentPlan->statusLogs->isNotEmpty())
+        <div class="card p-5 mt-6">
+            <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Riwayat Keputusan</h2>
+            <div class="space-y-3">
+                @foreach ($contentPlan->statusLogs as $log)
+                    @php
+                        $logLabel = fn ($s) => match ($s) {
+                            'draft' => 'Draf', 'pending' => 'Menunggu Persetujuan',
+                            'approved' => 'Disetujui', 'rejected' => 'Ditolak', default => $s,
+                        };
+                    @endphp
+                    <div class="flex items-start gap-3 text-sm">
+                        <span class="material-symbols-outlined text-[16px] text-[var(--text-muted)] mt-0.5">
+                            {{ $log->to_status === 'rejected' ? 'cancel' : ($log->to_status === 'approved' ? 'check_circle' : 'sync_alt') }}
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[var(--text-primary)]">
+                                @if ($log->from_status)
+                                    {{ $logLabel($log->from_status) }} &rarr; {{ $logLabel($log->to_status) }}
+                                @else
+                                    {{ $logLabel($log->to_status) }}
+                                @endif
+                                <span class="text-[var(--text-muted)]">oleh {{ $log->changedByUser->name ?? '-' }}</span>
+                            </p>
+                            @if ($log->notes)
+                                <p class="text-xs text-[var(--text-secondary)] mt-0.5 whitespace-pre-line">{{ $log->notes }}</p>
+                            @endif
+                            <p class="text-[11px] text-[var(--text-muted)] mt-0.5">{{ $log->changed_at->translatedFormat('d M Y, H:i') }}</p>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     {{-- "Ajukan Rencana" diletakkan setelah daftar konten - user meninjau
          seluruh isi rencana dulu sebelum diajukan, bukan tombol yang

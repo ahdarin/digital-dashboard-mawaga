@@ -60,8 +60,14 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/production-workflow', [ProductionWorkflowController::class, 'index'])
         ->middleware('permission:workflow,view')
         ->name('production-workflow.index');
+    // Phase L (re-audit) - satu-satunya endpoint transisi status yang belum
+    // dipasangi client.scope, padahal sibling-nya (content-items.transition,
+    // dipakai Detail Konten) sudah - tanpa ini, role ter-scope bisa
+    // memindahkan status content item client MANAPUN lewat drag-and-drop
+    // kanban, bukan cuma roster-nya. Sama kelas bug dengan temuan lain di
+    // Phase L (aiStrategyHistory, AudienceController::importCsv).
     Route::patch('/production-workflow/{contentItem}/status', [ProductionWorkflowController::class, 'updateStatus'])
-        ->middleware('permission:workflow,update')
+        ->middleware(['permission:workflow,update', 'client.scope:contentItem'])
         ->name('production-workflow.update-status');
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:dashboard,view')
@@ -144,6 +150,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
+        // KI-06 - satu-satunya cara CEO/Manager mengaktifkan akses login staf
+        // GUIDE yang di-import dengan login_enabled=false. Terpisah dari
+        // activate() (status lifecycle) - lihat catatan login_enabled di
+        // UserManagementController::index().
+        Route::patch('/user-management/{user}/toggle-login-access', [UserManagementController::class, 'toggleLoginAccess'])
+            ->name('user-management.toggle-login-access');
         // Kelola Tim - primary entity User ("satu orang = satu record",
         // keputusan final user). Edit Role -> User.role_id (satu-satunya
         // role di sistem, dipakai langsung buat authorization - lihat
@@ -282,6 +294,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::patch('/content-plan/{contentPlan}/submit', [ContentPlanController::class, 'submit'])
             ->middleware('client.scope:contentPlan')
             ->name('content-plan.submit');
+        // KI-13 - satu-satunya jalur balik dari Ditolak: kembalikan ke Draf
+        // supaya bisa diperbaiki lalu "Ajukan Rencana" (submit()) lagi. Izin
+        // sama dengan submit() (bukan approve/reject) karena ini aksi
+        // "perbaiki lalu ajukan ulang", bukan keputusan persetujuan.
+        Route::patch('/content-plan/{contentPlan}/reopen', [ContentPlanController::class, 'reopen'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.reopen');
     });
 
     Route::middleware('permission:content_plan,approve')->group(function () {
@@ -319,8 +338,10 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
     Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
 
-    Route::get('/publishing-tracker', [ContentPublicationController::class, 'index'])
-        ->middleware('permission:workflow,view')
+    // KI-12 - halaman index lama ini duplikat persis Produksi -> tab "Sudah
+    // Tayang" dan tidak punya pintu masuk apapun di UI manapun (bukmark lama
+    // saja) - redirect, bukan 404, biar backward-compatible.
+    Route::redirect('/publishing-tracker', '/production-workflow?tab=published')
         ->name('publishing-tracker.index');
 
     Route::get('/publishing-tracker/instagram/{apiIntegration}/unmatched', [ContentPublicationController::class, 'unmatchedInstagram'])
@@ -337,8 +358,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware(['permission:publishing,manage', 'client.scope:apiIntegration'])
         ->name('publishing-tracker.tiktok.link');
 
-    Route::get('/revision-log', [ContentRevisionController::class, 'index'])
-        ->middleware('permission:workflow,view')
+    // KI-12 - sama seperti /publishing-tracker di atas: duplikat Produksi ->
+    // tab "Revisi", tidak ada pintu masuk UI, redirect buat backward-compat.
+    Route::redirect('/revision-log', '/production-workflow?tab=revisions')
         ->name('revision-log.index');
 
     Route::middleware('permission:report,view')->group(function () {
