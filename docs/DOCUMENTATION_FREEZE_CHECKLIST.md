@@ -4,6 +4,11 @@
 > 26 Agustus 2026. Lihat `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md`
 > (termasuk appendix "Final Pre-Merge Verification") dan
 > `docs/USER_MANUAL_SOURCE_OF_TRUTH.md` untuk detail lengkap tiap item.
+>
+> Ketiga dokumen ini konsisten pada kondisi terkini: **148 test / 363
+> assertion / 0 failed / 0 skipped**, **0 `KNOWN_ISSUE` tersisa**, KI-17
+> `FIXED`, Instagram & TikTok `EXTERNAL_BLOCKED`, Delay Risk
+> `OPERATIONALLY_SAFE_WITH_LIMITATION`, scheduler/queue = dependensi runtime.
 
 ## Application
 
@@ -15,7 +20,7 @@
       (`RoleAccessMatrixTest`, 63 test case, PermissionSeeder produksi asli)
 - [x] Client scope verified — crafted request (URL langsung + PATCH ke
       resource client lain) ditolak 403, data terbukti tidak berubah
-- [x] Terminology standardized — sweep menyeluruh ke seluruh
+- [x] Terminology standardized (KI-17 `FIXED`) — sweep menyeluruh ke seluruh
       `resources/views/` termasuk PDF laporan client-facing; tabel referensi
       di `docs/USER_MANUAL_SOURCE_OF_TRUTH.md` ("Terminologi Resmi untuk
       Dokumentasi")

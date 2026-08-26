@@ -5,6 +5,17 @@
 > `docs/USER_MANUAL_SOURCE_OF_TRUTH.md` (commit `d637369`). Buku Panduan
 > Pengguna **belum** ditulis — itu di luar cakupan sprint ini.
 
+> ⚠️ **Cara membaca dokumen ini.** Bagian §1–§9 adalah laporan **sprint
+> stabilisasi**, ditulis **sebelum** Final Pre-Merge Verification. Angka test,
+> status KI-17, dan sebagian "Remaining Risks" di dalamnya sudah tersalip oleh
+> appendix **"Final Pre-Merge Verification"** di bagian bawah dokumen ini.
+> **Yang berlaku sebagai kondisi terkini adalah appendix tersebut**, dan
+> ringkasannya ada di `docs/USER_MANUAL_SOURCE_OF_TRUTH.md` (kotak "KONDISI
+> TERKINI") serta `docs/DOCUMENTATION_FREEZE_CHECKLIST.md`.
+>
+> Ringkas: **148 test / 363 assertion / 0 failed / 0 skipped**, KI-17
+> **FIXED** (sweep terminologi menyeluruh), status branch `READY_TO_MERGE`.
+
 ## 1. Executive Summary
 
 **Status: `DOCUMENTATION_READY`**
@@ -40,9 +51,9 @@ jelas dari kesiapan kode aplikasi.
 | KI-12 | Revision Log & Publishing Tracker legacy | Duplikat tab Produksi, tanpa pintu masuk UI | `index()` di kedua controller dihapus; route diganti `Route::redirect()` ke tab resmi Produksi; view index lama dihapus (partial yang masih dipakai tab resmi TIDAK dihapus) | `LegacyRouteRedirectTest` (2 test) | Fixed |
 | KI-13 | Rencana Konten Ditolak buntu | Tidak ada jalur Ditolak→Draf | Tambah `reopen()` (Ditolak→Draf) + tabel `content_plan_status_logs` (riwayat lengkap tiap transisi, termasuk catatan penolakan yang WAJIB diisi) + UI modal Reject dengan alasan wajib + panel Riwayat Keputusan | `ContentPlanTest` (3 test) | Fixed |
 | KI-14 | Queue/scheduler runtime | Tidak ada dokumentasi jalan bareng; scheduler tidak ada di `composer dev` | `composer run dev` sekarang menjalankan scheduler (`schedule:work`) sekaligus web/queue/logs/vite; `docs/RUNTIME.md` ditambah restart-after-deploy, lokasi log, health-check sederhana | Manual verify `composer.json` + audit `routes/console.php` (tidak ada duplikat) | Fixed (dokumentasi + tooling) |
-| KI-15 | Konfigurasi pengujian (database dev kena test) | `phpunit.xml` nunjuk `digidaw` (dev) | Database `digidaw_testing` terpisah dibuat; `phpunit.xml` diarahkan ke situ; `tests/TestCase.php` dapat hard safeguard (abort kalau bukan `APP_ENV=testing` + nama DB tidak mengandung "test") | Baseline 26 test lulus di awal sprint, sekarang 82 | Fixed |
-| KI-16 | Cakupan pengujian | Cuma Portal Klien (26 test) | +56 test baru lintas Content Plan, Detail Konten, User Management, AI Brief, Dashboard scope, Import scope, OAuth, Report, Analytics, AI Strategy, Production Workflow scope, Legacy redirect, Phase L leaks | 82 test / 213 assertion, semua lulus | Fixed |
-| KI-17 | Ketidaksesuaian istilah | "Kelola Tim" vs "Kelola Pengguna", "Performa Konten" vs "Performa", dst | Judul halaman & tab browser diselaraskan ke istilah baku sidebar (5 file) | Full test suite (regresi visual tidak ada assertion khusus, tapi tidak breaking) | Fixed (contoh paling jelas; istilah platform-spesifik "Unmatched X" sengaja dibiarkan beda, itu bukan inkonsistensi) |
+| KI-15 | Konfigurasi pengujian (database dev kena test) | `phpunit.xml` nunjuk `digidaw` (dev) | Database `digidaw_testing` terpisah dibuat; `phpunit.xml` diarahkan ke situ; `tests/TestCase.php` dapat hard safeguard (abort kalau bukan `APP_ENV=testing` + nama DB tidak mengandung "test") | Baseline 26 test di awal sprint → 82 di akhir sprint ini → **148 setelah Final Pre-Merge Verification** | Fixed |
+| KI-16 | Cakupan pengujian | Cuma Portal Klien (24 test) | +56 test baru lintas Content Plan, Detail Konten, User Management, AI Brief, Dashboard scope, Import scope, OAuth, Report, Analytics, AI Strategy, Production Workflow scope, Legacy redirect, Phase L leaks | 82 test / 213 assertion di akhir sprint ini; **148 test / 363 assertion** setelah Final Pre-Merge Verification | Fixed |
+| KI-17 | Ketidaksesuaian istilah | "Kelola Tim" vs "Kelola Pengguna", "Performa Konten" vs "Performa", dst | Sprint ini: judul halaman & tab browser diselaraskan (5 file). **Final Pre-Merge Verification: sweep menyeluruh ~45 string di 15 file**, termasuk 2 PDF laporan client-facing + pesan validasi | Full test suite tetap hijau + `php artisan view:cache` sukses | **Fixed** (istilah platform-spesifik "Unmatched X" sengaja dibiarkan beda, itu bukan inkonsistensi) |
 | KI-18 | Posting langsung ke media sosial | Bukan bug, konfirmasi tidak ada | Konfirmasi ulang: tidak ada wording menyesatkan ditemukan di seluruh `resources/views/` | Grep audit | Confirmed OUT_OF_SCOPE (tetap, sesuai desain) |
 | KI-19 | Komentar kode usang | `SettingsController` bilang OAuth "MASIH UI SAJA" padahal sudah fungsional | Komentar diperbarui reflect implementasi aktual | - | Fixed |
 | KI-20 | `$picOptions` dead code | Dihitung di `ContentPlanController::index()`, tidak pernah dipakai (view composer global yang dipakai) | Dihapus | Konfirmasi grep composer di `AppServiceProvider` | Fixed |
@@ -70,7 +81,9 @@ model).
 
 Dua lapis verifikasi dijalankan:
 
-**A. Automated test suite** (82 test, 213 assertion) — Feature test dengan
+**A. Automated test suite** (82 test, 213 assertion *pada akhir sprint ini*;
+kini **148 test / 363 assertion** setelah Final Pre-Merge Verification) —
+Feature test dengan
 factory data sintetis, database `digidaw_testing` terisolasi penuh dari
 database development.
 
@@ -127,7 +140,11 @@ aplikasi (yang `READY`).
 
 ## 6. Automated Test
 
-| Metrik | Nilai |
+> **Angka di tabel ini adalah hasil stabilization sprint, SEBELUM Final
+> Pre-Merge Verification.** Hasil final ada di tabel "Test Result (Final)" di
+> appendix bawah: **148 test / 363 assertion**.
+
+| Metrik | Nilai *(akhir sprint stabilisasi)* |
 |---|---|
 | Total test | 82 |
 | Passed | 82 |
@@ -135,7 +152,7 @@ aplikasi (yang `READY`).
 | Skipped | 0 |
 | Assertion | 213 |
 | Database testing | MySQL terpisah `digidaw_testing` (bukan SQLite — migration awal pakai `DB::statement()` MySQL-native yang tidak kompatibel SQLite, lihat `docs/RUNTIME.md`) |
-| Baseline awal sprint | 26 test (`ClientPortalTest` + `ExampleTest`) |
+| Baseline awal sprint | 26 test (`ClientPortalTest` 24 + `ExampleTest` 2) |
 | Test baru ditambahkan | 56 (13 file baru) |
 
 Rincian file test baru: `ContentPlanTest` (7), `ContentItemDetailTest` (5),
@@ -179,15 +196,18 @@ diverifikasi terpisah:
    dikonfirmasi ke user apakah ini disengaja/dari sumber lain, supaya tidak
    ada kebingungan soal provenance data saat dipakai buat screenshot buku
    panduan nanti.
-3. **KI-17 (terminologi) baru diperbaiki untuk 5 contoh paling jelas**
-   (Kelola Pengguna, Performa, Rencana Konten, Laporan, Pengaturan, Data
-   Pilihan) — sweep menyeluruh ke SETIAP string user-facing di seluruh
-   aplikasi tidak dilakukan (di luar cakupan waktu sprint ini). Direkomendasikan
-   sweep terminologi menyeluruh sekali lagi sebelum/selama penulisan buku.
-4. **Golden path & role-by-role** diverifikasi per-segmen (§4, §7), bukan
-   satu sesi manual berkesinambungan — risiko kecil ada interaksi antar-
-   segmen yang tidak tertangkap test terisolasi (mis. urutan notifikasi
-   lintas beberapa aksi berurutan).
+3. ~~**KI-17 (terminologi) baru diperbaiki untuk 5 contoh paling jelas**~~ —
+   **SUDAH SELESAI.** Sweep menyeluruh dilakukan pada Final Pre-Merge
+   Verification: ~45 string di 15 file, termasuk 2 PDF laporan client-facing
+   dan 1 celah pesan validasi. KI-17 sekarang `FIXED`; tabel terminologi
+   resmi ada di `docs/USER_MANUAL_SOURCE_OF_TRUTH.md`.
+4. ~~**Golden path & role-by-role** diverifikasi per-segmen~~ — **SUDAH
+   DITANGANI.** Final Pre-Merge Verification menambahkan `GoldenPathTest`
+   (satu alur berkesinambungan: golden, rejection, dan revision path) serta
+   `RoleAccessMatrixTest` (6 role × 10 halaman + client scope crafted
+   request). Batasan yang tersisa: verifikasinya lewat automated integration
+   test, bukan klik manual di browser — melekat pada desain login
+   Google-OAuth-only.
 5. **KI-08 (Instagram/TikTok) tidak bisa dipastikan berfungsi ujung-ke-ujung**
    sampai App Review Meta/TikTok selesai dan akun tester tersedia — murni
    eksternal, tapi tetap risiko yang nyata bagi user yang mengikuti buku
@@ -205,11 +225,12 @@ config yang bisa ke-revert diam-diam). Tidak ada dead-end business workflow
 yang tidak disengaja (KI-13 diperbaiki).
 
 Penulis buku panduan boleh mulai kerja dari `docs/USER_MANUAL_SOURCE_OF_TRUTH.md`
-versi re-audit (lihat metadata re-audit di dokumen itu), dengan catatan:
-gunakan §5 (External Blockers) di laporan ini sebagai basis kalimat
-peringatan integrasi Instagram/TikTok di buku, dan JANGAN mendokumentasikan
-KI-08 sebagai "selesai" - dokumentasikan sebagai konseptual dengan
-peringatan App Review, sesuai rekomendasi audit awal yang masih berlaku.
+(pakai kotak **"KONDISI TERKINI"** di bagian atas dokumen itu sebagai acuan,
+bukan bagian yang berlabel HISTORIS), dengan catatan: gunakan §5 (External
+Blockers) di laporan ini sebagai basis kalimat peringatan integrasi
+Instagram/TikTok di buku, dan JANGAN mendokumentasikan KI-08 sebagai "selesai" -
+dokumentasikan sebagai konseptual dengan peringatan App Review. Status resmi
+KI-08 sekarang: `EXTERNAL_BLOCKED`.
 
 ---
 
@@ -325,7 +346,7 @@ BISA lihat Client A lewat URL langsung, (2) mendapat 403 saat coba lihat
 Client B, (3) mendapat 403 saat coba PATCH status content item Client B
 langsung (status Client B terbukti TIDAK berubah), (4) mendapat 403 saat
 coba lihat Content Plan Client B. Portal Klien sudah tercakup lewat
-`ClientPortalTest` (26 test pre-existing, masih lulus) + langkah Portal
+`ClientPortalTest` (24 test pre-existing, masih lulus) + langkah Portal
 Klien di `GoldenPathTest`.
 
 ## Authorization Re-Audit

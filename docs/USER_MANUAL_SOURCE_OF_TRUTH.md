@@ -3,44 +3,67 @@
 > **Dokumen ini BUKAN buku panduan.** Ini hasil audit implementasi aktual yang
 > dipakai sebagai bahan mentah untuk menyusun Buku Panduan Pengguna final.
 
-## ⚠️ RE-AUDIT — 26 Agustus 2026 (setelah stabilization sprint)
+## ✅ KONDISI TERKINI — 26 Agustus 2026 (setelah Final Pre-Merge Verification)
 
-Dokumen ini sudah di-**re-audit** setelah sprint stabilisasi penuh
-(`FIX → TEST → VERIFY → CLEANUP → RE-AUDIT`) di branch
-`stabilization/pre-user-manual`. **Laporan lengkap ada di
-`docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md` — baca itu dulu sebelum
-memakai dokumen ini.** Ringkasan yang relevan untuk pembaca dokumen ini:
+**Ini adalah kondisi aplikasi SEKARANG.** Dokumen sudah direkonsiliasi penuh
+setelah sprint stabilisasi (`FIX → TEST → VERIFY → CLEANUP → RE-AUDIT`) **dan**
+Final Pre-Merge Verification, keduanya di branch `stabilization/pre-user-manual`.
+Sumber: `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md` (termasuk appendix
+"Final Pre-Merge Verification") dan `docs/DOCUMENTATION_FREEZE_CHECKLIST.md`.
 
-- Seluruh 8 `KNOWN_ISSUE` (KI-01, KI-02, KI-03, KI-04, KI-05, KI-06, KI-07,
-  KI-09) dan 2 dari 3 `NOT_READY` (KI-11, KI-14) di Bagian 22 **sudah
-  diperbaiki**, dengan regression test otomatis untuk masing-masing.
-- **KI-10** (Dashboard scope) diperbaiki juga meski awalnya ditandai `READY`
-  (audit pertama menilai fungsional tapi cakupan datanya salah).
-- 12 dari 13 `NEEDS_VERIFICATION` sudah diverifikasi (runtime read-only
-  terhadap data development nyata + automated test) — lihat status terbaru
-  di kolom "Status" tabel Bagian 22 di bawah, ditandai `[RE-AUDIT: ...]`.
-- **3 authorization leak baru ditemukan** (di luar KI-01...KI-20 semula)
-  lewat white-box re-audit, semuanya diperbaiki: AI Strategy History,
-  Import Audience CSV, dan endpoint drag-and-drop kanban Produksi — detail
-  di laporan stabilisasi §3.
-- Metode verifikasi berubah dari **static analysis + runtime terbatas**
-  (database dev nyaris kosong saat audit pertama) menjadi **82 automated
-  test (213 assertion) + runtime read-only terhadap database development
-  yang sekarang berisi data realistis** (10 user, 5 client, 85 content item
-  — lihat catatan provenance di laporan stabilisasi §8).
-- **Verdict re-audit: `DOCUMENTATION_READY`** — boleh mulai menulis Buku
-  Panduan Pengguna, dengan catatan tetap perlakukan KI-08 (Instagram/TikTok)
-  sebagai konseptual + peringatan App Review (bukan "selesai"), sesuai
-  rekomendasi asli di bawah.
+| Item | Nilai |
+|---|---|
+| Status branch | **`READY_TO_MERGE`** |
+| Kesiapan dokumentasi | **`DOCUMENTATION_READY`** — Buku Panduan Pengguna boleh mulai ditulis |
+| Test suite | **148 test · 363 assertion · 0 failed · 0 skipped** |
+| Database pengujian | `digidaw_testing` (terisolasi permanen dari database development, dengan hard safeguard) |
+| Metode verifikasi | Automated integration test (routing + middleware + database sungguhan) + runtime read-only terhadap database development berisi data realistis (10 user, 5 client, 15 rencana konten, 85 content item) |
+| `KNOWN_ISSUE` tersisa | **0** |
+| Blocker tersisa | Murni **eksternal** (Meta App Review, TikTok Developer Portal) — bukan kode aplikasi |
 
-Bagian di bawah ini (Bagian 1-26) **TIDAK diedit ulang secara menyeluruh** -
-tetap merepresentasikan pemahaman arsitektur/workflow yang valid, KECUALI
-kolom Status di tabel Known Issues (Bagian 22) dan kalimat "Status" di tiap
-Feature Record, yang sudah diperbarui reflect kondisi pasca-perbaikan.
-Contoh kode/tangkapan layar yang direferensikan sebagai "tunda sampai
-diperbaiki" sekarang sudah boleh dibuat.
+**Ringkasan perubahan sejak audit pertama:**
 
-## Metadata Audit (Audit Pertama — sebelum stabilization sprint)
+- Seluruh 8 `KNOWN_ISSUE` (KI-01…KI-07, KI-09) dan 2 dari 3 `NOT_READY`
+  (KI-11, KI-14) **sudah diperbaiki**, masing-masing dengan regression test.
+- **KI-10** (Dashboard scope) diperbaiki juga meski awalnya ditandai `READY`.
+- **KI-13** (Rencana Konten Ditolak buntu) diperbaiki: sekarang ada jalur
+  Ditolak → Draf → ajukan ulang, plus riwayat keputusan lengkap.
+- **KI-17** (ketidaksesuaian istilah) sekarang **FIXED** — sweep terminologi
+  menyeluruh atas ~45 string di 15 file, termasuk PDF laporan client-facing.
+  Tabel rujukan tunggal ada di section **"Terminologi Resmi untuk Dokumentasi"**.
+- **3 authorization leak baru** ditemukan lewat white-box re-audit (AI Strategy
+  History, Import Audience CSV, kanban drag-drop Produksi) — semuanya
+  diperbaiki dan punya regression test.
+- Golden path, rejection path, dan revision path lulus sebagai **satu alur
+  berkesinambungan** (`GoldenPathTest`); akses 6 role × 10 halaman diverifikasi
+  lewat direct URL (`RoleAccessMatrixTest`, 63 kasus).
+
+**Satu-satunya hal yang TIDAK boleh diklaim "selesai" di buku:** live OAuth
+Instagram & TikTok (KI-08). Kode lengkap dan teruji, tapi consent screen
+sungguhan bergantung App Review eksternal — status `EXTERNAL_BLOCKED`.
+
+### Cara membaca dokumen ini
+
+Dokumen ini memuat **dua lapisan**:
+
+1. **Kondisi sekarang** — semua Feature Record, tabel status, daftar prosedur,
+   rencana screenshot, dan struktur buku. Ini yang dipakai penulis buku.
+2. **Riwayat audit** — bagian yang diberi label eksplisit
+   **HISTORIS — KONDISI SEBELUM STABILISASI**. Disimpan sebagai engineering
+   history. **Status di dalamnya BUKAN kondisi aplikasi sekarang** dan tidak
+   boleh dijadikan dasar penulisan buku.
+
+Kalau menemukan kalimat yang terdengar seperti "fitur X rusak" tanpa label
+historis di atasnya, itu bug dokumentasi — silakan cek ulang ke Bagian 22.
+
+---
+
+## HISTORIS — KONDISI SEBELUM STABILISASI: Metadata Audit Pertama
+
+> ⚠️ **Seluruh isi sub-bagian ini (sampai pembatas sebelum Bagian 1)
+> menggambarkan kondisi pada audit pertama, commit `d637369`, SEBELUM sprint
+> stabilisasi.** Tidak satu pun keterbatasan di bawah ini masih berlaku dalam
+> bentuk aslinya. Disimpan hanya sebagai catatan metodologi audit awal.
 
 | Item | Nilai |
 |---|---|
@@ -50,9 +73,9 @@ diperbaiki" sekarang sudah boleh dibuat.
 | Working tree | Bersih (tidak ada perubahan tak ter-commit saat audit) |
 | Metode verifikasi | **Static analysis + runtime (parsial)** |
 | Perubahan kode | **Nol.** Audit ini read-only; satu-satunya file yang dibuat adalah dokumen ini. |
-| Status setelah re-audit | Lihat kotak "RE-AUDIT" di atas dan `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md` |
+| Status sekarang | **Sudah tidak berlaku** — lihat kotak "KONDISI TERKINI" di atas |
 
-### Cara runtime verification dilakukan
+### Cara runtime verification dilakukan *(historis)*
 
 Aplikasi di-boot lewat HTTP kernel Laravel dengan user `id=1` (Ahda, role CEO)
 dan **hanya request GET** yang dikirim — tidak ada POST/PATCH/DELETE, tidak ada
@@ -69,7 +92,10 @@ Hasil (semua sebagai CEO):
 | `/publishing-tracker`, `/revision-log`, `/search?q=a` | 200 |
 | `/analytics/ai-strategy/history` | 302 (butuh `client_id`) |
 
-### Keterbatasan audit (WAJIB dibaca sebelum menulis buku)
+### Keterbatasan audit pertama *(historis — semuanya sudah tidak berlaku)*
+
+> Daftar ini **tidak lagi menggambarkan kondisi sekarang**. Ringkasan
+> penyelesaiannya ada tepat setelah daftar.
 
 1. **Database dev hampir kosong**: 3 user (semuanya CEO), 1 client, **0 content
    item**, **0 content plan**, **0 api_integration**. Akibatnya semua halaman
@@ -92,6 +118,18 @@ Hasil (semua sebagai CEO):
    Menjalankan `php artisan test` akan **menghapus data dev**. Ini sendiri
    dicatat sebagai temuan (lihat Bagian 22).
 7. **Portal Klien tidak diverifikasi runtime** (butuh token client nyata).
+
+**Bagaimana ketujuhnya diselesaikan (kondisi sekarang):**
+
+| # | Keterbatasan audit pertama | Kondisi sekarang |
+|---|---|---|
+| 1 | Database dev hampir kosong | Berisi data realistis (10 user, 5 client, 15 rencana konten, 85 content item) dari `DemoSeeder`; halaman detail sudah ter-render dengan data nyata |
+| 2 | Hanya role CEO diverifikasi | 6 role × 10 halaman diverifikasi lewat direct URL (`RoleAccessMatrixTest`, 63 kasus, memakai `PermissionSeeder` produksi) |
+| 3 | Tidak ada aksi tulis yang diuji | Golden path, rejection path, dan revision path dijalankan penuh lewat routing + middleware + database sungguhan |
+| 4 | Integrasi IG/TikTok belum pernah dipakai | Seluruh jalur yang bisa diuji tanpa consent manusia sudah diuji (`SocialIntegrationOAuthTest`); live consent tetap `EXTERNAL_BLOCKED` |
+| 5 | Scheduler & queue tidak berjalan | `composer run dev` sekarang menjalankan scheduler + queue; deployment production tetap wajib mengonfigurasinya (lihat Bagian 22, KI-14) |
+| 6 | Test suite menghapus data dev | Database `digidaw_testing` terpisah + hard safeguard di `tests/TestCase.php`; 148 test aman dijalankan |
+| 7 | Portal Klien tidak diverifikasi runtime | Diverifikasi dengan token asli (read-only) + `ClientPortalTest` + langkah Portal Klien di `GoldenPathTest` |
 
 ---
 
@@ -134,7 +172,7 @@ dijelaskan eksplisit di buku panduan karena mudah disalahpahami:
 ### B. Klien (pihak eksternal)
 
 - **BUKAN user Laravel.** Tidak punya akun, tidak punya password, tidak muncul
-  di Kelola Tim, dan tidak pernah bisa masuk ke dashboard internal.
+  di Kelola Pengguna, dan tidak pernah bisa masuk ke dashboard internal.
 - Akses klien sepenuhnya lewat **satu link permanen** (Portal Klien). Link itu
   sendiri **adalah** kredensialnya — siapa pun yang memegang link tersebut punya
   akses penuh ke portal klien itu.
@@ -149,7 +187,12 @@ Ada juga **satu "aktor" non-manusia** yang perlu disebut: **penjadwal otomatis
 (scheduler)** yang menjalankan sinkronisasi analytics harian, penandaan konten
 terlambat tiap jam, dan perhitungan skor risiko keterlambatan. Ini bukan menu,
 tapi menjelaskan kenapa angka tertentu berubah sendiri tanpa ada yang menekan
-tombol. Status: **NOT_READY di lingkungan saat ini** (belum dipasang).
+tombol. Status: **`READY` di sisi aplikasi** — seluruh perintah terjadwal sudah
+terdaftar dan `composer run dev` menjalankan scheduler + queue worker sekaligus.
+Yang tetap perlu diperhatikan: ini **dependensi runtime**, artinya di server
+production scheduler & queue worker wajib dikonfigurasi (cron/Supervisor).
+Kalau keduanya mati, proses otomatis ini diam tanpa pesan error — itu materi
+Panduan Administrator, bukan Buku Panduan Pengguna (lihat Bagian 19 & 22).
 
 ---
 
@@ -164,7 +207,8 @@ Aturan khusus yang berlaku lintas role:
 
 - **CEO dan Manager selalu melihat SEMUA klien.** Empat role lainnya hanya
   melihat klien yang secara eksplisit ditugaskan kepada mereka lewat
-  **Kelola Tim → Assign Klien**.
+  **Kelola Pengguna → Assign Klien** (atau, dari arah sebaliknya,
+  **Detail Klien → PIC Ditugaskan**).
   *Implementation: `User::canSeeAllClients()`, middleware `client.scope`.*
 - Kalau seorang staf belum di-assign ke klien mana pun, **halaman Rencana
   Konten dan Produksi akan tampak kosong baginya** — ini bukan bug, ini efek
@@ -244,10 +288,9 @@ Tidak bisa **membuat** rencana konten baru atau menambah konten ke rencana
 bisa membuka Performa Tim.
 
 **Client scope**
-**Hanya klien yang ditugaskan.** Ini penting: SMO punya akses ke Pengaturan dan
-Performa, tapi daftar klien di kedua halaman itu tetap dibatasi ke roster-nya.
-⚠️ Ada dua tempat di mana pembatasan ini tidak konsisten — lihat Bagian 22
-(temuan KI-09 dan KI-10).
+**Hanya klien yang ditugaskan.** SMO memiliki akses ke Pengaturan dan Performa, 
+tetapi data klien pada halaman tersebut tetap dibatasi sesuai klien yang ditugaskan. 
+Pembatasan ini juga diterapkan pada Dashboard dan proses impor performa.
 
 ---
 
@@ -328,8 +371,8 @@ Klien = pengguna Portal Klien (bukan role Laravel)
 | Membuat Rencana Konten | ✓ | ✓ | ✓ | | | | |
 | Mengajukan Rencana Konten | ✓ | ✓ | ✓ | | | | |
 | Menyetujui/Menolak Rencana | ✓ | ✓ | | | | ✓ | |
-| Menambah Konten ke Rencana | ⚠ | ⚠ | ⚠ | | | | |
-| Jobdesk Tambahan (mendadak) | ⚠ | ⚠ | ⚠ | | | | |
+| Menambah Konten ke Rencana | ✓ | ✓ | ✓ | | | | |
+| Jobdesk Tambahan (mendadak) | ✓ | ✓ | ✓ | | | | |
 | Melihat papan Produksi | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
 | Mengubah status produksi | ✓ | ✓ | | ✓ | ✓ | ✓ | |
 | Menyetujui konten (internal) | ✓ | ✓ | | | | ✓ | |
@@ -343,7 +386,7 @@ Klien = pengguna Portal Klien (bukan role Laravel)
 | Melihat Performa/Analytics | ✓ | ✓ | | | | ✓ | ⚠ |
 | Menggunakan AI Strategy | ✓ | ✓ | | | | ✓ | |
 | Ekspor CSV performa | ✓ | ✓ | | | | ✓ | |
-| Import CSV performa | ✓ | ✓ | | | | ⚠ | |
+| Import CSV performa | ✓ | ✓ | | | | ✓ | |
 | Melihat Laporan & generate | ✓ | ✓ | | | | ✓ | |
 | Melihat detail 1 klien | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
 | Mengelola Klien (tambah/edit/hapus) | ✓ | ✓ | | | | | |
@@ -360,11 +403,11 @@ Klien = pengguna Portal Klien (bukan role Laravel)
 
 ### Catatan matriks
 
-- **⚠ Menambah Konten ke Rencana & Jobdesk Tambahan** — tombolnya muncul untuk
-  role yang benar, tapi **fungsinya rusak** (lihat KI-01 & KI-02, Bagian 22).
-  Jangan dijadikan tutorial sebelum diperbaiki.
-- **⚠ Import CSV performa (SMO)** — secara teknis SMO bisa meng-import untuk
-  klien mana pun, termasuk yang bukan roster-nya (KI-09).
+- **Menambah Konten ke Rencana & Jobdesk Tambahan** — berfungsi normal
+  (KI-01 & KI-02 sudah diperbaiki, punya regression test). Boleh dijadikan
+  tutorial.
+- **Import CSV performa (SMO)** — sekarang dibatasi ke klien roster SMO
+  (KI-09 diperbaiki, `ImportPerformanceScopeTest`).
 - **⚠ Klien melihat Analytics** — klien hanya melihat data klien-nya sendiri,
   dalam bentuk sederhana tanpa metrik operasional internal.
 - **Melihat detail 1 klien** dibuka ke semua role internal secara sengaja (biar
@@ -445,23 +488,24 @@ dari halaman lain, bukan dari menu.
 | Halaman | Cara mencapainya | Catatan |
 |---|---|---|
 | Detail Rencana Konten | Klik baris di Rencana Konten | |
-| Tambah Konten (ke rencana) | Tombol di Detail Rencana Konten | Rusak — KI-01 |
-| Detail Konten | Klik kartu di Produksi / hasil pencarian | Rusak — KI-03 |
+| Tambah Konten (ke rencana) | Tombol di Detail Rencana Konten | |
+| Detail Konten | Klik kartu di Produksi / hasil pencarian | Halaman kerja utama tiap konten |
 | Detail Klien | Klik baris di Kelola Klien / hasil pencarian | |
 | Tambah Klien / Edit Klien | Tombol di Kelola Klien | |
 | Profil anggota tim | Klik nama di Performa Tim / hasil pencarian | |
 | Detail Performa 1 konten | Klik baris di tab Tabel Performa | |
 | Riwayat AI Strategy | Link di panel AI Strategy (halaman Performa) | |
 | Import Data Performa | Link dari Pengaturan → Integrasi | |
-| **Publishing Tracker** (`/publishing-tracker`) | **Hanya via URL langsung** | Duplikat dari Produksi → tab "Sudah Tayang" |
-| **Revision Log** (`/revision-log`) | **Hanya via URL langsung** | Duplikat dari Produksi → tab "Revisi" |
+| ~~**Publishing Tracker** (`/publishing-tracker`)~~ | URL lama, sekarang **redirect** ke Produksi → tab "Sudah Tayang" | Bukan halaman terpisah lagi |
+| ~~**Revision Log** (`/revision-log`)~~ | URL lama, sekarang **redirect** ke Produksi → tab "Revisi" | Bukan halaman terpisah lagi |
 | Unmatched Instagram Media | Link dari kartu Integrasi / Tabel Performa | |
 | Unmatched TikTok Video | Link dari kartu Integrasi | |
 
 > **Rekomendasi untuk buku:** dokumentasikan **Produksi → tab Revisi** dan
 > **Produksi → tab Sudah Tayang** sebagai jalur resmi. Jangan dokumentasikan
-> `/revision-log` dan `/publishing-tracker` sebagai halaman terpisah — keduanya
-> menampilkan data yang sama dan tidak punya pintu masuk di UI (lihat KI-12).
+> `/revision-log` dan `/publishing-tracker` sebagai halaman terpisah — kedua URL
+> lama itu sekarang **mengarahkan otomatis** ke tab resmi di Produksi (KI-12
+> diperbaiki, `LegacyRouteRedirectTest`), jadi bookmark lama tetap aman.
 
 ---
 
@@ -614,17 +658,22 @@ nya saja yang kosong. (Ini perubahan disengaja; dulu diblokir.)
 
 ```text
 Draf ──(Ajukan Rencana)──► Menunggu Persetujuan ──┬──► Disetujui
-                                                   └──► Ditolak
+  ▲                                                │
+  └──(Kembalikan ke Draf & Perbaiki)───────────────┴──► Ditolak
 ```
 
 - **Draf** — baru dibuat, masih bisa diisi konten.
 - **Menunggu Persetujuan** — sudah diajukan; penyetuju mendapat notifikasi.
-- **Disetujui** / **Ditolak** — keputusan final, disertai catatan siapa yang
-  memutuskan.
+- **Disetujui** — keputusan final.
+- **Ditolak** — disertai **alasan penolakan yang wajib diisi**, dan **bisa
+  dibuka kembali** ke Draf untuk diperbaiki lalu diajukan ulang.
 
-⚠️ Tidak ada jalur kembali dari Ditolak ke Draf di dalam kode. Rencana yang
-ditolak tidak bisa diajukan ulang (`submit()` hanya menerima status Draf).
-Catat ini di buku sebagai keterbatasan — lihat KI-13.
+**Jalur perbaikan rencana yang ditolak (KI-13, sudah tersedia):** Ditolak →
+**Kembalikan ke Draf & Perbaiki** → Draf → perbaiki/tambah konten → **Ajukan Rencana** →
+Menunggu Persetujuan → Disetujui. Seluruh transisi tercatat di panel **Riwayat
+Keputusan** (tabel `content_plan_status_logs`), termasuk alasan penolakan — yang
+**tidak hilang** setelah rencana dibuka kembali. Rencana tidak diduplikasi;
+baris rencananya tetap sama. Terverifikasi lewat `ContentPlanTest`.
 
 ## Aktivitas
 
@@ -663,8 +712,7 @@ platform · deadline · Penanggung Jawab · Simpan
 **Expected result** *(secara desain)* — Konten baru muncul di papan Produksi
 dengan status **Siap Dikerjakan**, PIC tercatat sebagai penanggung jawab utama
 **Permission** — `content_plan,create`
-**Status** — **`KNOWN_ISSUE` — fitur ini gagal total saat tombol Simpan ditekan.**
-Lihat KI-01. **Jangan buat tutorialnya sekarang.**
+**Status** — `READY` (KI-01 diperbaiki; `ContentPlanTest`)
 
 ### Jobdesk Tambahan (permintaan mendadak)
 
@@ -674,10 +722,9 @@ Lihat KI-01. **Jangan buat tutorialnya sekarang.**
 yang harus langsung masuk produksi tanpa lewat perencanaan bulanan
 **Langkah user** — Pilih klien · judul · tipe · platform · deadline · Penanggung
 Jawab (opsional) · catatan · Simpan
-**Expected result** *(secara desain)* — Sistem otomatis mencari/membuat rencana
-bulan berjalan untuk klien itu, konten ditandai **mendesak**, PIC langsung
-mendapat notifikasi
-**Status** — **`KNOWN_ISSUE` — gagal total saat disimpan.** Lihat KI-02.
+**Expected result** — Sistem otomatis mencari/membuat rencana bulan berjalan
+untuk klien itu, konten ditandai **mendesak**, PIC langsung mendapat notifikasi
+**Status** — `READY` (KI-02 diperbaiki; `ContentPlanTest`)
 
 ### Mengajukan Rencana (Ajukan Rencana)
 
@@ -691,9 +738,20 @@ menyetujui (kecuali pembuatnya sendiri) mendapat notifikasi
 
 **Role** — CEO, Manager, SMO · **Permission** `content_plan,approve`
 **Precondition** — Status harus **Menunggu Persetujuan**
+**Langkah user** — Tekan **Setujui**, atau tekan **Tolak** lalu isi **alasan
+penolakan** (wajib) di modal yang muncul
 **Expected result** — Status jadi **Disetujui** atau **Ditolak**, tercatat siapa
-yang memutuskan
+yang memutuskan beserta alasannya di panel **Riwayat Keputusan**
 **Status** — `READY`
+
+### Kembalikan ke Draf & Perbaiki (rencana yang ditolak)
+
+**Role** — CEO, Manager, Copywriter · **Permission** `content_plan,create`
+**Entry point** — Detail Rencana Konten berstatus **Ditolak** → tombol
+**Kembalikan ke Draf & Perbaiki**
+**Expected result** — Status kembali ke **Draf**, konten bisa ditambah/diperbaiki,
+lalu diajukan ulang. Alasan penolakan tetap tersimpan di Riwayat Keputusan
+**Status** — `READY` (KI-13 diperbaiki; `ContentPlanTest`)
 
 ## Hubungan dengan entitas lain
 
@@ -711,8 +769,9 @@ yang memutuskan
 - Deadline konten bebas, tidak divalidasi harus berada di dalam bulan rencana.
 - Tampilan Kalender memakai **tanggal deadline**, bukan tanggal tayang.
 - Konten yang lewat deadline ditandai **terlambat** oleh proses terjadwal tiap
-  jam (`workflow:update-overdue`) — yang saat ini **tidak berjalan** di
-  lingkungan ini.
+  jam (`workflow:update-overdue`). Perintahnya terdaftar dan `composer run dev`
+  menjalankan scheduler; di server production scheduler wajib dikonfigurasi —
+  kalau tidak, penandaan terlambat tidak pernah jalan (Bagian 22, KI-14).
 
 ---
 
@@ -762,16 +821,35 @@ sudah terkunci.
 ## Bagaimana konteks/prompt disusun
 
 Prompt dibangun di `BriefGenerationService::buildGeneratePrompt()` dari:
-judul konten, brief mentah, nama tipe konten, dan nama platform. **Tidak ada
-data klien, data rencana konten, atau tanggal sistem yang disuntikkan.**
+judul konten, brief mentah, nama tipe konten, nama platform, **tanggal hari
+ini**, dan **deadline konten**. Model diminta menentukan tanggal relatif
+terhadap tanggal hari ini yang diberikan eksplisit, dan dilarang mengembalikan
+tanggal sebelum hari ini atau tahun selain tahun berjalan.
+
+Prompt bukan satu-satunya pengaman. Sebelum disimpan, seluruh tanggal hasil AI
+melewati `sanitizeDates()` di backend: tanggal yang tidak valid, di masa lalu,
+atau lebih dari 90 hari ke depan **ditolak dan diganti nilai deterministik**
+(mulai besok, posting beberapa hari sesudahnya). Sanitasi ini berjalan di
+`generate()`, `regenerate()`, **dan** saat menerapkan perubahan hasil diskusi —
+jadi tidak ada jalur yang bisa menyelipkan tanggal ngawur ke database.
 
 Penilaian kelayakan (`assessFeasibility()`) memakai data nyata: `deadline_at`
-konten, tanggal posting hasil AI, dan jumlah konten aktif lain milik tiap PIC
-pada minggu deadline yang sama.
+konten, tanggal posting hasil AI **yang sudah disanitasi**, dan jumlah konten
+aktif lain milik tiap PIC pada minggu deadline yang sama. Karena tanggalnya
+sudah valid, hasil penilaian kelayakan sekarang bermakna.
 
-## ⚠️ Investigasi: tanggal brief menggunakan tahun 2024
+**Status:** `READY` (KI-07 diperbaiki; `BriefGenerationDateTest` menguji jalur
+tanggal invalid dan tanggal valid, dengan Gemini di-fake).
 
-**Observed / suspected issue**
+## HISTORIS — KONDISI SEBELUM STABILISASI: investigasi tanggal brief 2024
+
+> ⚠️ **Sub-bagian ini adalah riwayat temuan, BUKAN kondisi aplikasi sekarang.**
+> Bug ini (KI-07) **sudah diperbaiki** dan punya regression test. Lihat
+> "Bagaimana konteks/prompt disusun" di atas untuk kondisi terkini. Disimpan
+> karena akar masalahnya (LLM diminta tanggal relatif tanpa titik acuan)
+> berguna sebagai pelajaran rekayasa.
+
+**Observed / suspected issue** *(saat audit pertama)*
 Brief yang dihasilkan AI dapat menampilkan **Tanggal Mulai** dan **Tanggal
 Posting** dengan tahun 2024 (atau tahun lampau lain), padahal konteks aplikasi
 berada di tahun berjalan.
@@ -817,30 +895,38 @@ Pemeriksaan tambahan yang sudah dilakukan:
 **Confidence** — **Tinggi.** Penyebabnya terbaca langsung dari prompt; tidak ada
 mekanisme lain di jalur ini yang bisa menghasilkan tanggal.
 
-**Recommended documentation status** — `KNOWN_ISSUE`.
-Fitur AI Brief boleh didokumentasikan (bagian lainnya berfungsi), **dengan
-peringatan eksplisit** agar pengguna selalu memeriksa dan mengoreksi Tanggal
-Mulai/Tanggal Posting secara manual, dan tidak memercayai penilaian kelayakan
-sampai bug ini diperbaiki. Jangan pakai screenshot yang menampilkan tanggal
-salah.
+**Bagaimana temuan ini diselesaikan** — dua lapis, bukan satu:
+1. **Prompt** sekarang menyuntikkan tanggal hari ini + deadline konten secara
+   eksplisit, dan melarang tanggal di masa lalu / tahun selain tahun berjalan.
+2. **Backend** (`sanitizeDates()`) memvalidasi dan mengganti tanggal di luar
+   rentang wajar dengan nilai deterministik — sehingga perbaikan tidak
+   bergantung pada kepatuhan model bahasa.
+Dampak lanjutannya (penilaian kelayakan yang selalu *critical*) ikut hilang,
+karena sanitasi berjalan **sebelum** `assessFeasibility()`.
 
 ## Feature Record
 
-**Status:** `KNOWN_ISSUE`
+**Status:** `READY`
 **Digunakan oleh:** CEO, Manager, Copywriter
 **Tujuan:** Mengubah ide mentah jadi brief produksi siap eksekusi
 **Entry point:** Detail Konten → kartu "AI Brief Execution Assistant"
 **Precondition:** Konten sudah ada; `GEMINI_API_KEY` terisi (**terverifikasi
 terisi**)
-**Expected result:** Brief tersusun, bisa didiskusikan/diedit, lalu dikunci dan
-PIC produksi dapat notifikasi
+**Expected result:** Brief tersusun dengan tanggal yang masuk akal, bisa
+didiskusikan/diedit, lalu dikunci dan PIC produksi dapat notifikasi
 **Permission:** `content_plan,create` (+ `client.scope`)
 **Dependencies:** Google Gemini API (jaringan keluar)
-**Known issues:** Tanggal tahun 2024 (di atas). Juga: **halaman tempat fitur ini
-berada sedang rusak** (KI-03), jadi saat ini praktis tidak terjangkau.
-**Relevant implementation:** `ContentBriefController`, `BriefGenerationService`,
-`content-items/partials/ai-brief.blade.php`, `ai-brief-discussion.blade.php`
-**Documentation recommendation:** Tunda sampai KI-03 dan bug tanggal diperbaiki.
+**Known issues:** Tidak ada. KI-07 (tanggal) dan KI-03 (halaman induk) sudah
+diperbaiki dan punya regression test masing-masing.
+**Catatan untuk buku:** tetap anjurkan pengguna membaca ulang hasil AI sebelum
+menerapkan brief ke tim — bukan karena ada bug, tapi karena itu praktik yang
+wajar untuk keluaran AI mana pun (hook, adegan, talent, properti tetap perlu
+penilaian manusia).
+**Relevant implementation:** `ContentBriefController`, `BriefGenerationService`
+(`sanitizeDates()`), `content-items/partials/ai-brief.blade.php`,
+`ai-brief-discussion.blade.php`
+**Documentation recommendation:** Boleh ditulis lengkap sekarang, termasuk
+screenshot bagian tanggal dan kartu kelayakan.
 
 ---
 
@@ -874,7 +960,7 @@ tampilan Daftar).
 **Konten yang di-pin selalu diapungkan ke atas**, baik di kolom Kanban maupun di
 Daftar, terlepas dari urutan sort yang aktif.
 
-**Status:** `READY` (terverifikasi runtime, kondisi kosong)
+**Status:** `READY` (terverifikasi runtime dengan data nyata)
 
 ## Detail Konten
 
@@ -900,10 +986,12 @@ Halaman kerja utama tiap konten. Isinya, dari atas ke bawah:
     **10 skor Delay Risk terakhir**
 12. **Tombol Pin**
 
-**Status:** **`KNOWN_ISSUE`** — halaman ini gagal dimuat begitu klien punya
-minimal satu staf aktif yang di-assign. Lihat KI-03. Ini **memblokir hampir
-seluruh alur produksi**, karena Status Management, AI Brief, caption, link
-konten, dan Ganti PIC semuanya hanya ada di halaman ini.
+**Status:** `READY` — KI-03 diperbaiki (`ContentItemDetailTest` + verifikasi
+runtime terhadap konten yang klien-nya punya staf ter-assign, yaitu persis
+kondisi yang dulu bikin halaman ini gagal). Halaman ini adalah pusat alur
+produksi: Status Management, AI Brief, caption, link file hasil, penanda
+footage, dan Ganti PIC semuanya ada di sini, jadi jadikan ia bab tersendiri
+di buku.
 
 ## Status Management (tombol perpindahan status)
 
@@ -925,8 +1013,8 @@ Tombol yang tidak boleh ditekan **tetap terlihat tapi nonaktif**, dengan tooltip
 penjelasan ("Kamu tidak punya izin memindahkan status"). Ini bagus untuk
 dokumentasi — user tahu fitur itu ada dan siapa yang harus dimintai tolong.
 
-**Status:** `READY` secara logika (guard-nya lengkap & konsisten), **tapi tidak
-terjangkau** selama KI-03 belum diperbaiki.
+**Status:** `READY` — guard-nya lengkap & konsisten, dan halaman induknya
+(Detail Konten) sudah berfungsi normal.
 
 ## Ganti Penanggung Jawab
 
@@ -935,9 +1023,11 @@ ketidakhadiran.
 **Kandidat** — Hanya staf aktif yang **sudah di-assign ke klien konten itu**,
 diurutkan dari yang task aktifnya paling sedikit, lengkap dengan jumlah task
 aktif masing-masing.
-**Efek** — PIC berubah, penugasan diperbarui, dan skor Delay Risk konten langsung
-dihitung ulang.
-**Status:** **`KNOWN_ISSUE`** — gagal saat disimpan. Lihat KI-04.
+**Efek** — PIC berubah, penugasan diperbarui, skor Delay Risk konten langsung
+dihitung ulang, dan PIC baru mendapat notifikasi.
+**Pengaman** — PIC baru **wajib** sudah di-assign ke klien konten itu; percobaan
+memindahkan ke orang di luar tim klien ditolak.
+**Status:** `READY` (KI-04 diperbaiki; `ContentItemDetailTest`)
 
 ## Alur dari perspektif tiap role
 
@@ -990,11 +1080,11 @@ relevan untuk video.
 
 | Konsep | Penjelasan untuk pengguna | Status |
 |---|---|---|
-| **Terlambat (overdue)** | Deadline sudah lewat tapi konten belum tayang/dibatalkan. Ditandai otomatis tiap jam. | ⚠️ Proses otomatisnya tidak berjalan (Bagian 22, KI-14) |
-| **Mendesak (urgent)** | Konten dari Jobdesk Tambahan, ditandai khusus agar menonjol | Terikat KI-02 |
+| **Terlambat (overdue)** | Deadline sudah lewat tapi konten belum tayang/dibatalkan. Ditandai otomatis tiap jam. | `READY` — butuh scheduler berjalan (dependensi runtime, Bagian 22, KI-14) |
+| **Mendesak (urgent)** | Konten dari Jobdesk Tambahan, ditandai khusus agar menonjol | `READY` |
 | **Pin** | Penanda pribadi "ini fokus saya". Tidak terlihat orang lain, ada batas maksimal, otomatis lepas saat konten Sudah Tayang | `READY` |
-| **Skor Risiko Keterlambatan** | Prediksi AI 0–100 seberapa berisiko konten ini telat, plus faktor utamanya | `NEEDS_VERIFICATION` |
-| **Akurasi Prediksi** | Seberapa sering prediksi risiko terbukti benar; tampil di Dashboard & Performa Tim | `NEEDS_VERIFICATION` |
+| **Skor Risiko Keterlambatan** | Prediksi AI 0–100 seberapa berisiko konten ini telat, plus faktor utamanya | `OPERATIONALLY_SAFE_WITH_LIMITATION` — aman dipakai (kalau model/script gagal, sistem mencatat log lalu melewatinya, bukan crash); **akurasi model ML belum divalidasi** |
+| **Akurasi Prediksi** | Seberapa sering prediksi risiko terbukti benar; tampil di Dashboard & Performa Tim | `OPERATIONALLY_SAFE_WITH_LIMITATION` — angkanya tampil benar, tapi bermakna hanya sebanding dengan akurasi model di atas |
 
 ---
 
@@ -1074,7 +1164,8 @@ klien dan per status (default menampilkan yang masih Terbuka).
 postingan, caption final
 **Efek** — Konten jadi **Sudah Tayang**, catatan publikasi tersimpan, konten
 otomatis dilepas dari pin semua orang
-**Status** — `READY` (logika), terblokir KI-03 lewat halaman detail
+**Status** — `READY` (terverifikasi lewat `GoldenPathTest`: jadwalkan → catat
+publikasi → Sudah Tayang)
 
 ## Melihat riwayat tayang
 
@@ -1111,8 +1202,12 @@ kecocokan format). Saran ini **tidak pernah menautkan sendiri** — staf tetap
 harus menekan Simpan. TikTok tidak punya fitur saran ini, dan itu memang
 disengaja (tidak ada dataset historis TikTok yang setara).
 
-**Status** — `NEEDS_VERIFICATION`. Kode lengkap dan konsisten, tapi belum pernah
-dijalankan dengan data nyata (`api_integrations` = 0).
+**Status** — `NEEDS_VERIFICATION`. Kode lengkap dan konsisten, dan **tidak ada
+indikasi defect** saat re-audit jalur kodenya. Yang belum ada: regression test
+khusus fitur ini dan sekali pun percobaan dengan data sinkronisasi sungguhan
+(bergantung pada akun yang benar-benar terhubung — lihat `EXTERNAL_BLOCKED` di
+Bagian 12). **Boleh ditulis di buku secara konseptual**, jangan pakai screenshot
+hasil rekaan.
 
 ## Yang TIDAK bisa dilakukan sistem ini
 
@@ -1233,7 +1328,7 @@ berbeda dari dugaan awal di beberapa titik — perhatikan catatan di tiap langka
 | Tindakan | Centang staf yang menangani klien ini |
 | Indikator berhasil | Nama staf muncul di kartu PIC Ditugaskan |
 | **Kenapa langkah ini kritis** | Tanpa ini: (a) staf non-CEO/Manager **tidak melihat klien ini sama sekali**; (b) **tidak ada kandidat PIC** yang bisa dipilih saat menambah konten; (c) pembagian PIC otomatis oleh AI Strategy gagal |
-| Kemungkinan error | ⚠️ Jalur **Kelola Pengguna → Assign Klien saat ini rusak** (KI-05). **Gunakan jalur Detail Klien → PIC Ditugaskan** |
+| Kemungkinan error | Staf yang dipilih harus berstatus aktif. **Kedua jalur berfungsi** (KI-05 diperbaiki) — pakai yang paling nyaman: Detail Klien kalau sedang menyiapkan satu klien, Kelola Pengguna kalau sedang mengatur satu orang untuk beberapa klien |
 | Langkah berikutnya | Langkah 4 |
 
 ### Langkah 4 — Aktifkan Portal Klien (opsional)
@@ -1268,7 +1363,7 @@ Detail lengkap di **Bagian 12**.
 | Penanggung jawab | CEO / Manager / SMO |
 | Menu | Pengaturan → Integrasi → pilih klien → **Sync** |
 | Indikator berhasil | Riwayat sinkronisasi menampilkan status **Berhasil** dengan jumlah data yang tersinkron |
-| Kemungkinan error | ⚠️ **Tanpa queue worker aktif, tombol Sync tetap terlihat berhasil tetapi tidak ada yang diproses** (Bagian 22, KI-14) |
+| Kemungkinan error | Sinkronisasi berjalan sebagai proses latar. Kalau **queue worker di server tidak berjalan**, tombol Sync tetap terlihat berhasil tetapi tidak ada yang diproses — ini gejala konfigurasi server, bukan kesalahan pengguna (Bagian 22, KI-14; masukkan ke bab Troubleshooting) |
 | Langkah berikutnya | Langkah 7 |
 
 ### Langkah 7 — Verifikasi data muncul di Performa
@@ -1287,7 +1382,7 @@ Detail lengkap di **Bagian 12**.
 |---|---|
 | Penanggung jawab | CEO / Manager / Copywriter |
 | Menu | Rencana Konten → **Buat Rencana** → pilih klien, bulan, tahun |
-| Lalu | Tambahkan konten satu per satu ⚠️ **(rusak — KI-01)**, atau pakai **AI Strategy → Terapkan** untuk membuat kerangka otomatis |
+| Lalu | Tambahkan konten satu per satu, atau pakai **AI Strategy → Terapkan** untuk membuat kerangka otomatis |
 | Indikator berhasil | Konten muncul di papan Produksi dengan status **Siap Dikerjakan** |
 | **Klien siap digunakan** | ✅ |
 
@@ -1317,9 +1412,20 @@ Verifikasi di Performa
 Rencana Konten pertama  ──►  Produksi berjalan
 ```
 
-**Status keseluruhan alur:** `NEEDS_VERIFICATION` — setiap langkah masuk akal
-secara kode, tapi rangkaian penuhnya belum pernah dijalankan sampai tuntas di
-lingkungan ini (0 integrasi, 0 konten). Langkah 3 dan 8 mengandung fitur rusak.
+**Status keseluruhan alur:** `READY`, dengan satu langkah `EXTERNAL_BLOCKED`.
+
+Rangkaian Langkah 1 → 3 → 8 dan seterusnya sampai konten tayang, performa
+ter-import, dan laporan PDF terbit sudah dijalankan **sebagai satu alur
+berkesinambungan** lewat `GoldenPathTest` (routing, middleware, permission,
+client scope, transisi status, notifikasi, dan Portal Klien semuanya lewat kode
+aplikasi asli). Tidak ada lagi langkah yang mengandung fitur rusak.
+
+Yang tetap tidak bisa dijamin: **Langkah 5 (Hubungkan akun media sosial)** —
+`EXTERNAL_BLOCKED` karena consent screen sungguhan bergantung App Review
+Meta/TikTok. Langkah 6 dan 7 ikut tertahan selama Langkah 5 belum bisa
+diselesaikan untuk klien yang bersangkutan. Alternatifnya tersedia dan
+berfungsi: **Import CSV Performa** (Bagian 13), sehingga onboarding tetap bisa
+tuntas tanpa integrasi API.
 
 ---
 
@@ -1379,7 +1485,7 @@ izin bisnis).
 | "Sesi otorisasi kadaluarsa atau tidak valid" | Terlalu lama di layar persetujuan, atau proses dibuka di tab lain | Ulangi dari awal |
 | Layar persetujuan muncul tapi akun ditolak | Aplikasi masih mode pengembangan & akun belum terdaftar sebagai tester | Daftarkan akun di App Dashboard, atau tunggu App Review |
 | "Platform 'Instagram' tidak ditemukan di master data" | Data Pilihan → Platform belum berisi Instagram | Tambahkan |
-| Terhubung tapi data tidak muncul | Queue worker tidak berjalan | Lihat KI-14 |
+| Terhubung tapi data tidak muncul | Queue worker di server tidak berjalan | Masalah konfigurasi server, bukan aplikasi — lihat KI-14 & Panduan Administrator |
 
 ### Data apa yang didapat
 
@@ -1392,10 +1498,24 @@ terjangkau, dan yang berinteraksi.
 Audiens disinkronkan lewat **proses terpisah** dari konten (tombol dan jadwal
 sendiri).
 
-**Status:** `NEEDS_VERIFICATION` — implementasi lengkap (OAuth, penyegaran token
-otomatis, sinkronisasi konten & audiens terpisah, snapshot media, pencocokan,
-penanganan error, penyembunyian token), tapi **belum pernah dijalankan** di
-lingkungan ini.
+**Status:** `EXTERNAL_BLOCKED` — **siap secara kode, live OAuth bergantung App
+Review.**
+
+Implementasi lengkap (OAuth, penyegaran token otomatis, sinkronisasi konten &
+audiens terpisah, snapshot media, pencocokan, penanganan error, penyembunyian
+token) dan **seluruh jalur yang bisa diuji tanpa consent manusia nyata sudah
+diuji dan lulus** (`SocialIntegrationOAuthTest`): pembentukan URL redirect,
+`state`, validasi callback, `state` yang tidak cocok, penolakan oleh pengguna,
+kegagalan penukaran token, dan upsert `ApiIntegration`.
+
+Yang menahan status `READY` **bukan kode**, melainkan **Meta App Review**:
+selama app Instagram masih mode Development, hanya akun yang didaftarkan manual
+sebagai *Instagram Tester* yang bisa connect. Ini keterbatasan provider.
+
+**Untuk buku:** tulis prosedurnya lengkap, tapi sertakan kotak peringatan bahwa
+koneksi hanya berhasil untuk akun yang sudah terdaftar sebagai penguji selama
+App Review belum selesai. **Jangan menulisnya sebagai "sudah berfungsi
+end-to-end".**
 
 ---
 
@@ -1468,20 +1588,28 @@ Posting langsung ke TikTok dari dashboard, manajemen komentar, DM, TikTok Ads,
 dan analitik kompetitor — **semuanya tidak ada dan tidak direncanakan** di
 fitur ini.
 
-**Status:** `NEEDS_VERIFICATION`.
+**Status:** `EXTERNAL_BLOCKED` — **siap secara kode, live OAuth bergantung App
+Review.**
+
 Secara struktural **selesai dan setara Instagram**: OAuth dengan PKCE, penukaran
 token, penyegaran token otomatis (kontrak TikTok berbeda — refresh token
 dirotasi tiap dipakai), sinkronisasi video, snapshot, pencocokan, halaman
-unmatched, kartu di Pengaturan, penanganan error, enkripsi token. Yang belum ada
-**bukan kode**, melainkan: (a) App Review TikTok, dan (b) satu pun percobaan
-nyata.
+unmatched, kartu di Pengaturan, penanganan error, enkripsi token. Jalur
+non-consent-nya **sudah diuji dan lulus** bersama Instagram di
+`SocialIntegrationOAuthTest`.
 
-> **Penilaian eksplisit terhadap "TikTok belum selesai":** setelah audit
-> menyeluruh, tidak ditemukan TODO, placeholder, atau jalur yang belum
-> diimplementasikan pada integrasi TikTok. Yang membuatnya belum bisa disebut
-> `READY` adalah **nol verifikasi runtime** dan **ketergantungan pada App Review
-> eksternal**, bukan kode yang setengah jadi. Ini berbeda dari, misalnya, fitur
-> Tambah Konten yang memang benar-benar rusak.
+Yang menahan status `READY` **bukan kode**, melainkan **TikTok Developer
+Portal**: layar consent sandbox masih berpotensi mengembalikan
+`unauthorized_client`/`client_key`, masalah registrasi app di sisi provider yang
+belum terselesaikan lintas beberapa sesi debugging. Sengaja **tidak** diubah
+jadi "READY end-to-end".
+
+> **Penilaian eksplisit terhadap anggapan "TikTok belum selesai":** setelah dua
+> putaran audit, tidak ditemukan TODO, placeholder, atau jalur yang belum
+> diimplementasikan pada integrasi TikTok. Yang membedakannya dari `READY`
+> murni verifikasi live yang bergantung pihak ketiga — **bukan** kode setengah
+> jadi. Bedakan tegas di buku: ini "menunggu izin platform", bukan "fitur
+> rusak".
 
 ---
 
@@ -1593,13 +1721,18 @@ watch_time_avg, completion_rate, shares, saves`
 - Kolom opsional yang kosong disimpan sebagai kosong, **bukan 0**
 - Ukuran berkas maksimal 5 MB
 
-**Status:** `KNOWN_ISSUE` — fungsinya berjalan, tetapi tidak ada pemeriksaan hak
-akses klien (KI-09).
+**Status:** `READY` — KI-09 diperbaiki: baik halaman import maupun proses
+import-nya sekarang membatasi pilihan klien ke roster pengguna
+(`ImportPerformanceScopeTest`). Ini juga **jalur cadangan resmi** saat integrasi
+API masih `EXTERNAL_BLOCKED`.
 
 ## Import Audience CSV
 
 Tersedia lewat rute `/audience/import` (`analytics,view`).
-**Status:** `NEEDS_VERIFICATION` — tidak diverifikasi mendalam dalam audit ini.
+**Status:** `READY` — diverifikasi ulang saat re-audit. Catatan: white-box
+re-audit menemukan bahwa jalur ini dulu bisa **menulis** data audiens klien mana
+pun lewat `client_id` di body request; sudah ditutup dan punya regression test
+(`PhaseLAuthorizationLeaksTest`).
 
 ---
 
@@ -1711,10 +1844,14 @@ supaya analisis lama yang masih diterapkan tetap bisa dilihat dan di-revert.
 
 Bedakan tegas di buku panduan.
 
-**Status:** `NEEDS_VERIFICATION` — implementasi lengkap dan kredensial Gemini
-terisi, tapi belum pernah dijalankan dengan data performa nyata (0 metrik di
-lingkungan ini). Perhatikan juga: konten hasil Terapkan akan bermuara di halaman
-Detail Konten yang saat ini rusak (KI-03).
+**Status:** `READY` — siklus hidup generate → apply → revert diverifikasi lewat
+`AiStrategyLifecycleTest`, dan halaman Performa tempat panel ini berada
+diverifikasi runtime dengan data nyata. Konten hasil **Terapkan** bermuara di
+Detail Konten yang sekarang berfungsi normal.
+
+Catatan keamanan yang ikut diperbaiki: halaman **Riwayat AI Strategy** dulu bisa
+dibuka untuk klien mana pun lewat `client_id` di query string; sekarang dibatasi
+ke roster pengguna (`PhaseLAuthorizationLeaksTest`).
 
 ---
 
@@ -1771,11 +1908,17 @@ Views Bulan Ini (+ perbandingan) · Konten Tayang bulan berjalan.
 — prediktif) · Konten Terbaik bulan ini · **Peringkat Klien** · akurasi prediksi
 risiko · konten terbaru · dan beberapa kalimat wawasan otomatis.
 
-> ⚠️ **Dashboard tidak dibatasi per klien sama sekali.** SMO — yang di semua
-> halaman lain hanya melihat klien roster-nya — di sini melihat angka seluruh
-> klien, termasuk Peringkat Klien. Lihat KI-10.
+> **Cakupan data sudah benar (KI-10 diperbaiki).** Seluruh angka di Dashboard —
+> kartu statistik, grafik, Perlu Perhatian, Konten Berisiko Tinggi, Konten
+> Terbaik, **Peringkat Klien**, akurasi prediksi, dan konten terbaru — mengikuti
+> client scope pengguna. CEO & Manager melihat seluruh klien; SMO hanya melihat
+> klien roster-nya, konsisten dengan halaman lain. Terverifikasi lewat
+> `DashboardScopeTest`.
+>
+> Konsekuensi untuk buku: jelaskan bahwa **angka Dashboard dua orang bisa
+> berbeda** dan itu benar, bukan kesalahan data.
 
-**Status:** `READY` (terverifikasi runtime), dengan catatan cakupan di atas.
+**Status:** `READY` (terverifikasi runtime + test scope)
 
 ## Performa
 
@@ -1850,12 +1993,11 @@ sisa bulan tidak langsung terhitung sebagai tidak hadir.
 
 # Bagian 17. Team Management
 
-## Kelola Pengguna (judul halaman: **Kelola Tim**)
+## Kelola Pengguna
 
-> ⚠️ **Ketidaksesuaian istilah:** menu sidebar menulis **"Kelola Pengguna"**,
-> judul halaman menulis **"Kelola Tim"**. Buku panduan harus memilih salah satu
-> dan menyebut yang lain sebagai alias. **Rekomendasi: pakai "Kelola Pengguna"**
-> (sesuai menu, karena itu yang dicari pengguna).
+> ✅ **Istilah sudah seragam (KI-17 diperbaiki).** Menu sidebar, judul halaman,
+> dan judul tab peramban semuanya menulis **"Kelola Pengguna"**. Istilah lama
+> "Kelola Tim" sudah tidak ada lagi di aplikasi — jangan dipakai di buku.
 
 **Role:** CEO & Manager saja.
 
@@ -1874,8 +2016,9 @@ Tidak ada tautan ajaib atau kata sandi di dalamnya. Penerimanya tetap masuk
 lewat tombol **Masuk dengan Google** menggunakan email yang sama. Kalau
 pengiriman email gagal (SMTP belum siap), akun **tetap dibuat** dan admin diberi
 tahu agar memberitahukan secara manual
-**Status** — **`KNOWN_ISSUE`** — akses login **tidak benar-benar tersimpan**,
-sehingga orang yang baru diundang **tidak akan bisa masuk**. Lihat KI-06.
+**Status** — `READY` — KI-06 diperbaiki: akses login sekarang benar-benar
+tersimpan saat undangan dibuat, sehingga orang yang diundang langsung bisa
+masuk lewat **Masuk dengan Google** (`UserManagementTest`)
 
 ### Edit Role
 
@@ -1892,9 +2035,23 @@ data "klien yang ditangani", dan menentukan apa yang bisa dilihat orang tersebut
 Berlaku juga untuk CEO/Manager — bagi mereka ini mencatat tanggung jawab
 operasional nyata, terpisah dari kemampuan melihat semua klien.
 
-**Status** — **`KNOWN_ISSUE`** — gagal saat disimpan. Lihat KI-05.
-**Solusi sementara:** gunakan **Detail Klien → PIC Ditugaskan** (arah sebaliknya,
-berfungsi normal).
+**Status** — `READY` (KI-05 diperbaiki; `UserManagementTest`)
+**Jalur setara:** **Detail Klien → PIC Ditugaskan** melakukan hal yang sama dari
+arah sebaliknya. Keduanya berfungsi — pilih sesuai konteks: Kelola Pengguna
+kalau sedang mengatur satu orang untuk beberapa klien, Detail Klien kalau sedang
+menyiapkan satu klien.
+
+### Aktifkan / Cabut Akses Login
+
+Tombol ikon tersendiri di kolom Aksi (tersedia di tampilan desktop maupun
+mobile), dengan tooltip **"Aktifkan akses login"** / **"Cabut akses login"**,
+untuk **mengaktifkan atau mencabut akses dashboard** seorang staf yang sudah
+ada —
+terpisah dari status akun dan dari role. Dipakai misalnya saat staf lapangan
+mulai perlu membuka dashboard, atau saat akses seseorang perlu dihentikan
+sementara tanpa menonaktifkan akunnya.
+**Role** — CEO & Manager
+**Status** — `READY` (ditambahkan bersama perbaikan KI-06; `UserManagementTest`)
 
 ### Nonaktifkan / Aktifkan Kembali
 
@@ -1920,8 +2077,9 @@ lapangan yang tidak memakai dashboard. Di daftar pilihan PIC, orang seperti ini
 diberi keterangan **"(belum memiliki akses dashboard)"**.
 
 Syarat bisa masuk: status **Aktif** atau **Diundang**, **DAN** akses login
-aktif. ⚠️ Lihat KI-06 — saat ini tidak ada satu pun cara di UI untuk
-mengaktifkan akses login.
+aktif. Keduanya bisa diatur dari UI: status lewat **Nonaktifkan / Aktifkan
+Kembali**, akses login lewat **Aktifkan / Cabut Akses Login**. Orang yang baru
+diundang otomatis mendapat akses login.
 
 ## Performa Tim
 
@@ -1992,8 +2150,11 @@ Setiap laporan yang dibuat **tersimpan** dan muncul di daftar riwayat.
 > Manager tidak melihat laporan buatan SMO. Ini bukan bug, tapi harus dijelaskan
 > agar tidak dianggap laporan hilang.
 
-**Status:** `NEEDS_VERIFICATION` — halaman terverifikasi terbuka (200), tetapi
-pembuatan berkas PDF/Excel belum pernah diuji dan tidak ada data untuk diuji.
+**Status:** `READY` — pembuatan berkas diuji lewat `ReportGenerationTest`
+(kedua jenis laporan, kedua format), dan langkah "generate Laporan PDF" ikut
+dijalankan di dalam `GoldenPathTest`. Isi PDF client-facing juga sudah lolos
+sweep terminologi (sebelumnya 100% berbahasa Inggris — lihat "Terminologi Resmi
+untuk Dokumentasi").
 
 ---
 
@@ -2043,7 +2204,10 @@ CEO/Manager punya tambahan pilihan **"Semua Klien"**.
 
 Dari tab ini juga ada link ke halaman **Import Data Performa**.
 
-**Status:** `NEEDS_VERIFICATION` (halaman terbuka, tapi 0 integrasi)
+**Status:** `READY` untuk seluruh bagian yang tidak bergantung pada akun
+terhubung (memilih klien, membaca kartu, membaca Riwayat Sinkronisasi, membuka
+Import Data Performa). Bagian **Sync** baru bisa menghasilkan data setelah ada
+akun yang benar-benar terhubung — lihat `EXTERNAL_BLOCKED` di Bagian 12.
 
 ## Pemisahan isi buku: Panduan Pengguna vs Panduan Administrator
 
@@ -2064,7 +2228,9 @@ Dari tab ini juga ada link ke halaman **Import Data Performa**.
 - Pendaftaran aplikasi di Meta App Dashboard & TikTok Developer Portal, App
   Review, pendaftaran akun tester
 - **Queue worker** (`php artisan queue:work`) dan **scheduler** (`cron` /
-  Task Scheduler) — sudah terdokumentasi di `docs/RUNTIME.md`
+  Task Scheduler) — sudah terdokumentasi di `docs/RUNTIME.md`. Untuk
+  pengembangan lokal, `composer run dev` menjalankan keduanya sekaligus; di
+  production keduanya **wajib** dikonfigurasi terpisah
 - Konfigurasi database, SMTP, Supervisor
 - Perintah baris perintah: sinkronisasi manual, import Content Planner Excel,
   pembersihan log basi, perhitungan ulang skor risiko
@@ -2176,11 +2342,14 @@ sekali**.
 
 Setiap konten selalu diambil **melalui** klien pemilik token. Mencoba membuka
 konten milik klien lain menghasilkan **404**, bukan 403 — agar tidak bocor bahwa
-ID tersebut valid. Perilaku ini **dilindungi 26 pengujian otomatis** — satu-
-satunya bagian sistem yang punya cakupan pengujian nyata.
+ID tersebut valid. Perilaku ini dilindungi **24 pengujian otomatis khusus
+Portal Klien** (`ClientPortalTest`), ditambah langkah Portal Klien di dalam
+`GoldenPathTest` yang berjalan **tanpa `actingAs()` sama sekali** — murni lewat
+token, persis seperti klien asli.
 
-**Status:** `READY` — bagian dengan bukti kebenaran terkuat di seluruh aplikasi,
-meskipun tidak dijalankan runtime dalam audit ini (butuh token klien nyata).
+**Status:** `READY` — bagian dengan bukti kebenaran terkuat di seluruh aplikasi.
+Selain automated test, portal juga dibuka runtime dengan token klien sungguhan
+(read-only) saat Final Pre-Merge Verification.
 
 ---
 
@@ -2215,12 +2384,27 @@ peramban klien (tidak ada akun untuk menyimpannya).
 
 ---
 
-# Bagian 22. Known Issues dan Fitur Belum Siap
+# Bagian 22. Status Fitur, Riwayat Temuan, dan Batasan yang Masih Berlaku
 
-Diurutkan dari yang paling menghambat. Semua temuan **diverifikasi terhadap kode
-pada commit yang diaudit** — bukan dugaan.
+## Ringkasan sekali baca
 
-| ID | Area | Status Audit Pertama | Status Re-Audit | Masalah (asli) | Dokumentasikan Sekarang? |
+| | |
+|---|---|
+| `KNOWN_ISSUE` tersisa | **0** — seluruh 8 temuan awal diperbaiki dengan regression test |
+| `NOT_READY` tersisa | **0** — KI-11 & KI-14 diperbaiki; KI-18 adalah `OUT_OF_SCOPE` by design, bukan fitur belum jadi |
+| Batasan yang **masih** berlaku | **Eksternal saja**: live OAuth Instagram (Meta App Review) & TikTok (Developer Portal) |
+| Batasan berikutnya | Akurasi model Delay Risk belum divalidasi (fitur tetap aman dipakai) |
+| Dependensi runtime | Scheduler & queue worker wajib jalan di production (bukan cacat fitur) |
+
+## Riwayat Audit Sebelum Stabilisasi — KI-01 s/d KI-20
+
+> ⚠️ **Kolom "Status Audit Pertama" di tabel ini adalah HISTORIS — KONDISI
+> SEBELUM STABILISASI.** Jangan dibaca sebagai keadaan aplikasi sekarang.
+> Kondisi sekarang ada di kolom **"Status Sekarang"**. Tabel dipertahankan
+> karena berguna sebagai engineering history dan sebagai penjelasan kenapa
+> beberapa keputusan desain (mis. sanitasi tanggal di backend) ada.
+
+| ID | Area | Status Audit Pertama *(historis)* | Status Sekarang | Masalah (asli, historis) | Dokumentasikan Sekarang? |
 |---|---|---|---|---|---|
 | **KI-01** | Rencana Konten → Tambah Konten | `KNOWN_ISSUE` | ✅ **FIXED** — `ContentPlanTest` | `Rule::exists()` tanpa import; form/kode field name mismatch | ✅ Ya, sudah boleh — lihat laporan stabilisasi §2 |
 | **KI-02** | Jobdesk Tambahan | `KNOWN_ISSUE` | ✅ **FIXED** — `ContentPlanTest` | Sama root cause KI-01 | ✅ Ya, sudah boleh |
@@ -2229,16 +2413,16 @@ pada commit yang diaudit** — bukan dugaan.
 | **KI-05** | Kelola Pengguna → Assign Klien | `KNOWN_ISSUE` | ✅ **FIXED** — `UserManagementTest` | `$user->isClientUser()` tidak ada | ✅ Ya, sudah boleh |
 | **KI-06** | Undang User / akses login | `KNOWN_ISSUE` | ✅ **FIXED** — `UserManagementTest` | `login_enabled` tidak fillable + tidak ada tombol UI, **sekarang ada** | ✅ Ya, sudah boleh (peringatan lama sudah tidak relevan) |
 | **KI-07** | AI Brief — tanggal | `KNOWN_ISSUE` | ✅ **FIXED** — `BriefGenerationDateTest` | Prompt tidak tahu tanggal hari ini; sekarang divalidasi+fallback deterministik | ✅ Ya, tanpa peringatan tanggal lagi (tetap sarankan user cek manual sebagai praktik baik) |
-| **KI-08** | Integrasi Instagram & TikTok | `NEEDS_VERIFICATION` | ⚠️ Diverifikasi sejauh mungkin — `SocialIntegrationOAuthTest` (10 test); live OAuth tetap `EXTERNAL_BLOCKED` (App Review) | Kode lengkap tapi belum pernah dipakai | ⚠️ Ya, konseptual, **jangan klaim "selesai"** — lihat laporan stabilisasi §5 |
+| **KI-08** | Integrasi Instagram & TikTok | `NEEDS_VERIFICATION` | 🔒 **`EXTERNAL_BLOCKED`** — siap secara kode; seluruh jalur non-consent lulus (`SocialIntegrationOAuthTest`, 10 test). Live consent bergantung Meta App Review / TikTok Developer Portal | Kode lengkap tapi belum pernah dipakai | ⚠️ Ya, tulis prosedurnya **dengan kotak peringatan App Review**; jangan klaim "sudah berfungsi end-to-end" |
 | **KI-09** | Import CSV Performa | `KNOWN_ISSUE` | ✅ **FIXED** — `ImportPerformanceScopeTest` | Tidak ada guard client scope | ✅ Ya, sudah boleh |
 | **KI-10** | Dashboard | `KNOWN_ISSUE` (awalnya ditandai `READY` di rekap, itu keliru) | ✅ **FIXED** — `DashboardScopeTest` | Nol scoping per client | ✅ Ya, dengan cakupan yang sekarang benar |
 | **KI-11** | Enum status workflow | `NOT_READY` | ✅ **FIXED (dihapus)** | Dead code, 2 method badan kosong | ❌ Tidak relevan bagi pengguna |
 | **KI-12** | Revision Log & Publishing Tracker | `KNOWN_ISSUE` | ✅ **FIXED** — `LegacyRouteRedirectTest` (redirect ke tab resmi) | Duplikat tanpa pintu masuk UI | ❌ Dokumentasikan **hanya** tab di Produksi (URL lama tetap jalan via redirect) |
 | **KI-13** | Rencana Konten ditolak | `KNOWN_ISSUE` | ✅ **FIXED** — `ContentPlanTest` (jalur Ditolak→Draf→ajukan ulang + riwayat) | Tidak ada jalur balik dari Ditolak | ✅ Ya, sudah boleh — keterbatasan lama sudah tidak berlaku |
-| **KI-14** | Proses otomatis (scheduler & queue) | `NOT_READY` | ✅ **FIXED (tooling+dokumentasi)** — `composer run dev` sekarang termasuk scheduler | Tidak ada cara mudah jalankan semua proses bareng | ✅ Ya — troubleshooting section tetap relevan untuk deployment yang belum setup queue/cron |
+| **KI-14** | Proses otomatis (scheduler & queue) | `NOT_READY` | ✅ **FIXED** — perintah terjadwal sudah terdaftar dan `composer run dev` menjalankan scheduler + queue sekaligus. **Tetap dependensi runtime:** production wajib mengonfigurasi worker + cron/Supervisor | Tidak ada cara mudah jalankan semua proses bareng | ✅ Ya — bukan sebagai "fitur rusak", tapi sebagai bab Troubleshooting ("Sync ditekan tapi tidak terjadi apa-apa") |
 | **KI-15** | Konfigurasi pengujian | `KNOWN_ISSUE` | ✅ **FIXED** — DB testing terisolasi permanen + safeguard hard-abort | `phpunit.xml` menunjuk DB dev | ❌ Bukan untuk pengguna → Panduan Administrator |
-| **KI-16** | Cakupan pengujian | `NEEDS_VERIFICATION` | ✅ **FIXED** — 82 test (dari 26), lintas semua area utama | Hanya Portal Klien punya test | ❌ Bukan untuk pengguna |
-| **KI-17** | Ketidaksesuaian istilah | `KNOWN_ISSUE` | ⚠️ **Sebagian diperbaiki** — 5 contoh paling jelas diselaraskan (Kelola Pengguna, Performa, Rencana Konten, Laporan, Pengaturan, Data Pilihan); sweep menyeluruh belum dilakukan | Menu vs judul halaman tidak sama | ✅ Ya — buku **tetap wajib** memilih istilah baku (Bagian 25), sweep lanjutan disarankan saat menulis |
+| **KI-16** | Cakupan pengujian | `NEEDS_VERIFICATION` | ✅ **FIXED** — **148 test / 363 assertion** (dari 26), lintas semua area utama, termasuk golden/rejection/revision path dan matriks akses 6 role | Hanya Portal Klien punya test | ❌ Bukan untuk pengguna |
+| **KI-17** | Ketidaksesuaian istilah | `KNOWN_ISSUE` | ✅ **FIXED** — sweep **menyeluruh** ke seluruh `resources/views/`: ~45 string di 15 file diperbaiki, termasuk 2 **PDF laporan client-facing** yang sebelumnya 100% Bahasa Inggris, plus 1 celah pesan validasi (`pic_user_id`, `rejection_note`) | Menu vs judul halaman tidak sama | ✅ Ya — pakai tabel **"Terminologi Resmi untuk Dokumentasi"** sebagai rujukan tunggal |
 | **KI-18** | Publikasi langsung ke media sosial | `NOT_READY` | ✅ Confirmed tetap `OUT_OF_SCOPE` (by design, bukan bug) — tidak ada wording menyesatkan ditemukan | Tidak ada, dan eksplisit di luar cakupan | ✅ Ya — tulis eksplisit "tidak tersedia" |
 | **KI-19** | Dokumentasi kode usang | `KNOWN_ISSUE` | ✅ **FIXED** — komentar diperbarui | Komentar bilang OAuth "UI saja" padahal sudah fungsional | ❌ Bukan untuk pengguna |
 | **KI-20** | Kode mati kecil | `KNOWN_ISSUE` | ✅ **FIXED (dihapus)** | `$picOptions` tidak terpakai | ❌ Tidak |
@@ -2248,19 +2432,27 @@ leak baru (AI Strategy History, Import Audience CSV, kanban drag-drop
 Produksi) — semuanya **FIXED**, detail di laporan stabilisasi §3. Tidak
 berdampak ke konten buku panduan (bukan bug user-facing, murni celah akses).
 
-## Rekapitulasi status — AUDIT PERTAMA (sebelum stabilization sprint)
+## HISTORIS — KONDISI SEBELUM STABILISASI: rekapitulasi audit pertama
 
-| Status | Jumlah fitur |
-|---|---|
-| `READY` | **26** |
-| `NEEDS_VERIFICATION` | **13** |
-| `KNOWN_ISSUE` | **8** |
-| `NOT_READY` | **3** |
-| **Total fitur utama** | **50** |
+> ⚠️ **Angka di bawah ini adalah kondisi audit pertama, BUKAN kondisi sekarang.**
+> Rekapitulasi yang berlaku ada di sub-bagian berikutnya.
+>
+> **Catatan koreksi hitung:** tabel asli menulis total 50 fitur (26/13/8/3),
+> tetapi daftar rinciannya sendiri memuat **53 item** (28/14/8/3). Angka
+> ringkasnya salah hitung sejak awal. Rekapitulasi kondisi sekarang memakai
+> **53** — hasil menghitung ulang item yang benar-benar terdaftar.
+
+| Status | Jumlah fitur *(angka asli)* | Jumlah item yang benar-benar terdaftar |
+|---|---|---|
+| `READY` | 26 | **28** |
+| `NEEDS_VERIFICATION` | 13 | **14** |
+| `KNOWN_ISSUE` | 8 | **8** |
+| `NOT_READY` | 3 | **3** |
+| **Total** | 50 | **53** |
 
 Rincian:
 
-**`READY` (26)** — Beranda · Dashboard · Rencana Konten (lihat) · Buat Rencana ·
+**`READY` — label asli “26”, terdaftar 28 item** — Beranda · Dashboard · Rencana Konten (lihat) · Buat Rencana ·
 Ajukan Rencana · Setujui/Tolak Rencana · Papan Produksi · Tab Revisi · Tab Sudah
 Tayang · Status Management *(logika)* · Koreksi Status · Catatan Revisi ·
 Kerjakan Revisi · Catat Publikasi *(logika)* · Kelola Klien · Ubah Paket · Atur
@@ -2268,67 +2460,106 @@ PIC dari Detail Klien · Kelola link Portal Klien · Edit Role · Nonaktifkan/
 Aktifkan User · Performa Tim · Absensi · Data Pilihan & Paket · Portal Klien
 (Dashboard/Kalender/Riwayat/Persetujuan) · Pencarian · Notifikasi · Pin · Tema
 
-**`NEEDS_VERIFICATION` (13)** — Performa: Analytics · Performa: Tabel Performa ·
+**`NEEDS_VERIFICATION` — label asli “13”, terdaftar 14 item** — Performa: Analytics · Performa: Tabel Performa ·
 Performa: Audiens · Detail Performa Konten · Ekspor CSV · Import Audience CSV ·
 AI Strategy · Instagram Integration · TikTok Integration · Unmatched Instagram ·
 Unmatched TikTok · Laporan (2 jenis) · Portal Klien: Analytics · Skor Risiko
 Keterlambatan & Deteksi Anomali
 
-**`KNOWN_ISSUE` (8)** — Tambah Konten (KI-01) · Jobdesk Tambahan (KI-02) ·
+**`KNOWN_ISSUE` (8, cocok)** — Tambah Konten (KI-01) · Jobdesk Tambahan (KI-02) ·
 Detail Konten (KI-03) · Ganti PIC (KI-04) · Assign Klien (KI-05) · Undang User /
 akses login (KI-06) · AI Brief (KI-07) · Import CSV Performa (KI-09)
 
-**`NOT_READY` (3)** — Proses otomatis terjadwal (KI-14) · Publikasi langsung ke
+**`NOT_READY` (3, cocok)** — Proses otomatis terjadwal (KI-14) · Publikasi langsung ke
 media sosial (KI-18) · Enum status workflow, kode mati (KI-11)
 
-> Catatan: Dashboard (KI-10) tetap dihitung `READY` karena berfungsi penuh —
-> masalahnya cakupan data, bukan kerusakan. Import CSV Performa dihitung
-> `KNOWN_ISSUE` karena celah aksesnya berdampak nyata.
+> Catatan historis: Dashboard (KI-10) waktu itu tetap dihitung `READY` karena
+> berfungsi penuh — masalahnya cakupan data, bukan kerusakan.
 
-## Rekapitulasi status — RE-AUDIT (setelah stabilization sprint)
+## Rekapitulasi status — KONDISI SEKARANG
 
-| Status | Jumlah fitur | Perubahan |
+**Dasar penghitungan:** 53 item fitur yang benar-benar terdaftar di rincian
+audit pertama (28 `READY` + 14 `NEEDS_VERIFICATION` + 8 `KNOWN_ISSUE` +
+3 `NOT_READY`). Angka "50" di rekap lama tidak pernah cocok dengan daftarnya
+sendiri; di sini dihitung ulang supaya jumlah baris = jumlah item.
+
+| Kategori | Jumlah | Arti |
+|---|:--:|---|
+| `READY` | **45** | Berfungsi, terverifikasi, boleh didokumentasikan penuh |
+| `EXTERNAL_BLOCKED` | **2** | Siap secara kode; verifikasi live tertahan pihak ketiga |
+| `OPERATIONALLY_SAFE_WITH_LIMITATION` | **1** | Aman dipakai, tapi satu aspeknya belum divalidasi |
+| `NEEDS_VERIFICATION` | **3** | Tidak ada indikasi bug, tapi belum diuji ulang |
+| `OUT_OF_SCOPE` | **2** | Bukan fitur (by design / dead code yang dihapus) |
+| `KNOWN_ISSUE` | **0** | — |
+| `NOT_READY` | **0** | — |
+| **Total** | **53** | |
+
+### `READY` (45)
+
+Seluruh 28 item yang sudah `READY` di audit pertama, **ditambah**:
+
+- **8 bekas `KNOWN_ISSUE`** — Tambah Konten (KI-01) · Jobdesk Tambahan (KI-02) ·
+  Detail Konten (KI-03) · Ganti PIC (KI-04) · Assign Klien (KI-05) · Undang User
+  / akses login (KI-06) · AI Brief (KI-07) · Import CSV Performa (KI-09).
+  Masing-masing punya regression test.
+- **8 bekas `NEEDS_VERIFICATION`** — Performa: Analytics · Performa: Tabel
+  Performa · Performa: Audiens · Detail Performa Konten · Ekspor CSV · Import
+  Audience CSV · AI Strategy · Laporan (2 jenis).
+- **1 bekas `NOT_READY`** — Proses otomatis terjadwal (KI-14): didukung penuh
+  oleh aplikasi; yang tersisa adalah **dependensi runtime**, bukan fitur yang
+  belum jadi.
+
+Dua catatan tambahan yang tidak mengubah hitungan: **Dashboard** naik dari
+"berfungsi tapi cakupan salah" jadi benar-benar ter-scope (KI-10), dan **Rencana
+Konten Ditolak** tidak lagi buntu (KI-13) — keduanya bagian dari item yang sudah
+terhitung.
+
+### `EXTERNAL_BLOCKED` (2)
+
+| Fitur | Kenapa | Yang sudah terbukti |
 |---|---|---|
-| `READY` | **35** | +9 (KI-01…KI-07, KI-09, KI-10, KI-13 diperbaiki; Laporan, AI Strategy, Performa/Analytics/Tabel/Audiens/Detail/Ekspor CSV, Import Audience CSV diverifikasi runtime) |
-| `NEEDS_VERIFICATION` | **4** | -9 — sisa: Instagram/TikTok Integration (KI-08, live OAuth), Unmatched Instagram, Unmatched TikTok, Portal Klien: Analytics, Skor Risiko Keterlambatan & Deteksi Anomali (akurasi model ML, bukan graceful-degradation-nya) *(catatan: 5 item, bukan 4 — lihat rincian)* |
-| `KNOWN_ISSUE` | **0** | -8 — seluruhnya diperbaiki dengan regression test |
-| `NOT_READY` | **1** | -2 — KI-11 & KI-14 diperbaiki; KI-18 tetap (`OUT_OF_SCOPE` by design, bukan bug) |
-| **Total fitur utama** | **50** | tidak berubah |
+| Integrasi Instagram | Meta App Review — selama app mode Development, hanya akun terdaftar sebagai *Instagram Tester* yang bisa connect | Redirect, `state`, validasi callback, penukaran token, upsert `ApiIntegration` (`SocialIntegrationOAuthTest`) |
+| Integrasi TikTok | TikTok Developer Portal masih berpotensi `unauthorized_client` — registrasi app di sisi provider | OAuth + PKCE lengkap, rotasi refresh token, jalur error, semua lulus test yang sama |
 
-Rincian re-audit:
+**Ini bukan `KNOWN_ISSUE`.** Tidak ada defect kode yang diketahui pada keduanya.
 
-**`READY` tambahan (9)** — Tambah Konten (KI-01) · Jobdesk Tambahan (KI-02) ·
-Detail Konten (KI-03) · Ganti PIC (KI-04) · Assign Klien (KI-05) · Undang User /
-akses login (KI-06) · AI Brief (KI-07) · Import CSV Performa (KI-09) · Rencana
-Ditolak buntu (KI-13) — semua dengan regression test otomatis (lihat
-`docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md` §2). **Plus** yang sudah
-`READY` sebelumnya tapi sekarang diverifikasi runtime (bukan cuma dianggap
-benar dari static code): Dashboard (dengan scope yang sudah benar, KI-10),
-Performa/Analytics (overview+table+audience tab), Detail Performa Konten,
-Ekspor CSV, Import Audience CSV, Laporan (progres+performa), AI Strategy
-(generate+apply+revert).
+### `OPERATIONALLY_SAFE_WITH_LIMITATION` (1)
 
-**`NEEDS_VERIFICATION` tersisa (5)**:
-- **Instagram/TikTok Integration** (KI-08) — kode & jalur non-consent
-  terverifikasi lewat test; live OAuth (consent screen sungguhan) tetap
-  butuh akun tester nyata, `EXTERNAL_BLOCKED`.
-- **Unmatched Instagram**, **Unmatched TikTok** — TIDAK diuji ulang di
-  sprint ini (di luar cakupan KI-01...KI-20 dan tidak ditemukan indikasi
-  bug saat re-audit code path terkait, tapi belum ada regression test
-  baru maupun runtime check khusus fitur ini).
-- **Portal Klien: Analytics** — TIDAK diuji ulang (`ClientPortalTest`
-  yang ada tidak menyentuh sub-halaman Analytics-nya secara spesifik).
-- **Skor Risiko Keterlambatan & Deteksi Anomali** — *graceful degradation*-nya
-  (model/script Python gagal → log+skip, bukan crash) terverifikasi lewat
-  pembacaan kode `DelayRiskPredictionService`; akurasi prediksi model ML
-  itu sendiri tidak diuji (di luar kemampuan verifikasi tanpa data historis
-  yang cukup + model yang sudah dilatih).
+**Skor Risiko Keterlambatan & Deteksi Anomali.** *Graceful degradation*-nya
+dikonfirmasi: kalau model/script Python gagal, sistem mencatat log lalu
+melewatinya — workflow utama **tidak** crash. Yang belum divalidasi adalah
+**akurasi prediksi model ML** itu sendiri (butuh data historis memadai + model
+terlatih). Boleh didokumentasikan sebagai fitur bantu, jangan dijual sebagai
+prediksi yang akurat.
 
-**`KNOWN_ISSUE` (0)** — seluruh 8 temuan awal diperbaiki.
+### `NEEDS_VERIFICATION` (3)
 
-**`NOT_READY` (1)** — Publikasi langsung ke media sosial (KI-18), tetap
-`OUT_OF_SCOPE` sesuai desain, dikonfirmasi ulang tidak ada wording
-menyesatkan.
+| Fitur | Kenapa masih di sini |
+|---|---|
+| Unmatched Instagram | Tidak diuji ulang di sprint ini; tidak ada indikasi bug saat re-audit jalur kodenya, tapi belum ada regression test maupun runtime check khusus |
+| Unmatched TikTok | Sama seperti di atas |
+| Portal Klien: Analytics | `ClientPortalTest` tidak menyentuh sub-halaman Analytics-nya secara spesifik |
+
+Ketiganya **boleh ditulis di buku secara konseptual**; hindari klaim detail yang
+belum diverifikasi, dan ambil screenshot hanya dari kondisi nyata.
+
+### `OUT_OF_SCOPE` (2)
+
+- **Publikasi langsung ke media sosial (KI-18)** — memang tidak ada dan tidak
+  direncanakan. Tulis eksplisit di buku sebagai keterbatasan yang disengaja.
+  Dikonfirmasi ulang: tidak ada wording di UI yang menyesatkan soal ini.
+- **Enum status workflow (KI-11)** — dead code, sudah dihapus. Tidak pernah
+  merupakan fitur pengguna; dicantumkan hanya agar jumlah item tetap cocok
+  dengan daftar audit pertama.
+
+### Batasan yang berlaku lintas fitur (bukan status fitur)
+
+**Scheduler & queue worker adalah dependensi runtime.** `composer run dev`
+menjalankan keduanya untuk pengembangan lokal; di production wajib dikonfigurasi
+sendiri. Kalau mati, sinkronisasi terjadwal, penandaan terlambat, skor risiko,
+dan deteksi anomali diam **tanpa pesan error**. Ini bukan cacat fitur — tapi
+harus muncul di bab Troubleshooting buku, dan detail teknisnya masuk Panduan
+Administrator, bukan Buku Panduan Pengguna.
 
 ---
 
@@ -2337,9 +2568,15 @@ menyesatkan.
 Prioritas **Tinggi** = wajib ada di rilis pertama buku. **Sedang** = sebaiknya
 ada. **Rendah** = boleh menyusul.
 
+Kolom Status memakai kategori yang sama dengan Bagian 22:
+`READY` (tulis lengkap) · `EXTERNAL_BLOCKED` (tulis lengkap **plus** kotak
+peringatan App Review) · `NEEDS_VERIFICATION` (tulis konseptual, screenshot
+hanya dari kondisi nyata). **Tidak ada lagi prosedur berstatus `KNOWN_ISSUE`
+atau yang perlu ditunda.**
+
 | ID | Tutorial | Role | Prioritas | Status |
 |---|---|---|---|---|
-| UG-01 | Masuk ke sistem dengan akun Google | Semua internal | Tinggi | `KNOWN_ISSUE` (KI-06) |
+| UG-01 | Masuk ke sistem dengan akun Google | Semua internal | Tinggi | `READY` |
 | UG-02 | Mengenal Beranda & panel Langkah Berikutnya | Semua internal | Tinggi | `READY` |
 | UG-03 | Check-in & check-out harian | Semua internal | Tinggi | `READY` |
 | UG-04 | Mengganti tema & melipat sidebar | Semua internal | Rendah | `READY` |
@@ -2348,51 +2585,57 @@ ada. **Rendah** = boleh menyusul.
 | UG-07 | Mem-pin konten sebagai fokus pribadi | Semua internal | Sedang | `READY` |
 | UG-08 | Menambahkan klien baru | CEO, Manager | Tinggi | `READY` |
 | UG-09 | Menentukan & mengubah paket klien | CEO, Manager | Tinggi | `READY` |
-| UG-10 | Menugaskan tim (PIC) ke klien | CEO, Manager | **Tinggi** | ⚠️ `KNOWN_ISSUE` (KI-05) — dokumentasikan jalur Detail Klien |
+| UG-10 | Menugaskan tim (PIC) ke klien | CEO, Manager | **Tinggi** | `READY` — dokumentasikan **kedua** jalur (Detail Klien & Kelola Pengguna) |
 | UG-11 | Mengaktifkan & membagikan link Portal Klien dengan aman | CEO, Manager | **Tinggi** | `READY` |
-| UG-12 | Menghubungkan akun Instagram klien | CEO, Manager | Tinggi | `NEEDS_VERIFICATION` |
-| UG-13 | Menghubungkan akun TikTok klien | CEO, Manager | Sedang | `NEEDS_VERIFICATION` |
-| UG-14 | **Onboarding klien baru dari nol sampai siap** (menggabungkan UG-08…UG-13) | CEO, Manager | **Tinggi** | `NEEDS_VERIFICATION` |
+| UG-12 | Menghubungkan akun Instagram klien | CEO, Manager | Tinggi | `EXTERNAL_BLOCKED` — siap secara kode, live OAuth bergantung App Review |
+| UG-13 | Menghubungkan akun TikTok klien | CEO, Manager | Sedang | `EXTERNAL_BLOCKED` — siap secara kode, live OAuth bergantung App Review |
+| UG-14 | **Onboarding klien baru dari nol sampai siap** (menggabungkan UG-08…UG-13) | CEO, Manager | **Tinggi** | `READY` — hanya langkah UG-12/UG-13 yang `EXTERNAL_BLOCKED`; sebutkan Import CSV sebagai jalur alternatif |
 | UG-15 | Membuat Rencana Konten bulanan | CEO, Manager, Copywriter | Tinggi | `READY` |
-| UG-16 | Menambahkan konten ke rencana | CEO, Manager, Copywriter | Tinggi | ❌ `KNOWN_ISSUE` (KI-01) — **tunda** |
+| UG-16 | Menambahkan konten ke rencana | CEO, Manager, Copywriter | Tinggi | `READY` |
 | UG-17 | Mengajukan & menyetujui Rencana Konten | CEO, Manager, SMO, Copywriter | Tinggi | `READY` |
-| UG-18 | Mencatat permintaan mendadak (Jobdesk Tambahan) | CEO, Manager, Copywriter | Sedang | ❌ `KNOWN_ISSUE` (KI-02) — **tunda** |
-| UG-19 | Membuat brief produksi dengan AI | Copywriter, Manager | Tinggi | ⚠️ `KNOWN_ISSUE` (KI-07 + KI-03) |
-| UG-20 | Berdiskusi dengan AI & mengedit brief manual | Copywriter, Manager | Sedang | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-21 | Menerapkan brief ke tim produksi | Copywriter, Manager | Tinggi | ⚠️ `KNOWN_ISSUE` (KI-03) |
+| UG-18 | Mencatat permintaan mendadak (Jobdesk Tambahan) | CEO, Manager, Copywriter | Sedang | `READY` |
+| UG-19 | Membuat brief produksi dengan AI | Copywriter, Manager | Tinggi | `READY` |
+| UG-20 | Berdiskusi dengan AI & mengedit brief manual | Copywriter, Manager | Sedang | `READY` |
+| UG-21 | Menerapkan brief ke tim produksi | Copywriter, Manager | Tinggi | `READY` |
 | UG-22 | Membaca papan Produksi (Kanban & Daftar) | Semua internal | **Tinggi** | `READY` |
-| UG-23 | Mengerjakan konten yang ditugaskan (alur harian PIC) | Content Creator, Desain Grafis | **Tinggi** | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-24 | Menandai footage sudah di-take & mengisi link hasil | Content Creator | Sedang | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-25 | Mengisi draft caption untuk dibaca klien | Copywriter, Manager | Sedang | ⚠️ `KNOWN_ISSUE` (KI-03) |
+| UG-23 | Mengerjakan konten yang ditugaskan (alur harian PIC) | Content Creator, Desain Grafis | **Tinggi** | `READY` |
+| UG-24 | Menandai footage sudah di-take & mengisi link hasil | Content Creator | Sedang | `READY` |
+| UG-25 | Mengisi draft caption untuk dibaca klien | Copywriter, Manager | Sedang | `READY` |
 | UG-26 | Meminta revisi & mengerjakannya | Manager, SMO, PIC | Tinggi | `READY` |
-| UG-27 | Menyetujui konten (review internal) | CEO, Manager, SMO | **Tinggi** | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-28 | Menjadwalkan & mencatat publikasi | SMO, CEO | **Tinggi** | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-29 | Mengoreksi status yang salah | CEO, Manager | Sedang | ⚠️ `KNOWN_ISSUE` (KI-03) |
-| UG-30 | Memindahkan konten ke PIC lain | CEO, Manager | Sedang | ❌ `KNOWN_ISSUE` (KI-04) — **tunda** |
-| UG-31 | Membaca halaman Performa | CEO, Manager, SMO | Tinggi | `NEEDS_VERIFICATION` |
-| UG-32 | Menautkan post media sosial yang belum terhubung | SMO, CEO | Sedang | `NEEDS_VERIFICATION` |
-| UG-33 | Mengimpor data performa dari CSV | CEO, Manager, SMO | Sedang | `KNOWN_ISSUE` (KI-09) |
-| UG-34 | Mengekspor data performa | CEO, Manager, SMO | Rendah | `NEEDS_VERIFICATION` |
-| UG-35 | Menjalankan analisis AI Strategy | CEO, Manager, SMO | Sedang | `NEEDS_VERIFICATION` |
-| UG-36 | Berdiskusi & memperbarui analisis AI | CEO, Manager, SMO | Rendah | `NEEDS_VERIFICATION` |
-| UG-37 | Menerapkan & menarik kembali AI Strategy | CEO, Manager, SMO | Sedang | `NEEDS_VERIFICATION` |
-| UG-38 | Membuat laporan untuk klien | CEO, Manager, SMO | Tinggi | `NEEDS_VERIFICATION` |
-| UG-39 | Mengundang anggota tim baru | CEO, Manager | Tinggi | ⚠️ `KNOWN_ISSUE` (KI-06) |
+| UG-27 | Menyetujui konten (review internal) | CEO, Manager, SMO | **Tinggi** | `READY` |
+| UG-28 | Menjadwalkan & mencatat publikasi | SMO, CEO | **Tinggi** | `READY` |
+| UG-29 | Mengoreksi status yang salah | CEO, Manager | Sedang | `READY` |
+| UG-30 | Memindahkan konten ke PIC lain | CEO, Manager | Sedang | `READY` |
+| UG-31 | Membaca halaman Performa | CEO, Manager, SMO | Tinggi | `READY` |
+| UG-32 | Menautkan post media sosial yang belum terhubung | SMO, CEO | Sedang | `NEEDS_VERIFICATION` — butuh data sinkronisasi nyata |
+| UG-33 | Mengimpor data performa dari CSV | CEO, Manager, SMO | Sedang | `READY` |
+| UG-34 | Mengekspor data performa | CEO, Manager, SMO | Rendah | `READY` |
+| UG-35 | Menjalankan analisis AI Strategy | CEO, Manager, SMO | Sedang | `READY` |
+| UG-36 | Berdiskusi & memperbarui analisis AI | CEO, Manager, SMO | Rendah | `READY` |
+| UG-37 | Menerapkan & menarik kembali AI Strategy | CEO, Manager, SMO | Sedang | `READY` |
+| UG-38 | Membuat laporan untuk klien | CEO, Manager, SMO | Tinggi | `READY` |
+| UG-39 | Mengundang anggota tim baru | CEO, Manager | Tinggi | `READY` |
 | UG-40 | Mengubah role anggota tim | CEO, Manager | Sedang | `READY` |
 | UG-41 | Menonaktifkan anggota & memindahkan tugasnya | CEO, Manager | Tinggi | `READY` |
 | UG-42 | Memantau beban kerja tim | CEO, Manager | Sedang | `READY` |
 | UG-43 | Melihat rekap kehadiran bulanan | CEO, Manager | Sedang | `READY` |
 | UG-44 | Mengelola Data Pilihan & Paket | CEO, Manager, SMO | Sedang | `READY` |
-| UG-45 | Menjalankan sinkronisasi & membaca riwayatnya | CEO, Manager, SMO | Sedang | `NEEDS_VERIFICATION` |
+| UG-45 | Menjalankan sinkronisasi & membaca riwayatnya | CEO, Manager, SMO | Sedang | `EXTERNAL_BLOCKED` — halaman & riwayat `READY`; hasil sync butuh akun terhubung |
 | UG-46 | **(Untuk klien)** Menggunakan Portal Klien | Klien | **Tinggi** | `READY` |
 | UG-47 | **(Untuk klien)** Menyetujui konten / meminta revisi | Klien | **Tinggi** | `READY` |
 | UG-48 | Troubleshooting: "kenapa halaman saya kosong?" | Semua internal | **Tinggi** | `READY` |
-| UG-49 | Troubleshooting: "kenapa data performa tidak muncul?" | CEO, Manager, SMO | **Tinggi** | Terkait KI-14 |
-| UG-50 | Troubleshooting: "kenapa saya tidak bisa masuk?" | Semua internal | **Tinggi** | Terkait KI-06 |
+| UG-49 | Troubleshooting: "kenapa data performa tidak muncul?" | CEO, Manager, SMO | **Tinggi** | `READY` — bahas 3 sebab: belum sync, post belum tertaut, scheduler/queue mati di server |
+| UG-50 | Troubleshooting: "kenapa saya tidak bisa masuk?" | Semua internal | **Tinggi** | `READY` — bahas: akses login belum diaktifkan, status akun nonaktif, email Google berbeda |
 
-**Ringkasan kelayakan:** dari 50 prosedur, **22 bisa langsung ditulis lengkap**,
-**14 bisa ditulis dengan peringatan**, **4 harus ditunda sepenuhnya** (UG-16,
-UG-18, UG-30, dan bagian dari UG-19), sisanya menunggu verifikasi runtime.
+**Ringkasan kelayakan (kondisi sekarang):**
+
+| Status | Jumlah | Artinya untuk penulis |
+|---|:--:|---|
+| `READY` | **46** | Tulis lengkap, ambil screenshot bebas |
+| `EXTERNAL_BLOCKED` | **3** | UG-12, UG-13, UG-45 — tulis lengkap **plus** kotak peringatan App Review |
+| `NEEDS_VERIFICATION` | **1** | UG-32 — tulis konseptual, screenshot hanya dari kondisi nyata |
+| **Ditunda** | **0** | Tidak ada lagi prosedur yang harus ditunda |
+| **Total** | **50** | |
 
 > **Prosedur yang sengaja TIDAK dibuat** karena tidak relevan bagi pengguna:
 > menjalankan perintah baris perintah, mengisi `.env`, memasang queue worker,
@@ -2405,10 +2648,21 @@ UG-18, UG-30, dan bagian dari UG-19), sisanya menunggu verifikasi runtime.
 
 Prinsip: **1 screenshot = 1 konsep penting.** Jangan memotret setiap klik.
 
-⚠️ **Prasyarat pengambilan screenshot:** database dev saat ini hampir kosong
-(0 konten, 1 klien). Sebelum memotret, siapkan data demo yang layak — minimal
-3 klien, 2–3 rencana konten, dan 15–20 konten yang tersebar di semua status.
-Tanpa itu, semua screenshot akan berupa halaman kosong.
+**Prasyarat data — sudah terpenuhi.** Database development sekarang berisi data
+demo dari `database/seeders/DemoSeeder.php`: 10 user, 5 client, 15 rencana
+konten, 85 content item. Cukup untuk seluruh rencana screenshot di bawah.
+Provenance-nya sudah dikonfirmasi (`KNOWN_SOURCE`) — lihat "Checklist Keamanan
+Data Dokumentasi".
+
+**Tidak ada lagi screenshot yang diblokir oleh bug.** Semua larangan pemotretan
+di versi sebelumnya berasal dari KI-01…KI-04 dan KI-07, yang sudah diperbaiki.
+Yang tersisa hanyalah:
+
+1. **Aturan keamanan data** (sensor token, email, link privat, nama klien) —
+   tetap wajib, lihat catatan penyuntingan di akhir bagian ini.
+2. **Screenshot yang butuh akun media sosial benar-benar terhubung**
+   (SS-CL-09, SS-AN-06, sebagian SS-ST-04) — tertahan `EXTERNAL_BLOCKED`, bukan
+   bug. Ambil setelah ada akun tester yang berhasil connect; jangan direkayasa.
 
 ## Orientasi & akses
 
@@ -2454,7 +2708,8 @@ Tanpa itu, semua screenshot akan berupa halaman kosong.
 | SS-CP-03 | Modal Buat Rencana | Field yang diisi | Manager | **Modal terbuka** |
 | SS-CP-04 | Detail Rencana Konten | Isi rencana + tombol Ajukan | Copywriter | Status **Draf**, daftar konten, header Target |
 | SS-CP-05 | Detail Rencana (menunggu) | Tombol Setujui & Tolak | Manager | Status **Menunggu Persetujuan**, kedua tombol terlihat |
-| SS-CP-06 | Modal Jobdesk Tambahan | Input cepat permintaan mendadak | Manager | **Modal terbuka** — ⚠️ tunda sampai KI-02 diperbaiki |
+| SS-CP-06 | Modal Jobdesk Tambahan | Input cepat permintaan mendadak | Manager | **Modal terbuka** |
+| SS-CP-07 | Detail Rencana (ditolak) | Alasan penolakan + tombol Kembalikan ke Draf | Copywriter | Status **Ditolak**, panel **Riwayat Keputusan** berisi alasan, tombol "Kembalikan ke Draf & Perbaiki" terlihat |
 
 ## Produksi
 
@@ -2465,12 +2720,12 @@ Tanpa itu, semua screenshot akan berupa halaman kosong.
 | SS-PR-03 | Produksi → tab Revisi | Tempat melihat semua revisi | Manager | Beberapa revisi, ada yang dari klien dan dari internal |
 | SS-PR-04 | Produksi → tab Sudah Tayang | Riwayat publikasi | SMO | Beberapa publikasi lintas platform |
 | SS-PR-05 | Modal saat menggeser kartu ke Revisi | Catatan revisi wajib diisi | Manager | **Modal terbuka**, kolom catatan kosong |
-| SS-PR-06 | Detail Konten (atas) | Peta halaman kerja utama | Content Creator | Judul, info konten, kartu AI Brief — ⚠️ tunggu KI-03 |
-| SS-PR-07 | Detail Konten → Status Management | Tombol yang tersedia per status | Content Creator | Status **Sedang Dikerjakan**, tombol aktif & nonaktif berdampingan — ⚠️ tunggu KI-03 |
-| SS-PR-08 | Detail Konten → tombol nonaktif + tooltip | Membuktikan pembatasan hak akses terlihat | Copywriter | Tooltip "Kamu tidak punya izin memindahkan status" — ⚠️ tunggu KI-03 |
-| SS-PR-09 | Detail Konten → penanda footage | Fitur khusus video | Content Creator | Status Sedang Dikerjakan + kolom tanggal take — ⚠️ tunggu KI-03 |
-| SS-PR-10 | Detail Konten → modal Koreksi Status | Jalur khusus Manager/CEO | Manager | **Modal terbuka**, kolom alasan wajib — ⚠️ tunggu KI-03 |
-| SS-PR-11 | Detail Konten → modal Ganti PIC | Kandidat + beban kerja | Manager | **Modal terbuka**, kandidat terurut dari task paling sedikit — ⚠️ tunggu KI-03 & KI-04 |
+| SS-PR-06 | Detail Konten (atas) | Peta halaman kerja utama | Content Creator | Judul, info konten, kartu AI Brief |
+| SS-PR-07 | Detail Konten → Status Management | Tombol yang tersedia per status | Content Creator | Status **Sedang Dikerjakan**, tombol aktif & nonaktif berdampingan |
+| SS-PR-08 | Detail Konten → tombol nonaktif + tooltip | Membuktikan pembatasan hak akses terlihat | Copywriter | Tooltip "Kamu tidak punya izin memindahkan status" |
+| SS-PR-09 | Detail Konten → penanda footage | Fitur khusus video | Content Creator | Status Sedang Dikerjakan + kolom tanggal take |
+| SS-PR-10 | Detail Konten → modal Koreksi Status | Jalur khusus Manager/CEO | Manager | **Modal terbuka**, kolom alasan wajib |
+| SS-PR-11 | Detail Konten → modal Ganti PIC | Kandidat + beban kerja | Manager | **Modal terbuka**, kandidat terurut dari task paling sedikit (hanya tim klien itu) |
 | SS-PR-12 | Modal Catat Publikasi | Data yang harus diisi | SMO | **Modal terbuka**, semua field terlihat |
 
 ## AI Brief & AI Strategy
@@ -2478,9 +2733,9 @@ Tanpa itu, semua screenshot akan berupa halaman kosong.
 | ID | Halaman | Tujuan | Role | Kondisi/Data yang harus tampak |
 |---|---|---|---|---|
 | SS-AI-01 | Kartu AI Brief (kosong) | Ajakan membuat brief | Copywriter | Tombol Buat Brief menonjol |
-| SS-AI-02 | Kartu AI Brief (terisi) | Isi brief lengkap | Copywriter | Hook, adegan/slide, talent, properti — ⚠️ **JANGAN memotret bagian tanggal sampai KI-07 diperbaiki** |
+| SS-AI-02 | Kartu AI Brief (terisi) | Isi brief lengkap | Copywriter | Hook, adegan/slide, talent, properti, **Tanggal Mulai & Tanggal Posting** (sekarang valid — justru bagus ditampilkan) |
 | SS-AI-03 | Panel Diskusi AI Brief | Cara berdiskusi + usulan perubahan | Copywriter | Percakapan berisi minimal 1 tanya-jawab |
-| SS-AI-04 | Kartu Estimasi Kompleksitas & Kelayakan | Membaca penilaian AI | Copywriter | ⚠️ Tunda — nilai kelayakan saat ini tidak dapat dipercaya (KI-07) |
+| SS-AI-04 | Kartu Estimasi Kompleksitas & Kelayakan | Membaca penilaian AI | Copywriter | Penilaian kelayakan dengan margin hari yang masuk akal terhadap deadline |
 | SS-AI-05 | Brief berstatus Final | Kondisi terkunci + tombol Tarik Kembali | Copywriter | Brief read-only |
 | SS-AI-06 | Panel AI Strategy di Performa | Lokasi & hasil analisis | Manager | Ringkasan + Action Items + Komposisi Disarankan + Kelengkapan Data |
 | SS-AI-07 | Modal detail Ide Konten | Ide + skor + tombol regenerate | Manager | **Modal terbuka** |
@@ -2508,6 +2763,7 @@ Tanpa itu, semua screenshot akan berupa halaman kosong.
 | ID | Halaman | Tujuan | Role | Kondisi/Data yang harus tampak |
 |---|---|---|---|---|
 | SS-TM-01 | Kelola Pengguna | Struktur halaman | Manager | Beberapa orang, ada yang **multi-role**, ada yang bertanda "belum memiliki akses dashboard" |
+| SS-TM-07 | Kelola Pengguna → tombol akses login | Membedakan status akun vs akses dashboard | Manager | Tooltip "Aktifkan akses login" / "Cabut akses login" terlihat pada baris staf |
 | SS-TM-02 | Modal Undang User | Field + pilihan role ganda | Manager | **Modal terbuka**, ≥2 role tercentang |
 | SS-TM-03 | Modal Edit Role | Cara mengubah role | Manager | **Modal terbuka** |
 | SS-TM-04 | Modal Nonaktifkan (ada tugas aktif) | Kewajiban memilih pengganti | Manager | **Modal terbuka** + peringatan jumlah tugas |
@@ -2530,11 +2786,19 @@ Tanpa itu, semua screenshot akan berupa halaman kosong.
 | SS-PK-06 | Portal → Minta Revisi | Catatan wajib diisi | Klien | Form catatan revisi terbuka |
 | SS-PK-07 | Portal → sudah direspons | Kondisi setelah klien memutuskan | Klien | Tombol hilang, keterangan sudah direspons |
 
-**Total: 74 screenshot**, dengan **13 di antaranya diblokir** oleh KI-03/KI-04/
-KI-02/KI-07 sampai perbaikan selesai.
+**Total: 77 screenshot** (dihitung ulang dari baris tabel di atas; versi
+sebelumnya menulis 74, yang tidak cocok dengan daftarnya sendiri — sekarang
+ditambah SS-CP-07 dan SS-TM-07 untuk fitur baru hasil stabilisasi).
+**0 diblokir oleh bug.** 3 di antaranya
+(SS-CL-09, SS-AN-06, sebagian SS-ST-04) menunggu akun media sosial terhubung —
+`EXTERNAL_BLOCKED`, bukan bug.
 
-> **Catatan penyuntingan:** sensor sebagian token Portal Klien, alamat email
-> pribadi, dan nama klien nyata pada semua screenshot yang akan dipublikasikan.
+> **Catatan penyuntingan (WAJIB, tidak berubah):** sebelum publikasi, sensor
+> sebagian **token Portal Klien**, alamat **email pribadi**, **nomor telepon**,
+> **link aset privat** (Google Drive/Canva klien asli), **nama akun media sosial
+> asli**, dan **session/CSRF token** kalau sampai terekam dari dev tools.
+> **Nama klien** hanya boleh tampil setelah dikonfirmasi boleh dipublikasikan —
+> lihat "Checklist Keamanan Data Dokumentasi" untuk daftar lengkap 10 item.
 
 ---
 
@@ -2663,7 +2927,7 @@ client asli manapun, sebelum screenshot final diambil.
 | **Rencana Konten** | Daftar konten yang direncanakan satu klien untuk satu bulan |
 | **Produksi** | Papan alur pengerjaan konten dari siap dikerjakan sampai tayang |
 | **Performa Tim** | Beban kerja & kehadiran anggota tim |
-| **Kelola Pengguna** | Pengelolaan anggota tim (judul halamannya tertulis "Kelola Tim") |
+| **Kelola Pengguna** | Pengelolaan anggota tim (menu, judul halaman, dan tab peramban semuanya memakai istilah ini) |
 | **Kelola Klien** | Pengelolaan data klien & paketnya |
 | **Laporan** | Pembuatan berkas PDF/Excel untuk dikirim ke klien |
 | **Pengaturan** | Data pilihan, integrasi, dan info akun |
@@ -2737,25 +3001,33 @@ client asli manapun, sebelum screenshot final diambil.
 | **Perbarui dari Diskusi (Refine)** | Menyusun ulang analisis berdasarkan percakapan |
 | **Kembalikan (Revert brief)** | Undo satu langkah perubahan pada brief |
 | **Skor Risiko Keterlambatan** | Prediksi 0–100 seberapa berisiko konten ini telat |
-| **Kelayakan (Feasibility)** | Penilaian AI apakah brief realistis dikerjakan. ⚠️ Saat ini tidak dapat dipercaya (KI-07) |
+| **Kelayakan (Feasibility)** | Penilaian AI apakah brief realistis dikerjakan, membandingkan tanggal posting brief dengan deadline & beban PIC minggu itu |
 
-## ⚠️ Istilah yang harus DIBAKUKAN di buku
+## ✅ Istilah baku (KI-17 sudah diperbaiki di aplikasi)
 
-Aplikasi masih memakai istilah berbeda untuk hal yang sama. **Buku harus memilih
-satu**, dan konsisten sepanjang dokumen:
+Aplikasi **sudah** diselaraskan lewat sweep terminologi menyeluruh — istilah
+lama di kolom tengah tidak lagi muncul di UI. Tabel ini sekarang berfungsi
+sebagai **pengingat historis + rujukan cepat**; rujukan lengkap dan otoritatif
+ada di section **"Terminologi Resmi untuk Dokumentasi"** di atas.
 
-| Konsep | Muncul sebagai | **Pakai istilah ini** |
+| Konsep | Istilah lama yang sudah TIDAK dipakai lagi | **Pakai istilah ini** |
 |---|---|---|
-| Menu pengelolaan tim | "Kelola Pengguna" (menu) / "Kelola Tim" (judul) | **Kelola Pengguna** |
-| Menu analitik | "Performa" (menu) / "Performa Konten" (judul) / `analytics` (URL) | **Performa** |
-| Menu perencanaan | "Rencana Konten" (menu) / "Rencana Konten Bulanan" (judul) / "Content Plan Bulanan" (tab peramban) | **Rencana Konten** |
-| Menu laporan | "Laporan" (menu & judul) / "Report Generator" (tab peramban) | **Laporan** |
-| Menu pengaturan | "Pengaturan" (menu & judul) / "Settings" (tab peramban) | **Pengaturan** |
-| Halaman revisi | "Revisi" (tab) / "Revision Log" (halaman lama) | **Produksi → tab Revisi** |
-| Halaman publikasi | "Sudah Tayang" (tab) / "Publishing Tracker" (halaman lama) | **Produksi → tab Sudah Tayang** |
-| Post belum terhubung | "Unmatched Instagram Media" / "Unmatched TikTok Video" | **Post Belum Tertaut** |
-| Data referensi | "Data Pilihan" (tab) / "Master Data" (istilah lama di kode) | **Data Pilihan** |
-| Penanggung jawab | "PIC" / "Penanggung Jawab" | **Penanggung Jawab (PIC)** — sebut keduanya sekali, lalu pakai PIC |
+| Menu pengelolaan tim | "Kelola Tim" (judul lama) | **Kelola Pengguna** |
+| Menu analitik | "Performa Konten" sebagai judul halaman, `analytics` (URL internal) | **Performa** |
+| Menu perencanaan | "Rencana Konten Bulanan", "Content Plan Bulanan" (tab peramban lama) | **Rencana Konten** |
+| Menu laporan | "Report Generator" (tab peramban lama) | **Laporan** |
+| Menu pengaturan | "Settings" (tab peramban lama) | **Pengaturan** |
+| Halaman revisi | "Revision Log" (route lama, sekarang redirect) | **Produksi → tab Revisi** |
+| Halaman publikasi | "Publishing Tracker" (route lama, sekarang redirect) | **Produksi → tab Sudah Tayang** |
+| Post belum terhubung | "Unmatched Instagram Media" / "Unmatched TikTok Video" — nama teknis per platform, sengaja dipertahankan di UI | **Post Belum Tertaut** (istilah buku) |
+| Data referensi | "Master Data" (istilah kode) | **Data Pilihan** |
+| Penanggung jawab | "PIC" saja tanpa penjelasan | **Penanggung Jawab (PIC)** — sebut keduanya sekali, lalu pakai PIC |
+
+> Satu-satunya istilah yang sengaja **tidak** disamakan: nama teknis per platform
+> ("Unmatched Instagram Media" vs "Unmatched TikTok Video"), istilah data
+> analitik (Views, Engagement Rate, Reach, dst), nama produk AI (AI Brief, AI
+> Strategy), dan nama platform/format (Instagram, TikTok, CSV, OAuth, PDF).
+> Itu bukan inkonsistensi.
 
 ---
 
@@ -2780,7 +3052,7 @@ BAGIAN I — ORIENTASI
 BAGIAN II — CARA MEMULAI
   3. Masuk ke sistem
      3.1 Masuk dengan akun Google
-     3.2 Kalau tidak bisa masuk                        [terkait KI-06]
+     3.2 Kalau tidak bisa masuk
   4. Hari pertama Anda
      4.1 Check-in & check-out
      4.2 Membaca Beranda & Langkah Berikutnya
@@ -2811,20 +3083,24 @@ BAGIAN V — TUTORIAL BERDASARKAN PEKERJAAN   (isi utama buku)
   15. Mengelola klien
       15.1 Menambahkan klien baru
       15.2 Menentukan paket
-      15.3 Menugaskan tim ke klien                     [KI-05: jalur alternatif]
+      15.3 Menugaskan tim ke klien  (dua jalur: Detail Klien & Kelola Pengguna)
       15.4 ★ Onboarding klien baru dari nol sampai siap
   16. Menghubungkan media sosial klien
       16.1 Instagram   16.2 TikTok   16.3 Sinkronisasi & verifikasi
+      16.4 Alternatif tanpa API: Import CSV Performa
+      ⚠ Kotak peringatan: koneksi hanya berhasil untuk akun yang sudah
+        terdaftar sebagai penguji selama App Review belum selesai
+                                                       [EXTERNAL_BLOCKED]
   17. Merencanakan konten
       17.1 Membuat Rencana Konten
-      17.2 Menambahkan konten                          [KI-01: TUNDA]
+      17.2 Menambahkan konten
       17.3 Mengajukan & menyetujui
-      17.4 Permintaan mendadak                         [KI-02: TUNDA]
+      17.4 Kalau rencana ditolak: memperbaiki & mengajukan ulang
+      17.5 Permintaan mendadak (Jobdesk Tambahan)
   18. Menyusun brief
       18.1 Membuat brief dengan AI
       18.2 Berdiskusi & mengedit manual
       18.3 Menerapkan ke tim produksi
-      ⚠ Peringatan: selalu periksa Tanggal Mulai & Posting  [KI-07]
   19. Mengerjakan & menyelesaikan konten
   20. Revisi & persetujuan
   21. Menjadwalkan & mencatat publikasi
@@ -2833,6 +3109,9 @@ BAGIAN V — TUTORIAL BERDASARKAN PEKERJAAN   (isi utama buku)
       23.1 Apa yang hanya rekomendasi, apa yang benar-benar mengubah sistem
   24. Membuat laporan untuk klien
   25. Mengelola tim
+      25.1 Mengundang anggota baru
+      25.2 Role, status akun, dan akses login (tiga hal berbeda)
+      25.3 Menonaktifkan & memindahkan tugas
   26. Pengaturan & Data Pilihan
 
 BAGIAN VI — PORTAL KLIEN                    (bisa dicetak terpisah)
@@ -2847,21 +3126,25 @@ BAGIAN VI — PORTAL KLIEN                    (bisa dicetak terpisah)
 
 BAGIAN VII — TROUBLESHOOTING
   29. Masalah akses
-      "Tidak bisa masuk"                               [KI-06]
+      "Tidak bisa masuk"           → akses login belum diaktifkan,
+                                     status akun nonaktif, atau email
+                                     Google berbeda
       "Halaman saya kosong"        → belum di-assign ke klien
       "Tidak punya akses ke halaman ini"
+      "Angka Dashboard saya beda dengan rekan saya"  → client scope
   30. Masalah data
-      "Data performa tidak muncul"                     [KI-14]
-      "Sync ditekan tapi tidak terjadi apa-apa"        [KI-14]
+      "Data performa tidak muncul" → belum sync, post belum tertaut, atau
+                                     proses otomatis di server tidak jalan
+      "Sync ditekan tapi tidak terjadi apa-apa"  → hubungi administrator
       "Post tidak muncul di Performa"  → Post Belum Tertaut
       "Link portal klien tidak bisa dibuka"
   31. Keterbatasan yang diketahui
-      31.1 Tidak ada posting langsung ke media sosial  [KI-18]
+      31.1 Tidak ada posting langsung ke media sosial  [OUT_OF_SCOPE]
       31.2 Data TikTok lebih terbatas dari Instagram
       31.3 Tidak ada koreksi absensi manual
-      31.4 Rencana yang ditolak tidak bisa diajukan ulang  [KI-13]
-      31.5 Tanggal pada brief AI                       [KI-07]
-      31.6 Fitur yang sedang diperbaiki                [KI-01…KI-05]
+      31.4 Koneksi Instagram/TikTok menunggu izin platform
+                                                       [EXTERNAL_BLOCKED]
+      31.5 Skor Risiko Keterlambatan adalah perkiraan, bukan kepastian
 
 BAGIAN VIII — LAMPIRAN
   A. Glosarium
@@ -2883,8 +3166,12 @@ BAGIAN VIII — LAMPIRAN
    Tulis "Content Creator dan Desain Grafis dapat memperbarui status pekerjaan
    pada klien yang ditugaskan kepada mereka", bukan "dibutuhkan
    `workflow.update`". Tabel permission teknis cukup di Lampiran B.
-5. **Beri tanda jelas pada fitur bermasalah** dengan kotak peringatan, jangan
-   disembunyikan. Pengguna lebih percaya buku yang jujur soal keterbatasan.
+5. **Beri tanda jelas pada keterbatasan** dengan kotak peringatan, jangan
+   disembunyikan. Pengguna lebih percaya buku yang jujur. Bedakan tegas tiga
+   jenis keterbatasan: **di luar cakupan by design** (tidak ada posting
+   langsung), **menunggu izin platform** (Instagram/TikTok), dan **butuh
+   konfigurasi server** (proses otomatis). Tidak ada lagi kategori "fitur
+   sedang rusak" — per Final Pre-Merge Verification, tidak ada yang tersisa.
 6. **Bagian VI bisa dicetak/dikirim terpisah** ke klien — jangan campur dengan
    isi internal.
 7. **Konsisten pada istilah baku** di tabel Bagian 25.
@@ -2893,13 +3180,25 @@ BAGIAN VIII — LAMPIRAN
 
 | Tahap | Isi | Kenapa |
 |---|---|---|
-| **1** | Bagian I, II, III, VI, VII | Semuanya `READY` atau terdokumentasi baik; bisa langsung dikerjakan sekarang |
+| **1** | Bagian I, II, III, VI, VII | Semuanya `READY`; jantung buku, kerjakan lebih dulu |
 | **2** | Bagian IV (panduan per role) | Butuh Bagian III selesai lebih dulu |
-| **3** | Bagian V bab 15, 17.1, 17.3, 19–21, 24–26 | Bergantung sebagian pada perbaikan KI-03 |
-| **4** | Bagian V bab 16, 22, 23 | Tunggu verifikasi runtime integrasi & analytics |
-| **5** | Bagian V bab 17.2, 17.4, 18 | **Tunggu perbaikan KI-01, KI-02, KI-03, KI-07** |
+| **3** | Bagian V bab 15, 17, 18, 19–21, 22–26 | Seluruhnya `READY` — tidak ada lagi yang menunggu perbaikan |
+| **4** | Bagian V bab 16 (Instagram/TikTok) | `EXTERNAL_BLOCKED` — teks prosedur boleh ditulis sekarang; **screenshot kondisi "Terhubung" menunggu** akun tester berhasil connect |
+
+**Tidak ada tahap 5.** Di rencana sebelumnya tahap 5 berisi bab yang menunggu
+perbaikan KI-01/KI-02/KI-03/KI-07 — keempatnya sudah selesai.
 
 ---
 
-*Akhir dokumen. Disusun dari audit read-only commit `d637369` pada 26 Agustus
-2026. Tidak ada satu baris kode pun yang diubah dalam proses audit ini.*
+*Akhir dokumen.*
+
+*Riwayat dokumen: disusun dari audit read-only commit `d637369` (26 Agustus
+2026), lalu di-re-audit setelah sprint stabilisasi, lalu direkonsiliasi penuh
+setelah **Final Pre-Merge Verification** — semua status, daftar prosedur,
+rencana screenshot, dan struktur buku di atas merepresentasikan kondisi
+aplikasi setelah verifikasi tersebut (148 test, 363 assertion, 0 failed,
+0 skipped). Bagian yang masih menggambarkan kondisi lama diberi label
+**HISTORIS — KONDISI SEBELUM STABILISASI** secara eksplisit.*
+
+*Rekonsiliasi ini bersifat dokumentasi saja: tidak ada perubahan pada kode
+aplikasi, test, route, atau konfigurasi.*
