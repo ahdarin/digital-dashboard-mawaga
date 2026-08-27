@@ -25,7 +25,7 @@ class UserInvitationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Undangan Bergabung ke 523 Studio',
+            subject: 'Selamat Datang di 523 Studio',
         );
     }
 
@@ -35,7 +35,7 @@ class UserInvitationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.user-invitation',
+            view: 'emails.user-invitation',
         );
     }
 

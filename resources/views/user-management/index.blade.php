@@ -93,41 +93,93 @@
                             </td>
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-end gap-1">
-                                    <button type="button" @click="editRoles = {{ $user->id }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Edit Role">
-                                        <span class="material-symbols-outlined text-[17px]">work</span>
-                                    </button>
-                                    <button type="button" @click="openAssign = {{ $user->id }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Assign Klien">
-                                        <span class="material-symbols-outlined text-[17px]">assignment_ind</span>
+
+                                    {{-- Edit Role --}}
+                                    <button
+                                        type="button"
+                                        @click="editRoles = {{ $user->id }}"
+                                        class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                            text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
+                                            hover:text-[var(--brand)] transition-colors"
+                                        title="Edit Role"
+                                        aria-label="Edit Role"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                            work
+                                        </span>
                                     </button>
 
-                                    {{-- KI-06 - satu-satunya tombol buat mengaktifkan/mencabut akses
-                                         login (login_enabled), terpisah dari status aktif/nonaktif di
-                                         bawah. Disembunyikan untuk user nonaktif - aktifkan dulu
-                                         statusnya sebelum mengatur akses login. --}}
+                                    {{-- Assign Klien --}}
+                                    <button
+                                        type="button"
+                                        @click="openAssign = {{ $user->id }}"
+                                        class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                            text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
+                                            hover:text-[var(--brand)] transition-colors"
+                                        title="Assign Klien"
+                                        aria-label="Assign Klien"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                            assignment_ind
+                                        </span>
+                                    </button>
+
+                                    {{-- Akses Login --}}
                                     @if ($user->status !== 'inactive')
-                                        <form action="{{ route('user-management.toggle-login-access', $user) }}" method="POST">
-                                            @csrf @method('PATCH')
-                                            <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors"
-                                                    title="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}">
-                                                <span class="material-symbols-outlined text-[17px]">{{ $user->login_enabled ? 'no_accounts' : 'login' }}</span>
+                                        <form
+                                            action="{{ route('user-management.toggle-login-access', $user) }}"
+                                            method="POST"
+                                            class="w-8 h-8 shrink-0 flex items-center justify-center m-0 p-0"
+                                        >
+                                            @csrf
+                                            @method('PATCH')
+
+                                            <button
+                                                type="submit"
+                                                class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                                    text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
+                                                    hover:text-[var(--brand)] transition-colors"
+                                                title="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}"
+                                                aria-label="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}"
+                                            >
+                                                <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                                    {{ $user->login_enabled ? 'no_accounts' : 'login' }}
+                                                </span>
                                             </button>
                                         </form>
                                     @endif
 
+                                    {{-- Aktifkan / Nonaktifkan User --}}
                                     @if ($user->status === 'inactive')
-                                        <button type="button" @click="confirmActivate = {{ $user->id }}"
-                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--success-tint)] hover:text-[var(--success-text)] transition-colors" title="Aktifkan">
-                                            <span class="material-symbols-outlined text-[17px]">restart_alt</span>
+                                        <button
+                                            type="button"
+                                            @click="confirmActivate = {{ $user->id }}"
+                                            class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                                text-[var(--text-muted)] hover:bg-[var(--success-tint)]
+                                                hover:text-[var(--success-text)] transition-colors"
+                                            title="Aktifkan"
+                                            aria-label="Aktifkan user"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                                restart_alt
+                                            </span>
                                         </button>
                                     @else
-                                        <button type="button" @click="confirmDeactivate = {{ $user->id }}"
-                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" title="Nonaktifkan">
-                                            <span class="material-symbols-outlined text-[17px]">toggle_off</span>
+                                        <button
+                                            type="button"
+                                            @click="confirmDeactivate = {{ $user->id }}"
+                                            class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                                text-[var(--text-muted)] hover:bg-[var(--danger-tint)]
+                                                hover:text-[var(--danger-text)] transition-colors"
+                                            title="Nonaktifkan"
+                                            aria-label="Nonaktifkan user"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                                toggle_off
+                                            </span>
                                         </button>
                                     @endif
+
                                 </div>
                             </td>
                         </tr>
