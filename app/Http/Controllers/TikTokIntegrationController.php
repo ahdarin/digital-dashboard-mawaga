@@ -54,7 +54,11 @@ class TikTokIntegrationController extends Controller
         // Disimpan di session, dipakai lagi saat exchange code di callback().
         $codeVerifier = Str::random(64);
         session(['tiktok_oauth_code_verifier' => $codeVerifier]);
-        $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+        // TikTok Login Kit Desktop mewajibkan code_challenge sebagai HEX SHA256
+        // (bukan Base64URL standar RFC 7636) - encoding RFC-style sebelumnya
+        // menghasilkan "Code verifier or code challenge is invalid." dari
+        // TikTok. Lihat dokumentasi resmi TikTok for Developers.
+        $codeChallenge = hash('sha256', $codeVerifier);
 
         $query = http_build_query([
             'client_key' => config('services.tiktok.client_key'),
