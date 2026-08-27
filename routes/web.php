@@ -15,7 +15,6 @@ use App\Http\Controllers\ContentPublicationController;
 use App\Http\Controllers\TeamPerformanceController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserClientAssignmentController;
-use App\Console\Commands\UpdateOverdueContentItems;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\InstagramIntegrationController;
@@ -33,7 +32,6 @@ use App\Http\Controllers\MasterDataController;
 use App\Http\Controllers\PackageTemplateController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\PreferencesController;
-use Illuminate\Support\Facades\Schedule;
 use App\Services\AiStrategyService;
 
 Route::get('/', function () {
@@ -395,5 +393,3 @@ Route::middleware('client.portal')->prefix('/portal/{token}')->group(function ()
     Route::post('/approval/{contentItem}/approve', [ApprovalController::class, 'approve'])->name('client.portal.approval.approve');
     Route::post('/approval/{contentItem}/request-revision', [ApprovalController::class, 'requestRevision'])->name('client.portal.approval.request-revision');
 });
-
-Schedule::command(UpdateOverdueContentItems::class)->hourly();

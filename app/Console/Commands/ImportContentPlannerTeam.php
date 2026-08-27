@@ -253,10 +253,11 @@ class ImportContentPlannerTeam extends Command
     {
         $created = 0;
         $existing = 0;
+        $backfilled = 0;
         $skippedInvalid = 0;
         $skippedConflict = 0;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($rows, &$created, &$existing, &$skippedInvalid, &$skippedConflict) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($rows, &$created, &$existing, &$backfilled, &$skippedInvalid, &$skippedConflict) {
             foreach ($rows as $r) {
                 if ($r['classification'] === 'INVALID_ROW') {
                     $skippedInvalid++;
@@ -277,9 +278,11 @@ class ImportContentPlannerTeam extends Command
                 // sama, bukan dibuatkan record baru. Staff baru dari GUIDE
                 // dibuat dengan login_enabled=false (bukan dummy - ini
                 // person real, cuma belum diberi akses login).
-                $user = User::firstOrCreate(
-                    ['email' => $r['email']],
-                    [
+                $user = User::where('email', $r['email'])->first();
+
+                if ($user === null) {
+                    $user = User::create([
+                        'email' => $r['email'],
                         'name' => $r['name'],
                         // 'active' - orang GUIDE ini staf real yang sedang
                         // bekerja, cuma belum diberi akses login. 'inactive'
@@ -289,13 +292,29 @@ class ImportContentPlannerTeam extends Command
                         'login_enabled' => false,
                         'source' => self::IMPORT_SOURCE,
                         'external_reference' => $r['external_reference'],
-                    ]
-                );
-
-                if ($user->wasRecentlyCreated) {
+                    ]);
                     $created++;
                 } else {
                     $existing++;
+
+                    // Idempotent backfill-only path buat User yang sudah ada
+                    // (baik dari run sebelumnya atau match natural by email):
+                    // JANGAN overwrite name atau login_enabled - itu identity/
+                    // access existing yang mungkin sudah dikelola manual di
+                    // luar GUIDE. Cuma isi provenance yang masih kosong,
+                    // supaya command ini aman dijalankan berkali-kali tanpa
+                    // merusak state yang sudah benar.
+                    $fill = [];
+                    if ($user->source === null) {
+                        $fill['source'] = self::IMPORT_SOURCE;
+                    }
+                    if ($user->external_reference === null) {
+                        $fill['external_reference'] = $r['external_reference'];
+                    }
+                    if ($fill !== []) {
+                        $user->fill($fill)->save();
+                        $backfilled++;
+                    }
                 }
 
                 foreach ($r['client_ids'] as $clientId) {
@@ -310,6 +329,7 @@ class ImportContentPlannerTeam extends Command
         $this->info('=== REAL IMPORT SELESAI ===');
         $this->line("User dibuat: {$created}");
         $this->line("User sudah ada sebelumnya (matched by email): {$existing}");
+        $this->line("  - dari jumlah itu, provenance di-backfill (source/external_reference sebelumnya NULL): {$backfilled}");
         $this->line("Dilewati (invalid row): {$skippedInvalid}");
         $this->line("Dilewati (email conflict, perlu review manual): {$skippedConflict}");
     }
