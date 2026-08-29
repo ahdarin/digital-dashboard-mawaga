@@ -1237,8 +1237,7 @@ ekspektasi yang sangat sering keliru.
 
 **Status klien:** Aktif · Menunggak (`past_due`) · Dijeda (`paused`)
 
-**Data klien:** Nama, Nama Brand, Kategori Klien, Logo (maks 2 MB), Link Aset,
-Status.
+**Data klien:** Nama, Kategori Klien, Logo (maks 2 MB), Link Aset, Status.
 
 ### Catatan penting soal Hapus Klien
 
@@ -1300,7 +1299,7 @@ berbeda dari dugaan awal di beberapa titik — perhatikan catatan di tiap langka
 |---|---|
 | Penanggung jawab | CEO / Manager |
 | Menu | Kelola Klien → **Tambah Klien** |
-| Data | Nama, Nama Brand, Kategori, Logo (opsional), Link Aset (opsional), **Paket (opsional, bisa langsung di sini)** |
+| Data | Nama, Kategori, Logo (opsional), Link Aset (opsional), **Paket (opsional, bisa langsung di sini)** |
 | Tindakan | Isi form → Simpan |
 | Indikator berhasil | Diarahkan ke halaman Detail Klien, muncul pesan *"Klien berhasil dibuat. Link Portal Klien telah tersedia."* |
 | Kemungkinan error | Logo >2 MB, format link aset bukan URL valid |

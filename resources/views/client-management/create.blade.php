@@ -49,18 +49,11 @@
                 </div>
 
                 <div>
-                    <label for="name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Perusahaan <span class="text-[var(--danger-text)]">*</span></label>
-                    <input id="name" type="text" name="name" value="{{ old('name') }}" required placeholder="PT Contoh Sejahtera"
+                    <label for="name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Klien <span class="text-[var(--danger-text)]">*</span></label>
+                    <input id="name" type="text" name="name" value="{{ old('name') }}" required placeholder="Contoh Coffee"
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('name') border-[var(--danger-border-strong)] @enderror">
-                    @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label for="brand_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Brand <span class="text-[var(--danger-text)]">*</span></label>
-                    <input id="brand_name" type="text" name="brand_name" value="{{ old('brand_name') }}" required placeholder="Contoh Coffee"
-                           class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('brand_name') border-[var(--danger-border-strong)] @enderror">
                     <p class="text-xs text-[var(--text-muted)] mt-1.5">Nama ini yang akan tampil di seluruh dashboard &amp; laporan.</p>
-                    @error('brand_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
+                    @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
 
                 <div>

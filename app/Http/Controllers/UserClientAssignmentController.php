@@ -54,7 +54,7 @@ class UserClientAssignmentController extends Controller
         $this->sync(['client_id' => $client->id], 'user_id', $userIds);
 
         return redirect()->route('client-management.show', $client)
-            ->with('status', "PIC untuk {$client->brand_name} berhasil diperbarui.");
+            ->with('status', "PIC untuk {$client->name} berhasil diperbarui.");
     }
 
     /**
@@ -86,8 +86,8 @@ class UserClientAssignmentController extends Controller
         UserClientAssignment::where('client_id', $client->id)->where('user_id', $user->id)->delete();
 
         $message = $activeCount > 0
-            ? "{$user->name} dikeluarkan dari PIC {$client->brand_name}. {$activeCount} tugas aktif dipindahkan ke {$replacement->name}."
-            : "{$user->name} dikeluarkan dari PIC {$client->brand_name}.";
+            ? "{$user->name} dikeluarkan dari PIC {$client->name}. {$activeCount} tugas aktif dipindahkan ke {$replacement->name}."
+            : "{$user->name} dikeluarkan dari PIC {$client->name}.";
 
         return redirect()->route('client-management.show', $client)->with('status', $message);
     }

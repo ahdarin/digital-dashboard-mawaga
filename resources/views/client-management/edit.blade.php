@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Edit ' . $client->brand_name)
+@section('title', 'Edit ' . $client->name)
 @section('content')
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
@@ -9,7 +9,7 @@
            class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-secondary)] transition-colors">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
-        <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">Edit {{ $client->brand_name }}</h1>
+        <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">Edit {{ $client->name }}</h1>
     </div>
 
     <form action="{{ route('client-management.update', $client) }}" method="POST" enctype="multipart/form-data" class="space-y-5">
@@ -31,10 +31,10 @@
                                 <img :src="preview" alt="" class="w-full h-full object-cover">
                             </template>
                             <template x-if="!preview && !remove && '{{ $client->logo_url }}'">
-                                <img src="{{ $client->logo_url }}" alt="Logo {{ $client->brand_name }}" class="w-full h-full object-cover">
+                                <img src="{{ $client->logo_url }}" alt="Logo {{ $client->name }}" class="w-full h-full object-cover">
                             </template>
                             <template x-if="!preview && (remove || !'{{ $client->logo_url }}')">
-                                <span class="text-[var(--brand)] text-lg font-semibold">{{ strtoupper(substr($client->brand_name, 0, 1)) }}</span>
+                                <span class="text-[var(--brand)] text-lg font-semibold">{{ strtoupper(substr($client->name, 0, 1)) }}</span>
                             </template>
                         </div>
                         <div>
@@ -56,17 +56,10 @@
                 </div>
 
                 <div>
-                    <label for="name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Perusahaan</label>
+                    <label for="name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Klien</label>
                     <input id="name" type="text" name="name" value="{{ old('name', $client->name) }}" required
                            class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('name') border-[var(--danger-border-strong)] @enderror">
                     @error('name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
-                </div>
-
-                <div>
-                    <label for="brand_name" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Nama Brand</label>
-                    <input id="brand_name" type="text" name="brand_name" value="{{ old('brand_name', $client->brand_name) }}" required
-                           class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3.5 py-2.5 text-sm placeholder:text-[var(--text-idle)] focus:outline-none focus:border-[#044b46]/40 @error('brand_name') border-[var(--danger-border-strong)] @enderror">
-                    @error('brand_name') <p class="text-[var(--danger-text)] text-xs mt-1.5">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -31,7 +31,6 @@ class BriefGenerationDateTest extends TestCase
         $client = Client::create([
             'client_category_id' => $category->id,
             'name' => 'Test Client '.uniqid(),
-            'brand_name' => 'Test Brand',
             'status' => 'active',
         ]);
         $contentType = ContentType::firstOrCreate(['name' => 'Video']);

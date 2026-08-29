@@ -218,7 +218,7 @@
                                                                class="rounded border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
                                                         <div>
                                                             <p class="text-sm font-medium text-[var(--text-primary)]">{{ $client->name }}</p>
-                                                            <p class="text-xs text-[var(--text-muted)]">{{ $client->brand_name }}</p>
+                                                            <p class="text-xs text-[var(--text-muted)]">{{ $client->name }}</p>
                                                         </div>
                                                     </label>
                                                 @empty

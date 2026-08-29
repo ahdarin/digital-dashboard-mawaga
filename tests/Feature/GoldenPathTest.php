@@ -68,7 +68,6 @@ class GoldenPathTest extends TestCase
         return Client::create([
             'client_category_id' => $category->id,
             'name' => 'Test Client '.uniqid(),
-            'brand_name' => 'Test Brand',
             'status' => 'active',
         ]);
     }
@@ -93,7 +92,6 @@ class GoldenPathTest extends TestCase
         $category = ClientCategory::firstOrCreate(['name' => 'UMKM']);
         $storeClient = $this->actingAs($manager)->post(route('client-management.store'), [
             'name' => 'Golden Path Client',
-            'brand_name' => 'Golden Brand',
             'client_category_id' => $category->id,
         ]);
         $storeClient->assertRedirect();

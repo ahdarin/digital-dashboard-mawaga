@@ -25,7 +25,7 @@ class ContentRevision extends Model
      */
     public function requestedByLabel(): string
     {
-        return $this->requestedByClient?->brand_name
+        return $this->requestedByClient?->name
             ?? $this->requestedByUser?->name
             ?? '-';
     }

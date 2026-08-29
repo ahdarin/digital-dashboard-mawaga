@@ -197,43 +197,42 @@ class DemoSeeder extends Seeder
         // itu bikin AI Strategy Analysis nyaranin sampe 40 ide konten/bulan
         // - kejauhan dari paket riil yang kebanyakan 9-12 konten/bulan).
         //
-        // 'brand_name' eksplisit (bukan auto-ambil kata pertama dari 'name')
-        // karena beberapa nama client diawali badan hukum ("PT ...") yang
-        // bukan brand name aslinya. 'brief_context' dipakai sebagai brief
+        // Satu field nama saja (keputusan pemilik produk, Agustus 2026 -
+        // name/brand_name dulu terpisah supaya nama badan hukum "PT ..."
+        // tidak ikut tampil di UI, tapi dua field bikin bingung saat
+        // menambah client baru; dalam proses bisnis 523 Studio satu client
+        // cuma punya satu nama). Nilai di sini yang dipakai adalah nama
+        // yang SELAMA INI tampil ke user (dulu brand_name), bukan nama
+        // badan hukum lengkapnya. 'brief_context' dipakai sebagai brief
         // content item biar nggak generik "Dummy brief" - ngikutin fokus
         // visual/komunikasi asli tiap client.
         $clientDefs = [
             [
-                'name' => 'Yasmin International Boarding School',
-                'brand_name' => 'Yasmin IBS',
+                'name' => 'Yasmin IBS',
                 'brief_context' => 'Visual identity dan materi promosi Yasmin International Boarding School, mengkomunikasikan citra terpercaya dan modern untuk calon siswa dan orang tua.',
                 'package' => ['name' => 'Paket Institusi', 'content_quota' => 10, 'design_quota' => 8],
                 'category' => 'Korporat',
             ],
             [
-                'name' => 'PT Guna Griya Abadi',
-                'brand_name' => 'Guna Griya Abadi',
+                'name' => 'Guna Griya Abadi',
                 'brief_context' => 'Visual identity dan materi promosi perumahan yang dijual oleh PT Guna Griya Abadi.',
                 'package' => ['name' => 'Paket Korporat', 'content_quota' => 8, 'design_quota' => 10],
                 'category' => 'Korporat',
             ],
             [
                 'name' => 'LuxSuits',
-                'brand_name' => 'LuxSuits',
                 'brief_context' => 'Visual promotional design untuk LuxSuits, brand formal-wear rental, yang mengkomunikasikan citra premium dan elegan - komposisi minimalis dengan kontras kuat untuk menonjolkan nilai produk formal wear.',
                 'package' => ['name' => 'Paket Premium', 'content_quota' => 6, 'design_quota' => 10],
                 'category' => 'Retail',
             ],
             [
-                'name' => 'Top Scorer Arena',
-                'brand_name' => 'Top Scorer',
+                'name' => 'Top Scorer',
                 'brief_context' => 'Eksplorasi visual high-energy untuk bisnis mini soccer Top Scorer Arena, menjaga identitas sport yang kuat dan dinamis secara konsisten lintas platform media sosial.',
                 'package' => ['name' => 'Paket Dinamis', 'content_quota' => 14, 'design_quota' => 4],
                 'category' => 'UMKM',
             ],
             [
                 'name' => 'FTI UNAND',
-                'brand_name' => 'FTI UNAND',
                 'brief_context' => 'Materi visual akademik untuk Fakultas Teknologi Informasi, Universitas Andalas, menyeimbangkan informasi yang padat lewat layout yang bersih dan terstruktur.',
                 'package' => ['name' => 'Paket Akademik', 'content_quota' => 6, 'design_quota' => 12],
                 'category' => 'Korporat',
@@ -249,7 +248,6 @@ class DemoSeeder extends Seeder
                 ['name' => $def['name']],
                 [
                     'client_category_id' => $clientCategory->id,
-                    'brand_name' => $def['brand_name'],
                     'status' => 'active',
                 ]
             );
@@ -357,7 +355,7 @@ class DemoSeeder extends Seeder
                     'content_pillar_id' => $pillars->random()->id,
                     'content_type_id' => $contentType->id,
                     'platform_id' => $platform->id,
-                    'title' => $client->brand_name.' - '.$contentType->name.' #'.($i + 1),
+                    'title' => $client->name.' - '.$contentType->name.' #'.($i + 1),
                     'brief' => $briefContext,
                     'deadline_at' => $deadline,
                     'is_posted' => $isPosted,
@@ -772,8 +770,8 @@ class DemoSeeder extends Seeder
 
         // ===== Notifications =====
         $notifTemplates = [
-            ['title' => 'Trend Detected', 'type' => 'ai_insight', 'body' => 'Konten '.$clients->first()->brand_name.' tampil 45% di atas rata-rata minggu ini.'],
-            ['title' => 'Performa Turun', 'type' => 'ai_insight', 'body' => 'Konten Video di '.$clients->last()->brand_name.' turun 55% dari rata-rata 30 hari terakhir.'],
+            ['title' => 'Trend Detected', 'type' => 'ai_insight', 'body' => 'Konten '.$clients->first()->name.' tampil 45% di atas rata-rata minggu ini.'],
+            ['title' => 'Performa Turun', 'type' => 'ai_insight', 'body' => 'Konten Video di '.$clients->last()->name.' turun 55% dari rata-rata 30 hari terakhir.'],
             ['title' => 'Task Assigned', 'type' => 'task', 'body' => 'Kamu ditugaskan untuk review Content Plan bulan ini.'],
             ['title' => 'Export Complete', 'type' => 'system', 'body' => 'Laporan analytics mingguan berhasil diexport.'],
             ['title' => 'David Chen', 'type' => 'mention', 'body' => 'Menyebut kamu di komentar revisi konten.'],

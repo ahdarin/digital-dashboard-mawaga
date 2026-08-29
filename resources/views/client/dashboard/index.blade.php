@@ -10,12 +10,12 @@
                 @if ($client->logo_url)
                     <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                 @else
-                    {{ strtoupper(substr($client->brand_name, 0, 1)) }}
+                    {{ strtoupper(substr($client->name, 0, 1)) }}
                 @endif
             </div>
             <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <h1 class="font-display text-lg sm:text-xl font-semibold text-[var(--text-primary)] truncate">{{ $client->brand_name }}</h1>
+                    <h1 class="font-display text-lg sm:text-xl font-semibold text-[var(--text-primary)] truncate">{{ $client->name }}</h1>
                     <span class="text-[10px] font-bold px-2 py-1 rounded uppercase shrink-0
                         {{ $client->status === 'active' ? 'text-[var(--success-text)] bg-[var(--success-tint)]' : ($client->status === 'past_due' ? 'text-[var(--danger-text)] bg-[var(--danger-tint)]' : 'text-[var(--text-secondary)] bg-[var(--surface-muted)]') }}">
                         {{ match($client->status) { 'active' => 'Aktif', 'past_due' => 'Jatuh Tempo', 'paused' => 'Dijeda', default => ucfirst($client->status) } }}

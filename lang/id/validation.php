@@ -173,7 +173,6 @@ return [
     'attributes' => [
         'title' => 'judul',
         'name' => 'nama',
-        'brand_name' => 'nama brand',
         'brief' => 'brief',
         'email' => 'email',
         'phone_number' => 'nomor WhatsApp',

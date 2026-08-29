@@ -38,11 +38,11 @@
             @forelse ($assignedClients as $client)
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-full bg-[var(--brand-tint)] text-[var(--brand)] text-xs font-semibold flex items-center justify-center shrink-0">
-                        {{ strtoupper(substr($client->brand_name, 0, 1)) }}
+                        {{ strtoupper(substr($client->name, 0, 1)) }}
                     </div>
                     <div>
                         <p class="text-xs font-semibold text-[var(--text-primary)]">{{ $client->name }}</p>
-                        <p class="text-[10px] text-[var(--text-muted)]">{{ $client->brand_name }}</p>
+                        <p class="text-[10px] text-[var(--text-muted)]">{{ $client->name }}</p>
                     </div>
                 </div>
             @empty

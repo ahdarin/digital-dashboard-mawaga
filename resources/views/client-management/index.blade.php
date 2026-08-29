@@ -61,11 +61,11 @@
                                     @if ($client->logo_url)
                                         <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                                     @else
-                                        {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
+                                        {{ strtoupper(substr($client->name, 0, 1)) }}
                                     @endif
                                 </div>
                                 <div>
-                                    <p class="font-medium text-[var(--text-primary)]">{{ $client->brand_name }}</p>
+                                    <p class="font-medium text-[var(--text-primary)]">{{ $client->name }}</p>
                                     <p class="text-xs text-[var(--text-muted)]">{{ $client->category->name ?? '-' }}</p>
                                 </div>
                             </div>
@@ -124,11 +124,11 @@
                             @if ($client->logo_url)
                                 <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                             @else
-                                {{ strtoupper(substr($client->brand_name ?? $client->name, 0, 1)) }}
+                                {{ strtoupper(substr($client->name, 0, 1)) }}
                             @endif
                         </div>
                         <div class="min-w-0">
-                            <p class="font-medium text-[var(--text-primary)] truncate">{{ $client->brand_name }}</p>
+                            <p class="font-medium text-[var(--text-primary)] truncate">{{ $client->name }}</p>
                             <div class="flex items-center gap-2 mt-1">
                                 <span class="badge
                                     {{ $client->status === 'active' ? 'badge-success' : '' }}

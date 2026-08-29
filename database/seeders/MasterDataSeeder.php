@@ -36,7 +36,9 @@ class MasterDataSeeder extends Seeder
         collect(['Instagram', 'TikTok'])
             ->each(fn ($name) => Platform::firstOrCreate(['name' => $name]));
 
-        collect(['UMKM', 'Startup', 'Korporat', 'Retail'])
+        // 'Institusi' ditambah Agustus 2026 - client institusi pendidikan
+        // (FTI UNAND, Yasmin IBS) tidak pas dikategorikan UMKM/Korporat.
+        collect(['UMKM', 'Startup', 'Korporat', 'Retail', 'Institusi'])
             ->each(fn ($name) => ClientCategory::firstOrCreate(['name' => $name]));
 
         // Paket - belum ada preseden data sebelumnya (fitur baru), jadi

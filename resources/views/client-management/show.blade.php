@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $client->brand_name)
+@section('title', $client->name)
 @section('content')
 
 @php $canManageClient = auth()->user()->hasPermissionTo('client', 'manage'); @endphp
@@ -27,12 +27,12 @@
                 @if ($client->logo_url)
                     <img src="{{ $client->logo_url }}" alt="" class="w-full h-full object-cover">
                 @else
-                    {{ strtoupper(substr($client->brand_name, 0, 1)) }}
+                    {{ strtoupper(substr($client->name, 0, 1)) }}
                 @endif
             </div>
             <div>
                 <div class="flex items-center gap-2.5">
-                    <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $client->brand_name }}</h1>
+                    <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">{{ $client->name }}</h1>
                     <span class="badge
                         {{ $client->status === 'active' ? 'badge-success' : '' }}
                         {{ $client->status === 'past_due' ? 'badge-danger' : '' }}
@@ -160,7 +160,7 @@
                             </button>
 
                             <form action="{{ route('client-management.portal.disable', $client) }}" method="POST"
-                                  onsubmit="return appConfirm(this, 'Nonaktifkan akses Portal Klien untuk {{ addslashes($client->brand_name) }}? Link tidak akan bisa dipakai sampai diaktifkan lagi.', { danger: true })">
+                                  onsubmit="return appConfirm(this, 'Nonaktifkan akses Portal Klien untuk {{ addslashes($client->name) }}? Link tidak akan bisa dipakai sampai diaktifkan lagi.', { danger: true })">
                                 @csrf @method('PATCH')
                                 <button type="submit" class="text-xs font-medium text-[var(--danger-text)] border border-[var(--border)] px-3 py-2 rounded-lg hover:bg-[var(--danger-tint)] transition-colors flex items-center gap-1.5">
                                     <span class="material-symbols-outlined text-[14px]">block</span> Nonaktifkan
@@ -512,7 +512,7 @@
             <div class="card p-6">
                 <h2 class="text-sm font-semibold text-[var(--danger-text)] mb-3">Zona Berbahaya</h2>
                 <form action="{{ route('client-management.destroy', $client) }}" method="POST"
-                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->brand_name) }}? Kalau sudah punya riwayat konten, klien hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
+                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($client->name) }}? Kalau sudah punya riwayat konten, klien hanya akan dinonaktifkan, bukan dihapus permanen.', { danger: true })">
                     @csrf
                     @method('DELETE')
                     <button type="submit" {{ $canManageClient ? '' : 'disabled' }}
@@ -540,7 +540,7 @@
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                     <div>
                         <h3 id="package-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Ubah Paket</h3>
-                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->brand_name }}</p>
+                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->name }}</p>
                     </div>
                     <button type="button" @click="showPackageModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                         <span class="material-symbols-outlined text-[19px]">close</span>
@@ -593,7 +593,7 @@
                 <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                     <div>
                         <h3 id="pic-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Atur Akun Sistem</h3>
-                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->brand_name }}</p>
+                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Untuk {{ $client->name }}</p>
                     </div>
                     <button type="button" @click="showPicModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                         <span class="material-symbols-outlined text-[19px]">close</span>
@@ -663,7 +663,7 @@
                     <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
                         <div>
                             <h3 id="remove-pic-modal-title-{{ $staff->id }}" class="font-display text-lg font-semibold text-[var(--text-primary)]">Keluarkan dari PIC</h3>
-                            <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $staff->name }} &middot; {{ $client->brand_name }}</p>
+                            <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $staff->name }} &middot; {{ $client->name }}</p>
                         </div>
                         <button type="button" @click="removePic = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                             <span class="material-symbols-outlined text-[19px]">close</span>
@@ -675,7 +675,7 @@
                         <div class="px-6 py-5 space-y-4">
                             @if ($picActiveCount > 0)
                                 <div class="bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg">
-                                    {{ $staff->name }} masih PIC di <strong>{{ $picActiveCount }} konten aktif</strong> untuk {{ $client->brand_name }}. Pilih pengganti supaya konten-konten itu tidak nyangkut.
+                                    {{ $staff->name }} masih PIC di <strong>{{ $picActiveCount }} konten aktif</strong> untuk {{ $client->name }}. Pilih pengganti supaya konten-konten itu tidak nyangkut.
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Pindahkan Semua Tugas Ke</label>
@@ -693,7 +693,7 @@
                                     @endif
                                 </div>
                             @else
-                                <p class="text-sm text-[var(--text-secondary)]">Yakin keluarkan <strong class="text-[var(--text-primary)]">{{ $staff->name }}</strong> dari PIC {{ $client->brand_name }}?</p>
+                                <p class="text-sm text-[var(--text-secondary)]">Yakin keluarkan <strong class="text-[var(--text-primary)]">{{ $staff->name }}</strong> dari PIC {{ $client->name }}?</p>
                             @endif
                         </div>
                         <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">

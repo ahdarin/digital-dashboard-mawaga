@@ -323,24 +323,24 @@ class DocumentationSeeder extends Seeder
         // "Education"/"Property" di dataset dokumentasi.
         $defs = [
             [
-                'key' => 'kopi', 'name' => 'Kopi Senja', 'brand' => 'Kopi Senja',
+                'key' => 'kopi', 'name' => 'Kopi Senja',
                 'category' => 'UMKM', 'color' => '#7A4B2A',
                 'asset' => 'https://example.com/aset/kopi-senja',
             ],
             [
-                'key' => 'nusa', 'name' => 'Nusa Apparel', 'brand' => 'Nusa Apparel',
+                'key' => 'nusa', 'name' => 'Nusa Apparel',
                 'category' => 'Retail', 'color' => '#2F4858',
                 'asset' => 'https://example.com/aset/nusa-apparel',
             ],
             [
-                'key' => 'ruang', 'name' => 'Ruang Belajar', 'brand' => 'Ruang Belajar',
+                'key' => 'ruang', 'name' => 'Ruang Belajar',
                 'category' => 'Startup', 'color' => '#1F6F5C',
                 'asset' => 'https://example.com/aset/ruang-belajar',
             ],
             [
                 // Client "baru onboard": belum ada performa, belum ada akun
                 // sosial tersambung - dipakai buat memotret empty state.
-                'key' => 'sora', 'name' => 'Sora Residence', 'brand' => 'Sora Residence',
+                'key' => 'sora', 'name' => 'Sora Residence',
                 'category' => 'Korporat', 'color' => '#8A6D3B',
                 'asset' => null,
             ],
@@ -354,7 +354,6 @@ class DocumentationSeeder extends Seeder
                 ['name' => $def['name']],
                 [
                     'client_category_id' => $categories[$def['category']] ?? $categories->first(),
-                    'brand_name' => $def['brand'],
                     'status' => 'active',
                     'color' => $def['color'],
                     'asset_link' => $def['asset'],

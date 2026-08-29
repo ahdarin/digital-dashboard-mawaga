@@ -32,9 +32,7 @@ class SearchController extends Controller
 
     private function searchClients(string $term, User $user): array
     {
-        $query = Client::query()->where(function ($q) use ($term) {
-            $q->where('name', 'like', "%{$term}%")->orWhere('brand_name', 'like', "%{$term}%");
-        });
+        $query = Client::query()->with('category')->where('name', 'like', "%{$term}%");
 
         if (! $user->canSeeAllClients()) {
             $query->whereIn('id', $user->assignedClients()->pluck('clients.id'));
@@ -44,7 +42,7 @@ class SearchController extends Controller
             'type' => 'client',
             'id' => $client->id,
             'title' => $client->name,
-            'subtitle' => $client->brand_name && $client->brand_name !== $client->name ? $client->brand_name : null,
+            'subtitle' => $client->category->name ?? null,
             'url' => route('client-management.show', $client),
         ])->all();
     }

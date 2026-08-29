@@ -31,8 +31,7 @@ class ClientManagementController extends Controller
             ->with(['category', 'activePackage'])
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('brand_name', 'like', "%{$search}%");
+                    $q->where('name', 'like', "%{$search}%");
                 });
             })
             ->when($status !== 'all', fn ($query) => $query->where('status', $status))
@@ -65,7 +64,6 @@ class ClientManagementController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'logo' => 'nullable|image|max:2048', // max 2MB
             'asset_link' => 'nullable|url|max:255',
@@ -79,7 +77,6 @@ class ClientManagementController extends Controller
 
             $client = Client::create([
                 'name' => $validated['name'],
-                'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
                 'logo_path' => $logoPath,
                 'asset_link' => $validated['asset_link'] ?? null,
@@ -278,7 +275,6 @@ class ClientManagementController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'brand_name' => 'required|string|max:255',
             'client_category_id' => 'required|exists:client_categories,id',
             'status' => 'required|in:active,past_due,paused',
             'logo' => 'nullable|image|max:2048',
@@ -301,7 +297,6 @@ class ClientManagementController extends Controller
 
             $client->update([
                 'name' => $validated['name'],
-                'brand_name' => $validated['brand_name'],
                 'client_category_id' => $validated['client_category_id'],
                 'status' => $validated['status'],
                 'logo_path' => $logoPath,
@@ -326,7 +321,7 @@ class ClientManagementController extends Controller
         DB::transaction(fn () => $this->assignPackage($client, $template));
 
         return redirect()->route('client-management.show', $client)
-            ->with('status', "Paket {$client->brand_name} berhasil diperbarui.");
+            ->with('status', "Paket {$client->name} berhasil diperbarui.");
     }
 
     /**
@@ -397,7 +392,7 @@ class ClientManagementController extends Controller
             $client->update(['status' => 'paused']);
 
             return redirect()->route('client-management.index')
-                ->with('status', "{$client->brand_name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
+                ->with('status', "{$client->name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
         }
 
         DB::transaction(function () use ($client) {

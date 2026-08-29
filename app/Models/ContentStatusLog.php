@@ -22,7 +22,7 @@ class ContentStatusLog extends Model
 
     public function changedByLabel(): string
     {
-        return $this->changedByClient?->brand_name
+        return $this->changedByClient?->name
             ?? $this->changedByUser?->name
             ?? '-';
     }

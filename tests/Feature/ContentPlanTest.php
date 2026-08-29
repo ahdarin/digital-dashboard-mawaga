@@ -30,7 +30,6 @@ class ContentPlanTest extends TestCase
         return Client::create([
             'client_category_id' => $category->id,
             'name' => 'Test Client '.uniqid(),
-            'brand_name' => 'Test Brand',
             'status' => 'active',
         ]);
     }

@@ -32,7 +32,6 @@ class ClientPortalTest extends TestCase
         return Client::create(array_merge([
             'client_category_id' => $category->id,
             'name' => 'Test Client '.uniqid(),
-            'brand_name' => 'Test Brand',
             'status' => 'active',
         ], $attrs));
     }
@@ -99,7 +98,7 @@ class ClientPortalTest extends TestCase
         $response = $this->get(route('client.portal.dashboard', $client->portal_token));
 
         $response->assertOk();
-        $response->assertSee($client->brand_name);
+        $response->assertSee($client->name);
     }
 
     public function test_invalid_token_returns_404(): void
@@ -363,7 +362,6 @@ class ClientPortalTest extends TestCase
 
         $this->actingAs($manager)->post(route('client-management.store'), [
             'name' => 'Klien Baru Test',
-            'brand_name' => 'Brand Baru',
             'client_category_id' => $category->id,
         ])->assertRedirect();
 
