@@ -28,6 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // cuma menerima traffic dari load balancer platform, bukan
         // langsung dari internet.
         $middleware->trustProxies(at: '*');
+
+        // Webhook Instagram (Meta) dipanggil server-to-server, tidak pernah
+        // membawa CSRF token Laravel - satu-satunya pengaman POST endpoint
+        // ini adalah hub.verify_token (dicek di InstagramWebhookController).
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/instagram',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
