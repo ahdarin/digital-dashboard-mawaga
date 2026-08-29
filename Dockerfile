@@ -109,8 +109,15 @@ COPY --from=frontend /app/public/build ./public/build
 # docker/ sudah diambil isinya lewat COPY eksplisit di atas & di bawah -
 # dihapus dari pohon aplikasi supaya tidak ada duplikat file config di
 # dalam image.
+# Direktori dieja satu-satu (BUKAN brace expansion storage/framework/{a,b,c})
+# - RUN di sini dieksekusi lewat /bin/sh, yang di image Debian adalah dash,
+#   bukan bash. Dash tidak mendukung brace expansion, jadi bentuk {a,b,c}
+#   akan dibaca literal sebagai SATU nama direktori aneh, bukan tiga
+#   direktori terpisah - persis bug yang bikin storage/framework/views
+#   tidak pernah benar-benar ada, dan `php artisan optimize` gagal di
+#   langkah view:cache dengan "View path not found".
 RUN rm -rf docker \
-    && mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwX storage bootstrap/cache
 
