@@ -53,6 +53,7 @@ return [
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'api_version' => env('INSTAGRAM_API_VERSION'),
         'redirect' => env('INSTAGRAM_REDIRECT_URI'),
+        'webhook_verify_token' => env('INSTAGRAM_WEBHOOK_VERIFY_TOKEN'),
     ],
 
     // Global TikTok for Developers App credentials doang - token milik

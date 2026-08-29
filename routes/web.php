@@ -18,6 +18,7 @@ use App\Http\Controllers\UserClientAssignmentController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\InstagramIntegrationController;
+use App\Http\Controllers\InstagramWebhookController;
 use App\Http\Controllers\TikTokIntegrationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Client\ApprovalController;
@@ -45,6 +46,15 @@ Route::get('/', function () {
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
+
+// Webhook Instagram (Meta) - PUBLIC, tanpa middleware auth, karena dipanggil
+// server Meta langsung (tidak ada session/CSRF token). GET dipakai Meta buat
+// handshake verification, POST buat event delivery. Dikecualikan dari CSRF
+// di bootstrap/app.php (validateCsrfTokens except).
+Route::get('/webhooks/instagram', [InstagramWebhookController::class, 'verify'])
+    ->name('webhooks.instagram.verify');
+Route::post('/webhooks/instagram', [InstagramWebhookController::class, 'handle'])
+    ->name('webhooks.instagram.handle');
 
 // Preferensi tampilan personal (tema dsb) - user internal saja (Client
 // Portal tidak pakai Auth sama sekali, tema di sana localStorage-only).
