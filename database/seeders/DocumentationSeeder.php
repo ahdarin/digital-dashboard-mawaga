@@ -261,7 +261,7 @@ class DocumentationSeeder extends Seeder
         // dokumentasi - seeder ini TIDAK memanggil RoleSeeder sendiri karena
         // RoleSeeder juga membuat akun CEO bootstrap dengan email asli, dan
         // itu tidak boleh ikut masuk lewat jalur "data untuk buku panduan".
-        $expected = ['CEO', 'Manager', 'SMO', 'Copywriter', 'Content Creator', 'Desain Grafis'];
+        $expected = ['CEO', 'Manager', 'SMO', 'Copywriter', 'Content Creator', 'Graphic Designer'];
         $missing = array_diff($expected, Role::whereIn('name', $expected)->pluck('name')->all());
 
         if (! empty($missing)) {
@@ -281,9 +281,9 @@ class DocumentationSeeder extends Seeder
             ['key' => 'smo',        'name' => 'Raka Mahendra', 'roles' => ['SMO'],                        'login' => true],
             ['key' => 'copywriter', 'name' => 'Siti Rahma',    'roles' => ['Copywriter'],                 'login' => true],
             ['key' => 'creator',    'name' => 'Dimas Ardi',    'roles' => ['Content Creator'],            'login' => true],
-            ['key' => 'designer',   'name' => 'Sarah Amelia',  'roles' => ['Desain Grafis'],              'login' => true],
-            ['key' => 'designer2',  'name' => 'Lina Kartika',  'roles' => ['Desain Grafis', 'Copywriter'], 'login' => true],
-            ['key' => 'designer3',  'name' => 'Bayu Saputra',  'roles' => ['Desain Grafis'],              'login' => false],
+            ['key' => 'designer',   'name' => 'Sarah Amelia',  'roles' => ['Graphic Designer'],              'login' => true],
+            ['key' => 'designer2',  'name' => 'Lina Kartika',  'roles' => ['Graphic Designer', 'Copywriter'], 'login' => true],
+            ['key' => 'designer3',  'name' => 'Bayu Saputra',  'roles' => ['Graphic Designer'],              'login' => false],
         ];
 
         foreach ($defs as $def) {

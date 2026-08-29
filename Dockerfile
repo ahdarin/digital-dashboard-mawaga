@@ -29,8 +29,13 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
+# --ignore-platform-reqs: image `composer:2` itu minimal (Alpine), tidak
+# punya ext-gd/ext-zip/dkk yang justru DIPASANG di stage runtime nanti
+# (lihat docker-php-ext-install di bawah). Stage ini cuma mengunduh &
+# mengekstrak paket (--no-scripts) - tidak pernah benar-benar menjalankan
+# kode yang butuh ekstensi itu, jadi platform check di sini aman dilewati.
 RUN composer install \
-    --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+    --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction --ignore-platform-reqs
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative

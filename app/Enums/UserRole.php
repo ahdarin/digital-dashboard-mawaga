@@ -7,7 +7,7 @@ enum UserRole: string
     case CEO = 'CEO';
     case Manager = 'Manager';
     case ContentCreator = 'Content Creator';
-    case DesainGrafis = 'Desain Grafis';
+    case DesainGrafis = 'Graphic Designer';
     case SMO = 'SMO';
     case Copywriter = 'Copywriter';
 }

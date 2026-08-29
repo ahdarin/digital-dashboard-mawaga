@@ -55,7 +55,7 @@ class PermissionSeeder extends Seeder
                 ['content_plan', 'view'],
                 ['workflow', 'view'], ['workflow', 'update'],
             ],
-            'Desain Grafis' => [
+            'Graphic Designer' => [
                 ['client', 'view'],
                 ['content_plan', 'view'],
                 ['workflow', 'view'], ['workflow', 'update'],

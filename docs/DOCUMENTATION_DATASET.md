@@ -77,9 +77,9 @@ Semua berstatus `active`.
 | Raka Mahendra | SMO | ✓ | Kopi Senja, Nusa Apparel | Performa, Jadwalkan & catat publikasi, Import CSV |
 | Siti Rahma | Copywriter | ✓ | Kopi Senja, Ruang Belajar | Beranda Copywriter (antrean brief), AI Brief, Ajukan Rencana |
 | Dimas Ardi | Content Creator | ✓ | Kopi Senja, Nusa Apparel | Beranda Content Creator, Kanban, penanda footage — **satu-satunya yang beban kerjanya berlebih** |
-| Sarah Amelia | Desain Grafis | ✓ | Kopi Senja, Ruang Belajar | Alur harian PIC desain, Detail Konten |
-| Lina Kartika | Desain Grafis + Copywriter | ✓ | Nusa Apparel, Ruang Belajar | **Multi-role** — Kelola Pengguna & modal Ubah Role |
-| Bayu Saputra | Desain Grafis | ✗ | Nusa Apparel | Badge **"belum memiliki akses dashboard"** & tombol Aktifkan Akses Login |
+| Sarah Amelia | Graphic Designer | ✓ | Kopi Senja, Ruang Belajar | Alur harian PIC desain, Detail Konten |
+| Lina Kartika | Graphic Designer + Copywriter | ✓ | Nusa Apparel, Ruang Belajar | **Multi-role** — Kelola Pengguna & modal Ubah Role |
+| Bayu Saputra | Graphic Designer | ✗ | Nusa Apparel | Badge **"belum memiliki akses dashboard"** & tombol Aktifkan Akses Login |
 
 CEO & Manager sengaja tidak punya baris `user_client_assignments`:
 `User::canSeeAllClients()` sudah memberi mereka visibility ke semua klien, jadi

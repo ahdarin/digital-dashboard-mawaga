@@ -16,7 +16,7 @@ class PicAssignmentService
 {
     private array $roleByContentType = [
         'Video' => 'Content Creator',
-        'Desain' => 'Desain Grafis',
+        'Desain' => 'Graphic Designer',
     ];
 
     private array $loadCounts = [];

@@ -115,7 +115,7 @@ class UserManagementTest extends TestCase
     {
         (new \Database\Seeders\RoleSeeder)->run();
 
-        $ceo = User::where('email', 'ahdaalamin2506@gmail.com')->firstOrFail();
+        $ceo = User::where('email', 'hello523studio@gmail.com')->firstOrFail();
         $this->assertTrue((bool) $ceo->login_enabled);
     }
 }

@@ -103,7 +103,7 @@ Hasil (semua sebagai CEO):
    Konten, Detail Rencana Konten, Detail Klien dengan data) **belum pernah
    ter-render dengan data nyata** dalam audit ini.
 2. **Hanya role CEO yang diverifikasi runtime.** Perilaku Manager, SMO,
-   Copywriter, Content Creator, Desain Grafis disimpulkan dari
+   Copywriter, Content Creator, Graphic Designer disimpulkan dari
    `PermissionSeeder` + `components/sidebar.blade.php`, bukan dari login nyata.
 3. **Tidak ada aksi tulis yang diuji.** Semua temuan tentang tombol Simpan /
    Submit / Approve berbasis pembacaan kode, bukan eksekusi.
@@ -345,7 +345,7 @@ Hanya klien yang ditugaskan.
 
 ---
 
-## Desain Grafis
+## Graphic Designer
 
 **Tujuan utama role**
 Mengeksekusi produksi konten desain/carousel sesuai brief.
@@ -353,7 +353,7 @@ Mengeksekusi produksi konten desain/carousel sesuai brief.
 **Menu, aktivitas, batasan, dan client scope: identik dengan Content Creator.**
 Perbedaannya bukan di hak akses, melainkan di **penugasan otomatis**: saat AI
 Strategy diterapkan ke Rencana Konten, konten bertipe "Desain" diarahkan ke role
-Desain Grafis dan bertipe "Video" ke Content Creator.
+Graphic Designer dan bertipe "Video" ke Content Creator.
 *Implementation: `PicAssignmentService::$roleByContentType`.*
 
 ---
@@ -363,7 +363,7 @@ Desain Grafis dan bertipe "Video" ke Content Creator.
 Legenda: ✓ = bisa · (kosong) = tidak bisa · ⚠ = bisa, tapi ada catatan ·
 Klien = pengguna Portal Klien (bukan role Laravel)
 
-| Fitur | CEO | Manager | Copywriter | Content Creator | Desain Grafis | SMO | Klien |
+| Fitur | CEO | Manager | Copywriter | Content Creator | Graphic Designer | SMO | Klien |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | Melihat Beranda | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
 | Melihat Dashboard | ✓ | ✓ | | | | ✓ | |
@@ -465,7 +465,7 @@ hilang sepenuhnya**, jadi jumlah grup yang terlihat berbeda-beda per role.
 **Ringkasan** — Beranda
 **Konten** — Rencana Konten · Produksi · *(tombol)* Jobdesk Tambahan
 
-## Content Creator & Desain Grafis
+## Content Creator & Graphic Designer
 
 **Ringkasan** — Beranda
 **Konten** — Rencana Konten · Produksi
@@ -1041,7 +1041,7 @@ memindahkan ke orang di luar tim klien ditolak.
 6. **Konten Telah Selesai** → Menunggu Persetujuan
 7. Kalau ada revisi: **Kerjakan Revisi** → ulangi dari langkah 5
 
-### Desain Grafis
+### Graphic Designer
 
 Identik dengan Content Creator, kecuali langkah 4 (penandaan footage) yang hanya
 relevan untuk video.
@@ -1145,7 +1145,7 @@ tombol untuk menandai satu catatan revisi selesai secara terpisah. Jelaskan ini,
 karena pengguna sering mencari tombol tersebut.
 
 **Siapa yang bisa meminta revisi:** Klien, CEO, Manager, SMO, Content Creator,
-Desain Grafis (semua pemegang `workflow,update`). **Copywriter tidak bisa.**
+Graphic Designer (semua pemegang `workflow,update`). **Copywriter tidak bisa.**
 
 **Di mana melihat semua revisi:** Produksi → tab **Revisi**, bisa difilter per
 klien dan per status (default menampilkan yang masih Terbuka).
@@ -1813,7 +1813,7 @@ untuk klien tersebut:
   sinyal prioritas
 - **PIC dibagi otomatis** dengan giliran berbasis beban kerja, dibatasi hanya ke
   tim yang di-assign ke klien itu, dan diarahkan sesuai tipe (Video → Content
-  Creator, Desain → Desain Grafis). Kalau tidak ada yang cocok, sistem tetap
+  Creator, Desain → Graphic Designer). Kalau tidak ada yang cocok, sistem tetap
   membatasi ke tim klien itu dan **memberi tahu** agar penugasan diperiksa
 - Hasilnya: pesan ringkas berisi jumlah draft, jumlah placeholder, dan pembagian
   PIC per orang
@@ -2598,7 +2598,7 @@ atau yang perlu ditunda.**
 | UG-20 | Berdiskusi dengan AI & mengedit brief manual | Copywriter, Manager | Sedang | `READY` |
 | UG-21 | Menerapkan brief ke tim produksi | Copywriter, Manager | Tinggi | `READY` |
 | UG-22 | Membaca papan Produksi (Kanban & Daftar) | Semua internal | **Tinggi** | `READY` |
-| UG-23 | Mengerjakan konten yang ditugaskan (alur harian PIC) | Content Creator, Desain Grafis | **Tinggi** | `READY` |
+| UG-23 | Mengerjakan konten yang ditugaskan (alur harian PIC) | Content Creator, Graphic Designer | **Tinggi** | `READY` |
 | UG-24 | Menandai footage sudah di-take & mengisi link hasil | Content Creator | Sedang | `READY` |
 | UG-25 | Mengisi draft caption untuk dibaca klien | Copywriter, Manager | Sedang | `READY` |
 | UG-26 | Meminta revisi & mengerjakannya | Manager, SMO, PIC | Tinggi | `READY` |
@@ -3074,7 +3074,7 @@ BAGIAN IV — PANDUAN CEPAT PER ROLE          (2-3 halaman per role)
   10. Untuk Manager
   11. Untuk Copywriter
   12. Untuk Content Creator
-  13. Untuk Desain Grafis
+  13. Untuk Graphic Designer
   14. Untuk SMO
       → tiap bab: "hari-hari Anda", 3-5 tugas utama, apa yang tidak bisa
         Anda lakukan dan harus minta ke siapa
@@ -3163,7 +3163,7 @@ BAGIAN VIII — LAMPIRAN
 3. **Bagian IV membuat buku terasa personal.** Tiap orang bisa langsung membaca
    2–3 halaman miliknya sendiri lalu bekerja.
 4. **Jangan pernah memakai bahasa permission teknis di badan tulisan.**
-   Tulis "Content Creator dan Desain Grafis dapat memperbarui status pekerjaan
+   Tulis "Content Creator dan Graphic Designer dapat memperbarui status pekerjaan
    pada klien yang ditugaskan kepada mereka", bukan "dibutuhkan
    `workflow.update`". Tabel permission teknis cukup di Lampiran B.
 5. **Beri tanda jelas pada keterbatasan** dengan kotak peringatan, jangan

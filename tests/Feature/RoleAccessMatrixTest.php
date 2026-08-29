@@ -60,7 +60,7 @@ class RoleAccessMatrixTest extends TestCase
             'SMO' => ['/beranda' => 200, '/dashboard' => 200, '/analytics' => 200, '/content-plan' => 200, '/production-workflow' => 200, '/team-performance' => 403, '/user-management' => 403, '/client-management' => 403, '/report' => 200, '/settings' => 200],
             'Copywriter' => ['/beranda' => 200, '/dashboard' => 403, '/analytics' => 403, '/content-plan' => 200, '/production-workflow' => 200, '/team-performance' => 403, '/user-management' => 403, '/client-management' => 403, '/report' => 403, '/settings' => 403],
             'Content Creator' => ['/beranda' => 200, '/dashboard' => 403, '/analytics' => 403, '/content-plan' => 200, '/production-workflow' => 200, '/team-performance' => 403, '/user-management' => 403, '/client-management' => 403, '/report' => 403, '/settings' => 403],
-            'Desain Grafis' => ['/beranda' => 200, '/dashboard' => 403, '/analytics' => 403, '/content-plan' => 200, '/production-workflow' => 200, '/team-performance' => 403, '/user-management' => 403, '/client-management' => 403, '/report' => 403, '/settings' => 403],
+            'Graphic Designer' => ['/beranda' => 200, '/dashboard' => 403, '/analytics' => 403, '/content-plan' => 200, '/production-workflow' => 200, '/team-performance' => 403, '/user-management' => 403, '/client-management' => 403, '/report' => 403, '/settings' => 403],
         ];
 
         $cases = [];

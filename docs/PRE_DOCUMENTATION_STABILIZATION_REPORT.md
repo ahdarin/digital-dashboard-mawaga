@@ -324,7 +324,7 @@ dipakai user (submit ke route yang benar) - bukan bug, desain yang disengaja.
 
 `tests/Feature/RoleAccessMatrixTest.php` (baru) — 63 test case, memakai
 **`PermissionSeeder` produksi sungguhan** (bukan role ad-hoc), menguji 6 role
-internal (CEO, Manager, SMO, Copywriter, Content Creator, Desain Grafis) ×
+internal (CEO, Manager, SMO, Copywriter, Content Creator, Graphic Designer) ×
 10 halaman utama = 60 kombinasi, plus 3 test client-scope dengan crafted
 request. **Semua lulus, 68 assertion.**
 
@@ -335,7 +335,7 @@ request. **Semua lulus, 68 assertion.**
 | SMO | 200 | 200 | 200 | 200 | 200 | 403 | 403 | 403 | 200 | 200 |
 | Copywriter | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
 | Content Creator | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
-| Desain Grafis | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
+| Graphic Designer | 200 | 403 | 403 | 200 | 200 | 403 | 403 | 403 | 403 | 403 |
 
 Semua 403 di atas diverifikasi lewat **direct URL access** (bukan cuma
 "tidak ada di sidebar") - membuktikan backend benar-benar jadi enforcement

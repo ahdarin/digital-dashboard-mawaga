@@ -8,6 +8,16 @@
 # di-load pakai scikit-learn versi lain (format pickle internal ColumnTransformer
 # berubah antar versi). Kalau model di-retrain pakai versi scikit-learn baru,
 # angka ini WAJIB diupdate ikut versi training yang baru.
+#
+# joblib & pandas sebelumnya tertulis 1.5.3/3.0.5 di sini - keduanya rilis
+# PyPI yang sah (dicek ulang lewat PyPI JSON API), jadi bukan typo. Tapi
+# TIDAK PERNAH benar-benar terpasang atau teruji di environment manapun -
+# `pip show` di environment dev yang predict_batch.py-nya sudah terbukti
+# jalan menunjukkan pandas 2.3.3 & joblib 1.5.2, bukan versi yang tertulis
+# di sini. pandas 3.0 juga membawa perubahan besar (Copy-on-Write jadi
+# wajib, tidak bisa dimatikan lagi - beda dari 2.x yang opsional), jadi
+# bukan pembaruan yang aman diasumsikan kompatibel begitu saja. Dipin ke
+# versi yang TERVERIFIKASI jalan, bukan versi yang cuma tertulis di sini.
 scikit-learn==1.6.1
-joblib==1.5.3
-pandas==3.0.5
+joblib==1.5.2
+pandas==2.3.3

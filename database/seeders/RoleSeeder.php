@@ -14,7 +14,7 @@ class RoleSeeder extends Seeder
             'CEO',
             'Manager',
             'Content Creator',
-            'Desain Grafis',
+            'Graphic Designer',
             'SMO',
             'Copywriter',
         ];
@@ -29,50 +29,24 @@ class RoleSeeder extends Seeder
         // DemoSeeder (audit dummy-data Agustus 2026) - sebelumnya cuma
         // di-env-gate 'local', tapi dev DB kita SENDIRI selalu 'local', jadi
         // tetap ikut ter-create tiap `migrate:fresh --seed` default. Ini
-        // bukan bootstrap tim beneran (beda dari Ahda/Surdik/Ghazi di bawah
-        // yang emailnya asli), jadi lebih tepat jadi bagian data demo
-        // eksplisit, bukan default seeding.
+        // bukan bootstrap tim beneran, jadi lebih tepat jadi bagian data
+        // demo eksplisit, bukan default seeding.
 
-        // CEO
+        // CEO bootstrap - satu akun resmi 523 Studio, bukan akun personal.
+        // (Sebelumnya 3 akun Gmail personal - Ahda/Surdik/Ghazi - diganti
+        // satu akun resmi ini per keputusan pemilik produk.)
         $ceoRole = Role::where('name', 'CEO')->first();
 
-        $ahda = User::firstOrCreate(
+        $ceo = User::firstOrCreate(
             [
-                'email' => 'ahdaalamin2506@gmail.com',
+                'email' => 'hello523studio@gmail.com',
             ],
             [
-                'name' => 'Ahda',
-                'status' => 'active',
-                // CEO bootstrap real (bukan staf GUIDE) - langsung dikasih
-                // akses login, beda dari roster import yang login_enabled=false
-                // sampai diaktifkan manual.
-                'login_enabled' => true,
-            ]
-        );
-        $ahda->roles()->syncWithoutDetaching([$ceoRole->id]);
-
-        $surdik = User::firstOrCreate(
-            [
-                'email' => 'surdik2811@gmail.com',
-            ],
-            [
-                'name' => 'Surdik',
+                'name' => '523 Studio',
                 'status' => 'active',
                 'login_enabled' => true,
             ]
         );
-        $surdik->roles()->syncWithoutDetaching([$ceoRole->id]);
-
-        $ghazi = User::firstOrCreate(
-            [
-                'email' => 'ghazifadhlullah31@gmail.com',
-            ],
-            [
-                'name' => 'Ghazi',
-                'status' => 'active',
-                'login_enabled' => true,
-            ]
-        );
-        $ghazi->roles()->syncWithoutDetaching([$ceoRole->id]);
+        $ceo->roles()->syncWithoutDetaching([$ceoRole->id]);
     }
 }
