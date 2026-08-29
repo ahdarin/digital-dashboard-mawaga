@@ -1,0 +1,41 @@
+server {
+    # Railway menyuntikkan $PORT saat runtime - entrypoint.sh mengganti
+    # placeholder ini lewat envsubst sebelum nginx start. JANGAN hardcode
+    # angka port di sini.
+    listen ${PORT};
+    listen [::]:${PORT};
+
+    server_name _;
+    root /var/www/html/public;
+    index index.php;
+
+    client_max_body_size 25M;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    location ~ \.php$ {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_read_timeout 300;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    location ~* \.(css|js|svg|woff2?|ttf|eot|ico|png|jpe?g|gif|webp)$ {
+        expires 30d;
+        access_log off;
+        add_header Cache-Control "public, immutable";
+    }
+}

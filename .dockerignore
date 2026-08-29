@@ -1,0 +1,37 @@
+.git
+.github
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+node_modules
+vendor
+
+public/build
+public/hot
+public/storage
+
+# Direktori ini dibuat ulang oleh Dockerfile (mkdir -p) setelah COPY, jadi
+# aman dikecualikan seluruhnya dari build context - tidak perlu isi lama.
+storage/framework
+storage/logs
+
+tests
+.phpunit.cache
+.phpunit.result.cache
+
+.idea
+.vscode
+.zed
+.nova
+.cursor
+.codex
+.claude
+
+docs
+
+docker-compose*.yml
+Dockerfile*
+.dockerignore
