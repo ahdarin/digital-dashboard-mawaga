@@ -666,7 +666,7 @@ function kanbanBoard() {
                                 <span class="material-symbols-outlined text-[15px]">videocam</span>
                             </button>
                             <template x-teleport="body">
-                                <div x-show="show" x-cloak x-transition.opacity.duration.100ms
+                                <div x-show="show" x-cloak
                                     class="pointer-events-none fixed z-[100] whitespace-nowrap"
                                     :style="\`top: \${top}px; left: \${left}px; transform: translate(-50%, -100%);\`">
                                     <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
