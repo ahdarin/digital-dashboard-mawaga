@@ -2,7 +2,16 @@
 @section('title', 'Kelola Klien')
 @section('content')
 
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto" x-data="{
+        {{-- Tooltip custom aksi tabel - gaya sama seperti tooltip sidebar
+             saat collapse, tapi muncul DI ATAS tombol (bukan di samping). --}}
+        tooltip: { show: false, text: '', top: 0, left: 0 },
+        showTooltip(event, text) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
+        },
+        hideTooltip() { this.tooltip.show = false; },
+    }">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
         <div>
@@ -74,7 +83,9 @@
                         <td class="px-6 py-3.5" onclick="event.stopPropagation()">
                             @if ($client->asset_link)
                                 <a href="{{ $client->asset_link }}" target="_blank" rel="noopener"
-                                   class="inline-flex items-center gap-1 text-[var(--brand)] hover:underline" title="{{ $client->asset_link }}">
+                                   @mouseenter="showTooltip($event, 'Buka folder aset')" @mouseleave="hideTooltip()"
+                                   aria-label="Buka folder aset"
+                                   class="inline-flex items-center gap-1 text-[var(--brand)] hover:underline">
                                     <span class="material-symbols-outlined text-[15px]">folder_open</span>
                                 </a>
                             @else
@@ -150,7 +161,9 @@
                         <span class="text-[var(--text-muted)]">Aset</span>
                         @if ($client->asset_link)
                             <a href="{{ $client->asset_link }}" target="_blank" rel="noopener" @click.stop
-                               class="inline-flex items-center gap-1 text-[var(--brand)] hover:underline" title="{{ $client->asset_link }}">
+                               @mouseenter="showTooltip($event, 'Buka folder aset')" @mouseleave="hideTooltip()"
+                               aria-label="Buka folder aset"
+                               class="inline-flex items-center gap-1 text-[var(--brand)] hover:underline">
                                 <span class="material-symbols-outlined text-[15px]">folder_open</span>
                             </a>
                         @else
@@ -190,5 +203,16 @@
         </div>
     @endif
 
+    {{-- Tooltip custom aksi tabel --}}
+    <template x-teleport="body">
+        <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
+            class="pointer-events-none fixed z-[100] whitespace-nowrap"
+            :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
+            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+                <span x-text="tooltip.text"></span>
+                <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+            </div>
+        </div>
+    </template>
 </div>
 @endsection

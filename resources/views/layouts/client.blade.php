@@ -86,6 +86,15 @@
             const order = ['light', 'dark', 'system'];
             this.setTheme(order[(order.indexOf(this.theme) + 1) % order.length]);
         },
+        {{-- Tooltip custom - gaya sama seperti tooltip sidebar dashboard
+             internal saat collapse, tapi muncul DI ATAS tombol. --}}
+        themeLabels: { light: 'Tema: Terang', dark: 'Tema: Gelap', system: 'Tema: Ikut Sistem' },
+        tooltip: { show: false, text: '', top: 0, left: 0 },
+        showTooltip(event, text) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
+        },
+        hideTooltip() { this.tooltip.show = false; },
     }">
 
     <header class="bg-[var(--surface-card)] border-b border-[var(--border)] px-4 sm:px-5 py-3.5 sticky top-0 z-10 flex items-center gap-2.5">
@@ -95,7 +104,9 @@
             <p class="text-[11px] sm:text-xs text-[var(--text-muted)] leading-tight truncate">@yield('title', 'Portal Klien')</p>
         </div>
 
-        <button type="button" @click="cycleTheme()" :title="'Tema: ' + theme" aria-label="Ganti tema"
+        <button type="button" @click="cycleTheme()"
+            @mouseenter="showTooltip($event, themeLabels[theme])" @mouseleave="hideTooltip()"
+            aria-label="Ganti tema"
             class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)] transition-colors">
             <span class="material-symbols-outlined text-[19px]" x-text="themeIcons[theme]"></span>
         </button>
@@ -148,5 +159,14 @@
         });
     </script>
 
+    {{-- Tooltip custom --}}
+    <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
+        class="pointer-events-none fixed z-[100] whitespace-nowrap"
+        :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
+        <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+            <span x-text="tooltip.text"></span>
+            <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+        </div>
+    </div>
 </body>
 </html>

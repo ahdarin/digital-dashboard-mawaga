@@ -24,7 +24,9 @@
 <header class="h-16 bg-[var(--surface-card)] border-b border-[var(--border)]">
     <div class="h-full flex items-center justify-between px-4 sm:px-6 gap-3 sm:gap-6">
 
-        <button type="button" @click="sidebarOpen = true" title="Buka menu"
+        <button type="button" @click="sidebarOpen = true"
+            @mouseenter="showTooltip($event, 'Buka menu')" @mouseleave="hideTooltip()"
+            aria-label="Buka menu"
             class="lg:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
             <span class="material-symbols-outlined text-[var(--text-secondary)] text-[22px]">menu</span>
         </button>

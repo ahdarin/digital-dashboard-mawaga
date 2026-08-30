@@ -3,11 +3,30 @@
 @section('content')
 <div class="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
-    <div class="flex items-center gap-3 mb-7">
-        <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali ke Content Plan"
+    <div class="flex items-center gap-3 mb-7" x-data="{
+            tooltip: { show: false, text: '', top: 0, left: 0 },
+            showTooltip(event, text) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
+            },
+            hideTooltip() { this.tooltip.show = false; },
+        }">
+        <a href="{{ route('content-plan.show', $contentPlan) }}"
+           @mouseenter="showTooltip($event, 'Kembali ke Content Plan')" @mouseleave="hideTooltip()"
+           aria-label="Kembali ke Content Plan"
            class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-secondary)] transition-colors shrink-0">
             <span class="material-symbols-outlined text-[19px]">arrow_back</span>
         </a>
+        <template x-teleport="body">
+            <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
+                class="pointer-events-none fixed z-[100] whitespace-nowrap"
+                :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
+                <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+                    <span x-text="tooltip.text"></span>
+                    <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+                </div>
+            </div>
+        </template>
         <div>
             <p class="text-xs text-[var(--text-muted)]">{{ $contentPlan->client->name }} / {{ \Carbon\Carbon::create()->month($contentPlan->month)->translatedFormat('F') }} {{ $contentPlan->year }}</p>
             <h1 class="font-display text-2xl font-semibold text-[var(--text-primary)]">Tambah Konten</h1>

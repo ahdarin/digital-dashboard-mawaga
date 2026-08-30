@@ -79,7 +79,9 @@
                                                 <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                     x-on:click.stop x-on:mousedown.stop
                                                     class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
-                                                <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
+                                                <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
+                                                    x-on:mouseenter="showTooltip($event, 'Tandai Sudah Di-take')" x-on:mouseleave="hideTooltip()"
+                                                    aria-label="Tandai Sudah Di-take"
                                                     class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                                     <span class="material-symbols-outlined text-[15px]">videocam</span>
                                                 </button>
@@ -214,7 +216,9 @@
                                     <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                         x-on:click.stop x-on:mousedown.stop
                                         class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
-                                    <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)" title="Tandai Sudah Di-take"
+                                    <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
+                                                    x-on:mouseenter="showTooltip($event, 'Tandai Sudah Di-take')" x-on:mouseleave="hideTooltip()"
+                                                    aria-label="Tandai Sudah Di-take"
                                         class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
                                         <span class="material-symbols-outlined text-[15px]">videocam</span>
                                     </button>

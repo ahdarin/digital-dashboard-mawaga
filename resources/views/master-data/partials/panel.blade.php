@@ -7,7 +7,18 @@
         'package-template' => 'Paket',
     ];
 @endphp
-<div x-data="{ showAdd: false, editPackage: null }">
+<div x-data="{
+        showAdd: false,
+        editPackage: null,
+        {{-- Tooltip custom aksi tabel - gaya sama seperti tooltip sidebar
+             saat collapse, tapi muncul DI ATAS tombol (bukan di samping). --}}
+        tooltip: { show: false, text: '', top: 0, left: 0 },
+        showTooltip(event, text) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
+        },
+        hideTooltip() { this.tooltip.show = false; },
+    }">
     <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-5 max-w-full overflow-x-auto thin-autohide-scrollbar">
         @foreach ($mdTabs as $key => $label)
             <a href="{{ route('settings', ['tab' => 'data-pilihan', 'type' => $key]) }}"
@@ -87,13 +98,16 @@
                             <td class="px-6 py-3.5">
                                 <div class="flex items-center justify-end gap-1">
                                     <button type="button" @click="editPackage = {{ $item->id }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" title="Edit">
+                                            @mouseenter="showTooltip($event, 'Edit')" @mouseleave="hideTooltip()"
+                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit">
                                         <span class="material-symbols-outlined text-[17px]">edit</span>
                                     </button>
                                     <form action="{{ route('package-templates.destroy', $item) }}" method="POST" class="inline"
                                           onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" title="Hapus">
+                                        <button type="submit"
+                                                @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" aria-label="Hapus">
                                             <span class="material-symbols-outlined text-[17px]">delete</span>
                                         </button>
                                     </form>
@@ -191,7 +205,10 @@
                                 <form action="{{ route('master-data.destroy', [$mdTab, $item->id]) }}" method="POST" class="inline"
                                       onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-[var(--text-muted)] hover:text-[var(--danger-text)]">
+                                    <button type="submit"
+                                            @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
+                                            aria-label="Hapus"
+                                            class="text-[var(--text-muted)] hover:text-[var(--danger-text)]">
                                         <span class="material-symbols-outlined text-[17px]">delete</span>
                                     </button>
                                 </form>
@@ -211,4 +228,16 @@
           </div>
         </div>
     @endif
+
+    {{-- Tooltip custom aksi tabel --}}
+    <template x-teleport="body">
+        <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
+            class="pointer-events-none fixed z-[100] whitespace-nowrap"
+            :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
+            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+                <span x-text="tooltip.text"></span>
+                <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+            </div>
+        </div>
+    </template>
 </div>

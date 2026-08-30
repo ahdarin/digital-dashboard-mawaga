@@ -131,7 +131,9 @@
                                              action eksternal (Langkah 11). --}}
                                         <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded whitespace-nowrap">Detail</a>
                                         @if ($item->permalink)
-                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" title="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                               @mouseenter="showTooltip($event, 'Lihat di Instagram')" @mouseleave="hideTooltip()"
+                                               aria-label="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
                                                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                                             </a>
                                         @endif
@@ -141,7 +143,9 @@
                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                         @endif
                                         @if ($item->permalink)
-                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer" title="Lihat Post" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                               @mouseenter="showTooltip($event, 'Lihat Post')" @mouseleave="hideTooltip()"
+                                               aria-label="Lihat Post" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
                                                 <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                                             </a>
                                         @endif

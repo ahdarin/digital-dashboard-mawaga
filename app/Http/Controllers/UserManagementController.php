@@ -30,9 +30,18 @@ class UserManagementController extends Controller
     {
         $this->authorizeManage();
 
+        // Tab "Aktif"/"Nonaktif" (pola sama seperti Produksi) - dipisah
+        // supaya roster nonaktif yang menumpuk tidak membanjiri tabel utama.
+        $tab = $request->input('tab') === 'nonaktif' ? 'nonaktif' : 'aktif';
+
         $users = User::query()
             ->with(['roles', 'assignedClients'])
             ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
+            ->when(
+                $tab === 'nonaktif',
+                fn ($q) => $q->where('status', 'inactive'),
+                fn ($q) => $q->where('status', '!=', 'inactive'),
+            )
             ->latest()->get();
 
         $allClients = Client::where('status', 'active')->orderBy('name')->get();
@@ -42,7 +51,7 @@ class UserManagementController extends Controller
         // dropdown-nya nggak perlu request tambahan per baris.
         $replacementOptions = User::query()->where('status', 'active')->orderBy('name')->get();
 
-        return view('user-management.index', compact('users', 'allClients', 'roles', 'replacementOptions'));
+        return view('user-management.index', compact('users', 'allClients', 'roles', 'replacementOptions', 'tab'));
     }
 
     /**

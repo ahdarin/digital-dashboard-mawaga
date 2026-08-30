@@ -15,6 +15,14 @@
                 setTimeout(() => this.portalLinkCopied = false, 2000);
             });
         },
+        {{-- Tooltip custom aksi tabel - gaya sama seperti tooltip sidebar
+             saat collapse, tapi muncul DI ATAS tombol (bukan di samping). --}}
+        tooltip: { show: false, text: '', top: 0, left: 0 },
+        showTooltip(event, text) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
+        },
+        hideTooltip() { this.tooltip.show = false; },
     }" class="p-4 sm:p-6 lg:p-8 max-w-[1300px] mx-auto">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
@@ -140,7 +148,9 @@
                     <div class="flex items-center gap-2 mb-4">
                         <input type="text" readonly value="{{ route('client.portal.dashboard', $client->portal_token) }}"
                                class="flex-1 min-w-0 bg-[var(--surface-page)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs text-[var(--text-secondary)] truncate">
-                        <button type="button" @click="copyPortalLink()" title="Salin Link"
+                        <button type="button" @click="copyPortalLink()"
+                                @mouseenter="showTooltip($event, 'Salin Link')" @mouseleave="hideTooltip()"
+                                aria-label="Salin Link"
                                 class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
                             <span class="material-symbols-outlined text-[17px]" x-text="portalLinkCopied ? 'check' : 'content_copy'"></span>
                         </button>
@@ -481,7 +491,9 @@
                                     </p>
                                 </div>
                                 @if ($canManageClient)
-                                    <button type="button" @click="removePic = {{ $staff->id }}" title="Keluarkan dari PIC"
+                                    <button type="button" @click="removePic = {{ $staff->id }}"
+                                            @mouseenter="showTooltip($event, 'Keluarkan dari PIC')" @mouseleave="hideTooltip()"
+                                            aria-label="Keluarkan dari PIC"
                                             class="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors shrink-0">
                                         <span class="material-symbols-outlined text-[16px]">person_remove</span>
                                     </button>
@@ -705,5 +717,17 @@
             </div>
         </template>
     @endforeach
+
+    {{-- Tooltip custom aksi tabel --}}
+    <template x-teleport="body">
+        <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
+            class="pointer-events-none fixed z-[100] whitespace-nowrap"
+            :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
+            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+                <span x-text="tooltip.text"></span>
+                <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+            </div>
+        </div>
+    </template>
 </div>
 @endsection

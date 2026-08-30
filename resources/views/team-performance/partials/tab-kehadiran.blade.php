@@ -40,7 +40,8 @@
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->subDay()->toDateString()])) }}"
-               title="Hari sebelumnya"
+               @mouseenter="showTooltip($event, 'Hari sebelumnya')" @mouseleave="hideTooltip()"
+               aria-label="Hari sebelumnya"
                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
                 <span class="material-symbols-outlined text-[18px]">chevron_left</span>
             </a>
@@ -51,7 +52,8 @@
                     class="border border-[var(--border)] rounded-lg pl-9 pr-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
             </div>
             <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->addDay()->toDateString()])) }}"
-               title="Hari berikutnya"
+               @mouseenter="showTooltip($event, 'Hari berikutnya')" @mouseleave="hideTooltip()"
+               aria-label="Hari berikutnya"
                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
                 <span class="material-symbols-outlined text-[18px]">chevron_right</span>
             </a>
