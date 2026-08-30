@@ -128,6 +128,17 @@ class ImportContentPlanner extends Command
             return self::SUCCESS;
         }
 
+        // collectRows() di atas murni kerja CPU (baca+klasifikasi 3089 baris,
+        // tanpa satu query pun) - bisa makan waktu beberapa menit. Kalau
+        // koneksi DB dibiarkan idle selama itu (terutama lewat proxy TCP
+        // publik seperti Railway), sebagian jaringan/NAT di tengah jalan
+        // diam-diam memutusnya, dan PDO baru sadar koneksinya mati saat
+        // performRealImport() di bawah mencoba menulis - muncul sebagai
+        // "MySQL server has gone away" setelah menggantung lama tanpa
+        // timeout. Reconnect eksplisit di sini menjamin koneksi yang dipakai
+        // fase tulis selalu segar, terlepas berapa lama fase baca tadi.
+        DB::reconnect();
+
         $this->performRealImport($rows);
 
         return self::SUCCESS;
@@ -498,6 +509,18 @@ class ImportContentPlanner extends Command
                 }
 
                 $created++;
+
+                // Progress tiap 25 item - murni output, TIDAK mengubah logic
+                // klasifikasi/mapping apa pun di atas. flush() eksplisit
+                // supaya kelihatan real-time walau stdout di-redirect ke
+                // file (bukan nunggu proses selesai baru ke-tulis semua).
+                if ($created % 25 === 0) {
+                    $this->line("  ... {$created} ContentItem dibuat (import batch {$batchId})");
+                    if (ob_get_level() > 0) {
+                        ob_flush();
+                    }
+                    flush();
+                }
             }
         });
 
