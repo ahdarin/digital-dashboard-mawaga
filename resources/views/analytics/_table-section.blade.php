@@ -131,11 +131,14 @@
                                              action eksternal (Langkah 11). --}}
                                         <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded whitespace-nowrap">Detail</a>
                                         @if ($item->permalink)
-                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
-                                               @mouseenter="showTooltip($event, 'Lihat di Instagram')" @mouseleave="hideTooltip()"
-                                               aria-label="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
-                                                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
-                                            </a>
+                                            <span x-data="tooltipHover('Lihat di Instagram')" class="contents">
+                                                <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                                   @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                                                   aria-label="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                                </a>
+                                                @include('components.action-tooltip')
+                                            </span>
                                         @endif
                                     @else
                                         @if ($item->api_integration_id)
@@ -143,11 +146,14 @@
                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                         @endif
                                         @if ($item->permalink)
-                                            <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
-                                               @mouseenter="showTooltip($event, 'Lihat Post')" @mouseleave="hideTooltip()"
-                                               aria-label="Lihat Post" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
-                                                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
-                                            </a>
+                                            <span x-data="tooltipHover('Lihat Post')" class="contents">
+                                                <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
+                                                   @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                                                   aria-label="Lihat Post" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                    <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+                                                </a>
+                                                @include('components.action-tooltip')
+                                            </span>
                                         @endif
                                     @endif
                                 </div>

@@ -39,24 +39,30 @@
             <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $date->translatedFormat('l, d F Y') }}</p>
         </div>
         <div class="flex items-center gap-2">
-            <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->subDay()->toDateString()])) }}"
-               @mouseenter="showTooltip($event, 'Hari sebelumnya')" @mouseleave="hideTooltip()"
-               aria-label="Hari sebelumnya"
-               class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
-                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-            </a>
+            <span x-data="tooltipHover('Hari sebelumnya')" class="contents">
+                <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->subDay()->toDateString()])) }}"
+                   @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                   aria-label="Hari sebelumnya"
+                   class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                </a>
+                @include('components.action-tooltip')
+            </span>
             <div class="relative">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
                 <input id="date" type="text" name="date" form="filter-form" value="{{ $date->toDateString() }}"
                     data-flatpickr="date" data-autosubmit="true" autocomplete="off"
                     class="border border-[var(--border)] rounded-lg pl-9 pr-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]" readonly>
             </div>
-            <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->addDay()->toDateString()])) }}"
-               @mouseenter="showTooltip($event, 'Hari berikutnya')" @mouseleave="hideTooltip()"
-               aria-label="Hari berikutnya"
-               class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
-                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-            </a>
+            <span x-data="tooltipHover('Hari berikutnya')" class="contents">
+                <a href="{{ route('team-performance.index', array_merge(request()->except('page'), ['tab' => 'kehadiran', 'date' => $date->copy()->addDay()->toDateString()])) }}"
+                   @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                   aria-label="Hari berikutnya"
+                   class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-page)] transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                </a>
+                @include('components.action-tooltip')
+            </span>
         </div>
     </div>
 

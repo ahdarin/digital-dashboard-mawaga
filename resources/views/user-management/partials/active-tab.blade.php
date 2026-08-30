@@ -52,76 +52,88 @@
                             <div class="flex items-center justify-end gap-1">
 
                                 {{-- Edit Role --}}
-                                <button
-                                    type="button"
-                                    @click="editRoles = {{ $user->id }}"
-                                    @mouseenter="showTooltip($event, 'Edit Role')"
-                                    @mouseleave="hideTooltip()"
-                                    class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
-                                        text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
-                                        hover:text-[var(--brand)] transition-colors"
-                                    aria-label="Edit Role"
-                                >
-                                    <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
-                                        work
-                                    </span>
-                                </button>
-
-                                {{-- Assign Klien --}}
-                                <button
-                                    type="button"
-                                    @click="openAssign = {{ $user->id }}"
-                                    @mouseenter="showTooltip($event, 'Assign Klien')"
-                                    @mouseleave="hideTooltip()"
-                                    class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
-                                        text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
-                                        hover:text-[var(--brand)] transition-colors"
-                                    aria-label="Assign Klien"
-                                >
-                                    <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
-                                        assignment_ind
-                                    </span>
-                                </button>
-
-                                {{-- Akses Login --}}
-                                <form
-                                    action="{{ route('user-management.toggle-login-access', $user) }}"
-                                    method="POST"
-                                    class="w-8 h-8 shrink-0 flex items-center justify-center m-0 p-0"
-                                >
-                                    @csrf
-                                    @method('PATCH')
-
+                                <span x-data="tooltipHover('Edit Role')" class="contents">
                                     <button
-                                        type="submit"
-                                        @mouseenter="showTooltip($event, {{ Illuminate\Support\Js::from($user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login') }})"
-                                        @mouseleave="hideTooltip()"
+                                        type="button"
+                                        @click="editRoles = {{ $user->id }}"
+                                        @mouseenter="onEnter($event)"
+                                        @mouseleave="onLeave()"
                                         class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
                                             text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
                                             hover:text-[var(--brand)] transition-colors"
-                                        aria-label="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}"
+                                        aria-label="Edit Role"
                                     >
                                         <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
-                                            {{ $user->login_enabled ? 'no_accounts' : 'login' }}
+                                            work
                                         </span>
                                     </button>
-                                </form>
+                                    @include('components.action-tooltip')
+                                </span>
+
+                                {{-- Assign Klien --}}
+                                <span x-data="tooltipHover('Assign Klien')" class="contents">
+                                    <button
+                                        type="button"
+                                        @click="openAssign = {{ $user->id }}"
+                                        @mouseenter="onEnter($event)"
+                                        @mouseleave="onLeave()"
+                                        class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                            text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
+                                            hover:text-[var(--brand)] transition-colors"
+                                        aria-label="Assign Klien"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                            assignment_ind
+                                        </span>
+                                    </button>
+                                    @include('components.action-tooltip')
+                                </span>
+
+                                {{-- Akses Login --}}
+                                <span x-data="tooltipHover({{ Illuminate\Support\Js::from($user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login') }})" class="contents">
+                                    <form
+                                        action="{{ route('user-management.toggle-login-access', $user) }}"
+                                        method="POST"
+                                        class="w-8 h-8 shrink-0 flex items-center justify-center m-0 p-0"
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+
+                                        <button
+                                            type="submit"
+                                            @mouseenter="onEnter($event)"
+                                            @mouseleave="onLeave()"
+                                            class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                                text-[var(--text-muted)] hover:bg-[var(--surface-muted)]
+                                                hover:text-[var(--brand)] transition-colors"
+                                            aria-label="{{ $user->login_enabled ? 'Cabut akses login' : 'Aktifkan akses login' }}"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                                {{ $user->login_enabled ? 'no_accounts' : 'login' }}
+                                            </span>
+                                        </button>
+                                    </form>
+                                    @include('components.action-tooltip')
+                                </span>
 
                                 {{-- Nonaktifkan User --}}
-                                <button
-                                    type="button"
-                                    @click="confirmDeactivate = {{ $user->id }}"
-                                    @mouseenter="showTooltip($event, 'Nonaktifkan')"
-                                    @mouseleave="hideTooltip()"
-                                    class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
-                                        text-[var(--text-muted)] hover:bg-[var(--danger-tint)]
-                                        hover:text-[var(--danger-text)] transition-colors"
-                                    aria-label="Nonaktifkan user"
-                                >
-                                    <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
-                                        toggle_off
-                                    </span>
-                                </button>
+                                <span x-data="tooltipHover('Nonaktifkan')" class="contents">
+                                    <button
+                                        type="button"
+                                        @click="confirmDeactivate = {{ $user->id }}"
+                                        @mouseenter="onEnter($event)"
+                                        @mouseleave="onLeave()"
+                                        class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                            text-[var(--text-muted)] hover:bg-[var(--danger-tint)]
+                                            hover:text-[var(--danger-text)] transition-colors"
+                                        aria-label="Nonaktifkan user"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                            toggle_off
+                                        </span>
+                                    </button>
+                                    @include('components.action-tooltip')
+                                </span>
 
                             </div>
                             @else

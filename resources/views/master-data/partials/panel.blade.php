@@ -7,18 +7,7 @@
         'package-template' => 'Paket',
     ];
 @endphp
-<div x-data="{
-        showAdd: false,
-        editPackage: null,
-        {{-- Tooltip custom aksi tabel - gaya sama seperti tooltip sidebar
-             saat collapse, tapi muncul DI ATAS tombol (bukan di samping). --}}
-        tooltip: { show: false, text: '', top: 0, left: 0 },
-        showTooltip(event, text) {
-            const rect = event.currentTarget.getBoundingClientRect();
-            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
-        },
-        hideTooltip() { this.tooltip.show = false; },
-    }">
+<div x-data="{ showAdd: false, editPackage: null }">
     <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-5 max-w-full overflow-x-auto thin-autohide-scrollbar">
         @foreach ($mdTabs as $key => $label)
             <a href="{{ route('settings', ['tab' => 'data-pilihan', 'type' => $key]) }}"
@@ -100,20 +89,26 @@
                             <td class="px-6 py-3.5">
                                 <div class="flex items-center justify-end gap-1">
                                     @if (auth()->user()->hasPermissionTo('master_data', 'manage'))
-                                        <button type="button" @click="editPackage = {{ $item->id }}"
-                                                @mouseenter="showTooltip($event, 'Edit')" @mouseleave="hideTooltip()"
-                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit">
-                                            <span class="material-symbols-outlined text-[17px]">edit</span>
-                                        </button>
-                                        <form action="{{ route('package-templates.destroy', $item) }}" method="POST" class="inline"
-                                              onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
-                                            @csrf @method('DELETE')
-                                            <button type="submit"
-                                                    @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" aria-label="Hapus">
-                                                <span class="material-symbols-outlined text-[17px]">delete</span>
+                                        <span x-data="tooltipHover('Edit')" class="contents">
+                                            <button type="button" @click="editPackage = {{ $item->id }}"
+                                                    @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit">
+                                                <span class="material-symbols-outlined text-[17px]">edit</span>
                                             </button>
-                                        </form>
+                                            @include('components.action-tooltip')
+                                        </span>
+                                        <span x-data="tooltipHover('Hapus')" class="contents">
+                                            <form action="{{ route('package-templates.destroy', $item) }}" method="POST" class="inline"
+                                                  onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                        @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" aria-label="Hapus">
+                                                    <span class="material-symbols-outlined text-[17px]">delete</span>
+                                                </button>
+                                            </form>
+                                            @include('components.action-tooltip')
+                                        </span>
                                     @else
                                         <span class="text-xs text-[var(--text-idle)]">-</span>
                                     @endif
@@ -209,16 +204,19 @@
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item->name }}</td>
                             <td class="px-6 py-3.5 text-right">
                                 @if (auth()->user()->hasPermissionTo('master_data', 'manage'))
-                                <form action="{{ route('master-data.destroy', [$mdTab, $item->id]) }}" method="POST" class="inline"
-                                      onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
-                                    @csrf @method('DELETE')
-                                    <button type="submit"
-                                            @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
-                                            aria-label="Hapus"
-                                            class="text-[var(--text-muted)] hover:text-[var(--danger-text)]">
-                                        <span class="material-symbols-outlined text-[17px]">delete</span>
-                                    </button>
-                                </form>
+                                <span x-data="tooltipHover('Hapus')" class="contents">
+                                    <form action="{{ route('master-data.destroy', [$mdTab, $item->id]) }}" method="POST" class="inline"
+                                          onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
+                                        @csrf @method('DELETE')
+                                        <button type="submit"
+                                                @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                                                aria-label="Hapus"
+                                                class="text-[var(--text-muted)] hover:text-[var(--danger-text)]">
+                                            <span class="material-symbols-outlined text-[17px]">delete</span>
+                                        </button>
+                                    </form>
+                                    @include('components.action-tooltip')
+                                </span>
                                 @else
                                     <span class="text-xs text-[var(--text-idle)]">-</span>
                                 @endif
@@ -238,16 +236,4 @@
           </div>
         </div>
     @endif
-
-    {{-- Tooltip custom aksi tabel --}}
-    <template x-teleport="body">
-        <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
-            class="pointer-events-none fixed z-[100] whitespace-nowrap"
-            :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
-            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
-                <span x-text="tooltip.text"></span>
-                <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
-            </div>
-        </div>
-    </template>
 </div>

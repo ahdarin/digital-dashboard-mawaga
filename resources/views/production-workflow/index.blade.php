@@ -214,12 +214,15 @@
                                             <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="{{ now()->format('Y-m-d H:i') }}"
                                                 x-on:click.stop x-on:mousedown.stop
                                                 class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
-                                            <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
-                                                x-on:mouseenter="showTooltip($event, 'Tandai Sudah Di-take')" x-on:mouseleave="hideTooltip()"
-                                                aria-label="Tandai Sudah Di-take"
-                                                class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
-                                                <span class="material-symbols-outlined text-[15px]">videocam</span>
-                                            </button>
+                                            <span x-data="tooltipHover('Tandai Sudah Di-take')" class="contents">
+                                                <button type="button" x-on:click.stop="markFootageCaptured({{ $item->id }}, $event)"
+                                                    x-on:mouseenter="onEnter($event)" x-on:mouseleave="onLeave()"
+                                                    aria-label="Tandai Sudah Di-take"
+                                                    class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
+                                                    <span class="material-symbols-outlined text-[15px]">videocam</span>
+                                                </button>
+                                                @include('components.action-tooltip')
+                                            </span>
                                         </div>
                                     @endif
                                 </div>
@@ -429,18 +432,6 @@
         </div>
     </div>
 
-    {{-- Tooltip custom aksi kartu --}}
-    <template x-teleport="body">
-        <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
-            class="pointer-events-none fixed z-[100] whitespace-nowrap"
-            :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
-            <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
-                <span x-text="tooltip.text"></span>
-                <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
-            </div>
-        </div>
-    </template>
-
 </div>
     @endif
     @endif
@@ -477,14 +468,6 @@ function kanbanBoard() {
         pubForm: { published_at: '', post_url: '', caption_final: '' },
         scheduledModal: null,
         scheduledUploadAt: '',
-        // Tooltip custom aksi kartu - gaya sama seperti tooltip sidebar saat
-        // collapse, tapi muncul DI ATAS tombol (bukan di samping).
-        tooltip: { show: false, text: '', top: 0, left: 0 },
-        showTooltip(event, text) {
-            const rect = event.currentTarget.getBoundingClientRect();
-            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
-        },
-        hideTooltip() { this.tooltip.show = false; },
         toggleRiskSort() {
             this.riskSortActive = !this.riskSortActive;
             document.querySelectorAll('.kanban-column').forEach((col) => {
@@ -675,12 +658,24 @@ function kanbanBoard() {
                         <input type="text" data-take-date data-flatpickr="datetime" autocomplete="off" value="${value}"
                             x-on:click.stop x-on:mousedown.stop
                             class="bg-[var(--surface-card)] flex-1 min-w-0 border border-[var(--border)] rounded-lg px-1.5 py-1 text-[10px] focus:outline-none focus:border-[#044b46]/40">
-                        <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)"
-                            x-on:mouseenter="showTooltip($event, 'Tandai Sudah Di-take')" x-on:mouseleave="hideTooltip()"
-                            aria-label="Tandai Sudah Di-take"
-                            class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
-                            <span class="material-symbols-outlined text-[15px]">videocam</span>
-                        </button>
+                        <span x-data="tooltipHover('Tandai Sudah Di-take')" class="contents">
+                            <button type="button" x-on:click.stop="markFootageCaptured(${itemId}, $event)"
+                                x-on:mouseenter="onEnter($event)" x-on:mouseleave="onLeave()"
+                                aria-label="Tandai Sudah Di-take"
+                                class="flex items-center justify-center shrink-0 border border-[#044b46]/30 text-[var(--brand)] w-7 h-7 rounded-lg hover:bg-[var(--brand-tint)] transition-colors">
+                                <span class="material-symbols-outlined text-[15px]">videocam</span>
+                            </button>
+                            <template x-teleport="body">
+                                <div x-show="show" x-cloak x-transition.opacity.duration.100ms
+                                    class="pointer-events-none fixed z-[100] whitespace-nowrap"
+                                    :style="\`top: \${top}px; left: \${left}px; transform: translate(-50%, -100%);\`">
+                                    <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
+                                        <span x-text="text"></span>
+                                        <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </span>
                     </div>`;
         },
         footageCapturedMarkup(itemId, dateStr) {

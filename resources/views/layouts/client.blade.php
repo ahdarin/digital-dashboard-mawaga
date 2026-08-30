@@ -86,16 +86,28 @@
             const order = ['light', 'dark', 'system'];
             this.setTheme(order[(order.indexOf(this.theme) + 1) % order.length]);
         },
-        {{-- Tooltip custom - gaya sama seperti tooltip sidebar dashboard
-             internal saat collapse, tapi muncul DI ATAS tombol. --}}
         themeLabels: { light: 'Tema: Terang', dark: 'Tema: Gelap', system: 'Tema: Ikut Sistem' },
-        tooltip: { show: false, text: '', top: 0, left: 0 },
-        showTooltip(event, text) {
-            const rect = event.currentTarget.getBoundingClientRect();
-            this.tooltip = { show: true, text, top: rect.top - 8, left: rect.left + rect.width / 2 };
-        },
-        hideTooltip() { this.tooltip.show = false; },
     }">
+
+    <script>
+        {{-- Tooltip custom - SATU instance Alpine terpisah PER tombol (lihat
+             catatan lebih lengkap di layouts/app.blade.php versi internal). --}}
+        function tooltipHover(text) {
+            return {
+                show: false,
+                top: 0,
+                left: 0,
+                text: text,
+                onEnter(event) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    this.top = rect.top - 8;
+                    this.left = rect.left + rect.width / 2;
+                    this.show = true;
+                },
+                onLeave() { this.show = false; },
+            };
+        }
+    </script>
 
     <header class="bg-[var(--surface-card)] border-b border-[var(--border)] px-4 sm:px-5 py-3.5 sticky top-0 z-10 flex items-center gap-2.5">
         <img src="{{ asset('images/logo.png') }}" alt="523 Studio" class="h-6 sm:h-7 w-auto shrink-0">
@@ -104,12 +116,15 @@
             <p class="text-[11px] sm:text-xs text-[var(--text-muted)] leading-tight truncate">@yield('title', 'Portal Klien')</p>
         </div>
 
-        <button type="button" @click="cycleTheme()"
-            @mouseenter="showTooltip($event, themeLabels[theme])" @mouseleave="hideTooltip()"
-            aria-label="Ganti tema"
-            class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)] transition-colors">
-            <span class="material-symbols-outlined text-[19px]" x-text="themeIcons[theme]"></span>
-        </button>
+        <span x-data="tooltipHover(themeLabels[theme])" x-effect="text = themeLabels[theme]" class="contents">
+            <button type="button" @click="cycleTheme()"
+                @mouseenter="onEnter($event)" @mouseleave="onLeave()"
+                aria-label="Ganti tema"
+                class="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-page)] hover:text-[var(--text-primary)] transition-colors">
+                <span class="material-symbols-outlined text-[19px]" x-text="themeIcons[theme]"></span>
+            </button>
+            @include('components.action-tooltip')
+        </span>
     </header>
 
     <nav class="bg-[var(--surface-card)] border-b border-[var(--border)] px-2 sm:px-5 flex items-center gap-1 sticky top-[57px] sm:top-[65px] z-10 overflow-x-auto thin-autohide-scrollbar">
@@ -158,15 +173,5 @@
             });
         });
     </script>
-
-    {{-- Tooltip custom --}}
-    <div x-show="tooltip.show" x-cloak x-transition.opacity.duration.100ms
-        class="pointer-events-none fixed z-[100] whitespace-nowrap"
-        :style="`top: ${tooltip.top}px; left: ${tooltip.left}px; transform: translate(-50%, -100%);`">
-        <div class="relative bg-[var(--brand-solid)] text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg">
-            <span x-text="tooltip.text"></span>
-            <span class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-[5px] border-x-transparent border-t-[6px] border-t-[var(--brand)]"></span>
-        </div>
-    </div>
 </body>
 </html>

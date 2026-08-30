@@ -45,20 +45,23 @@
                             @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
                             <div class="flex items-center justify-end gap-1">
                                 {{-- Aktifkan User --}}
-                                <button
-                                    type="button"
-                                    @click="confirmActivate = {{ $user->id }}"
-                                    @mouseenter="showTooltip($event, 'Aktifkan')"
-                                    @mouseleave="hideTooltip()"
-                                    class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
-                                        text-[var(--text-muted)] hover:bg-[var(--success-tint)]
-                                        hover:text-[var(--success-text)] transition-colors"
-                                    aria-label="Aktifkan user"
-                                >
-                                    <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
-                                        restart_alt
-                                    </span>
-                                </button>
+                                <span x-data="tooltipHover('Aktifkan')" class="contents">
+                                    <button
+                                        type="button"
+                                        @click="confirmActivate = {{ $user->id }}"
+                                        @mouseenter="onEnter($event)"
+                                        @mouseleave="onLeave()"
+                                        class="w-8 h-8 shrink-0 p-0 border-0 flex items-center justify-center rounded-lg
+                                            text-[var(--text-muted)] hover:bg-[var(--success-tint)]
+                                            hover:text-[var(--success-text)] transition-colors"
+                                        aria-label="Aktifkan user"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] leading-none w-[18px] h-[18px] flex items-center justify-center">
+                                            restart_alt
+                                        </span>
+                                    </button>
+                                    @include('components.action-tooltip')
+                                </span>
                             </div>
                             @else
                                 <p class="text-right text-xs text-[var(--text-idle)]">-</p>
