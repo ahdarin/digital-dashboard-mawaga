@@ -48,6 +48,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-3.5">
+                            @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
                             <div class="flex items-center justify-end gap-1">
 
                                 {{-- Edit Role --}}
@@ -123,6 +124,9 @@
                                 </button>
 
                             </div>
+                            @else
+                                <p class="text-right text-xs text-[var(--text-idle)]">-</p>
+                            @endif
                         </td>
                     </tr>
 
@@ -351,6 +355,7 @@
                     <span class="text-[var(--text-secondary)]">{{ $userClientsMobileLabel }}</span>
                 </div>
 
+                @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
                 <div class="flex items-center gap-2 pt-1">
                     <button type="button" @click="editRoles = {{ $user->id }}"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit Role">
@@ -375,6 +380,7 @@
                         <span class="material-symbols-outlined text-[17px]">toggle_off</span>
                     </button>
                 </div>
+                @endif
             </div>
         </div>
     @empty

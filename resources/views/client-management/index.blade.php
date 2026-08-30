@@ -19,11 +19,13 @@
             <p class="text-[var(--text-secondary)] text-sm mt-1">Kelola portofolio klien dan paket langganan mereka.</p>
         </div>
 
-        <a href="{{ route('client-management.create') }}"
-           class="self-start btn-primary">
-            <span class="material-symbols-outlined text-[17px]">person_add</span>
-            Tambah Klien
-        </a>
+        @if (auth()->user()->hasPermissionTo('client', 'manage'))
+            <a href="{{ route('client-management.create') }}"
+               class="self-start btn-primary">
+                <span class="material-symbols-outlined text-[17px]">person_add</span>
+                Tambah Klien
+            </a>
+        @endif
     </div>
 
     @if (session('status'))
@@ -115,7 +117,9 @@
                                 <a href="{{ route('client-management.index') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Reset filter</a>
                             @else
                                 <p class="text-sm text-[var(--text-muted)]">Belum ada klien.</p>
-                                <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
+                                @if (auth()->user()->hasPermissionTo('client', 'manage'))
+                        <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
+                    @endif
                             @endif
                         </td>
                     </tr>
@@ -190,7 +194,9 @@
                     <a href="{{ route('client-management.index') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Reset filter</a>
                 @else
                     <p class="text-sm text-[var(--text-muted)]">Belum ada klien.</p>
-                    <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
+                    @if (auth()->user()->hasPermissionTo('client', 'manage'))
+                        <a href="{{ route('client-management.create') }}" class="text-xs text-[var(--brand)] font-medium hover:underline mt-1 inline-block">Tambah klien pertama</a>
+                    @endif
                 @endif
             </div>
         @endforelse

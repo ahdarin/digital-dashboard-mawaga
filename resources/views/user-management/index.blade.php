@@ -33,11 +33,13 @@
             </p>
         </div>
 
-        <button type="button" @click="showCreateModal = true"
-           class="self-start btn-primary">
-            <span class="material-symbols-outlined text-[17px]">person_add</span>
-            Undang User
-        </button>
+        @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
+            <button type="button" @click="showCreateModal = true"
+               class="self-start btn-primary">
+                <span class="material-symbols-outlined text-[17px]">person_add</span>
+                Undang User
+            </button>
+        @endif
     </div>
 
     @if (session('status'))

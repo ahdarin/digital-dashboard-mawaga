@@ -42,6 +42,7 @@
                             <span class="badge badge-danger">Nonaktif</span>
                         </td>
                         <td class="px-4 py-3.5">
+                            @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
                             <div class="flex items-center justify-end gap-1">
                                 {{-- Aktifkan User --}}
                                 <button
@@ -59,6 +60,9 @@
                                     </span>
                                 </button>
                             </div>
+                            @else
+                                <p class="text-right text-xs text-[var(--text-idle)]">-</p>
+                            @endif
                         </td>
                     </tr>
 
@@ -156,12 +160,14 @@
                     <span class="text-[var(--text-secondary)]">{{ $userClientsMobileLabel }}</span>
                 </div>
 
+                @if (auth()->user()->hasPermissionTo('user_management', 'manage'))
                 <div class="flex items-center gap-2 pt-1">
                     <button type="button" @click="confirmActivate = {{ $user->id }}"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--success-tint)] hover:text-[var(--success-text)] transition-colors" aria-label="Aktifkan user">
                         <span class="material-symbols-outlined text-[17px]">restart_alt</span>
                     </button>
                 </div>
+                @endif
             </div>
         </div>
     @empty

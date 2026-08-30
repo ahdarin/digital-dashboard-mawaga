@@ -10,4 +10,5 @@ enum UserRole: string
     case DesainGrafis = 'Graphic Designer';
     case SMO = 'SMO';
     case Copywriter = 'Copywriter';
+    case Admin = 'Admin';
 }

@@ -42,11 +42,11 @@ class PermissionSeeder extends Seeder
                 ['dashboard', 'view'],
                 ['client', 'view'], ['client', 'manage'],
                 ['team_performance', 'view'],
-                ['user_management', 'manage'],
+                ['user_management', 'view'], ['user_management', 'manage'],
                 ['analytics', 'view'],
                 ['report', 'view'],
-                ['master_data', 'manage'],
-                ['settings', 'manage'],
+                ['master_data', 'view'], ['master_data', 'manage'],
+                ['settings', 'view'], ['settings', 'manage'],
                 ['content_plan', 'view'], ['content_plan', 'create'], ['content_plan', 'approve'],
                 ['workflow', 'view'], ['workflow', 'update'], ['workflow', 'approve'],
             ],
@@ -65,8 +65,8 @@ class PermissionSeeder extends Seeder
                 ['client', 'view'],
                 ['analytics', 'view'],
                 ['report', 'view'],
-                ['master_data', 'manage'],
-                ['settings', 'manage'],
+                ['master_data', 'view'], ['master_data', 'manage'],
+                ['settings', 'view'], ['settings', 'manage'],
                 ['content_plan', 'view'], ['content_plan', 'approve'],
                 ['workflow', 'view'], ['workflow', 'update'], ['workflow', 'approve'],
                 ['publishing', 'manage'],
@@ -75,6 +75,24 @@ class PermissionSeeder extends Seeder
                 ['client', 'view'],
                 ['content_plan', 'view'], ['content_plan', 'create'],
                 ['workflow', 'view'],
+            ],
+            // Admin - developer internal, lihat semua menu seperti CEO tapi
+            // TIDAK BOLEH mengubah data apa pun lewat aplikasi (cuma 'view'
+            // di semua modul, tidak ada create/update/approve/manage).
+            // Perbaikan data yang benar-benar perlu tetap lewat akses
+            // server (tinker/migration), bukan lewat UI dengan role ini.
+            'Admin' => [
+                ['dashboard', 'view'],
+                ['client', 'view'],
+                ['team_performance', 'view'],
+                ['user_management', 'view'],
+                ['analytics', 'view'],
+                ['report', 'view'],
+                ['master_data', 'view'],
+                ['settings', 'view'],
+                ['content_plan', 'view'],
+                ['workflow', 'view'],
+                ['publishing', 'view'],
             ],
         ];
 

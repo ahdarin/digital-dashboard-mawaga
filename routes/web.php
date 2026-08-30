@@ -153,8 +153,13 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware(['permission:publishing,manage', 'client.scope:contentItem'])
         ->name('content-publication.store');
 
-    Route::middleware('permission:user_management,manage')->group(function () {
+    // Dipisah dari grup 'manage' di bawah - Admin (developer, view-only)
+    // perlu bisa buka halaman ini tanpa punya izin 'manage'.
+    Route::middleware('permission:user_management,view')->group(function () {
         Route::get('/user-management', [UserManagementController::class, 'index'])->name('user-management.index');
+    });
+
+    Route::middleware('permission:user_management,manage')->group(function () {
         Route::post('/user-management', [UserManagementController::class, 'store'])->name('user-management.store');
         Route::delete('/user-management/{user}', [UserManagementController::class, 'destroy'])->name('user-management.destroy');
         Route::patch('/user-management/{user}/activate', [UserManagementController::class, 'activate'])->name('user-management.activate');
@@ -188,8 +193,16 @@ Route::middleware(['auth', 'internal'])->group(function () {
     // '/client-management/create' ikut tertangkap oleh pattern
     // '/client-management/{client}' (mencoba bind Client dengan ID "create",
     // gagal, 404) - route 'create' yang sebenarnya nggak pernah kesampaian.
-    Route::middleware('permission:client,manage')->group(function () {
+    // Dipisah dari grup 'manage' di bawah - Admin (developer, view-only)
+    // perlu bisa buka daftar client tanpa punya izin 'manage'. Aman dari
+    // urutan '/client-management/create' vs '/client-management/{client}'
+    // karena '/client-management' (tanpa segmen tambahan) tidak pernah
+    // ambigu dengan salah satu pattern itu.
+    Route::middleware('permission:client,view')->group(function () {
         Route::get('/client-management', [ClientManagementController::class, 'index'])->name('client-management.index');
+    });
+
+    Route::middleware('permission:client,manage')->group(function () {
         Route::get('/client-management/create', [ClientManagementController::class, 'create'])->name('client-management.create');
         Route::post('/client-management', [ClientManagementController::class, 'store'])->name('client-management.store');
         Route::get('/client-management/{client}/edit', [ClientManagementController::class, 'edit'])->name('client-management.edit');
@@ -279,8 +292,18 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('notifications.read');
     Route::get('/search', [SearchController::class, 'search'])->name('search');
 
-    Route::middleware('permission:settings,manage')->group(function () {
+    // Dipisah dari grup 'manage' di bawah - Admin (developer, view-only)
+    // perlu bisa buka halaman Pengaturan (termasuk tab Data Pilihan/Master
+    // Data) tanpa punya izin 'manage'. Semua tombol tulis di halaman ini
+    // (Tambah/Edit/Hapus master data, sync Instagram/TikTok, import CSV,
+    // jalankan anomaly detection) tetap disembunyikan di Blade kalau user
+    // tidak punya 'settings,manage'/'master_data,manage'/'client,manage'
+    // yang sesuai - lihat guard di masing-masing partial.
+    Route::middleware('permission:settings,view')->group(function () {
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    });
+
+    Route::middleware('permission:settings,manage')->group(function () {
         Route::post('/settings/import-performance', [SettingsController::class, 'importPerformance'])->name('settings.import-performance');
         Route::get('/settings/import', [SettingsController::class, 'importPage'])->name('settings.import');
         Route::post('/settings/detect-anomalies', [SettingsController::class, 'runAnomalyDetection'])

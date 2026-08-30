@@ -3,6 +3,13 @@
      sebenarnya per-client lewat api_integrations - lihat audit "Settings
      Integrasi client-centric"). User pilih client dulu SEBAGAI FILTER
      UTAMA halaman, baru integration MILIK client itu yang ditampilkan. --}}
+@php
+    {{-- Guard tombol tulis untuk role view-only (mis. Admin) - route-nya
+         sendiri sudah digerbang permission yang sama, ini cuma supaya
+         tombolnya tidak tampil kalau memang bakal ditolak server. --}}
+    $canManageSettings = auth()->user()->hasPermissionTo('settings', 'manage');
+    $canManageClientIntegration = auth()->user()->hasPermissionTo('client', 'manage');
+@endphp
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
     <p class="text-[var(--text-secondary)] text-sm">Kelola koneksi API per client dan pantau riwayat sinkronisasi/import data.</p>
@@ -86,31 +93,33 @@
                         <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $instagramCard['content_last_sync_log']->error_message }}</p>
                     @endif
 
-                    <form action="{{ route('settings.sync-instagram') }}" method="POST" class="inline-block mb-2">
-                        @csrf
-                        <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                        <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
-                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="material-symbols-outlined text-[14px]">sync</span>
-                            {{ $instagramCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
-                        </button>
-                    </form>
+                    @if ($canManageSettings)
+                        <form action="{{ route('settings.sync-instagram') }}" method="POST" class="inline-block mb-2">
+                            @csrf
+                            <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                            <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
+                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-[14px]">sync</span>
+                                {{ $instagramCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
+                            </button>
+                        </form>
 
-                    <details class="text-xs mt-1">
-                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
-                        <div class="mt-2 flex items-center gap-2">
-                            <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
-                                @csrf
-                                <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                                <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
-                                       class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
-                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Sinkronkan Bulan Terpilih
-                                </button>
-                            </form>
-                        </div>
-                    </details>
+                        <details class="text-xs mt-1">
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
+                            <div class="mt-2 flex items-center gap-2">
+                                <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
+                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                    <button type="submit" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
+                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Sinkronkan Bulan Terpilih
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    @endif
                 </div>
 
                 {{-- Insight Audiens --}}
@@ -128,30 +137,34 @@
                         <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi audiens terakhir gagal.</p>
                     @endif
 
-                    <form action="{{ route('client-management.instagram.sync-audience', $selectedClient) }}" method="POST">
-                        @csrf
-                        <button type="submit" {{ $instagramCard['audience_syncing'] ? 'disabled' : '' }}
-                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="material-symbols-outlined text-[14px]">groups</span>
-                            {{ $instagramCard['audience_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Audiens' }}
-                        </button>
-                    </form>
+                    @if ($canManageClientIntegration)
+                        <form action="{{ route('client-management.instagram.sync-audience', $selectedClient) }}" method="POST">
+                            @csrf
+                            <button type="submit" {{ $instagramCard['audience_syncing'] ? 'disabled' : '' }}
+                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-[14px]">groups</span>
+                                {{ $instagramCard['audience_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Audiens' }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
 
                 <div class="border-t border-[var(--surface-muted)] pt-3 mt-3 flex items-center gap-3 flex-wrap">
                     <a href="{{ route('publishing-tracker.instagram.unmatched', $integration) }}"
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
-                    @if ($instagramOauthConfigured)
+                    @if ($instagramOauthConfigured && $canManageClientIntegration)
                         <a href="{{ route('client-management.instagram.connect', $selectedClient) }}"
                            class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Sambungkan Ulang Instagram</a>
                     @endif
                 </div>
-            @elseif ($instagramOauthConfigured)
+            @elseif ($instagramOauthConfigured && $canManageClientIntegration)
                 <p class="text-sm text-[var(--text-secondary)] mb-4 max-w-md">Hubungkan akun Instagram Professional client untuk mengambil data performa dan audience secara otomatis.</p>
                 <a href="{{ route('client-management.instagram.connect', $selectedClient) }}"
                    class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
                     <span class="material-symbols-outlined text-[14px]">link</span> Hubungkan Instagram
                 </a>
+            @elseif ($instagramOauthConfigured && ! $canManageClientIntegration)
+                <p class="text-xs text-[var(--text-muted)]">Belum terhubung. Hubungi CEO/Manager untuk menyambungkan akun Instagram.</p>
             @else
                 <p class="text-xs text-[var(--text-muted)]">
                     OAuth belum dikonfigurasi. Isi <code>INSTAGRAM_CLIENT_ID</code>/<code>INSTAGRAM_CLIENT_SECRET</code> di <code>.env</code>
@@ -209,47 +222,51 @@
                         <p class="text-[11px] text-[var(--text-muted)] italic mb-2">Data followers tidak tersedia melalui TikTok API (scope belum disetujui).</p>
                     @endif
 
-                    <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="inline-block mb-2">
-                        @csrf
-                        <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                        <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
-                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="material-symbols-outlined text-[14px]">sync</span>
-                            {{ $tiktokCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
-                        </button>
-                    </form>
+                    @if ($canManageSettings)
+                        <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="inline-block mb-2">
+                            @csrf
+                            <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                            <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-[14px]">sync</span>
+                                {{ $tiktokCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}
+                            </button>
+                        </form>
 
-                    <details class="text-xs mt-1">
-                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
-                        <div class="mt-2 flex items-center gap-2">
-                            <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
-                                @csrf
-                                <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                                <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
-                                       class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
-                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                    Sinkronkan Bulan Terpilih
-                                </button>
-                            </form>
-                        </div>
-                    </details>
+                        <details class="text-xs mt-1">
+                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
+                            <div class="mt-2 flex items-center gap-2">
+                                <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                                    @csrf
+                                    <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                    <button type="submit" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                        Sinkronkan Bulan Terpilih
+                                    </button>
+                                </form>
+                            </div>
+                        </details>
+                    @endif
                 </div>
 
                 <div class="border-t border-[var(--surface-muted)] pt-3 mt-3 flex items-center gap-3 flex-wrap">
                     <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
-                    @if ($tiktokOauthConfigured)
+                    @if ($tiktokOauthConfigured && $canManageClientIntegration)
                         <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
                            class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Sambungkan Ulang TikTok</a>
                     @endif
                 </div>
-            @elseif ($tiktokOauthConfigured)
+            @elseif ($tiktokOauthConfigured && $canManageClientIntegration)
                 <p class="text-sm text-[var(--text-secondary)] mb-4 max-w-md">Hubungkan akun TikTok client untuk mengambil data performa video secara otomatis.</p>
                 <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"
                    class="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity">
                     <span class="material-symbols-outlined text-[14px]">link</span> Hubungkan TikTok
                 </a>
+            @elseif ($tiktokOauthConfigured && ! $canManageClientIntegration)
+                <p class="text-xs text-[var(--text-muted)]">Belum terhubung. Hubungi CEO/Manager untuk menyambungkan akun TikTok.</p>
             @else
                 <p class="text-xs text-[var(--text-muted)]">
                     OAuth belum dikonfigurasi. Isi <code>TIKTOK_CLIENT_KEY</code>/<code>TIKTOK_CLIENT_SECRET</code> di <code>.env</code>
@@ -261,18 +278,20 @@
 
     {{-- Import Data Manual - dipisah jelas dari Integrasi Otomatis di
          atas, biar nggak kecampur seolah CSV = API (Langkah 12). --}}
-    <div class="card p-6 mb-6">
-        <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Import Data Manual</h2>
-        <p class="text-xs text-[var(--text-muted)] mb-4">Fallback manual - dipakai kalau API belum tersedia atau perlu isi data historis di luar jangkauan API.</p>
-        <div class="flex items-center gap-3 flex-wrap">
-            <a href="{{ route('settings.import') }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Performa
-            </a>
-            <a href="{{ route('analytics', ['tab' => 'audience', 'client_id' => $selectedClient->id]) }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Audiens
-            </a>
+    @if ($canManageSettings)
+        <div class="card p-6 mb-6">
+            <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] mb-1">Import Data Manual</h2>
+            <p class="text-xs text-[var(--text-muted)] mb-4">Fallback manual - dipakai kalau API belum tersedia atau perlu isi data historis di luar jangkauan API.</p>
+            <div class="flex items-center gap-3 flex-wrap">
+                <a href="{{ route('settings.import') }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Performa
+                </a>
+                <a href="{{ route('analytics', ['tab' => 'audience', 'client_id' => $selectedClient->id]) }}" class="text-sm font-medium text-[var(--brand)] hover:underline flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">upload_file</span> Import Data Audiens
+                </a>
+            </div>
         </div>
-    </div>
+    @endif
 
 @endif
 

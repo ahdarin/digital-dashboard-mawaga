@@ -39,9 +39,11 @@
             </div>
         </form>
 
-        <button type="button" x-on:click="showAdd = !showAdd" class="btn-primary">
-            <span class="material-symbols-outlined text-[17px]">add</span> Tambah {{ $mdTabs[$mdTab] }}
-        </button>
+        @if (auth()->user()->hasPermissionTo('master_data', 'manage'))
+            <button type="button" x-on:click="showAdd = !showAdd" class="btn-primary">
+                <span class="material-symbols-outlined text-[17px]">add</span> Tambah {{ $mdTabs[$mdTab] }}
+            </button>
+        @endif
     </div>
 
     @if ($mdTab === 'package-template')
@@ -97,20 +99,24 @@
                             </td>
                             <td class="px-6 py-3.5">
                                 <div class="flex items-center justify-end gap-1">
-                                    <button type="button" @click="editPackage = {{ $item->id }}"
-                                            @mouseenter="showTooltip($event, 'Edit')" @mouseleave="hideTooltip()"
-                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit">
-                                        <span class="material-symbols-outlined text-[17px]">edit</span>
-                                    </button>
-                                    <form action="{{ route('package-templates.destroy', $item) }}" method="POST" class="inline"
-                                          onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
-                                        @csrf @method('DELETE')
-                                        <button type="submit"
-                                                @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
-                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" aria-label="Hapus">
-                                            <span class="material-symbols-outlined text-[17px]">delete</span>
+                                    @if (auth()->user()->hasPermissionTo('master_data', 'manage'))
+                                        <button type="button" @click="editPackage = {{ $item->id }}"
+                                                @mouseenter="showTooltip($event, 'Edit')" @mouseleave="hideTooltip()"
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--brand)] transition-colors" aria-label="Edit">
+                                            <span class="material-symbols-outlined text-[17px]">edit</span>
                                         </button>
-                                    </form>
+                                        <form action="{{ route('package-templates.destroy', $item) }}" method="POST" class="inline"
+                                              onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
+                                            @csrf @method('DELETE')
+                                            <button type="submit"
+                                                    @mouseenter="showTooltip($event, 'Hapus')" @mouseleave="hideTooltip()"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:bg-[var(--danger-tint)] hover:text-[var(--danger-text)] transition-colors" aria-label="Hapus">
+                                                <span class="material-symbols-outlined text-[17px]">delete</span>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-xs text-[var(--text-idle)]">-</span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -202,6 +208,7 @@
                         <tr class="border-t border-[var(--surface-muted)]">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] whitespace-nowrap">{{ $item->name }}</td>
                             <td class="px-6 py-3.5 text-right">
+                                @if (auth()->user()->hasPermissionTo('master_data', 'manage'))
                                 <form action="{{ route('master-data.destroy', [$mdTab, $item->id]) }}" method="POST" class="inline"
                                       onsubmit="return appConfirm(this, 'Yakin hapus {{ addslashes($item->name) }}?', { danger: true })">
                                     @csrf @method('DELETE')
@@ -212,6 +219,9 @@
                                         <span class="material-symbols-outlined text-[17px]">delete</span>
                                     </button>
                                 </form>
+                                @else
+                                    <span class="text-xs text-[var(--text-idle)]">-</span>
+                                @endif
                             </td>
                         </tr>
                     @empty

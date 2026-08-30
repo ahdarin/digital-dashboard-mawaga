@@ -82,18 +82,20 @@
 
         {{-- Import Performance + Analytics Integration (PRD 7.3.4) --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <a href="{{ route('settings.import') }}" class="card p-6 flex items-center justify-between hover:border-[#044b46]/30 transition-colors">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-lg bg-[var(--brand-tint)] flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-[var(--brand)] text-[19px]">upload_file</span>
+            @if (auth()->user()->hasPermissionTo('settings', 'manage'))
+                <a href="{{ route('settings.import') }}" class="card p-6 flex items-center justify-between hover:border-[#044b46]/30 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-[var(--brand-tint)] flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-[var(--brand)] text-[19px]">upload_file</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-[var(--text-primary)]">Import Data Performa</p>
+                            <p class="text-xs text-[var(--text-muted)]">Upload CSV metrik performa konten manual.</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-sm font-semibold text-[var(--text-primary)]">Import Data Performa</p>
-                        <p class="text-xs text-[var(--text-muted)]">Upload CSV metrik performa konten manual.</p>
-                    </div>
-                </div>
-                <span class="material-symbols-outlined text-[var(--text-muted)] text-[19px] shrink-0">chevron_right</span>
-            </a>
+                    <span class="material-symbols-outlined text-[var(--text-muted)] text-[19px] shrink-0">chevron_right</span>
+                </a>
+            @endif
 
             <a href="{{ route('settings', ['tab' => 'integrasi']) }}" class="card p-6 flex items-center justify-between hover:border-[#044b46]/30 transition-colors">
                 <div class="flex items-center gap-3">
@@ -119,12 +121,16 @@
                 Otomatis bandingin performa konten hari ini vs rata-rata 30 hari terakhir, kirim notifikasi kalau ada lonjakan/penurunan signifikan.
                 Berjalan otomatis tiap jam - ini buat trigger manual.
             </p>
-            <form action="{{ route('settings.detect-anomalies') }}" method="POST">
-                @csrf
-                <button type="submit" class="bg-[var(--info-tint)] text-[var(--info-text)] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] transition-colors flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[16px]">bolt</span> Jalankan Sekarang
-                </button>
-            </form>
+            @if (auth()->user()->hasPermissionTo('settings', 'manage'))
+                <form action="{{ route('settings.detect-anomalies') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="bg-[var(--info-tint)] text-[var(--info-text)] text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">bolt</span> Jalankan Sekarang
+                    </button>
+                </form>
+            @else
+                <p class="text-xs text-[var(--text-idle)] italic">Butuh izin 'manage' untuk menjalankan ini secara manual.</p>
+            @endif
         </div>
 
     </div>

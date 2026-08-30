@@ -22,7 +22,16 @@ class ClientManagementController extends Controller
 {
     public function index(Request $request)
     {
-        $this->authorizeManage();
+        // Halaman ini sekarang juga dibuka untuk role view-only (mis.
+        // Admin) - route-nya sendiri sudah digerbang 'client,view' (lihat
+        // routes/web.php), jadi authorizeManage() (yang mensyaratkan
+        // 'manage') di sini sengaja TIDAK dipakai buat index(). Semua aksi
+        // tulis (store/update/destroy/dst) tetap lewat authorizeManage().
+        abort_unless(
+            auth()->user()?->hasPermissionTo('client', 'view')
+                || auth()->user()?->hasPermissionTo('client', 'manage'),
+            403
+        );
 
         $search = $request->query('search');
         $status = $request->query('status', 'all');

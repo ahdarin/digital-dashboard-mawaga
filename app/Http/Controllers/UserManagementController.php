@@ -28,7 +28,16 @@ class UserManagementController extends Controller
      */
     public function index(Request $request)
     {
-        $this->authorizeManage();
+        // Halaman ini sekarang juga dibuka untuk role view-only (mis.
+        // Admin) - route-nya sendiri sudah digerbang 'user_management,view'
+        // (lihat routes/web.php), jadi authorizeManage() (yang mensyaratkan
+        // 'manage') di sini sengaja TIDAK dipakai buat index(). Semua aksi
+        // tulis (store/destroy/activate/dst) tetap lewat authorizeManage().
+        abort_unless(
+            auth()->user()?->hasPermissionTo('user_management', 'view')
+                || auth()->user()?->hasPermissionTo('user_management', 'manage'),
+            403
+        );
 
         // Tab "Aktif"/"Nonaktif" (pola sama seperti Produksi) - dipisah
         // supaya roster nonaktif yang menumpuk tidak membanjiri tabel utama.

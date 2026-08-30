@@ -19,13 +19,13 @@
             'label' => 'Tim',
             'items' => [
                 ['label' => 'Performa Tim', 'route' => 'team-performance.index', 'icon' => 'diversity_3', 'permission' => ['team_performance', 'view']],
-                ['label' => 'Kelola Pengguna', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'manage']],
+                ['label' => 'Kelola Pengguna', 'route' => 'user-management.index', 'icon' => 'manage_accounts', 'permission' => ['user_management', 'view']],
             ],
         ],
         [
             'label' => 'Klien',
             'items' => [
-                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'manage']],
+                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'view']],
             ],
         ],
         [
@@ -37,7 +37,7 @@
         [
             'label' => 'Sistem',
             'items' => [
-                ['label' => 'Pengaturan', 'route' => 'settings', 'icon' => 'tune', 'permission' => ['settings', 'manage']],
+                ['label' => 'Pengaturan', 'route' => 'settings', 'icon' => 'tune', 'permission' => ['settings', 'view']],
             ],
         ],
     ];
