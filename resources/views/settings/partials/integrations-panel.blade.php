@@ -1,12 +1,4 @@
-{{-- Integrasi - CLIENT-CENTRIC (dulu: 1 kartu Instagram global + dropdown
-     client di dalam form Sync Now, membingungkan karena koneksi Instagram
-     sebenarnya per-client lewat api_integrations - lihat audit "Settings
-     Integrasi client-centric"). User pilih client dulu SEBAGAI FILTER
-     UTAMA halaman, baru integration MILIK client itu yang ditampilkan. --}}
 @php
-    {{-- Guard tombol tulis untuk role view-only (mis. Admin) - route-nya
-         sendiri sudah digerbang permission yang sama, ini cuma supaya
-         tombolnya tidak tampil kalau memang bakal ditolak server. --}}
     $canManageSettings = auth()->user()->hasPermissionTo('settings', 'manage');
     $canManageClientIntegration = auth()->user()->hasPermissionTo('client', 'manage');
 @endphp
