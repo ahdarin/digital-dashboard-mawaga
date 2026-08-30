@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\UserInvitationMail;
 use App\Models\Client;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PicReassignmentService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 class UserManagementController extends Controller
@@ -64,10 +61,14 @@ class UserManagementController extends Controller
     }
 
     /**
-     * "Undang User" - buat person BARU sekaligus aktifkan akses login-nya
-     * (undangan = login_enabled=true, beda dari roster GUIDE yang di-import
+     * "Tambah Pengguna" - buat person BARU sekaligus aktifkan akses
+     * login-nya (login_enabled=true, beda dari roster GUIDE yang di-import
      * tanpa akses). Role many-to-many (RBAC multi-role) - satu user bisa
-     * diundang langsung dengan beberapa role sekaligus.
+     * langsung diberi beberapa role sekaligus. Tidak ada email pemberitahuan
+     * (fitur email undangan dihapus - cuma dekorasi, tidak ada fungsi nyata
+     * karena aktivasi akun sebenarnya terjadi lewat login Google, bukan
+     * lewat link di email) - pemilik akun tinggal login Google pakai email
+     * yang didaftarkan di sini.
      */
     public function store(Request $request)
     {
@@ -76,7 +77,7 @@ class UserManagementController extends Controller
         // Bag terpisah ('inviteUser') - halaman ini juga punya form Edit
         // Role yang divalidasi dengan field 'role_ids' YANG SAMA PERSIS.
         // Kalau keduanya pakai bag default, validasi Edit Role yang gagal
-        // akan ikut membuka modal Undang User ini juga (showCreateModal
+        // akan ikut membuka modal Tambah Pengguna ini juga (showCreateModal
         // di index.blade.php dulu cek $errors->any(), bukan per-form).
         $validated = $request->validateWithBag('inviteUser', [
             'name' => 'required|string|max:255',
@@ -88,28 +89,13 @@ class UserManagementController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'status' => 'invited',
+            'status' => 'active',
             'login_enabled' => true,
         ]);
         $user->roles()->attach($validated['role_ids']);
 
-        // Kegagalan kirim email (mis. SMTP belum dikonfigurasi) sengaja
-        // tidak menggagalkan pembuatan user - akun tetap bisa aktif sendiri
-        // saat pertama login Google, admin cukup diberi tahu lewat pesan
-        // flash kalau emailnya gagal terkirim.
-        $emailSent = true;
-        try {
-            Mail::to($user->email)->send(new UserInvitationMail($user->load('roles')));
-        } catch (\Throwable $e) {
-            $emailSent = false;
-            Log::warning('Gagal mengirim email undangan user: '.$e->getMessage(), ['user_id' => $user->id]);
-        }
-
-        $message = $emailSent
-            ? 'User berhasil diundang. Email undangan sudah dikirim - mereka bisa login dengan Google menggunakan email ini.'
-            : 'User berhasil dibuat, tapi email undangan gagal terkirim (cek konfigurasi SMTP di .env). Beri tahu mereka secara manual untuk login dengan Google menggunakan email ini.';
-
-        return redirect()->route('user-management.index')->with('status', $message);
+        return redirect()->route('user-management.index')
+            ->with('status', 'User berhasil ditambahkan. Beri tahu mereka untuk login dengan Google menggunakan email ini.');
     }
 
     public function destroy(Request $request, User $user, PicReassignmentService $picReassignmentService)

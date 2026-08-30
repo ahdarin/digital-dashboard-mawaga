@@ -37,7 +37,7 @@
             <button type="button" @click="showCreateModal = true"
                class="self-start btn-primary">
                 <span class="material-symbols-outlined text-[17px]">person_add</span>
-                Undang User
+                Tambah Pengguna
             </button>
         @endif
     </div>
@@ -66,7 +66,7 @@
         @include('user-management.partials.active-tab')
     @endif
 
-    {{-- Modal Undang User --}}
+    {{-- Modal Tambah Pengguna --}}
     <div x-show="showCreateModal" x-cloak x-transition
          x-on:keydown.escape.window="showCreateModal = false"
          class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
@@ -76,7 +76,7 @@
              role="dialog" aria-modal="true" aria-labelledby="invite-user-modal-title" x-trap="showCreateModal"
              class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
-                <h3 id="invite-user-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Undang User Baru</h3>
+                <h3 id="invite-user-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Tambah Pengguna Baru</h3>
                 <button type="button" @click="showCreateModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>
@@ -119,7 +119,7 @@
 
                 <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                     <button type="submit" class="btn-primary">
-                        Kirim Undangan
+                        Tambah Pengguna
                     </button>
                     <button type="button" @click="showCreateModal = false" class="btn-secondary">
                         Batal

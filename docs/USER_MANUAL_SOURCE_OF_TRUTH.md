@@ -2004,20 +2004,25 @@ Halaman ini menampilkan **seluruh** staf internal — baik yang punya akses
 dashboard maupun yang tidak. Tiap baris memuat: nama, email, **semua role**-nya,
 klien yang ditangani, jumlah task aktif, dan status.
 
-### Undang User
+### Tambah Pengguna
+
+> ✅ **Fitur email undangan dihapus.** Sebelumnya tombol ini bernama "Undang
+> User" dan mengirim email pemberitahuan lewat SMTP. Email itu terbukti tidak
+> bisa diandalkan (Railway memblokir koneksi outbound ke port SMTP) dan
+> fungsinya memang cuma dekorasi — tidak ada tautan atau kata sandi di
+> dalamnya, aktivasi akun selalu terjadi lewat login Google, bukan lewat
+> email. Fitur email (Mailable, template, konfigurasi SMTP) sudah dihapus
+> total dari aplikasi.
 
 **Tujuan** — Menambahkan orang baru sekaligus memberinya akses masuk
 **Langkah** — Isi nama · email · centang **satu atau lebih role** · Simpan
-**Efek yang dimaksudkan** — Akun dibuat berstatus **Diundang**, akses login
-diaktifkan, dan email undangan dikirim
-**Catatan penting tentang email undangan** — Email itu **hanya pemberitahuan**.
-Tidak ada tautan ajaib atau kata sandi di dalamnya. Penerimanya tetap masuk
-lewat tombol **Masuk dengan Google** menggunakan email yang sama. Kalau
-pengiriman email gagal (SMTP belum siap), akun **tetap dibuat** dan admin diberi
-tahu agar memberitahukan secara manual
-**Status** — `READY` — KI-06 diperbaiki: akses login sekarang benar-benar
-tersimpan saat undangan dibuat, sehingga orang yang diundang langsung bisa
-masuk lewat **Masuk dengan Google** (`UserManagementTest`)
+**Efek yang dimaksudkan** — Akun dibuat berstatus **Aktif**, akses login
+langsung diaktifkan. Tidak ada email yang dikirim — beri tahu orangnya secara
+langsung (chat/lisan) untuk masuk lewat **Masuk dengan Google** memakai email
+yang sama yang baru didaftarkan
+**Status** — `READY` — akses login tersimpan saat akun dibuat, sehingga orang
+yang ditambahkan langsung bisa masuk lewat **Masuk dengan Google**
+(`UserManagementTest`)
 
 ### Edit Role
 
@@ -2075,10 +2080,11 @@ ditugaskan sebagai PIC) tetapi **tidak punya akses login** — misalnya staf
 lapangan yang tidak memakai dashboard. Di daftar pilihan PIC, orang seperti ini
 diberi keterangan **"(belum memiliki akses dashboard)"**.
 
-Syarat bisa masuk: status **Aktif** atau **Diundang**, **DAN** akses login
-aktif. Keduanya bisa diatur dari UI: status lewat **Nonaktifkan / Aktifkan
-Kembali**, akses login lewat **Aktifkan / Cabut Akses Login**. Orang yang baru
-diundang otomatis mendapat akses login.
+Syarat bisa masuk: status **Aktif** atau **Diundang** (nilai lama, sudah tidak
+dipakai lagi oleh **Tambah Pengguna** - akun baru sekarang langsung **Aktif**),
+**DAN** akses login aktif. Keduanya bisa diatur dari UI: status lewat
+**Nonaktifkan / Aktifkan Kembali**, akses login lewat **Aktifkan / Cabut Akses
+Login**. Orang yang baru ditambahkan otomatis mendapat akses login.
 
 ## Performa Tim
 
