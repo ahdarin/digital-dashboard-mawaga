@@ -22,14 +22,18 @@ class ClientManagementController extends Controller
 {
     public function index(Request $request)
     {
-        // Halaman ini sekarang juga dibuka untuk role view-only (mis.
-        // Admin) - route-nya sendiri sudah digerbang 'client,view' (lihat
-        // routes/web.php), jadi authorizeManage() (yang mensyaratkan
-        // 'manage') di sini sengaja TIDAK dipakai buat index(). Semua aksi
-        // tulis (store/update/destroy/dst) tetap lewat authorizeManage().
+        // Halaman ini menampilkan daftar SEMUA client (tidak discope) -
+        // beda dari client-management.show yang dibuka ke semua role
+        // ber-'client,view' tapi discope ke client assignment-nya
+        // (client.scope). Route-nya sendiri cuma gerbang 'client,view'
+        // (biar Admin/CEO/Manager lolos), jadi di sini perlu ketat lagi:
+        // cuma role yang canSeeAllClients() (CEO/Manager/Admin) yang boleh
+        // lihat daftar TANPA scope ini - Content Creator/Graphic
+        // Designer/Copywriter/SMO tetap 'client,view' buat detail 1 client,
+        // TAPI tidak boleh browse daftar lengkapnya (RoleAccessMatrixTest).
         abort_unless(
-            auth()->user()?->hasPermissionTo('client', 'view')
-                || auth()->user()?->hasPermissionTo('client', 'manage'),
+            auth()->user()?->hasPermissionTo('client', 'manage')
+                || (auth()->user()?->hasPermissionTo('client', 'view') && auth()->user()?->canSeeAllClients()),
             403
         );
 
