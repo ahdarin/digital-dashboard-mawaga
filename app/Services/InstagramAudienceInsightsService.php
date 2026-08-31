@@ -28,12 +28,17 @@ use Illuminate\Support\Facades\Log;
  *   dipakai, lihat getCurrentFollowerCount()).
  * - reach (account, time_series) & online_followers (lifetime, array 24
  *   jam) tersedia & terbukti historis s/d 180 hari ke belakang.
- * - follower_demographics & reached_audience_demographics tersedia di
- *   ke-3 akun test tanpa threshold. engaged_audience_demographics
- *   terbukti kena threshold nyata (error code 3006 "Not enough users")
- *   di 2 dari 3 akun (523 Studio 144 followers, Metro 757 followers) -
- *   ini kondisi VALID, bukan bug, harus di-skip diam-diam (lihat
- *   fetchDemographicBreakdown()).
+ * - follower_demographics terbukti konsisten tersedia di semua akun test.
+ *   reached_audience_demographics & engaged_audience_demographics TIDAK
+ *   dijamin selalu tersedia - re-verifikasi live (2026-08-31, akun Metro/
+ *   @metrosoftware, 758 followers) balikin HTTP 200 + results KOSONG untuk
+ *   reached di kedua timeframe yang didukung (this_month & this_week), dan
+ *   untuk engaged: this_month juga 200+kosong, this_week eksplisit error
+ *   code 3006 "Not enough users". Baik "200 + kosong" maupun "3006" adalah
+ *   kondisi VALID (Meta memang tidak punya/tidak mengizinkan breakdown ini
+ *   untuk akun tersebut saat itu), BUKAN bug - keduanya di-skip diam-diam
+ *   jadi "unavailable", tidak pernah ditebak jadi 0 (lihat
+ *   fetchDemographicBreakdown() & sync()).
  * - Action-metrics (profile_views/likes/comments/shares/saves/replies/
  *   website_clicks/accounts_engaged/dst) balikin HTTP 200 tapi data: []
  *   kosong di KETIGA akun real, konsisten di semua ukuran akun - diduga
@@ -51,11 +56,17 @@ class InstagramAudienceInsightsService
     private const TIMEOUT = 20;
 
     // Dipakai reached/engaged demographics (representasi "audience yang
-    // reach/engaged DALAM N hari terakhir") - dibuktikan lewat test lansung
+    // reach/engaged DALAM window ini") - dibuktikan lewat test langsung
     // bahwa nilai timeframe TIDAK mengubah follower_demographics (snapshot
     // current, bukan windowed), tapi tetap wajib dikirim buat reached/
-    // engaged. 30 hari dipilih biar konsisten dengan window lain di app ini.
-    private const DEMOGRAPHICS_TIMEFRAME_FALLBACK = ['last_30_days', 'last_14_days', 'last_90_days'];
+    // engaged. Nilai lama (last_30_days/last_14_days/last_90_days) sudah
+    // TIDAK didukung Instagram API - diganti this_month/this_week (bulan
+    // dicoba dulu karena window lebih lebar = lebih besar peluang lolos
+    // threshold minimum audience). Live-verified 2026-08-31 (akun Metro):
+    // reached kosong (200) di kedua nilai, engaged kosong (200) di
+    // this_month & eksplisit 3006 "Not enough users" di this_week - lihat
+    // docblock class ini.
+    private const DEMOGRAPHICS_TIMEFRAME_FALLBACK = ['this_month', 'this_week'];
 
     private const BREAKDOWNS = ['gender', 'age', 'country', 'city'];
 
@@ -179,7 +190,14 @@ class InstagramAudienceInsightsService
         return $this->fetchAllBreakdowns('follower_demographics', withTimeframe: false);
     }
 
-    /** @return array{gender_breakdown: ?array, age_breakdown: ?array, top_locations: ?array, top_countries: ?array} */
+    /**
+     * Bisa balikin semua null kalau Meta belum meng-compute breakdown ini
+     * untuk akun/window tersebut (HTTP 200, results kosong, tanpa error
+     * code) - TERBUKTI nyata di akun Metro (live-verified 2026-08-31) di
+     * this_month MAUPUN this_week, jadi TIDAK boleh dianggap "selalu ada".
+     *
+     * @return array{gender_breakdown: ?array, age_breakdown: ?array, top_locations: ?array, top_countries: ?array}
+     */
     public function getReachedDemographics(): array
     {
         return $this->fetchAllBreakdowns('reached_audience_demographics', withTimeframe: true);
