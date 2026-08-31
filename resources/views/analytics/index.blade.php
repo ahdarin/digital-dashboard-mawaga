@@ -49,8 +49,8 @@
         <select name="client_id" onchange="this.form.submit()"
                 class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
             <option value="">Pilih Klien...</option>
-            @foreach ($clientOptions as $client)
-                <option value="{{ $client->id }}" {{ (string) $selectedClientId === (string) $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
+            @foreach ($clientOptions as $clientOption)
+                <option value="{{ $clientOption->id }}" {{ (string) $selectedClientId === (string) $clientOption->id ? 'selected' : '' }}>{{ $clientOption->name }}</option>
             @endforeach
         </select>
 
