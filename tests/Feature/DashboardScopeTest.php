@@ -53,7 +53,12 @@ class DashboardScopeTest extends TestCase
             'content_type_id' => $contentType->id,
             'platform_id' => $platform->id,
             'title' => 'Konten '.uniqid(),
-            'deadline_at' => now()->addDays(3),
+            // Dashboard menghitung "Konten Bulan Ini" dari deadline_at.
+            // now()->addDays(3) membuat test flaky di akhir bulan (mis. 31 Agustus
+            // menjadi 3 September), sehingga fixture yang dimaksud sebagai konten
+            // bulan berjalan justru berada di bulan berikutnya. Pakai tanggal aman
+            // di bulan berjalan agar test menguji scoping, bukan pergantian kalender.
+            'deadline_at' => now()->copy()->startOfMonth()->addDays(3),
         ]);
 
         ContentWorkflow::create([
