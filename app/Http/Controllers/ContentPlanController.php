@@ -315,7 +315,7 @@ class ContentPlanController extends Controller
         ]);
 
         return redirect()->route('content-plan.show', $contentPlan)
-            ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Siap Dikerjakan.');
+            ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Brief Ready.');
     }
 
     /**

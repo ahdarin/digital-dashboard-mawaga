@@ -69,7 +69,7 @@ class AnalyticsController extends Controller
                 'selectedClientId' => $selectedClientId,
                 'period' => $period,
                 'activeTab' => $activeTab,
-            ], $this->buildTableTabData($selectedClientId, $request)));
+            ], $this->buildTableTabData($selectedClientId, $request, $period)));
         }
 
         if ($activeTab === 'audience') {
@@ -274,7 +274,7 @@ class AnalyticsController extends Controller
      * client (puluhan-ratusan post) masih aman diproses begini, pola yang
      * sama sudah dipakai AnalyticsSummaryService buat Top Content.
      */
-    private function buildTableTabData(int|string $selectedClientId, Request $request): array
+    private function buildTableTabData(int|string $selectedClientId, Request $request, int $period): array
     {
         $client = Client::findOrFail($selectedClientId);
 
@@ -285,7 +285,14 @@ class AnalyticsController extends Controller
             $sort = 'total_views';
         }
 
+        // Filter periode 7/30/90 hari sama seperti tab Analytics & Audiens -
+        // dipakai bareng lewat filter bar di atas (analytics/index.blade.php),
+        // BUKAN filter khusus tab ini.
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $end = Carbon::now()->endOfDay();
+
         $metricsQuery = ContentMetric::where('client_id', $client->id)
+            ->whereBetween('metric_date', [$start, $end])
             ->with(['contentItem.platform', 'contentItem.contentType', 'contentItem.workflow', 'instagramMediaSnapshot', 'platform']);
 
         if ($request->filled('platform_id')) {

@@ -22,7 +22,7 @@ class WorkflowTransitions
     ];
 
     private static array $labels = [
-        'brief_ready'    => 'Siap Dikerjakan',
+        'brief_ready'    => 'Brief Ready',
         'in_progress'    => 'Sedang Dikerjakan',
         'waiting_review' => 'Menunggu Persetujuan',
         'revision'       => 'Perlu Revisi',

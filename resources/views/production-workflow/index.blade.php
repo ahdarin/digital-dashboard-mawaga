@@ -152,7 +152,7 @@
                         @endphp
 
                         <div draggable="{{ $canUpdateWorkflow ? 'true' : 'false' }}"
-                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }})"
+                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }}, @js($item->content_file_link ?? ''))"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}" data-content-type="{{ $item->contentType->name ?? '' }}"
@@ -330,6 +330,37 @@
         @endforeach
     </div>
 
+    {{-- Modal drag-drop: in_progress -> waiting_review butuh link konten dulu --}}
+    <div x-show="contentLinkModal" x-cloak x-on:keydown.escape.window="contentLinkModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="absolute inset-0 bg-[#14181a]/40" @click="contentLinkModal = null"></div>
+        <div x-show="contentLinkModal" x-transition role="dialog" aria-modal="true" aria-labelledby="content-link-modal-title" x-trap="!!contentLinkModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
+                <div>
+                    <h3 id="content-link-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Isi Link Konten</h3>
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5" x-text="contentLinkModal?.title"></p>
+                </div>
+                <button type="button" @click="contentLinkModal = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
+                    <span class="material-symbols-outlined text-[19px]">close</span>
+                </button>
+            </div>
+            <div class="px-6 py-5">
+                <label for="kanban_content_file_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Konten (wajib diisi)</label>
+                <input id="kanban_content_file_link" type="url" x-model="contentLink" placeholder="https://drive.google.com/..."
+                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                <p class="text-[10px] text-[var(--text-muted)] mt-1.5">Link file hasil produksi (Google Drive/Canva/dsb) - wajib diisi supaya reviewer bisa cek hasilnya.</p>
+            </div>
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
+                <button type="button" @click="confirmContentLinkModal()"
+                        class="btn-primary">
+                    Pindahkan ke Menunggu Persetujuan
+                </button>
+                <button type="button" @click="contentLinkModal = null" class="btn-secondary">
+                    Batal
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- Modal drag-drop: waiting_review -> revision butuh catatan revisi dulu --}}
     <div x-show="revisionModal" x-cloak x-on:keydown.escape.window="revisionModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="revisionModal = null"></div>
@@ -460,6 +491,7 @@ function kanbanBoard() {
         draggedItemId: null,
         draggedItemTitle: '',
         draggedItemPlatformId: null,
+        draggedItemContentFileLink: '',
         riskSortActive: false,
         expandedColumns: {},
         revisionModal: null,
@@ -468,6 +500,8 @@ function kanbanBoard() {
         pubForm: { published_at: '', post_url: '', caption_final: '' },
         scheduledModal: null,
         scheduledUploadAt: '',
+        contentLinkModal: null,
+        contentLink: '',
         toggleRiskSort() {
             this.riskSortActive = !this.riskSortActive;
             document.querySelectorAll('.kanban-column').forEach((col) => {
@@ -479,21 +513,30 @@ function kanbanBoard() {
                 cards.forEach((card) => col.insertBefore(card, moreBtn || null));
             });
         },
-        onDragStart(event, itemId, title, platformId) {
+        onDragStart(event, itemId, title, platformId, contentFileLink) {
             this.draggedItemId = itemId;
             this.draggedItemTitle = title;
             this.draggedItemPlatformId = platformId;
+            this.draggedItemContentFileLink = contentFileLink || '';
             event.dataTransfer.effectAllowed = 'move';
         },
-        // waiting_review -> revision dan scheduled -> uploaded butuh data
-        // tambahan sebelum status beneran berubah, jadi ditahan dulu lewat
-        // modal - bukan langsung fetch kayak transisi lain.
+        // in_progress -> waiting_review, waiting_review -> revision, dan
+        // scheduled -> uploaded butuh data tambahan sebelum status beneran
+        // berubah, jadi ditahan dulu lewat modal - bukan langsung fetch
+        // kayak transisi lain.
         onDrop(event, toStatus) {
             if (!this.draggedItemId) return;
             const itemId = this.draggedItemId;
             const title = this.draggedItemTitle;
             const platformId = this.draggedItemPlatformId;
+            const contentFileLink = this.draggedItemContentFileLink;
             this.draggedItemId = null;
+
+            if (toStatus === 'waiting_review') {
+                this.contentLink = contentFileLink || '';
+                this.contentLinkModal = { itemId, title };
+                return;
+            }
 
             if (toStatus === 'revision') {
                 this.revisionNote = '';
@@ -514,6 +557,17 @@ function kanbanBoard() {
             }
 
             this.submitStatusChange(itemId, toStatus, {});
+        },
+        confirmContentLinkModal() {
+            if (!this.contentLink.trim()) {
+                this.toast = 'Perpindahan ke Menunggu Persetujuan dibatalkan - link konten wajib diisi.';
+                setTimeout(() => this.toast = '', 3000);
+                return;
+            }
+            this.submitStatusChange(this.contentLinkModal.itemId, 'waiting_review', { content_file_link: this.contentLink }, () => {
+                this.contentLinkModal = null;
+                this.contentLink = '';
+            });
         },
         confirmRevisionModal() {
             if (!this.revisionNote.trim()) {

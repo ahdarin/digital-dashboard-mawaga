@@ -8,6 +8,7 @@
     <form method="GET" class="flex items-center gap-2.5 flex-wrap">
         <input type="hidden" name="tab" value="table">
         <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+        <input type="hidden" name="period" value="{{ $period }}">
         <input type="hidden" name="sort" value="{{ $sort }}">
         <input type="hidden" name="dir" value="{{ $dir }}">
 

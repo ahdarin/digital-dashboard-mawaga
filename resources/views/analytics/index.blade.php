@@ -54,14 +54,12 @@
             @endforeach
         </select>
 
-        @if ($activeTab !== 'table')
-            <select name="period" onchange="this.form.submit()"
-                    class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-                <option value="7" {{ $period === 7 ? 'selected' : '' }}>Last 7 Days</option>
-                <option value="30" {{ $period === 30 ? 'selected' : '' }}>30 Hari Terakhir</option>
-                <option value="90" {{ $period === 90 ? 'selected' : '' }}>Last 90 Days</option>
-            </select>
-        @endif
+        <select name="period" onchange="this.form.submit()"
+                class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+            <option value="7" {{ $period === 7 ? 'selected' : '' }}>7 Hari Terakhir</option>
+            <option value="30" {{ $period === 30 ? 'selected' : '' }}>30 Hari Terakhir</option>
+            <option value="90" {{ $period === 90 ? 'selected' : '' }}>90 Hari Terakhir</option>
+        </select>
 
         @if ($activeTab === 'audience' && ! empty($platforms) && $platforms->count() > 1)
             <select name="platform_id" onchange="this.form.submit()"

@@ -286,6 +286,7 @@ class ProductionWorkflowController extends Controller
             'notes' => 'nullable|string',
             'revision_note' => 'nullable|string',
             'scheduled_upload_at' => 'nullable|date',
+            'content_file_link' => 'nullable|url|max:2048',
             'platform_id' => 'nullable|exists:platforms,id',
             'published_at' => 'nullable|date',
             'post_url' => 'nullable|url',

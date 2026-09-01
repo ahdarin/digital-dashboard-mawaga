@@ -422,7 +422,10 @@ class GoldenPathTest extends TestCase
         $this->assertSame('in_progress', $revision->fresh()->status, 'Revisi open harus ikut ditandai in_progress saat Kerjakan Revisi.');
 
         // ===== Konten Telah Selesai (Sedang Dikerjakan -> Menunggu Persetujuan) =====
-        $finish = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), ['to_status' => 'waiting_review']);
+        $finish = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), [
+            'to_status' => 'waiting_review',
+            'content_file_link' => 'https://drive.google.com/drive/folders/revision-test',
+        ]);
         $finish->assertRedirect();
         $this->assertSame('waiting_review', $item->workflow->fresh()->current_status);
         $this->assertSame('resolved', $revision->fresh()->status, 'Revisi in_progress harus otomatis resolved saat balik ke Menunggu Persetujuan.');
@@ -446,5 +449,50 @@ class GoldenPathTest extends TestCase
         );
         $this->assertSame($contentCreator->id, $statusLogs->firstWhere('to_status', 'in_progress')->changed_by_user_id);
         $this->assertSame($smo->id, $statusLogs->firstWhere('to_status', 'approved')->changed_by_user_id);
+    }
+
+    /**
+     * Sedang Dikerjakan -> Menunggu Persetujuan HARUS ditahan kalau link
+     * konten belum diisi (sama seperti catatan revisi wajib buat masuk
+     * status Revision) - baik lewat payload transisi maupun link yang
+     * sudah tersimpan sebelumnya lewat form Link Konten (Draft).
+     */
+    public function test_waiting_review_requires_content_link(): void
+    {
+        $client = $this->client();
+
+        $contentCreator = User::factory()->create(['status' => 'active', 'login_enabled' => true]);
+        $contentCreator->roles()->attach($this->role('Content Creator', [['workflow', 'view'], ['workflow', 'update']])->id);
+        $contentCreator->assignedClients()->attach($client->id);
+
+        $plan = ContentPlan::create([
+            'client_id' => $client->id, 'created_by' => $contentCreator->id,
+            'month' => now()->month, 'year' => now()->year, 'status' => 'draft',
+        ]);
+        $item = \App\Models\ContentItem::create([
+            'content_plan_id' => $plan->id, 'client_id' => $client->id,
+            'title' => 'Konten Tanpa Link Test', 'deadline_at' => now()->addDays(5),
+        ]);
+        \App\Models\ContentWorkflow::create([
+            'content_item_id' => $item->id, 'current_pic_id' => $contentCreator->id,
+            'current_status' => 'in_progress', 'is_overdue' => false,
+        ]);
+        $item->assignments()->create(['user_id' => $contentCreator->id, 'assignment_role' => 'primary']);
+
+        // ===== Ditolak - belum ada link konten sama sekali =====
+        $rejected = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), ['to_status' => 'waiting_review']);
+        $rejected->assertRedirect();
+        $rejected->assertSessionHas('error');
+        $this->assertSame('in_progress', $item->workflow->fresh()->current_status);
+
+        // ===== Diterima - link konten diisi lewat payload transisi =====
+        $accepted = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), [
+            'to_status' => 'waiting_review',
+            'content_file_link' => 'https://drive.google.com/drive/folders/no-link-test',
+        ]);
+        $accepted->assertRedirect();
+        $accepted->assertSessionHasNoErrors();
+        $this->assertSame('waiting_review', $item->workflow->fresh()->current_status);
+        $this->assertSame('https://drive.google.com/drive/folders/no-link-test', $item->fresh()->content_file_link);
     }
 }

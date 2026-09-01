@@ -27,7 +27,7 @@
         }
     @endphp
 
-    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '' }" class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
+    <div x-data="{ showReassignModal: false, confirmAction: null, confirmNotes: '', confirmLink: '' }" class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
 
         <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div class="flex items-center gap-3">
@@ -537,6 +537,15 @@
                                 class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
                         </div>
                     </template>
+
+                    <template x-if="confirmAction?.withLink">
+                        <div class="mt-3">
+                            <label for="confirm-action-link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5" x-text="confirmAction?.linkLabel"></label>
+                            <input id="confirm-action-link" type="url" x-model="confirmLink" required placeholder="https://drive.google.com/..."
+                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                            <p class="text-[10px] text-[var(--text-muted)] mt-1">Link file hasil produksi (Google Drive/Canva/dsb) - wajib diisi supaya reviewer bisa cek hasilnya.</p>
+                        </div>
+                    </template>
                 </div>
 
                 {{-- Sengaja TIDAK ada @submit="confirmAction = null" - :action & hidden
@@ -555,9 +564,13 @@
                     <template x-if="confirmAction?.withNotes">
                         <input type="hidden" name="notes" :value="confirmNotes">
                     </template>
+                    <template x-if="confirmAction?.withLink">
+                        <input type="hidden" name="content_file_link" :value="confirmLink">
+                    </template>
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                         <button type="submit"
+                            :disabled="confirmAction?.withLink && !confirmLink.trim()"
                             :class="confirmAction?.danger ? 'btn-danger' : 'btn-primary'"
                             x-text="confirmAction?.confirmLabel || 'Ya, Lanjutkan'"></button>
                         <button type="button" @click="confirmAction = null" class="btn-secondary">
