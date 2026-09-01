@@ -2,7 +2,7 @@
     $hasUnresolvedRevisions = $contentItem->revisions->whereIn('status', ['open', 'in_progress'])->isNotEmpty();
 @endphp
 
-<div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '', contentFileLink: '{{ $contentItem->content_file_link }}' }">
+<div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
         <h3 class="text-sm font-semibold text-[var(--text-primary)]">Manajemen Status</h3>
     </div>
@@ -31,21 +31,13 @@
             <span class="material-symbols-outlined text-[16px]">play_arrow</span> KERJAKAN KONTEN
         </button>
     @elseif ($workflow->current_status === 'in_progress')
-        @if (! $contentItem->content_file_link)
-            <div class="mb-3">
-                <label for="content_file_link_inline" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Konten (Draft)</label>
-                <input id="content_file_link_inline" type="url" x-model="contentFileLink" placeholder="https://drive.google.com/..." :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
-                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40 disabled:bg-[var(--surface-page)] disabled:text-[var(--text-muted)]">
-                <p class="text-[11px] text-[var(--text-muted)] mt-1">Link file hasil produksi wajib diisi dulu - reviewer perlu bisa melihat hasilnya sebelum approve.</p>
-            </div>
-        @endif
-        <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }} || !contentFileLink"
+        <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Konten Telah Selesai',
                 message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
                 formAction: '{{ route('content-items.transition', $contentItem) }}',
                 method: 'PATCH',
-                fields: { to_status: 'waiting_review', content_file_link: contentFileLink },
+                fields: { to_status: 'waiting_review' },
                 confirmLabel: 'Ya, Selesai',
             }"
             title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"

@@ -68,7 +68,6 @@ class ContentItemController extends Controller
             'to_status' => 'required|string',
             'notes' => 'nullable|string',
             'scheduled_upload_at' => 'nullable|date',
-            'content_file_link' => 'nullable|url|max:2048',
         ]);
 
         $toStatus = $validated['to_status'];
