@@ -132,6 +132,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::patch('/content-brief/{contentBrief}', [ContentBriefController::class, 'updateManual'])
             ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.update');
+        Route::patch('/content-brief/{contentBrief}/upload-date', [ContentBriefController::class, 'setUploadDate'])
+            ->middleware('client.scope:contentBrief,contentItem.client_id')
+            ->name('content-brief.set-upload-date');
         Route::post('/content-brief/{contentBrief}/revert', [ContentBriefController::class, 'revert'])
             ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.revert');

@@ -143,6 +143,29 @@ class ContentBriefController extends Controller
     }
 
     /**
+     * Set tanggal upload manual - dipakai untuk brief yang deadline-nya
+     * sudah lewat, di mana AI sengaja TIDAK mengarang start_date/post_date
+     * (lihat BriefGenerationService::stripDatesIfDeadlinePassed). PIC yang
+     * menentukan sendiri kapan konten ini akan di-upload, supaya keterlambatannya
+     * bisa dilacak riil di Team Performance (bukan tanggal karangan AI).
+     */
+    public function setUploadDate(Request $request, ContentBriefDraft $contentBrief)
+    {
+        abort_if($contentBrief->isLocked(), 422, 'Brief sudah diterapkan, tarik kembali dulu sebelum diedit.');
+
+        $validated = $request->validate([
+            'post_date' => 'required|date',
+        ]);
+
+        $contentBrief->update([
+            'previous_snapshot' => $contentBrief->only(BriefGenerationService::EDITABLE_FIELDS),
+            'post_date' => $validated['post_date'],
+        ]);
+
+        return back()->with('status', 'Tanggal upload berhasil disimpan.');
+    }
+
+    /**
      * Kembalikan brief ke kondisi sebelum perubahan terakhir (undo 1 langkah).
      */
     public function revert(ContentBriefDraft $contentBrief)

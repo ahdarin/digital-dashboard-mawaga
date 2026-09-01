@@ -35,6 +35,7 @@ class BriefGenerationService
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($rawIdea));
         $parsed = $this->sanitizeDates($parsed);
+        $parsed = $this->stripDatesIfDeadlinePassed($rawIdea, $parsed);
         $feasibility = $this->assessFeasibility($rawIdea, $parsed);
 
         return ContentBriefDraft::create([
@@ -90,6 +91,7 @@ class BriefGenerationService
     {
         $parsed = $this->callGemini($this->buildGeneratePrompt($brief->contentItem));
         $parsed = $this->sanitizeDates($parsed);
+        $parsed = $this->stripDatesIfDeadlinePassed($brief->contentItem, $parsed);
         $feasibility = $this->assessFeasibility($brief->contentItem, $parsed);
 
         $brief->update([
@@ -220,6 +222,23 @@ class BriefGenerationService
         return $parsed;
     }
 
+    /**
+     * Kalau deadline content item SUDAH lewat, jangan biarkan AI mengarang
+     * start_date/post_date baru (biasanya jatuh dekat "hari ini" seolah-olah
+     * masih on-time, padahal item ini legitimately terlambat). Kosongkan
+     * biar PIC yang pilih tanggal upload manual - itu yang nanti dilacak di
+     * Team Performance sebagai keterlambatan riil, bukan tanggal karangan AI.
+     */
+    private function stripDatesIfDeadlinePassed(ContentItem $idea, array $parsed): array
+    {
+        if ($idea->deadline_at && $idea->deadline_at->startOfDay()->lt(Carbon::now()->startOfDay())) {
+            $parsed['start_date'] = null;
+            $parsed['post_date'] = null;
+        }
+
+        return $parsed;
+    }
+
     private function buildGeneratePrompt(ContentItem $idea): string
     {
         $typeName = $idea->contentType->name ?? 'Tidak diketahui';
@@ -227,9 +246,21 @@ class BriefGenerationService
         $isVideo = $typeName === 'Video';
         $today = Carbon::now()->toDateString();
         $tomorrow = Carbon::now()->addDay()->toDateString();
+        $deadlinePassed = $idea->deadline_at && $idea->deadline_at->startOfDay()->lt(Carbon::now()->startOfDay());
         $deadlineContext = $idea->deadline_at
-            ? "- Deadline konten (jangan lewati ini): {$idea->deadline_at->toDateString()}"
+            ? '- Deadline konten'.($deadlinePassed ? ' (SUDAH LEWAT)' : ' (jangan lewati ini)').": {$idea->deadline_at->toDateString()}"
             : '';
+
+        $dateFieldSpec = $deadlinePassed
+            ? '- start_date: isi null. Deadline konten ini SUDAH LEWAT, jadi JANGAN mengarang tanggal '
+              .'mulai produksi baru - PIC yang akan memilih tanggal upload manual setelah brief ini dibuat.'
+              ."\n        ".'- post_date: isi null, dengan alasan yang sama seperti start_date di atas.'
+            : "- start_date: perkiraan tanggal mulai produksi (format YYYY-MM-DD). Hari ini adalah\n"
+              ."          {$today} - asumsikan mulai besok ({$tomorrow}) KECUALI ada alasan kuat dari ide mentah\n"
+              .'          untuk memilih tanggal lain. WAJIB tanggal hari ini atau setelahnya, JANGAN PERNAH'."\n"
+              ."          tanggal sebelum {$today} atau tahun yang berbeda dari tahun berjalan sekarang.\n"
+              .'        - post_date: perkiraan tanggal posting (format YYYY-MM-DD), 3-5 hari setelah start_date,'."\n"
+              .'          dan sebelum deadline konten kalau deadline disebutkan di atas';
 
         $secondFieldSpec = $isVideo
             ? '* talent_script: naskah/dialog/voice over yang diucapkan talent di adegan ini (teks '
@@ -258,12 +289,7 @@ class BriefGenerationService
         (dipakai modul lain untuk menilai risiko keterlambatan pengerjaan):
 
         - hook_title: judul/hook menarik untuk brief (boleh beda dari judul ide asli)
-        - start_date: perkiraan tanggal mulai produksi (format YYYY-MM-DD). Hari ini adalah
-          {$today} - asumsikan mulai besok ({$tomorrow}) KECUALI ada alasan kuat dari ide mentah
-          untuk memilih tanggal lain. WAJIB tanggal hari ini atau setelahnya, JANGAN PERNAH
-          tanggal sebelum {$today} atau tahun yang berbeda dari tahun berjalan sekarang.
-        - post_date: perkiraan tanggal posting (format YYYY-MM-DD), 3-5 hari setelah start_date,
-          dan sebelum deadline konten kalau deadline disebutkan di atas
+        {$dateFieldSpec}
         - platform: platform publikasi
         - scenes: array JSON berisi satu object per SLIDE (Design/Carousel) atau ADEGAN (Video),
           urut dari scene pertama. Tiap object WAJIB punya key:
@@ -364,11 +390,14 @@ class BriefGenerationService
     private function buildFeasibilityPrompt(ContentItem $idea, array $parsedBrief, ?int $marginDays, array $picWorkload): string
     {
         $deadlineText = $idea->deadline_at->format('d M Y');
-        $marginText = $marginDays === null
-            ? 'Tidak diketahui (AI belum menentukan tanggal posting)'
-            : ($marginDays >= 0
-                ? "{$marginDays} hari buffer sebelum deadline"
-                : abs($marginDays)." hari MELEWATI deadline (tanggal posting yang direncanakan sudah lewat deadline)");
+        $daysSinceDeadline = Carbon::now()->startOfDay()->diffInDays($idea->deadline_at->copy()->startOfDay(), false);
+
+        $marginText = match (true) {
+            $marginDays !== null && $marginDays >= 0 => "{$marginDays} hari buffer sebelum deadline",
+            $marginDays !== null => abs($marginDays).' hari MELEWATI deadline (tanggal posting yang direncanakan sudah lewat deadline)',
+            $daysSinceDeadline < 0 => abs($daysSinceDeadline).' hari SUDAH MELEWATI deadline dan belum ada tanggal upload baru - PIC perlu memilih tanggal upload manual',
+            default => 'Tidak diketahui (tanggal posting belum ditentukan)',
+        };
 
         $workloadText = empty($picWorkload)
             ? 'Belum ada PIC yang ditugaskan ke item ini.'

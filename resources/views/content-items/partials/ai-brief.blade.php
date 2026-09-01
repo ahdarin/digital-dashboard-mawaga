@@ -1,5 +1,7 @@
 @php
     $contentBrief = $contentItem->contentBriefDraft;
+    $deadlinePassed = $contentItem->deadline_at && $contentItem->deadline_at->startOfDay()->lt(now()->startOfDay());
+    $daysOverdue = $deadlinePassed ? now()->startOfDay()->diffInDays($contentItem->deadline_at->copy()->startOfDay()) : 0;
 @endphp
 
 @if (! $contentBrief)
@@ -14,10 +16,19 @@
                     <p class="text-[10px] font-semibold text-[var(--brand)] uppercase tracking-wide mb-1">AI Brief Execution Assistant</p>
                     <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-1">Brief produksi belum dibuat</h3>
                     <p class="text-xs text-[var(--text-secondary)] max-w-md">Ubah ide mentah di bawah jadi brief produksi siap pakai — lengkap dengan naskah, talent, properti, dan estimasi kompleksitas teknis buat tim produksi.</p>
+                    @if ($deadlinePassed)
+                        <p class="flex items-center gap-1 text-xs text-[var(--danger-text)] font-medium mt-1.5">
+                            <span class="material-symbols-outlined text-[14px]">warning</span>
+                            Deadline sudah lewat {{ $daysOverdue }} hari ({{ $contentItem->deadline_at->format('d M Y') }}) — brief tetap bisa dibuat, tapi tanggal upload harus dipilih manual.
+                        </p>
+                    @endif
                 </div>
             </div>
             @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST">
+                <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST"
+                    @if ($deadlinePassed)
+                        onsubmit="return appConfirm(this, 'Deadline content ini sudah lewat {{ $daysOverdue }} hari ({{ $contentItem->deadline_at->format('d M Y') }}). Brief tetap bisa dibuat untuk konten yang terlambat, tapi kamu perlu pilih tanggal upload manual sesudahnya supaya keterlambatannya tercatat. Lanjutkan?')"
+                    @endif>
                     @csrf
                     <button class="btn-primary whitespace-nowrap">
                         <span class="material-symbols-outlined text-[18px]">auto_awesome</span> Buat Brief dengan AI
@@ -223,6 +234,38 @@
             </div>
         @endif
 
+        @if ($deadlinePassed && ! $contentBrief->post_date)
+            {{-- Deadline sudah lewat & AI sengaja tidak mengarang tanggal (lihat
+                 BriefGenerationService::stripDatesIfDeadlinePassed) - PIC pilih
+                 sendiri tanggal upload-nya, supaya keterlambatan riil tercatat
+                 untuk Team Performance, bukan tanggal karangan AI. --}}
+            <div class="flex items-start gap-2.5 p-3.5 rounded-lg mb-4" style="background-color: var(--danger-tint);">
+                <span class="material-symbols-outlined text-[17px] shrink-0 mt-0.5" style="color: var(--danger-text);">event_busy</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style="color: var(--danger-text);">
+                        Deadline Sudah Lewat {{ $daysOverdue }} Hari
+                    </p>
+                    <p class="text-sm mb-3" style="color: var(--danger-text);">
+                        Deadline konten ini adalah {{ $contentItem->deadline_at->format('d M Y, H:i') }}. AI tidak menentukan tanggal
+                        produksi/posting otomatis untuk brief yang sudah terlambat — pilih tanggal upload manual di bawah supaya
+                        keterlambatannya tercatat di Team Performance.
+                    </p>
+                    @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                        <form action="{{ route('content-brief.set-upload-date', $contentBrief) }}" method="POST" class="flex items-center gap-2 flex-wrap">
+                            @csrf
+                            @method('PATCH')
+                            <input type="text" name="post_date" data-flatpickr="date" autocomplete="off" required
+                                placeholder="Pilih tanggal upload"
+                                class="bg-[var(--surface-card)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                            <button type="submit" class="btn-primary whitespace-nowrap">
+                                <span class="material-symbols-outlined text-[16px]">event_available</span> Simpan Tanggal Upload
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         {{-- Jadwal & platform - ringkas, 3 kolom sejajar --}}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 mb-4 border-b border-[var(--surface-muted)]">
             <div>
@@ -234,6 +277,9 @@
             <div>
                 <p class="flex items-center gap-1 text-[10px] text-[var(--text-muted)] uppercase font-semibold mb-1">
                     <span class="material-symbols-outlined text-[13px]">event_available</span> Post
+                    @if ($deadlinePassed && $contentBrief->post_date)
+                        <span class="text-[9px] font-semibold normal-case" style="color: var(--warning-text);">(manual)</span>
+                    @endif
                 </p>
                 <p class="text-sm text-[var(--text-primary)] font-medium">{{ $contentBrief->post_date?->format('d M Y') ?? '-' }}</p>
             </div>
