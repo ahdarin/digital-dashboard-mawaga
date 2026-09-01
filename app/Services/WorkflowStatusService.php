@@ -52,8 +52,10 @@ class WorkflowStatusService
         // Reviewer/client tidak bisa menilai hasil kerja yang belum bisa
         // dilihat - Link Konten (Draft, hasil produksi di Drive/Canva/dsb)
         // wajib diisi dulu sebelum minta persetujuan. Disamakan levelnya
-        // dengan validasi scheduled_upload_at/publish di bawah.
-        if ($toStatus === 'waiting_review' && empty($contentItem->content_file_link)) {
+        // dengan validasi scheduled_upload_at/publish di bawah - boleh
+        // dikirim bareng payload transisi ini (form inline di tombol status),
+        // atau sudah diisi sebelumnya lewat card Link Konten terpisah.
+        if ($toStatus === 'waiting_review' && empty($payload['content_file_link']) && empty($contentItem->content_file_link)) {
             throw new WorkflowTransitionException('Link Konten (Draft) wajib diisi dulu sebelum meminta persetujuan - supaya hasil produksi bisa direview.');
         }
 
@@ -96,6 +98,10 @@ class WorkflowStatusService
 
             if ($toStatus === 'scheduled') {
                 $contentItem->update(['scheduled_upload_at' => $payload['scheduled_upload_at']]);
+            }
+
+            if ($toStatus === 'waiting_review' && ! empty($payload['content_file_link'])) {
+                $contentItem->update(['content_file_link' => $payload['content_file_link']]);
             }
 
             if ($toStatus === 'uploaded') {
