@@ -235,10 +235,12 @@
         @endif
 
         @if ($deadlinePassed && ! $contentBrief->post_date)
-            {{-- Deadline sudah lewat & AI sengaja tidak mengarang tanggal (lihat
-                 BriefGenerationService::stripDatesIfDeadlinePassed) - PIC pilih
-                 sendiri tanggal upload-nya, supaya keterlambatan riil tercatat
-                 untuk Team Performance, bukan tanggal karangan AI. --}}
+            {{-- Deadline sudah lewat, AI tidak pernah menentukan tanggal upload
+                 (lihat BriefGenerationService - start_date/post_date bukan lagi
+                 field yang diminta ke AI sama sekali) - PIC pilih sendiri tanggal
+                 upload-nya di sini, supaya keterlambatan riil tercatat untuk Team
+                 Performance. Deadline aslinya sendiri sudah tampil di bagian atas
+                 halaman Content Item, tidak diulang di sini. --}}
             <div class="flex items-start gap-2.5 p-3.5 rounded-lg mb-4" style="background-color: var(--danger-tint);">
                 <span class="material-symbols-outlined text-[17px] shrink-0 mt-0.5" style="color: var(--danger-text);">event_busy</span>
                 <div class="flex-1 min-w-0">
@@ -246,9 +248,7 @@
                         Deadline Sudah Lewat {{ $daysOverdue }} Hari
                     </p>
                     <p class="text-sm mb-3" style="color: var(--danger-text);">
-                        Deadline konten ini adalah {{ $contentItem->deadline_at->format('d M Y, H:i') }}. AI tidak menentukan tanggal
-                        produksi/posting otomatis untuk brief yang sudah terlambat — pilih tanggal upload manual di bawah supaya
-                        keterlambatannya tercatat di Team Performance.
+                        Pilih tanggal upload manual di bawah supaya keterlambatannya tercatat di Team Performance.
                     </p>
                     @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
                         <form action="{{ route('content-brief.set-upload-date', $contentBrief) }}" method="POST" class="flex items-center gap-2 flex-wrap">
@@ -264,31 +264,18 @@
                     @endif
                 </div>
             </div>
+        @elseif ($contentBrief->post_date)
+            <div class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] pb-4 mb-4 border-b border-[var(--surface-muted)]">
+                <span class="material-symbols-outlined text-[14px]">event_available</span>
+                Tanggal upload (manual): <span class="font-medium text-[var(--text-primary)]">{{ $contentBrief->post_date->format('d M Y') }}</span>
+            </div>
         @endif
 
-        {{-- Jadwal & platform - ringkas, 3 kolom sejajar --}}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-4 mb-4 border-b border-[var(--surface-muted)]">
-            <div>
-                <p class="flex items-center gap-1 text-[10px] text-[var(--text-muted)] uppercase font-semibold mb-1">
-                    <span class="material-symbols-outlined text-[13px]">event</span> Start
-                </p>
-                <p class="text-sm text-[var(--text-primary)] font-medium">{{ $contentBrief->start_date?->format('d M Y') ?? '-' }}</p>
-            </div>
-            <div>
-                <p class="flex items-center gap-1 text-[10px] text-[var(--text-muted)] uppercase font-semibold mb-1">
-                    <span class="material-symbols-outlined text-[13px]">event_available</span> Post
-                    @if ($deadlinePassed && $contentBrief->post_date)
-                        <span class="text-[9px] font-semibold normal-case" style="color: var(--warning-text);">(manual)</span>
-                    @endif
-                </p>
-                <p class="text-sm text-[var(--text-primary)] font-medium">{{ $contentBrief->post_date?->format('d M Y') ?? '-' }}</p>
-            </div>
-            <div>
-                <p class="flex items-center gap-1 text-[10px] text-[var(--text-muted)] uppercase font-semibold mb-1">
-                    <span class="material-symbols-outlined text-[13px]">share</span> Platform
-                </p>
-                <p class="text-sm text-[var(--text-primary)] font-medium">{{ $contentBrief->platform ?? '-' }}</p>
-            </div>
+        {{-- Platform saja - tanggal produksi/posting tidak ditentukan AI (lihat
+             catatan di atas), deadline aslinya ada di bagian atas halaman. --}}
+        <div class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] pb-4 mb-4 border-b border-[var(--surface-muted)]">
+            <span class="material-symbols-outlined text-[14px]">share</span>
+            Platform: <span class="font-medium text-[var(--text-primary)]">{{ $contentBrief->platform ?? '-' }}</span>
         </div>
 
         {{-- Naskah/script - per adegan/slide, visual & {{ $secondFieldLabel }} disusun atas-bawah --}}
