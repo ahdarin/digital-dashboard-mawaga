@@ -8,6 +8,16 @@
     </div>
     <p class="text-xs text-[var(--text-muted)] mb-4">Pindahkan status konten tanpa perlu drag & drop di board.</p>
 
+    @if ($workflow->current_status === 'draft')
+        {{-- Belum masuk workflow produksi sama sekali - tidak ada tombol
+             pindah status manual apa pun (termasuk Koreksi Status/Batalkan
+             di bawah) selama masih draf. Satu-satunya jalan keluar adalah
+             aksi batch SMO "Kirim ke Produksi" di halaman Content Plan. --}}
+        <div class="flex items-start gap-2 bg-[var(--surface-page)] text-[var(--text-secondary)] text-xs p-3 rounded-lg">
+            <span class="material-symbols-outlined text-[16px] shrink-0">hourglass_empty</span>
+            <span>Konten ini masih Draf - belum masuk antrian produksi. Lengkapi dulu Info Dasar &amp; Brief-nya, lalu tunggu Content Plan diajukan, disetujui, dan dikirim ke produksi oleh SMO.</span>
+        </div>
+    @else
     @unless ($canUpdateWorkflow)
         <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3.5">
             <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
@@ -164,5 +174,6 @@
                 <span class="material-symbols-outlined text-[16px]">cancel</span> Batalkan Konten
             </button>
         </div>
+    @endif
     @endif
 </div>

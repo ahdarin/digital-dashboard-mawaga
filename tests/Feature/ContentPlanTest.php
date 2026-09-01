@@ -4,20 +4,21 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\ClientCategory;
+use App\Models\ClientPackage;
 use App\Models\ContentPlan;
-use App\Models\ContentType;
 use App\Models\Notification;
 use App\Models\Permission;
-use App\Models\Platform;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Regression untuk KI-01 (Tambah Konten ke Rencana), KI-02 (Jobdesk
- * Tambahan), dan KI-13 (Rencana Ditolak buntu) - lihat
- * docs/USER_MANUAL_SOURCE_OF_TRUTH.md Bagian 22.
+ * Regression untuk KI-01 (slot konten digenerate otomatis dari kuota
+ * paket saat Content Plan dibuat - menggantikan form "Tambah Konten"
+ * manual yang sudah dihapus), KI-02 (Jobdesk Tambahan), dan KI-13
+ * (Rencana Ditolak buntu) - lihat docs/USER_MANUAL_SOURCE_OF_TRUTH.md
+ * Bagian 22.
  */
 class ContentPlanTest extends TestCase
 {
@@ -60,56 +61,59 @@ class ContentPlanTest extends TestCase
         ]);
     }
 
-    // ===== KI-01: Tambah Konten ke Rencana =====
-
-    public function test_add_content_item_succeeds_with_assigned_pic(): void
+    private function activePackage(Client $client, int $contentQuota, int $designQuota): ClientPackage
     {
-        $client = $this->client();
-        $manager = $this->userWithRole('content_plan', 'create', $client);
-        $pic = $this->userWithRole('workflow', 'update', $client);
-        $plan = $this->plan($client);
-        $contentType = ContentType::firstOrCreate(['name' => 'Video']);
-        $platform = Platform::firstOrCreate(['name' => 'Instagram']);
-
-        $response = $this->actingAs($manager)->post(route('content-plan.items.store', $plan), [
-            'title' => 'Konten Test',
-            'content_type_id' => $contentType->id,
-            'platform_id' => $platform->id,
-            'deadline_at' => now()->addDays(3)->format('Y-m-d H:i'),
-            'pic_user_id' => $pic->id,
-        ]);
-
-        $response->assertRedirect(route('content-plan.show', $plan));
-        $this->assertDatabaseHas('content_items', [
-            'content_plan_id' => $plan->id,
-            'title' => 'Konten Test',
-        ]);
-        $item = $plan->contentItems()->first();
-        $this->assertSame('brief_ready', $item->workflow->current_status);
-        $this->assertSame($pic->id, $item->workflow->current_pic_id);
-        $this->assertDatabaseHas('content_item_assignments', [
-            'content_item_id' => $item->id,
-            'user_id' => $pic->id,
-            'assignment_role' => 'primary',
+        return ClientPackage::create([
+            'client_id' => $client->id,
+            'package_name_snapshot' => 'Paket Test',
+            'monthly_content_quota' => $contentQuota,
+            'monthly_design_quota' => $designQuota,
+            'start_date' => now(),
+            'status' => 'active',
         ]);
     }
 
-    public function test_add_content_item_rejects_pic_not_assigned_to_client(): void
+    // ===== KI-01: slot konten auto-generate dari kuota paket =====
+
+    public function test_creating_content_plan_generates_items_from_active_package(): void
     {
         $client = $this->client();
-        $otherClient = $this->client();
         $manager = $this->userWithRole('content_plan', 'create', $client);
-        $picElsewhere = $this->userWithRole('workflow', 'update', $otherClient);
-        $plan = $this->plan($client);
+        $this->activePackage($client, 3, 2);
 
-        $response = $this->actingAs($manager)->post(route('content-plan.items.store', $plan), [
-            'title' => 'Konten Test',
-            'deadline_at' => now()->addDays(3)->format('Y-m-d H:i'),
-            'pic_user_id' => $picElsewhere->id,
+        $response = $this->actingAs($manager)->post(route('content-plan.store'), [
+            'client_id' => $client->id,
+            'month' => now()->month,
+            'year' => now()->year,
+        ]);
+
+        $plan = ContentPlan::where('client_id', $client->id)->first();
+        $response->assertRedirect(route('content-plan.show', $plan));
+        $this->assertCount(5, $plan->contentItems, 'Jumlah slot harus sesuai total kuota (3 konten + 2 desain).');
+
+        $codes = $plan->contentItems()->pluck('provisional_code')->sort()->values()->all();
+        $this->assertSame(['C1', 'C2', 'C3', 'D1', 'D2'], $codes);
+
+        $plan->contentItems->each(function ($item) {
+            $this->assertSame($item->provisional_code, $item->title, 'Title placeholder harus sama dengan kode slot sebelum diisi copywriter.');
+            $this->assertSame('draft', $item->workflow->current_status);
+            $this->assertNull($item->workflow->current_pic_id, 'Slot baru belum punya PIC - diisi belakangan lewat Info Dasar.');
+        });
+    }
+
+    public function test_creating_content_plan_without_active_package_is_rejected(): void
+    {
+        $client = $this->client();
+        $manager = $this->userWithRole('content_plan', 'create', $client);
+
+        $response = $this->actingAs($manager)->post(route('content-plan.store'), [
+            'client_id' => $client->id,
+            'month' => now()->month,
+            'year' => now()->year,
         ]);
 
         $response->assertStatus(422);
-        $this->assertDatabaseMissing('content_items', ['title' => 'Konten Test']);
+        $this->assertDatabaseMissing('content_plans', ['client_id' => $client->id]);
     }
 
     // ===== KI-02: Jobdesk Tambahan =====

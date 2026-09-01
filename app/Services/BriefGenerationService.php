@@ -40,7 +40,7 @@ class BriefGenerationService
         $parsed = $this->callGemini($this->buildGeneratePrompt($rawIdea));
         $feasibility = $this->assessFeasibility($rawIdea, $parsed);
 
-        return ContentBriefDraft::create([
+        $brief = ContentBriefDraft::create([
             'content_item_id' => $rawIdea->id,
             'created_by' => $createdBy,
             'hook_title' => $parsed['hook_title'] ?? $rawIdea->title,
@@ -57,6 +57,52 @@ class BriefGenerationService
             'feasibility_level' => $feasibility['feasibility_level'] ?? null,
             'feasibility_notes' => $feasibility['feasibility_notes'] ?? null,
             'status' => 'draft',
+        ]);
+
+        $this->syncComplexityToItem($brief);
+
+        return $brief;
+    }
+
+    /**
+     * Buat brief manual-first - TANPA memanggil Gemini sama sekali.
+     * Copywriter bisa mulai isi script/talent/properti/lokasi sendiri
+     * duluan, AI (generate/regenerate/assistField) jadi opsional di atas
+     * baris yang sudah ada, bukan satu-satunya cara membuat brief lagi.
+     */
+    public function createManual(ContentItem $contentItem, array $fields, ?int $createdBy = null): ContentBriefDraft
+    {
+        $data = array_intersect_key($fields, array_flip(self::EDITABLE_FIELDS));
+
+        if (array_key_exists('scenes', $data)) {
+            $data['scenes'] = array_values($data['scenes'] ?? []);
+            $data['slide_count'] = count($data['scenes']) ?: null;
+        }
+
+        $brief = ContentBriefDraft::create(array_merge($data, [
+            'content_item_id' => $contentItem->id,
+            'created_by' => $createdBy,
+            'status' => 'draft',
+        ]));
+
+        $this->syncComplexityToItem($brief);
+
+        return $brief;
+    }
+
+    /**
+     * Delay Risk (DelayRiskPredictionService/ContentComplexityCalculator)
+     * membaca estimated_duration_seconds/estimated_slide_count langsung
+     * dari ContentItem, BUKAN dari ContentBriefDraft - kolom itu harus
+     * disinkronkan tiap kali brief berubah (generate/regenerate/apply/edit
+     * manual), supaya prediksi risiko ikut mengikuti isi brief terbaru
+     * alih-alih data lama yang diisi sebelum brief ada.
+     */
+    public function syncComplexityToItem(ContentBriefDraft $brief): void
+    {
+        $brief->contentItem->update([
+            'estimated_duration_seconds' => $brief->estimated_duration_seconds,
+            'estimated_slide_count' => $brief->slide_count,
         ]);
     }
 
@@ -110,7 +156,10 @@ class BriefGenerationService
             'status' => 'draft',
         ]);
 
-        return $brief->fresh();
+        $fresh = $brief->fresh();
+        $this->syncComplexityToItem($fresh);
+
+        return $fresh;
     }
 
     /**
@@ -142,11 +191,19 @@ class BriefGenerationService
             return $brief;
         }
 
+        if (array_key_exists('scenes', $incoming)) {
+            $incoming['scenes'] = array_values($incoming['scenes'] ?? []);
+            $incoming['slide_count'] = count($incoming['scenes']) ?: null;
+        }
+
         $brief->update(array_merge($incoming, [
             'previous_snapshot' => $brief->only(self::EDITABLE_FIELDS),
         ]));
 
-        return $brief->fresh();
+        $fresh = $brief->fresh();
+        $this->syncComplexityToItem($fresh);
+
+        return $fresh;
     }
 
     /**
@@ -278,7 +335,7 @@ class BriefGenerationService
                     ->whereHas('contentItem', function ($q) use ($deadline) {
                         $q->whereNotNull('deadline_at')
                             ->whereRaw('YEARWEEK(deadline_at, 3) = YEARWEEK(?, 3)', [$deadline->toDateString()])
-                            ->whereHas('workflow', fn ($wq) => $wq->whereNotIn('current_status', ['uploaded', 'cancelled']));
+                            ->whereHas('workflow', fn ($wq) => $wq->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES));
                     })
                     ->count();
 

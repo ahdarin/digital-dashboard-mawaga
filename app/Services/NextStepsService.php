@@ -59,7 +59,7 @@ class NextStepsService
 
         if ($user->hasAnyRole([UserRole::Copywriter])) {
             $unfinishedBriefs = ContentItem::whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
-                ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', ['uploaded', 'cancelled']))
+                ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES))
                 ->when(
                     ! $user->canSeeAllClients(),
                     fn ($q) => $q->whereIn('client_id', $user->assignedClients()->pluck('clients.id'))

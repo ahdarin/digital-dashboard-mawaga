@@ -13,6 +13,7 @@ use App\Services\UserContentResolver;
 use App\Services\WorkflowStatusService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ContentItemController extends Controller
 {
@@ -24,6 +25,7 @@ class ContentItemController extends Controller
             'client',
             'contentType',
             'platform',
+            'platforms',
             'workflow.currentPic',
             'assignments.user',
             'statusLogs.changedByUser',
@@ -45,7 +47,7 @@ class ContentItemController extends Controller
             ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
             ->with('roles')
             ->withCount(['assignments as active_task_count' => function ($q) {
-                $q->whereHas('contentItem.workflow', fn ($qq) => $qq->whereNotIn('current_status', $this->doneStatuses));
+                $q->whereHas('contentItem.workflow', fn ($qq) => $qq->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES));
             }])
             ->orderBy('active_task_count')
             ->get();
@@ -53,7 +55,16 @@ class ContentItemController extends Controller
         $canUpdateWorkflow = auth()->user()->hasPermissionTo('workflow', 'update');
         $canApprove = auth()->user()->hasPermissionTo('workflow', 'approve');
 
-        return view('content-items.show', compact('contentItem', 'reassignCandidates', 'canUpdateWorkflow', 'canApprove', 'picResolver'));
+        // Opsi buat form "Info Dasar" - cuma dipakai selama status Draf
+        // (lihat content-items/show.blade.php), tapi disiapkan selalu biar
+        // tidak perlu query kondisional.
+        $pillarOptions = \App\Models\ContentPillar::all();
+        $platformOptions = \App\Models\Platform::all();
+
+        return view('content-items.show', compact(
+            'contentItem', 'reassignCandidates', 'canUpdateWorkflow', 'canApprove', 'picResolver',
+            'pillarOptions', 'platformOptions'
+        ));
     }
 
     /**
@@ -160,6 +171,62 @@ class ContentItemController extends Controller
         $pinService->unpin($request->user(), $contentItem);
 
         return response()->json(['success' => true, 'pinned' => false]);
+    }
+
+    /**
+     * "Info Dasar" - judul, brief singkat, pilar, platform, PIC. Dulu diisi
+     * sekaligus lewat form "Tambah Konten" saat item dibuat; sekarang item
+     * sudah ada duluan (slot auto-generate dari kuota paket, lihat
+     * ContentPlanItemGeneratorService), jadi copywriter melengkapi field
+     * ini belakangan dari halaman detail - cuma selama masih status Draf.
+     */
+    public function updateInfo(Request $request, ContentItem $contentItem)
+    {
+        abort_unless($contentItem->workflow->current_status === 'draft', 422, 'Info dasar cuma bisa diubah selama status masih Draf.');
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'brief' => 'nullable|string',
+            'content_pillar_id' => 'nullable|exists:content_pillars,id',
+            'platform_ids' => 'nullable|array',
+            'platform_ids.*' => 'exists:platforms,id',
+            'pic_user_id' => ['nullable', Rule::exists('users', 'id')->where('status', 'active')],
+        ]);
+
+        $picUser = null;
+        if (! empty($validated['pic_user_id'])) {
+            // Sama pola dengan reassign()/storeItem() lama - PIC harus
+            // beneran terkait client item ini, bukan cuma exists di users.
+            $picUser = User::where('id', $validated['pic_user_id'])
+                ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentItem->client_id))
+                ->first();
+            abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
+        }
+
+        $platformIds = array_values(array_unique($validated['platform_ids'] ?? []));
+
+        $contentItem->update([
+            'title' => $validated['title'],
+            'brief' => $validated['brief'] ?? null,
+            'content_pillar_id' => $validated['content_pillar_id'] ?? null,
+            // platform_id (scalar lama) tetap disinkronkan ke platform pertama
+            // yang dipilih - dibaca banyak titik lama (laporan, analytics,
+            // import, publish 1-platform) yang belum pindah ke pivot.
+            'platform_id' => $platformIds[0] ?? null,
+            'external_pic_name' => $picUser?->name ?? $contentItem->external_pic_name,
+            'external_pic_email' => $picUser?->email ?? $contentItem->external_pic_email,
+        ]);
+        $contentItem->platforms()->sync($platformIds);
+
+        if ($picUser) {
+            $contentItem->workflow->update(['current_pic_id' => $picUser->id]);
+            ContentItemAssignment::updateOrCreate(
+                ['content_item_id' => $contentItem->id, 'assignment_role' => 'primary'],
+                ['user_id' => $picUser->id]
+            );
+        }
+
+        return back()->with('status', 'Info dasar berhasil disimpan.');
     }
 
     /**

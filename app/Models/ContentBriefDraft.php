@@ -78,4 +78,27 @@ class ContentBriefDraft extends Model
     {
         return ! $this->isLocked() && ! empty($this->previous_snapshot);
     }
+
+    /**
+     * Syarat "brief lengkap" buat gate Ajukan Rencana (ContentPlanController::
+     * submit()) dan penanda "Brief belum diisi" di halaman Content Plan -
+     * definisi tunggal dipakai di kedua tempat itu, jangan didefinisikan
+     * ulang di masing-masing. Talent/properti SENGAJA tidak wajib - kadang
+     * memang tidak ada untuk konten tertentu.
+     */
+    public function isComplete(): bool
+    {
+        $item = $this->contentItem;
+
+        if (! $item || empty($item->title) || $item->title === $item->provisional_code) {
+            return false;
+        }
+
+        $hasPlatform = $item->platform_id || $item->platforms()->exists();
+        if (empty($item->brief) || ! $item->content_pillar_id || ! $hasPlatform) {
+            return false;
+        }
+
+        return ! empty($this->scenes) || ! empty($this->copywriting_script);
+    }
 }

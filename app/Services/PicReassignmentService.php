@@ -24,7 +24,7 @@ class PicReassignmentService
     public function activeWorkflows(User $user, ?int $clientId = null): Collection
     {
         return ContentWorkflow::where('current_pic_id', $user->id)
-            ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
+            ->whereNotIn('current_status', WorkflowTransitions::INACTIVE_STATUSES)
             ->when($clientId, fn ($q) => $q->whereHas('contentItem', fn ($qq) => $qq->where('client_id', $clientId)))
             ->get();
     }

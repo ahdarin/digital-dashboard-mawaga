@@ -90,6 +90,17 @@ class AnalyticsController extends Controller
 
         $aiAnalysisMonth = $aiStrategyService->analysisPeriod()['start']->translatedFormat('F Y');
 
+        // Slot kosong (draft, brief belum lengkap) client ini - dipakai
+        // picker "Terapkan ke Slot Ini" per-ide, karena sejak Content Plan
+        // auto-generate slot dari kuota paket, menerapkan ide AI berarti
+        // mengisi slot yang sudah ada, bukan bikin content item baru.
+        $emptySlots = ContentItem::where('client_id', $selectedClientId)
+            ->whereHas('workflow', fn ($q) => $q->where('current_status', 'draft'))
+            ->orderBy('provisional_code')
+            ->get(['id', 'title', 'provisional_code'])
+            ->filter(fn ($item) => ! $item->hasCompleteBrief())
+            ->values();
+
         return view('analytics.index', compact(
             'stats',
             'trend',
@@ -100,7 +111,8 @@ class AnalyticsController extends Controller
             'period',
             'latestAiInsight',
             'aiAnalysisMonth',
-            'activeTab'
+            'activeTab',
+            'emptySlots'
         ));
     }
 
@@ -796,6 +808,67 @@ class AnalyticsController extends Controller
 
         return redirect()->route('content-plan.show', $plan)
             ->with('status', $message);
+    }
+
+    /**
+     * Terapkan SATU ide AI ke SATU slot content item yang masih kosong -
+     * bukan bikin item baru seperti applyAiStrategy() lama. Sejak Content
+     * Plan auto-generate slot sejumlah kuota paket, "menerapkan ide" berarti
+     * menimpa data slot yang sudah ada (title/brief/pilar/platform), satu
+     * per satu, biar user yang menentukan ide mana masuk slot mana - bukan
+     * sistem yang mendistribusikan otomatis ke semua slot sekaligus.
+     */
+    public function applyAiStrategyIdea(Request $request, AiStrategyInsight $aiStrategyInsight, int $index)
+    {
+        abort_if($aiStrategyInsight->status !== 'completed', 422, 'Cuma analisis yang berhasil yang bisa diterapkan.');
+
+        $ideas = collect($aiStrategyInsight->content_ideas);
+        abort_unless($ideas->has($index), 404, 'Ide tidak ditemukan.');
+        $idea = $ideas->get($index);
+
+        $appliedIndexes = collect($aiStrategyInsight->applied_idea_indexes ?? []);
+        abort_if($appliedIndexes->contains($index), 422, 'Ide ini sudah diterapkan sebelumnya.');
+
+        $validated = $request->validate([
+            'content_item_id' => 'required|exists:content_items,id',
+        ]);
+
+        $targetItem = ContentItem::where('id', $validated['content_item_id'])
+            ->where('client_id', $aiStrategyInsight->client_id)
+            ->firstOrFail();
+
+        abort_unless($targetItem->workflow?->current_status === 'draft', 422, 'Slot ini sudah tidak berstatus Draf - pilih slot lain.');
+
+        $pillar = ! empty($idea['pillar']) ? \App\Models\ContentPillar::firstOrCreate(['name' => $idea['pillar']]) : null;
+
+        $typeName = trim($idea['type'] ?? '');
+        $contentType = $typeName !== ''
+            ? (\App\Models\ContentType::whereRaw('LOWER(name) = ?', [strtolower($typeName)])->first() ?? \App\Models\ContentType::firstOrCreate(['name' => $typeName]))
+            : null;
+
+        $platformName = trim($idea['platform'] ?? '');
+        $platform = $platformName !== ''
+            ? (Platform::whereRaw('LOWER(name) = ?', [strtolower($platformName)])->first() ?? Platform::firstOrCreate(['name' => $platformName]))
+            : null;
+
+        $targetItem->update([
+            'title' => $idea['title'] ?? $targetItem->title,
+            'brief' => $idea['brief'] ?? $targetItem->brief,
+            'content_pillar_id' => $pillar?->id ?? $targetItem->content_pillar_id,
+            'content_type_id' => $contentType?->id ?? $targetItem->content_type_id,
+            'platform_id' => $platform?->id ?? $targetItem->platform_id,
+            'ai_strategy_insight_id' => $aiStrategyInsight->id,
+        ]);
+
+        if ($platform) {
+            $targetItem->platforms()->syncWithoutDetaching([$platform->id]);
+        }
+
+        $aiStrategyInsight->update([
+            'applied_idea_indexes' => $appliedIndexes->push($index)->unique()->values()->all(),
+        ]);
+
+        return back()->with('status', "Ide \"{$idea['title']}\" berhasil diterapkan ke slot \"{$targetItem->provisional_code}\" - lengkapi brief produksinya di halaman konten.");
     }
 
     /**

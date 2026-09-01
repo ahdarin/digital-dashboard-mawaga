@@ -117,9 +117,15 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->name('content-brief.show');
 
     Route::middleware('permission:content_plan,create')->group(function () {
+        Route::patch('/content-items/{contentItem}/info', [ContentItemController::class, 'updateInfo'])
+            ->middleware('client.scope:contentItem')
+            ->name('content-items.update-info');
         Route::post('/content-brief/generate/{contentItem}', [ContentBriefController::class, 'generate'])
             ->middleware('client.scope:contentItem')
             ->name('content-brief.generate');
+        Route::post('/content-brief/manual/{contentItem}', [ContentBriefController::class, 'storeManual'])
+            ->middleware('client.scope:contentItem')
+            ->name('content-brief.store-manual');
         Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
             ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.regenerate');
@@ -285,6 +291,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/ideas/{index}/regenerate', [AnalyticsController::class, 'regenerateContentIdea'])
             ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.ideas.regenerate');
+        Route::post('/analytics/ai-strategy/{aiStrategyInsight}/ideas/{index}/apply', [AnalyticsController::class, 'applyAiStrategyIdea'])
+            ->middleware('client.scope:aiStrategyInsight')
+            ->name('analytics.ai-strategy.ideas.apply');
 
         Route::post('/audience/import', [AudienceController::class, 'importCsv'])->name('audience.import');
     });
@@ -344,16 +353,21 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::patch('/content-plan/{contentPlan}/reject', [ContentPlanController::class, 'reject'])
             ->middleware('client.scope:contentPlan')
             ->name('content-plan.reject');
+        // Pasca-approve: SMO atur deadline upload per item, lalu kirim
+        // batch ke produksi (draft->brief_ready bersamaan, brief terkunci).
+        Route::get('/content-plan/{contentPlan}/deadlines', [ContentPlanController::class, 'deadlines'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.deadlines');
+        Route::patch('/content-plan/{contentPlan}/deadlines', [ContentPlanController::class, 'updateDeadlines'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.deadlines.update');
+        Route::post('/content-plan/{contentPlan}/send-to-production', [ContentPlanController::class, 'sendToProduction'])
+            ->middleware('client.scope:contentPlan')
+            ->name('content-plan.send-to-production');
     });
 
     Route::middleware('permission:content_plan,create')->group(function () {
         Route::post('/content-plan', [ContentPlanController::class, 'store'])->name('content-plan.store');
-        Route::get('/content-plan/{contentPlan}/items/create', [ContentPlanController::class, 'createItem'])
-            ->middleware('client.scope:contentPlan')
-            ->name('content-plan.items.create');
-        Route::post('/content-plan/{contentPlan}/items', [ContentPlanController::class, 'storeItem'])
-            ->middleware('client.scope:contentPlan')
-            ->name('content-plan.items.store');
         Route::post('/content-items/urgent', [ContentPlanController::class, 'quickCreateUrgent'])->name('content-items.quick-urgent');
     });
 

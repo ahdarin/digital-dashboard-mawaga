@@ -81,6 +81,12 @@
                 </template>
             @endif
 
+            @if ($contentPlan->status === 'approved' && auth()->user()->hasPermissionTo('content_plan', 'approve'))
+                <a href="{{ route('content-plan.deadlines', $contentPlan) }}" class="btn-primary whitespace-nowrap">
+                    <span class="material-symbols-outlined text-[16px]">event</span> Atur Deadline &amp; Kirim ke Produksi
+                </a>
+            @endif
+
             @if ($contentPlan->status === 'rejected' && auth()->user()->hasPermissionTo('content_plan', 'create'))
                 <form action="{{ route('content-plan.reopen', $contentPlan) }}" method="POST">
                     @csrf @method('PATCH')
@@ -90,11 +96,6 @@
                 </form>
             @endif
 
-            @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                <a href="{{ route('content-plan.items.create', $contentPlan) }}" class="btn-primary whitespace-nowrap">
-                    <span class="material-symbols-outlined text-[16px]">add</span> Tambah Konten
-                </a>
-            @endif
         </div>
     </div>
 
@@ -116,12 +117,25 @@
                 </tr>
             </thead>
             <tbody>
+                @php $isDraftEmpty = fn ($i) => $i->workflow?->current_status === 'draft' && ! $i->hasCompleteBrief(); @endphp
                 @forelse ($items as $item)
-                    <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer"
+                    <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer {{ $isDraftEmpty($item) ? 'opacity-60' : '' }}"
                         onclick="navigateTo('{{ route('content-items.show', $item) }}')">
                         <td class="px-6 py-3.5">
-                            <p class="font-medium text-[var(--text-primary)] line-clamp-2" title="{{ $item->title }}">{{ $item->title }}</p>
-                            <p class="text-xs text-[var(--text-muted)] mt-0.5 truncate">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                            <p class="font-medium text-[var(--text-primary)] line-clamp-2" title="{{ $item->title }}">
+                                @if ($item->provisional_code && $item->title !== $item->provisional_code)
+                                    <span class="text-[var(--text-muted)]">{{ $item->provisional_code }} ·</span> {{ $item->title }}
+                                @else
+                                    {{ $item->title }}
+                                @endif
+                            </p>
+                            <p class="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                                @if ($isDraftEmpty($item))
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-dashed border-[var(--border)] text-[10px] uppercase tracking-wide">Brief belum diisi</span>
+                                @else
+                                    {{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}
+                                @endif
+                            </p>
                         </td>
                         <td class="px-4 py-3.5">
                             @php
@@ -152,13 +166,13 @@
                             @endif
                         </td>
                         <td class="px-6 py-3.5">
-                            <span class="badge {{ $item->workflow?->is_overdue ? 'badge-danger' : 'badge-success' }}">
+                            <span class="badge {{ $item->workflow?->current_status === 'draft' ? 'badge-neutral' : ($item->workflow?->is_overdue ? 'badge-danger' : 'badge-success') }}">
                                 {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                             </span>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-6 py-10 text-center text-[var(--text-muted)] text-sm">Belum ada content item. Klik "Tambah Konten" buat mulai.</td></tr>
+                    <tr><td colspan="6" class="px-6 py-10 text-center text-[var(--text-muted)] text-sm">Belum ada slot konten - client ini belum punya paket aktif saat rencana ini dibuat.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -176,13 +190,25 @@
                 };
                 $pic = $picResolver->resolve($item);
             @endphp
-            <div x-data="{ open: false }" class="card p-3.5">
+            <div x-data="{ open: false }" class="card p-3.5 {{ $isDraftEmpty($item) ? 'opacity-60' : '' }}">
                 <button type="button" class="w-full text-left flex items-start justify-between gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
                     <div class="min-w-0 flex-1">
-                        <p class="font-medium text-[var(--text-primary)] truncate">{{ $item->title }}</p>
-                        <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}</p>
+                        <p class="font-medium text-[var(--text-primary)] truncate">
+                            @if ($item->provisional_code && $item->title !== $item->provisional_code)
+                                <span class="text-[var(--text-muted)]">{{ $item->provisional_code }} ·</span> {{ $item->title }}
+                            @else
+                                {{ $item->title }}
+                            @endif
+                        </p>
+                        <p class="text-xs text-[var(--text-muted)] mt-0.5">
+                            @if ($isDraftEmpty($item))
+                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-dashed border-[var(--border)] text-[10px] uppercase tracking-wide">Brief belum diisi</span>
+                            @else
+                                {{ $item->contentPillar->name ?? '-' }} &middot; ID: {{ $item->id }}
+                            @endif
+                        </p>
                         <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span class="badge {{ $item->workflow?->is_overdue ? 'badge-danger' : 'badge-success' }}">
+                            <span class="badge {{ $item->workflow?->current_status === 'draft' ? 'badge-neutral' : ($item->workflow?->is_overdue ? 'badge-danger' : 'badge-success') }}">
                                 {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : 'Planned' }}
                             </span>
                             <span class="text-xs text-[var(--text-secondary)]">{{ $item->deadline_at->format('d M Y') }}</span>
@@ -230,7 +256,7 @@
                 </div>
             </div>
         @empty
-            <div class="card p-8 text-center text-[var(--text-muted)] text-sm">Belum ada content item. Klik "Tambah Konten" buat mulai.</div>
+            <div class="card p-8 text-center text-[var(--text-muted)] text-sm">Belum ada slot konten - client ini belum punya paket aktif saat rencana ini dibuat.</div>
         @endforelse
     </div>
 
@@ -277,14 +303,20 @@
          seluruh isi rencana dulu sebelum diajukan, bukan tombol yang
          menumpuk di header sebelum konten sempat dilihat. --}}
     @if ($contentPlan->status === 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
+        @php $incompleteItems = $items->reject(fn ($i) => $i->hasCompleteBrief()); @endphp
         <div class="card p-5 mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
                 <p class="text-sm font-medium text-[var(--text-primary)]">Sudah siap diajukan?</p>
-                <p class="text-xs text-[var(--text-muted)] mt-0.5">Setelah diajukan, rencana ini akan menunggu persetujuan Manager/CEO.</p>
+                @if ($incompleteItems->isNotEmpty())
+                    <p class="text-xs text-[var(--warning-text)] mt-0.5">Masih ada {{ $incompleteItems->count() }} slot yang briefnya belum lengkap: {{ $incompleteItems->pluck('provisional_code')->filter()->implode(', ') ?: $incompleteItems->pluck('title')->implode(', ') }}.</p>
+                @else
+                    <p class="text-xs text-[var(--text-muted)] mt-0.5">Setelah diajukan, rencana ini akan menunggu persetujuan Manager/CEO/SMO.</p>
+                @endif
             </div>
             <form action="{{ route('content-plan.submit', $contentPlan) }}" method="POST">
                 @csrf @method('PATCH')
-                <button class="btn-primary whitespace-nowrap">
+                <button class="btn-primary whitespace-nowrap" @disabled($incompleteItems->isNotEmpty())
+                    title="{{ $incompleteItems->isNotEmpty() ? 'Lengkapi dulu semua brief sebelum mengajukan' : '' }}">
                     <span class="material-symbols-outlined text-[16px]">send</span> Ajukan Rencana
                 </button>
             </form>

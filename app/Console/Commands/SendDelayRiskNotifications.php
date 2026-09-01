@@ -33,7 +33,7 @@ class SendDelayRiskNotifications extends Command
 
             $items = ContentItem::with(['workflow.currentPic', 'client'])
                 ->whereDate('deadline_at', $targetDate)
-                ->whereHas('workflow', fn($q) => $q->whereNotIn('current_status', $this->doneStatuses))
+                ->whereHas('workflow', fn($q) => $q->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES))
                 ->get();
 
             foreach ($items as $item) {

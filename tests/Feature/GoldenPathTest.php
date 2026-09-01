@@ -98,12 +98,14 @@ class GoldenPathTest extends TestCase
         $client = Client::where('name', 'Golden Path Client')->firstOrFail();
         $this->assertNotEmpty($client->portal_token, 'Client baru harus otomatis punya portal token.');
 
-        // ===== 2. Pastikan Paket tersedia =====
+        // ===== 2. Pastikan Paket tersedia - kuota 1 konten/0 desain supaya
+        // Content Plan cuma generate SATU slot ("C1"), biar golden path ini
+        // tetap fokus ke satu item ujung ke ujung (bukan menguji nomor slot). =====
         ClientPackage::create([
             'client_id' => $client->id,
             'package_name_snapshot' => 'Basic',
-            'monthly_content_quota' => 8,
-            'monthly_design_quota' => 4,
+            'monthly_content_quota' => 1,
+            'monthly_design_quota' => 0,
             'start_date' => now(),
             'status' => 'active',
         ]);
@@ -149,22 +151,29 @@ class GoldenPathTest extends TestCase
         $plan = ContentPlan::where('client_id', $client->id)->firstOrFail();
         $this->assertSame('draft', $plan->status);
 
-        // ===== 6. Tambahkan Content Item (KI-01) =====
+        // ===== 6. Slot konten sudah auto-generate dari kuota paket (KI-01) -
+        // 1 konten + 0 desain = 1 item "C1", berstatus Draf, belum ada PIC. =====
         $contentType = ContentType::firstOrCreate(['name' => 'Video']);
         $platform = Platform::firstOrCreate(['name' => 'Instagram']);
-        $addItem = $this->actingAs($copywriter)->post(route('content-plan.items.store', $plan), [
+        $this->assertCount(1, $plan->contentItems);
+        $item = $plan->contentItems()->firstOrFail();
+        $this->assertSame('C1', $item->provisional_code);
+        $this->assertSame('draft', $item->workflow->current_status);
+
+        // ===== 7. Copywriter lengkapi Info Dasar =====
+        $infoDasar = $this->actingAs($copywriter)->patch(route('content-items.update-info', $item), [
             'title' => 'Golden Path Content',
             'brief' => 'Konten promo untuk golden path test',
-            'content_type_id' => $contentType->id,
-            'platform_id' => $platform->id,
-            'deadline_at' => now()->addDays(7)->format('Y-m-d H:i'),
+            'content_pillar_id' => \App\Models\ContentPillar::firstOrCreate(['name' => 'Promo'])->id,
+            'platform_ids' => [$platform->id],
             'pic_user_id' => $contentCreator->id,
         ]);
-        $addItem->assertRedirect(route('content-plan.show', $plan));
-        $item = $plan->contentItems()->firstOrFail();
-        $this->assertSame('brief_ready', $item->workflow->current_status);
+        $infoDasar->assertRedirect();
+        $item->refresh();
+        $this->assertSame('Golden Path Content', $item->title);
+        $this->assertSame($contentCreator->id, $item->workflow->fresh()->current_pic_id);
 
-        // ===== 7. Copywriter buka item & buat AI Brief (KI-07: AI tidak pernah
+        // ===== 8. Copywriter buka item & buat AI Brief (KI-07: AI tidak pernah
         // menentukan tanggal produksi/upload) =====
         $briefJson = [
             'hook_title' => 'Golden Path Hook',
@@ -199,11 +208,29 @@ class GoldenPathTest extends TestCase
         $brief = $item->contentBriefDraft()->firstOrFail();
         $this->assertNull($brief->start_date, 'AI tidak pernah menentukan tanggal produksi (start_date) - walau ikut dikarang di response AI (termasuk tanggal lampau 2024), field ini harus tetap kosong sampai diisi manual (KI-07).');
         $this->assertNull($brief->post_date, 'Sama seperti start_date - post_date murni pilihan manual PIC lewat setUploadDate(), bukan dari AI.');
+        $this->assertTrue($item->fresh()->hasCompleteBrief(), 'Info Dasar + Brief sudah lengkap - harus lolos gate Ajukan Rencana.');
 
-        // ===== 8. Finalisasi brief =====
-        $finalize = $this->actingAs($copywriter)->post(route('content-brief.finalize', $brief));
-        $finalize->assertRedirect();
-        $this->assertSame('finalized', $brief->fresh()->status);
+        // ===== 9. Ajukan -> Setujui (SMO/Manager/CEO) =====
+        $submitPlan = $this->actingAs($copywriter)->patch(route('content-plan.submit', $plan));
+        $submitPlan->assertRedirect();
+        $this->assertSame('pending', $plan->fresh()->status);
+
+        $approvePlan = $this->actingAs($smo)->patch(route('content-plan.approve', $plan));
+        $approvePlan->assertRedirect();
+        $this->assertSame('approved', $plan->fresh()->status);
+
+        // ===== 10. SMO atur deadline upload, lalu kirim ke produksi - brief
+        // otomatis terkunci & item pindah Draf -> Brief Ready bersamaan =====
+        $setDeadline = $this->actingAs($smo)->patch(route('content-plan.deadlines.update', $plan), [
+            'upload_deadline_at' => [$item->id => now()->addDays(7)->format('Y-m-d H:i')],
+        ]);
+        $setDeadline->assertRedirect();
+        $this->assertNotNull($item->fresh()->upload_deadline_at);
+
+        $sendToProduction = $this->actingAs($smo)->post(route('content-plan.send-to-production', $plan));
+        $sendToProduction->assertRedirect();
+        $this->assertSame('brief_ready', $item->workflow->fresh()->current_status);
+        $this->assertSame('finalized', $brief->fresh()->status, 'Brief harus otomatis terkunci begitu dikirim ke produksi oleh SMO.');
         $this->assertDatabaseHas('notifications', ['user_id' => $contentCreator->id, 'type' => 'task']);
 
         // ===== 9. Content Creator: Kerjakan Konten -> isi link hasil -> Konten Telah Selesai =====
@@ -300,14 +327,36 @@ class GoldenPathTest extends TestCase
 
         $client = $this->client();
         $copywriter->assignedClients()->attach($client->id);
+        ClientPackage::create([
+            'client_id' => $client->id, 'package_name_snapshot' => 'Basic',
+            'monthly_content_quota' => 1, 'monthly_design_quota' => 0,
+            'start_date' => now(), 'status' => 'active',
+        ]);
 
-        // ===== Draf =====
+        // ===== Draf - slot "C1" auto-generate dari kuota, lengkapi dulu
+        // biar lolos gate Ajukan Rencana (KI-13 ini menguji penolakan
+        // KEPUTUSAN manusia, bukan gate kelengkapan sistem) =====
         $create = $this->actingAs($copywriter)->post(route('content-plan.store'), [
             'client_id' => $client->id, 'month' => now()->month, 'year' => now()->year,
         ]);
         $create->assertRedirect();
         $plan = ContentPlan::where('client_id', $client->id)->firstOrFail();
         $planId = $plan->id;
+        $item = $plan->contentItems()->firstOrFail();
+
+        $this->actingAs($copywriter)->patch(route('content-items.update-info', $item), [
+            'title' => 'Konten Awal',
+            'brief' => 'Brief awal sebelum ditolak',
+            'content_pillar_id' => \App\Models\ContentPillar::firstOrCreate(['name' => 'Promo'])->id,
+            'platform_ids' => [Platform::firstOrCreate(['name' => 'Instagram'])->id],
+        ]);
+        $this->actingAs($copywriter)->post(route('content-brief.store-manual', $item));
+        $this->actingAs($copywriter)->patch(route('content-brief.update', $item->contentBriefDraft()->firstOrFail()), [
+            'hook_title' => 'Hook Awal',
+            'scenes' => [['label' => 'ADEGAN 1', 'visual' => 'Buka produk', 'talent_script' => 'Halo!']],
+        ]);
+        $item->refresh();
+        $this->assertTrue($item->hasCompleteBrief());
 
         // ===== Ajukan =====
         $submit1 = $this->actingAs($copywriter)->patch(route('content-plan.submit', $plan));
@@ -333,19 +382,22 @@ class GoldenPathTest extends TestCase
             ->where('month', now()->month)->where('year', now()->year)->count());
         $this->assertSame($planId, $plan->fresh()->id);
 
-        // ===== "Diperbaiki" - tambah content item ke plan yang sudah kembali Draf =====
+        // ===== "Diperbaiki" - item sudah ada dari sebelumnya (slot auto-
+        // generate, bukan ditambah manual lagi), copywriter cuma edit info
+        // dasarnya sesuai catatan penolakan manager =====
         $contentCreator = User::factory()->create(['status' => 'active', 'login_enabled' => true]);
         $contentCreator->roles()->attach($this->role('Content Creator', [['workflow', 'update']])->id);
         $contentCreator->assignedClients()->attach($client->id);
-        $contentType = ContentType::firstOrCreate(['name' => 'Video']);
-        $addItem = $this->actingAs($copywriter)->post(route('content-plan.items.store', $plan), [
+        $fixItem = $this->actingAs($copywriter)->patch(route('content-items.update-info', $item), [
             'title' => 'Konten Perbaikan',
-            'content_type_id' => $contentType->id,
-            'deadline_at' => now()->addDays(5)->format('Y-m-d H:i'),
+            'brief' => 'Brief awal sebelum ditolak',
+            'content_pillar_id' => $item->content_pillar_id,
+            'platform_ids' => [$item->platform_id],
             'pic_user_id' => $contentCreator->id,
         ]);
-        $addItem->assertRedirect();
+        $fixItem->assertRedirect();
         $this->assertSame(1, $plan->fresh()->contentItems()->count());
+        $this->assertSame('Konten Perbaikan', $item->fresh()->title);
 
         // ===== Ajukan ulang =====
         $submit2 = $this->actingAs($copywriter)->patch(route('content-plan.submit', $plan));

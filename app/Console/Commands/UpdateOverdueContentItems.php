@@ -15,7 +15,7 @@ class UpdateOverdueContentItems extends Command
     // termasuk, karena kalau deadline lewat sebelum benar-benar tayang itu
     // tetap dianggap terlambat (disamakan dengan WorkflowTransitions::DONE_STATUSES
     // yang dipakai semua pembaca flag ini, biar tidak ada lagi definisi ganda).
-    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
+    private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
 
     public function handle(): void
     {

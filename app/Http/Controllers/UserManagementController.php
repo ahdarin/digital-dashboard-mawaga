@@ -42,7 +42,7 @@ class UserManagementController extends Controller
 
         $users = User::query()
             ->with(['roles', 'assignedClients'])
-            ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)])
+            ->withCount(['currentWorkflows as active_task_count' => fn ($q) => $q->whereNotIn('current_status', WorkflowTransitions::INACTIVE_STATUSES)])
             ->when(
                 $tab === 'nonaktif',
                 fn ($q) => $q->where('status', 'inactive'),

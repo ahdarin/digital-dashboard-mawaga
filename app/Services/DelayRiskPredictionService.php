@@ -125,7 +125,7 @@ class DelayRiskPredictionService
         $currentPicId = $workflow->current_pic_id;
         $workload = $currentPicId
             ? ContentItemAssignment::where('user_id', $currentPicId)
-                ->whereHas('contentItem.workflow', fn($q) => $q->whereNotIn('current_status', $this->doneStatuses))
+                ->whereHas('contentItem.workflow', fn($q) => $q->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES))
                 ->count()
             : 0;
 

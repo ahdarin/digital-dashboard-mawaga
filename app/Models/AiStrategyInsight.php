@@ -10,7 +10,7 @@ class AiStrategyInsight extends Model
         'client_id', 'generated_by', 'period_start', 'period_end', 'performance_data',
         'summary', 'action_items', 'suggested_split', 'top_pillars', 'content_ideas',
         'data_completeness_percent',
-        'status', 'error_message', 'applied_at', 'applied_by',
+        'status', 'error_message', 'applied_at', 'applied_by', 'applied_idea_indexes',
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class AiStrategyInsight extends Model
         'top_pillars' => 'array',
         'content_ideas' => 'array',
         'applied_at' => 'datetime',
+        'applied_idea_indexes' => 'array',
     ];
 
     public function client() { return $this->belongsTo(Client::class); }

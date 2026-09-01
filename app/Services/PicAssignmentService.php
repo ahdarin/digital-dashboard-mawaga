@@ -84,7 +84,7 @@ class PicAssignmentService
     private function baseLoad(User $user): int
     {
         return ContentItem::whereHas('assignments', fn ($q) => $q->where('user_id', $user->id))
-            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', ['uploaded', 'cancelled']))
+            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES))
             ->count();
     }
 }

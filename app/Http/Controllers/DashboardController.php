@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
+    private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
 
     public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PicResolver $picResolver)
     {
@@ -43,11 +43,11 @@ class DashboardController extends Controller
         $contentChange = $this->percentChange($contentLastMonth, $contentThisMonth);
 
         $overdueCount = $scopeViaContentItem(ContentWorkflow::query())
-            ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
+            ->whereNotIn('current_status', WorkflowTransitions::INACTIVE_STATUSES)
             ->where('is_overdue', true)
             ->count();
         $totalWorkflow = $scopeViaContentItem(ContentWorkflow::query())
-            ->whereNotIn('current_status', WorkflowTransitions::DONE_STATUSES)
+            ->whereNotIn('current_status', WorkflowTransitions::INACTIVE_STATUSES)
             ->count();
         $overdueRate = $totalWorkflow > 0 ? round(($overdueCount / $totalWorkflow) * 100, 1) : 0;
 

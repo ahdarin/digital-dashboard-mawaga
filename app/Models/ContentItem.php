@@ -12,6 +12,7 @@ class ContentItem extends Model
 
     protected $fillable = [
         'content_plan_id',
+        'provisional_code',
         'is_urgent',
         'client_id',
         'content_pillar_id',
@@ -22,6 +23,7 @@ class ContentItem extends Model
         'brief',
         'caption_draft',
         'deadline_at',
+        'upload_deadline_at',
         'footage_captured_at',
         'content_file_link',
         'scheduled_upload_at',
@@ -38,6 +40,7 @@ class ContentItem extends Model
 
     protected $casts = [
         'deadline_at' => 'datetime',
+        'upload_deadline_at' => 'datetime',
         'footage_captured_at' => 'datetime',
         'scheduled_upload_at' => 'datetime',
         'is_posted' => 'boolean',
@@ -59,6 +62,16 @@ class ContentItem extends Model
     public function platform()
     {
         return $this->belongsTo(Platform::class);
+    }
+    /**
+     * Multi-platform (baru) - item lama masih baca `platform()` (scalar).
+     * Item baru dari alur Content Plan pakai ini; `platform_id` tetap
+     * disinkronkan ke platform pertama yang dipilih untuk kompatibilitas
+     * mundur (laporan/analytics/import lama yang masih baca kolom scalar).
+     */
+    public function platforms()
+    {
+        return $this->belongsToMany(Platform::class, 'content_item_platforms');
     }
     public function workflow()
     {
@@ -104,5 +117,15 @@ class ContentItem extends Model
     public function latestDelayRisk()
     {
         return $this->hasOne(DelayRiskScore::class)->latestOfMany();
+    }
+
+    /**
+     * Dipakai gate "Ajukan Rencana" (ContentPlanController::submit()) dan
+     * badge "Brief belum diisi" di halaman Content Plan - satu sumber
+     * kebenaran, lihat ContentBriefDraft::isComplete().
+     */
+    public function hasCompleteBrief(): bool
+    {
+        return (bool) $this->contentBriefDraft?->isComplete();
     }
 }

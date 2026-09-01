@@ -26,11 +26,19 @@ class ContentPublicationController extends Controller
      */
     public function store(Request $request, ContentItem $contentItem, WorkflowStatusService $workflowStatusService)
     {
+        // Item dengan >1 platform kirim 'publications' (array, satu entri per
+        // platform); item lama/single-platform tetap kirim field scalar biasa
+        // - WorkflowStatusService::transition() menerima dua-duanya.
         $validated = $request->validate([
-            'platform_id' => 'required|exists:platforms,id',
-            'published_at' => 'required|date',
+            'platform_id' => 'nullable|exists:platforms,id',
+            'published_at' => 'nullable|date',
             'post_url' => 'nullable|url',
             'caption_final' => 'nullable|string',
+            'publications' => 'nullable|array',
+            'publications.*.platform_id' => 'required_with:publications|exists:platforms,id',
+            'publications.*.published_at' => 'required_with:publications|date',
+            'publications.*.post_url' => 'nullable|url',
+            'publications.*.caption_final' => 'nullable|string',
         ]);
 
         try {

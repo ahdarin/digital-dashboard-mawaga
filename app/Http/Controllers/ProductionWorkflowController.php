@@ -42,7 +42,11 @@ class ProductionWorkflowController extends Controller
             'assignments.user',
             'latestDelayRisk',
         ])
-            ->whereHas('workflow');
+            // Item Draf belum masuk workflow produksi sama sekali - belum
+            // dikirim SMO ke produksi (lihat WorkflowStatusService::
+            // releaseToProduction()), jadi tidak boleh muncul di board
+            // maupun tampilan List sekalipun tidak ada di $statuses.
+            ->whereHas('workflow', fn ($q) => $q->where('current_status', '!=', 'draft'));
 
         // Batasi hanya client yang di-assign, kecuali CEO/Manager
         if (!$user->canSeeAllClients()) {
@@ -291,6 +295,11 @@ class ProductionWorkflowController extends Controller
             'published_at' => 'nullable|date',
             'post_url' => 'nullable|url',
             'caption_final' => 'nullable|string',
+            'publications' => 'nullable|array',
+            'publications.*.platform_id' => 'required_with:publications|exists:platforms,id',
+            'publications.*.published_at' => 'required_with:publications|date',
+            'publications.*.post_url' => 'nullable|url',
+            'publications.*.caption_final' => 'nullable|string',
         ]);
 
         $toStatus = $validated['to_status'];

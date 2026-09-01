@@ -72,33 +72,92 @@
 
             <div class="lg:col-span-2 space-y-5">
 
+                @if ($workflow->current_status === 'draft')
+                    <div class="card p-5">
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-1">Info Dasar</h3>
+                        <p class="text-xs text-[var(--text-muted)] mb-4">Lengkapi dulu sebelum bisa mengisi Brief Produksi di bawah.</p>
+                        <form action="{{ route('content-items.update-info', $contentItem) }}" method="POST" class="space-y-3">
+                            @csrf @method('PATCH')
+                            <div>
+                                <label for="info-title" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Judul</label>
+                                <input id="info-title" type="text" name="title" required value="{{ old('title', $contentItem->title === $contentItem->provisional_code ? '' : $contentItem->title) }}"
+                                    placeholder="Judul konten..."
+                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                            </div>
+                            <div>
+                                <label for="info-brief" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Brief Singkat</label>
+                                <textarea id="info-brief" name="brief" rows="3" placeholder="Gambaran singkat konten ini..."
+                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ old('brief', $contentItem->brief) }}</textarea>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label for="info-pillar" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Pilar</label>
+                                    <select id="info-pillar" name="content_pillar_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                        <option value="">Pilih pilar...</option>
+                                        @foreach ($pillarOptions as $pillar)
+                                            <option value="{{ $pillar->id }}" @selected($contentItem->content_pillar_id === $pillar->id)>{{ $pillar->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Platform (bisa lebih dari satu)</label>
+                                    @php $selectedPlatformIds = $contentItem->platforms->pluck('id')->all() ?: array_filter([$contentItem->platform_id]); @endphp
+                                    <div class="flex flex-wrap gap-1.5">
+                                        @foreach ($platformOptions as $platform)
+                                            <label class="inline-flex items-center gap-1.5 border border-[var(--border)] rounded-full px-2.5 py-1 text-xs cursor-pointer has-[:checked]:bg-[var(--brand-tint)] has-[:checked]:border-[var(--brand)] has-[:checked]:text-[var(--brand)]">
+                                                <input type="checkbox" name="platform_ids[]" value="{{ $platform->id }}" class="sr-only"
+                                                    @checked(in_array($platform->id, $selectedPlatformIds))>
+                                                {{ $platform->name }}
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="info-pic" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">PIC</label>
+                                    <select id="info-pic" name="pic_user_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                        <option value="">Pilih PIC...</option>
+                                        @foreach ($reassignCandidates as $candidate)
+                                            <option value="{{ $candidate->id }}" @selected($workflow->current_pic_id === $candidate->id)>{{ $candidate->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <span class="material-symbols-outlined text-[16px]">save</span> Simpan Info Dasar
+                            </button>
+                        </form>
+                    </div>
+                @endif
+
                 @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
 
-                <div class="card p-5">
-                    <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Brief Awal</h3>
-                    <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line mb-4">
-                        {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                        <div>
-                            <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Platform</p>
-                            <p class="text-[var(--text-secondary)]">{{ $contentItem->platform->name ?? '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Deadline</p>
-                            <p class="text-[var(--text-secondary)]">{{ $contentItem->deadline_at->format('d M Y, H:i') }}</p>
-                        </div>
-                        <div>
-                            <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Tipe</p>
-                            <p class="text-[var(--text-secondary)]">{{ $contentItem->contentType->name ?? '-' }}</p>
-                        </div>
-                        @if ($contentItem->content_format)
+                @unless ($workflow->current_status === 'draft')
+                    <div class="card p-5">
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Brief Awal</h3>
+                        <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line mb-4">
+                            {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div>
-                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Format</p>
-                                <p class="text-[var(--text-secondary)]">{{ $contentItem->content_format }}</p>
+                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Platform</p>
+                                <p class="text-[var(--text-secondary)]">{{ $contentItem->platform->name ?? '-' }}</p>
                             </div>
-                        @endif
+                            <div>
+                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Deadline</p>
+                                <p class="text-[var(--text-secondary)]">{{ $contentItem->deadline_at->format('d M Y, H:i') }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Tipe</p>
+                                <p class="text-[var(--text-secondary)]">{{ $contentItem->contentType->name ?? '-' }}</p>
+                            </div>
+                            @if ($contentItem->content_format)
+                                <div>
+                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Format</p>
+                                    <p class="text-[var(--text-secondary)]">{{ $contentItem->content_format }}</p>
+                                </div>
+                            @endif
+                        </div>
                     </div>
-                </div>
+                @endunless
 
                 @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
                     <div class="card p-5" x-data="{ editingCaption: {{ $contentItem->caption_draft ? 'false' : 'true' }} }">
@@ -233,47 +292,66 @@
                         @endforeach
                     </div>
                 @elseif ($workflow->current_status === 'scheduled')
-                    @php $canPublish = auth()->user()->hasPermissionTo('publishing', 'manage'); @endphp
+                    @php
+                        $canPublish = auth()->user()->hasPermissionTo('publishing', 'manage');
+                        $publishPlatforms = $contentItem->platforms->isNotEmpty()
+                            ? $contentItem->platforms
+                            : ($contentItem->platform ? collect([$contentItem->platform]) : collect());
+                    @endphp
                     <div id="record-publication" class="card p-5 scroll-mt-6">
-                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-4">Record Publication</h3>
+                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-1">Record Publication</h3>
+                        @if ($publishPlatforms->count() > 1)
+                            <p class="text-xs text-[var(--text-muted)] mb-4">Konten ini dipublikasikan ke {{ $publishPlatforms->count() }} platform - isi data tiap platform di bawah, semua disimpan sekaligus.</p>
+                        @endif
                         @unless ($canPublish)
-                            <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3.5">
+                            <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3.5 mt-3">
                                 <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
                                 <span>Hanya SMO yang bisa mencatat data publikasi. Hubungi SMO yang bertanggung jawab untuk client ini.</span>
                             </div>
                         @endunless
-                        <form action="{{ route('content-publication.store', $contentItem) }}" method="POST" class="space-y-3">
-                            @csrf
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Platform</label>
-                                    <div class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs bg-[var(--surface-page)] text-[var(--text-secondary)]">
-                                        {{ $contentItem->platform->name ?? '-' }}
+                        @if ($publishPlatforms->isEmpty())
+                            <p class="text-xs text-[var(--danger-text)] mt-3">Konten ini belum punya platform - lengkapi dulu lewat Info Dasar sebelum bisa mencatat publikasi.</p>
+                        @else
+                            <form action="{{ route('content-publication.store', $contentItem) }}" method="POST" class="space-y-4 mt-3">
+                                @csrf
+                                @foreach ($publishPlatforms as $pf)
+                                    <div class="{{ $publishPlatforms->count() > 1 ? 'border border-[var(--border)] rounded-lg p-3 space-y-3' : 'space-y-3' }}">
+                                        @if ($publishPlatforms->count() > 1)
+                                            <p class="text-xs font-semibold text-[var(--text-primary)]">{{ $pf->name }}</p>
+                                        @endif
+                                        <input type="hidden" name="publications[{{ $loop->index }}][platform_id]" value="{{ $pf->id }}">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Platform</label>
+                                                <div class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs bg-[var(--surface-page)] text-[var(--text-secondary)]">
+                                                    {{ $pf->name }}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label for="published_at-{{ $pf->id }}" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal
+                                                    Publish</label>
+                                                <input id="published_at-{{ $pf->id }}" type="text" name="publications[{{ $loop->index }}][published_at]" required data-flatpickr="datetime" autocomplete="off"
+                                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label for="post_url-{{ $pf->id }}" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
+                                            <input id="post_url-{{ $pf->id }}" type="url" name="publications[{{ $loop->index }}][post_url]" placeholder="https://..."
+                                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                        </div>
+                                        <div>
+                                            <label for="caption_final-{{ $pf->id }}" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
+                                            <textarea id="caption_final-{{ $pf->id }}" name="publications[{{ $loop->index }}][caption_final]" rows="2"
+                                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                                        </div>
                                     </div>
-                                    <input type="hidden" name="platform_id" value="{{ $contentItem->platform_id }}">
-                                </div>
-                                <div>
-                                    <label for="published_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal
-                                        Publish</label>
-                                    <input id="published_at" type="text" name="published_at" required data-flatpickr="datetime" autocomplete="off"
-                                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                                </div>
-                            </div>
-                            <div>
-                                <label for="post_url" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
-                                <input id="post_url" type="url" name="post_url" placeholder="https://..."
-                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                            </div>
-                            <div>
-                                <label for="caption_final" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
-                                <textarea id="caption_final" name="caption_final" rows="2"
-                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
-                            </div>
-                            <button type="submit" @disabled(! $canPublish)
-                                title="{{ $canPublish ? '' : 'Hanya SMO yang bisa mencatat data publikasi' }}"
-                                class="btn-primary">
-                                Simpan &amp; Tandai Uploaded</button>
-                        </form>
+                                @endforeach
+                                <button type="submit" @disabled(! $canPublish)
+                                    title="{{ $canPublish ? '' : 'Hanya SMO yang bisa mencatat data publikasi' }}"
+                                    class="btn-primary">
+                                    Simpan &amp; Tandai Uploaded</button>
+                            </form>
+                        @endif
                     </div>
                 @endif
             </div>

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ContentItem;
-use App\Models\ContentPillar;
 use App\Models\ContentPlan;
 use App\Models\ContentType;
 use App\Models\ContentWorkflow;
@@ -70,6 +69,11 @@ class ContentPlanController extends Controller
                     $q->whereIn('name', $allowedTypes);
                 })
 
+                // Draf belum masuk workflow produksi - jangan muncul di
+                // kalender (deadline_at-nya masih placeholder sampai SMO
+                // mengisi upload_deadline_at pasca-approve).
+                ->whereHas('workflow', fn ($q) => $q->where('current_status', '!=', 'draft'))
+
                 ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
 
                 ->when($selectedClientId, function ($q) use ($selectedClientId) {
@@ -133,7 +137,7 @@ class ContentPlanController extends Controller
         ));
     }
 
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\ContentPlanItemGeneratorService $itemGenerator)
     {
         // Bag terpisah ('createContentPlan') - modal "Jobdesk Tambahan" ada
         // di sidebar GLOBAL (semua halaman internal), jadi kalau validasi
@@ -147,21 +151,26 @@ class ContentPlanController extends Controller
 
         $client = Client::findOrFail($validated['client_id']);
 
-        // client_package_id nullable (Langkah 1-2, audit Agustus 2026) -
-        // NULL berarti "data paket belum tercatat", BUKAN "client tidak
-        // boleh punya Content Plan". Client real (mis. hasil import Content
-        // Planner) yang belum ada catatan paketnya TETAP boleh dibuatkan plan.
+        // Sejak slot konten digenerate otomatis dari kuota paket (bukan lagi
+        // ditambah manual satu-satu), client WAJIB punya paket aktif dulu -
+        // tanpa paket tidak ada cara lain buat mengisi Content Plan-nya sama
+        // sekali (form "Tambah Konten" sudah dihapus).
+        $package = $client->activePackage;
+        abort_unless($package, 422, "Client \"{$client->name}\" belum punya paket aktif. Atur paket klien dulu di Kelola Klien sebelum membuat Content Plan - slot konten digenerate otomatis dari kuota paket.");
+
         $plan = ContentPlan::create([
             'client_id' => $client->id,
-            'client_package_id' => $client->activePackage?->id,
+            'client_package_id' => $package->id,
             'created_by' => auth()->id(),
             'month' => $validated['month'],
             'year' => $validated['year'],
             'status' => 'draft',
         ]);
 
+        $items = $itemGenerator->generate($plan, $package);
+
         return redirect()->route('content-plan.show', $plan)
-            ->with('status', 'Content plan berhasil dibuat. Silakan tambahkan content item-nya.');
+            ->with('status', "Content plan berhasil dibuat - {$items->count()} slot konten (sesuai paket \"{$package->package_name_snapshot}\") sudah digenerate berstatus Draf. Buka tiap konten untuk mulai isi brief.");
     }
 
     public function show(ContentPlan $contentPlan, \App\Services\PicResolver $picResolver)
@@ -169,7 +178,7 @@ class ContentPlanController extends Controller
         $contentPlan->load(['client', 'clientPackage', 'creator', 'approver', 'statusLogs.changedByUser']);
 
         $items = $contentPlan->contentItems()
-            ->with(['contentType', 'platform', 'workflow.currentPic', 'assignments.user', 'client'])
+            ->with(['contentType', 'platform', 'workflow.currentPic', 'assignments.user', 'client', 'contentBriefDraft'])
             ->orderBy('deadline_at')
             ->get();
 
@@ -184,6 +193,10 @@ class ContentPlanController extends Controller
     public function submit(ContentPlan $contentPlan)
     {
         abort_unless($contentPlan->status === 'draft', 422, 'Cuma rencana berstatus Draf yang bisa diajukan.');
+
+        $incomplete = $contentPlan->contentItems()->with('contentBriefDraft')->get()
+            ->reject(fn ($item) => $item->hasCompleteBrief());
+        abort_if($incomplete->isNotEmpty(), 422, "Masih ada {$incomplete->count()} slot konten yang briefnya belum lengkap ({$incomplete->pluck('provisional_code')->filter()->implode(', ')}) - lengkapi dulu sebelum mengajukan rencana.");
 
         $fromStatus = $contentPlan->status;
         $contentPlan->update(['status' => 'pending']);
@@ -236,6 +249,74 @@ class ContentPlanController extends Controller
         return back()->with('status', 'Rencana dikembalikan ke Draf. Perbaiki lalu ajukan ulang kalau sudah siap.');
     }
 
+    /**
+     * Layar SMO isi tanggal upload per item pasca-approve. Deadline produksi
+     * (deadline_at) TIDAK diisi manual di sini - dihitung otomatis 2 hari
+     * sebelum upload_deadline_at sesuai proses bisnis 523 studio (lihat
+     * updateDeadlines()).
+     */
+    public function deadlines(ContentPlan $contentPlan)
+    {
+        abort_unless($contentPlan->status === 'approved', 422, 'Cuma rencana yang sudah disetujui yang bisa diatur deadline-nya.');
+
+        $items = $contentPlan->contentItems()
+            ->with('contentType')
+            ->whereHas('workflow', fn ($q) => $q->where('current_status', 'draft'))
+            ->orderBy('provisional_code')
+            ->get();
+
+        return view('content-plan.deadlines', compact('contentPlan', 'items'));
+    }
+
+    public function updateDeadlines(ContentPlan $contentPlan, Request $request)
+    {
+        abort_unless($contentPlan->status === 'approved', 422, 'Cuma rencana yang sudah disetujui yang bisa diatur deadline-nya.');
+
+        $validated = $request->validate([
+            'upload_deadline_at' => 'required|array',
+            'upload_deadline_at.*' => 'required|date',
+        ]);
+
+        $items = $contentPlan->contentItems()->whereIn('id', array_keys($validated['upload_deadline_at']))->get();
+
+        foreach ($items as $item) {
+            $uploadDeadline = \Illuminate\Support\Carbon::parse($validated['upload_deadline_at'][$item->id]);
+            $item->update([
+                'upload_deadline_at' => $uploadDeadline,
+                // Proses bisnis 523 studio - deadline pengerjaan otomatis 2
+                // hari sebelum deadline upload, bukan diisi manual terpisah.
+                'deadline_at' => $uploadDeadline->copy()->subDays(2),
+            ]);
+        }
+
+        return redirect()->route('content-plan.deadlines', $contentPlan)
+            ->with('status', 'Deadline upload berhasil disimpan untuk ' . $items->count() . ' item.');
+    }
+
+    /**
+     * "Kirim ke Produksi" - aksi batch SMO, satu-satunya jalan keluar dari
+     * status Draf (lihat WorkflowStatusService::releaseToProduction()).
+     */
+    public function sendToProduction(ContentPlan $contentPlan, \App\Services\WorkflowStatusService $workflowStatusService)
+    {
+        abort_unless($contentPlan->status === 'approved', 422, 'Cuma rencana yang sudah disetujui yang bisa dikirim ke produksi.');
+
+        $missingDeadline = $contentPlan->contentItems()
+            ->whereHas('workflow', fn ($q) => $q->where('current_status', 'draft'))
+            ->whereNull('upload_deadline_at')
+            ->count();
+        abort_if($missingDeadline > 0, 422, "Masih ada {$missingDeadline} item yang belum diisi deadline upload-nya.");
+
+        try {
+            $count = $workflowStatusService->releaseToProduction($contentPlan, auth()->user());
+        } catch (\App\Exceptions\WorkflowTransitionException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('content-plan.show', $contentPlan)
+            ->with('status', "{$count} item berhasil dikirim ke produksi - status berpindah ke Brief Ready dan briefnya sudah dikunci.");
+    }
+
     private function logPlanStatus(ContentPlan $contentPlan, ?string $from, string $to, ?string $notes = null): void
     {
         $contentPlan->statusLogs()->create([
@@ -245,77 +326,6 @@ class ContentPlanController extends Controller
             'notes' => $notes,
             'changed_at' => now(),
         ]);
-    }
-
-    public function createItem(ContentPlan $contentPlan)
-    {
-        $pillars = ContentPillar::all();
-        $types = ContentType::all();
-        $platforms = Platform::all();
-        // Cuma tim yang sudah di-assign ke client rencana ini (lewat "Assign
-        // Klien" di Kelola Pengguna) yang bisa dipilih jadi PIC - bukan
-        // semua staff internal.
-        $picOptions = User::query()
-            ->where('status', 'active')
-            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
-            ->get();
-
-        return view('content-plan.create-item', compact('contentPlan', 'pillars', 'types', 'platforms', 'picOptions'));
-    }
-
-    public function storeItem(ContentPlan $contentPlan, Request $request)
-    {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'brief' => 'nullable|string',
-            'content_pillar_id' => 'nullable|exists:content_pillars,id',
-            'content_type_id' => 'nullable|exists:content_types,id',
-            'platform_id' => 'nullable|exists:platforms,id',
-            'deadline_at' => 'required|date',
-            'pic_user_id' => ['required', Rule::exists('users', 'id')->where('status', 'active')],
-            'estimated_duration_seconds' => 'nullable|integer',
-            'estimated_slide_count' => 'nullable|integer',
-        ]);
-
-        // Jangan percaya ID dari form saja - User harus beneran terkait
-        // client rencana ini lewat user_client_assignments, bukan cuma
-        // exists di tabel users manapun.
-        $picUser = User::where('id', $validated['pic_user_id'])
-            ->whereHas('assignedClients', fn ($q) => $q->where('clients.id', $contentPlan->client_id))
-            ->first();
-        abort_unless($picUser, 422, 'Penanggung Jawab yang dipilih tidak terkait dengan client ini.');
-
-        $item = ContentItem::create([
-            'content_plan_id' => $contentPlan->id,
-            'client_id' => $contentPlan->client_id,
-            'content_pillar_id' => $validated['content_pillar_id'] ?? null,
-            'content_type_id' => $validated['content_type_id'] ?? null,
-            'platform_id' => $validated['platform_id'] ?? null,
-            'title' => $validated['title'],
-            'brief' => $validated['brief'] ?? null,
-            'deadline_at' => Carbon::parse($validated['deadline_at']),
-            'estimated_duration_seconds' => $validated['estimated_duration_seconds'] ?? null,
-            'estimated_slide_count' => $validated['estimated_slide_count'] ?? null,
-            // Selalu simpan identitas PIC operasional apa adanya - PicResolver
-            // pakai kolom ini buat display begitu current_pic_id kosong.
-            'external_pic_name' => $picUser->name,
-            'external_pic_email' => $picUser->email,
-        ]);
-
-        ContentWorkflow::create([
-            'content_item_id' => $item->id,
-            'current_pic_id' => $picUser->id,
-            'current_status' => 'brief_ready',
-            'is_overdue' => false,
-        ]);
-
-        $item->assignments()->create([
-            'user_id' => $picUser->id,
-            'assignment_role' => 'primary',
-        ]);
-
-        return redirect()->route('content-plan.show', $contentPlan)
-            ->with('status', 'Content item berhasil ditambahkan - muncul di papan Produksi dengan status Brief Ready.');
     }
 
     /**

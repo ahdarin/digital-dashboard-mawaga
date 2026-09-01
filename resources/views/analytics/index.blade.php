@@ -189,7 +189,7 @@
                                 $pillarOptionsForRegenerate = collect($latestAiInsight->content_ideas)->pluck('pillar')->filter()->unique()->values();
                             }
                         @endphp
-                        <div x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }}, {{ Js::from($latestAiInsight->content_ideas ?? []) }}, {{ Js::from($pillarOptionsForRegenerate) }}, {{ $latestAiInsight->applied_at ? 'true' : 'false' }})">
+                        <div x-data="aiChat({{ $latestAiInsight->id }}, {{ Js::from($latestAiInsight->messages->map(fn($m) => ['role' => $m->role, 'message' => $m->message, 'time' => $m->created_at->format('H:i')])) }}, {{ Js::from($latestAiInsight->content_ideas ?? []) }}, {{ Js::from($pillarOptionsForRegenerate) }}, {{ $latestAiInsight->applied_at ? 'true' : 'false' }}, {{ Js::from($latestAiInsight->applied_idea_indexes ?? []) }}, {{ Js::from($emptySlots->map(fn ($s) => ['id' => $s->id, 'label' => ($s->provisional_code ?: '#'.$s->id) . ($s->title && $s->title !== $s->provisional_code ? ' · '.$s->title : '')])) }})">
 
                         {{-- Tab nav --}}
                         <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-5 w-fit">
@@ -309,19 +309,10 @@
                         {{-- ===== TAB: IDE KONTEN ===== --}}
                         <div x-show="tab === 'ide'" x-cloak>
                             @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
-                                @unless ($latestAiInsight->client->activePackage)
-                                    <p class="text-[11px] text-[var(--text-muted)] mb-2 flex items-center gap-1">
-                                        <span class="material-symbols-outlined text-[13px]">info</span>
-                                        Paket belum tercatat - ide diterapkan tanpa validasi kuota paket.
-                                    </p>
-                                @endunless
-                                <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST" class="mb-4">
-                                    @csrf
-                                    <button type="submit" class="btn-primary w-full">
-                                        <span class="material-symbols-outlined text-[16px]">bolt</span>
-                                        Terapkan Semua Ide Ini ke Content Plan
-                                    </button>
-                                </form>
+                                <p class="text-xs text-[var(--text-muted)] bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 mb-4 flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[15px] shrink-0 mt-0.5">info</span>
+                                    <span>Slot content plan sudah digenerate otomatis dari kuota paket - klik satu ide di bawah untuk pilih slot mana yang mau diisi ide itu, satu per satu.</span>
+                                </p>
                             @elseif ($latestAiInsight->applied_at)
                                 <div class="border border-[var(--success-tint-soft)] bg-[var(--success-tint-soft-2)] rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-1.5 text-sm font-medium text-[var(--success-text)]">
@@ -471,6 +462,38 @@
                                                 <span x-text="selectedIdea.platform"></span>
                                             </span>
                                         </div>
+
+                                        <template x-if="isIdeaApplied">
+                                            <p class="text-xs text-[var(--success-text)] bg-[var(--success-tint)] rounded-lg px-3.5 py-2.5 leading-relaxed mb-4">
+                                                <span class="material-symbols-outlined text-[14px] align-middle">check_circle</span>
+                                                Ide ini sudah diterapkan ke salah satu slot content plan.
+                                            </p>
+                                        </template>
+                                        <template x-if="!isIdeaApplied">
+                                            <div class="border-t border-[var(--surface-muted)] pt-4 mb-4">
+                                                <label class="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Terapkan ke Slot Ini</label>
+                                                <template x-if="emptySlots.length === 0">
+                                                    <p class="text-xs text-[var(--text-muted)] mb-1">Tidak ada slot kosong tersedia - semua slot Content Plan bulan ini sudah terisi, atau client ini belum punya Content Plan aktif.</p>
+                                                </template>
+                                                <template x-if="emptySlots.length > 0">
+                                                    <div class="flex items-center gap-2">
+                                                        <select x-model="selectedSlotId" :disabled="applying"
+                                                                class="flex-1 text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60">
+                                                            <option value="">Pilih slot...</option>
+                                                            <template x-for="slot in emptySlots" :key="slot.id">
+                                                                <option :value="slot.id" x-text="slot.label"></option>
+                                                            </template>
+                                                        </select>
+                                                        <button type="button" x-on:click="applyIdea()" :disabled="applying || !selectedSlotId"
+                                                                class="btn-primary whitespace-nowrap disabled:opacity-60">
+                                                            <span x-show="!applying">Terapkan</span>
+                                                            <span x-show="applying" x-cloak>...</span>
+                                                        </button>
+                                                    </div>
+                                                </template>
+                                                <p x-show="applyError" x-cloak class="text-xs text-[var(--danger-text)] mt-2" x-text="applyError"></p>
+                                            </div>
+                                        </template>
 
                                         @if ($latestAiInsight->applied_at)
                                             <p class="text-xs text-[var(--text-muted)] bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 leading-relaxed">
@@ -706,7 +729,7 @@
 
 @if (! empty($selectedClientId))
 <script>
-function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isApplied) {
+function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isApplied, appliedIdeaIndexes, emptySlots) {
     return {
         tab: 'ringkasan',
         open: initialMessages.filter(m => m.role !== 'system').length > 0,
@@ -722,8 +745,51 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         editPillar: '',
         regenerating: false,
         regenError: '',
+        // ===== Terapkan ide ini ke satu slot kosong =====
+        appliedIdeaIndexes: appliedIdeaIndexes,
+        emptySlots: emptySlots,
+        selectedSlotId: '',
+        applying: false,
+        applyError: '',
         get selectedIdea() {
             return this.selectedIndex !== null ? this.ideas[this.selectedIndex] : null;
+        },
+        get isIdeaApplied() {
+            return this.selectedIndex !== null && this.appliedIdeaIndexes.includes(this.selectedIndex);
+        },
+        applyIdea() {
+            if (this.applying || this.selectedIndex === null || !this.selectedSlotId) return;
+
+            const index = this.selectedIndex;
+            this.applying = true;
+            this.applyError = '';
+
+            fetch(`/analytics/ai-strategy/${insightId}/ideas/${index}/apply`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ content_item_id: this.selectedSlotId }),
+            })
+            .then(async (res) => {
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.message || 'Gagal menerapkan ide ke slot ini.');
+                }
+                return true;
+            })
+            .then(() => {
+                this.appliedIdeaIndexes.push(index);
+                this.emptySlots = this.emptySlots.filter(s => String(s.id) !== String(this.selectedSlotId));
+                this.selectedSlotId = '';
+                window.location.reload();
+            })
+            .catch((err) => {
+                this.applyError = err.message;
+            })
+            .finally(() => this.applying = false);
         },
         scoreBadgeClass(label) {
             return {

@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 
 class TeamPerformanceController extends Controller
 {
-    private array $doneStatuses = WorkflowTransitions::DONE_STATUSES;
+    private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
     private int $overloadThreshold = 5;
 
     public function index(Request $request, AttendanceService $attendanceService, UserContentResolver $contentResolver)

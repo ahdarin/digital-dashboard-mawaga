@@ -25,15 +25,24 @@
                 </div>
             </div>
             @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
-                <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST"
-                    @if ($deadlinePassed)
-                        onsubmit="return appConfirm(this, 'Deadline content ini sudah lewat {{ $daysOverdue }} hari ({{ $contentItem->deadline_at->format('d M Y') }}). Brief tetap bisa dibuat untuk konten yang terlambat, tapi kamu perlu pilih tanggal upload manual sesudahnya supaya keterlambatannya tercatat. Lanjutkan?')"
-                    @endif>
-                    @csrf
-                    <button class="btn-primary whitespace-nowrap">
-                        <span class="material-symbols-outlined text-[18px]">auto_awesome</span> Buat Brief dengan AI
-                    </button>
-                </form>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <form action="{{ route('content-brief.generate', $contentItem) }}" method="POST"
+                        @if ($deadlinePassed)
+                            onsubmit="return appConfirm(this, 'Deadline content ini sudah lewat {{ $daysOverdue }} hari ({{ $contentItem->deadline_at->format('d M Y') }}). Brief tetap bisa dibuat untuk konten yang terlambat, tapi kamu perlu pilih tanggal upload manual sesudahnya supaya keterlambatannya tercatat. Lanjutkan?')"
+                        @endif>
+                        @csrf
+                        <button class="btn-primary w-full whitespace-nowrap">
+                            <span class="material-symbols-outlined text-[18px]">auto_awesome</span> Buat Brief dengan AI
+                        </button>
+                    </form>
+                    <form action="{{ route('content-brief.store-manual', $contentItem) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="hook_title" value="{{ $contentItem->title }}">
+                        <button class="btn-secondary w-full whitespace-nowrap">
+                            <span class="material-symbols-outlined text-[18px]">edit_note</span> Isi Manual
+                        </button>
+                    </form>
+                </div>
             @endif
         </div>
     </div>
@@ -367,23 +376,35 @@
         </div>{{-- /x-show="! editing" --}}
 
         @if (! $contentBrief->isLocked() && auth()->user()->hasPermissionTo('content_plan', 'create'))
-            <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[var(--surface-page)] border border-[var(--border)]">
-                <span class="material-symbols-outlined text-[15px] text-[var(--text-muted)] mt-0.5">handshake</span>
-                <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    <strong class="text-[var(--text-primary)]">"Terapkan Brief ke Tim Produksi" adalah serah-terima resmi</strong> dari
-                    Copywriter ke tim produksi — begitu diklik, brief jadi read-only (tidak bisa diedit lagi) dan
-                    <strong class="text-[var(--text-primary)]">Penanggung Jawab produksi yang ditugaskan otomatis dapat notifikasi</strong>
-                    kalau brief siap dikerjakan. Pastikan brief sudah final. Masih mau diskusi/edit dulu? Pakai tombol Edit/Regenerate/Diskusi di atas.
-                </p>
-            </div>
+            @if ($contentItem->workflow->current_status === 'draft')
+                {{-- Item dari alur Content Plan - brief dikunci otomatis
+                     bareng saat SMO "Kirim ke Produksi" (batch, lihat
+                     halaman Content Plan), bukan tombol manual per-item. --}}
+                <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[var(--surface-page)] border border-[var(--border)]">
+                    <span class="material-symbols-outlined text-[15px] text-[var(--text-muted)] mt-0.5">hourglass_empty</span>
+                    <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        Brief ini akan otomatis dikunci &amp; diserahkan ke tim produksi bersamaan dengan item lain di rencana ini, begitu Content Plan diajukan, disetujui, dan dikirim ke produksi oleh SMO. Tidak ada tombol serah-terima manual per-item selama masih Draf.
+                    </p>
+                </div>
+            @else
+                <div class="flex items-start gap-2 mb-3 px-3.5 py-3 rounded-lg bg-[var(--surface-page)] border border-[var(--border)]">
+                    <span class="material-symbols-outlined text-[15px] text-[var(--text-muted)] mt-0.5">handshake</span>
+                    <p class="text-xs text-[var(--text-secondary)] leading-relaxed">
+                        <strong class="text-[var(--text-primary)]">"Terapkan Brief ke Tim Produksi" adalah serah-terima resmi</strong> dari
+                        Copywriter ke tim produksi — begitu diklik, brief jadi read-only (tidak bisa diedit lagi) dan
+                        <strong class="text-[var(--text-primary)]">Penanggung Jawab produksi yang ditugaskan otomatis dapat notifikasi</strong>
+                        kalau brief siap dikerjakan. Pastikan brief sudah final. Masih mau diskusi/edit dulu? Pakai tombol Edit/Regenerate/Diskusi di atas.
+                    </p>
+                </div>
 
-            <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3"
-                  onsubmit="return appConfirm(this, 'Terapkan brief ini ke tim produksi? Brief akan terkunci (tidak bisa diedit) dan Penanggung Jawab produksi langsung dapat notifikasi. Ini adalah serah-terima resmi dari Copywriter ke tim produksi.')">
-                @csrf
-                <button class="btn-primary w-full">
-                    <span class="material-symbols-outlined text-[18px]">handshake</span> Terapkan Brief ke Tim Produksi
-                </button>
-            </form>
+                <form action="{{ route('content-brief.finalize', $contentBrief) }}" method="POST" class="mb-3"
+                      onsubmit="return appConfirm(this, 'Terapkan brief ini ke tim produksi? Brief akan terkunci (tidak bisa diedit) dan Penanggung Jawab produksi langsung dapat notifikasi. Ini adalah serah-terima resmi dari Copywriter ke tim produksi.')">
+                    @csrf
+                    <button class="btn-primary w-full">
+                        <span class="material-symbols-outlined text-[18px]">handshake</span> Terapkan Brief ke Tim Produksi
+                    </button>
+                </form>
+            @endif
 
             @if ($contentBrief->canRevert())
                 <form action="{{ route('content-brief.revert', $contentBrief) }}" method="POST">

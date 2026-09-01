@@ -39,7 +39,7 @@ class UserWorkSummaryService
     {
         $items = ContentItem::with(['client', 'contentType', 'contentBriefDraft', 'workflow'])
             ->whereDoesntHave('contentBriefDraft', fn ($q) => $q->where('status', 'finalized'))
-            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', $this->doneStatuses))
+            ->whereHas('workflow', fn ($q) => $q->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES))
             ->when(
                 ! $user->canSeeAllClients(),
                 fn ($q) => $q->whereIn('client_id', $user->assignedClients()->pluck('clients.id'))

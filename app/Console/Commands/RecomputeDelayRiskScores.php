@@ -22,7 +22,7 @@ class RecomputeDelayRiskScores extends Command
     public function handle(DelayRiskPredictionService $service): void
     {
         $itemIds = ContentWorkflow::whereHas('contentItem')
-            ->whereNotIn('current_status', $this->doneStatuses)
+            ->whereNotIn('current_status', \App\Support\WorkflowTransitions::INACTIVE_STATUSES)
             ->pluck('content_item_id')
             ->toArray();
 

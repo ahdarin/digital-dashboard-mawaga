@@ -34,6 +34,33 @@ class ContentBriefController extends Controller
     }
 
     /**
+     * Buat brief manual-first - TANPA Gemini sama sekali. Copywriter yang
+     * sudah tahu persis mau nulis apa bisa langsung isi, AI (generate/
+     * regenerate) jadi opsional di atas baris yang sudah ada. Kalau brief
+     * sudah ada, jangan bikin baris baru - arahkan balik ke halaman biasa,
+     * sama pola dengan generate().
+     */
+    public function storeManual(Request $request, ContentItem $contentItem)
+    {
+        $existing = ContentBriefDraft::where('content_item_id', $contentItem->id)->first();
+
+        if ($existing) {
+            return redirect()->route('content-items.show', $contentItem);
+        }
+
+        $validated = $request->validate([
+            'hook_title' => 'nullable|string|max:255',
+        ]);
+
+        $this->briefService->createManual($contentItem, [
+            'hook_title' => $validated['hook_title'] ?? $contentItem->title,
+        ], auth()->id());
+
+        return redirect()->route('content-items.show', $contentItem)
+            ->with('status', 'Brief manual dibuat - lengkapi script/talent/properti di bawah, atau pakai "Isi dengan AI" per bagian kalau perlu bantuan.');
+    }
+
+    /**
      * Link lama/bookmark ke halaman brief terpisah - diarahkan ke halaman
      * Content Item (brief sekarang ditampilkan menyatu di sana).
      */
@@ -130,14 +157,21 @@ class ContentBriefController extends Controller
             'scenes.*.talent_script' => 'nullable|string',
         ]);
 
+        $scenes = array_values($validated['scenes'] ?? []);
+
         $contentBrief->update([
             'previous_snapshot' => $contentBrief->only(BriefGenerationService::EDITABLE_FIELDS),
             'hook_title' => $validated['hook_title'],
             'platform' => $validated['platform'] ?? null,
             'talent' => $validated['talent'] ?? null,
             'properti' => $validated['properti'] ?? null,
-            'scenes' => array_values($validated['scenes'] ?? []),
+            'scenes' => $scenes,
+            // Jumlah slide/adegan diambil langsung dari berapa scene yang
+            // ditambahkan copywriter di sini - bukan ditanya terpisah.
+            'slide_count' => count($scenes) ?: null,
         ]);
+
+        $this->briefService->syncComplexityToItem($contentBrief->fresh());
 
         return back()->with('status', 'Brief berhasil diedit manual - review dulu sebelum diterapkan ke tim produksi.');
     }
