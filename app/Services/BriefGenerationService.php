@@ -45,7 +45,7 @@ class BriefGenerationService
             'post_date' => $parsed['post_date'] ?? null,
             'platform' => $parsed['platform'] ?? ($rawIdea->platform->name ?? null),
             'copywriting_script' => $parsed['copywriting_script'] ?? null,
-            'scenes' => $parsed['scenes'] ?? null,
+            'scenes' => $this->normalizeScenes($parsed['scenes'] ?? null),
             'talent' => $parsed['talent'] ?? null,
             'properti' => $parsed['properti'] ?? null,
             'estimated_duration_seconds' => $parsed['estimated_duration_seconds'] ?? null,
@@ -57,6 +57,27 @@ class BriefGenerationService
             'feasibility_notes' => $feasibility['feasibility_notes'] ?? null,
             'status' => 'draft',
         ]);
+    }
+
+    /**
+     * Gemini kadang mengembalikan "scenes" sebagai string JSON (bukan array
+     * asli) karena kesalahan format LLM. Kolom ini di-cast array, jadi kalau
+     * dibiarkan string akan double-encode saat disimpan dan pecah saat dibaca
+     * ulang. Normalisasi di sini supaya yang tersimpan selalu array atau null.
+     */
+    private function normalizeScenes(mixed $scenes): ?array
+    {
+        if (is_array($scenes)) {
+            return $scenes;
+        }
+
+        if (is_string($scenes) && $scenes !== '') {
+            $decoded = json_decode($scenes, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        return null;
     }
 
     /**
@@ -78,7 +99,7 @@ class BriefGenerationService
             'post_date' => $parsed['post_date'] ?? null,
             'platform' => $parsed['platform'] ?? ($brief->contentItem->platform->name ?? null),
             'copywriting_script' => $parsed['copywriting_script'] ?? null,
-            'scenes' => $parsed['scenes'] ?? null,
+            'scenes' => $this->normalizeScenes($parsed['scenes'] ?? null),
             'talent' => $parsed['talent'] ?? null,
             'properti' => $parsed['properti'] ?? null,
             'estimated_duration_seconds' => $parsed['estimated_duration_seconds'] ?? null,
