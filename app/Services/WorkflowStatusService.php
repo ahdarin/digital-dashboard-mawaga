@@ -49,6 +49,14 @@ class WorkflowStatusService
             throw new WorkflowTransitionException('Catatan revisi wajib diisi untuk memindahkan konten ke status Revision.');
         }
 
+        // Reviewer/client tidak bisa menilai hasil kerja yang belum bisa
+        // dilihat - Link Konten (Draft, hasil produksi di Drive/Canva/dsb)
+        // wajib diisi dulu sebelum minta persetujuan. Disamakan levelnya
+        // dengan validasi scheduled_upload_at/publish di bawah.
+        if ($toStatus === 'waiting_review' && empty($contentItem->content_file_link)) {
+            throw new WorkflowTransitionException('Link Konten (Draft) wajib diisi dulu sebelum meminta persetujuan - supaya hasil produksi bisa direview.');
+        }
+
         if ($toStatus === 'scheduled' && empty($payload['scheduled_upload_at'])) {
             throw new WorkflowTransitionException('Tanggal & jam rencana upload wajib diisi untuk menjadwalkan konten.');
         }

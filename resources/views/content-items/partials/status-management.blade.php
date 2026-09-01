@@ -31,7 +31,14 @@
             <span class="material-symbols-outlined text-[16px]">play_arrow</span> KERJAKAN KONTEN
         </button>
     @elseif ($workflow->current_status === 'in_progress')
-        <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
+        @php $missingContentLink = empty($contentItem->content_file_link); @endphp
+        @if ($missingContentLink)
+            <div class="flex items-start gap-2 bg-[var(--warning-tint)] text-[var(--warning-text)] text-xs p-3 rounded-lg mb-3">
+                <span class="material-symbols-outlined text-[16px] shrink-0">info</span>
+                <span>Isi <strong>Link Konten (Draft)</strong> di atas dulu sebelum minta persetujuan - reviewer perlu bisa melihat hasil produksinya.</span>
+            </div>
+        @endif
+        <button type="button" :disabled="{{ ($canUpdateWorkflow && ! $missingContentLink) ? 'false' : 'true' }}"
             @click="confirmAction = {
                 title: 'Konten Telah Selesai',
                 message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
@@ -40,7 +47,7 @@
                 fields: { to_status: 'waiting_review' },
                 confirmLabel: 'Ya, Selesai',
             }"
-            title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
+            title="{{ $missingContentLink ? 'Isi Link Konten (Draft) dulu' : ($canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status') }}"
             class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">check</span> KONTEN TELAH SELESAI
         </button>
