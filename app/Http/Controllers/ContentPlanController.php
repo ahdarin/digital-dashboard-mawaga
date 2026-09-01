@@ -56,12 +56,13 @@ class ContentPlanController extends Controller
         $itemsByDateClient = collect();
         $typeOptions = collect();
         $selectedType = $request->input('type', 'all');
+        $selectedStatus = $request->input('status', 'all');
 
         if ($view === 'calendar') {
 
             $allowedTypes = ['Video', 'Desain'];
 
-            $calendarItems = ContentItem::with(['client', 'contentType'])
+            $calendarItems = ContentItem::with(['client', 'contentType', 'workflow'])
                 ->whereMonth('deadline_at', $month)
                 ->whereYear('deadline_at', $year)
 
@@ -79,6 +80,21 @@ class ContentPlanController extends Controller
                     $q->whereHas('contentType', function ($query) use ($selectedType) {
                         $query->where('name', $selectedType);
                     });
+                })
+
+                // "Sudah Dikerjakan" = current_status uploaded, "Telat Dikerjakan" =
+                // is_overdue (dan belum uploaded/cancelled), "Belum Dikerjakan" =
+                // sisanya (masih berjalan, belum lewat deadline).
+                ->when($selectedStatus === 'done', function ($q) {
+                    $q->whereHas('workflow', fn ($query) => $query->where('current_status', 'uploaded'));
+                })
+                ->when($selectedStatus === 'late', function ($q) {
+                    $q->whereHas('workflow', fn ($query) => $query->where('is_overdue', true)
+                        ->where('current_status', '!=', 'uploaded'));
+                })
+                ->when($selectedStatus === 'not_done', function ($q) {
+                    $q->whereHas('workflow', fn ($query) => $query->where('is_overdue', false)
+                        ->where('current_status', '!=', 'uploaded'));
                 })
 
                 ->orderBy('deadline_at')
@@ -111,6 +127,7 @@ class ContentPlanController extends Controller
             'itemsByDateClient',
             'typeOptions',
             'selectedType',
+            'selectedStatus',
             'contentTypeOptions',
             'platformOptions'
         ));

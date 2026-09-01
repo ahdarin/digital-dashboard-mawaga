@@ -11,6 +11,26 @@
             default => null,
         };
 
+        // "Sudah Dikerjakan" = current_status uploaded, "Telat Dikerjakan" =
+        // is_overdue (dan belum uploaded), "Belum Dikerjakan" = sisanya -
+        // disamakan dengan definisi WorkflowTransitions::DONE_STATUSES &
+        // is_overdue yang dipakai modul lain (Dashboard, Team Performance).
+        $statusMeta = function ($workflow) {
+            if (! $workflow) {
+                return ['label' => 'Belum Dikerjakan', 'color' => '#9aa0a4'];
+            }
+
+            if ($workflow->current_status === 'uploaded') {
+                return ['label' => 'Sudah Dikerjakan', 'color' => '#0f7a5f'];
+            }
+
+            if ($workflow->is_overdue) {
+                return ['label' => 'Telat Dikerjakan', 'color' => '#c0392b'];
+            }
+
+            return ['label' => 'Belum Dikerjakan', 'color' => '#9aa0a4'];
+        };
+
         $fallbackColor = function (int $clientId) {
             $palette = [
                 '#044b46',
@@ -51,10 +71,37 @@
             </a>
         </div>
 
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-[var(--text-muted)]">Status:</span>
+
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'status' => 'all']) }}" class="px-3 py-1.5 rounded-lg text-xs font-medium
+               {{ ($selectedStatus ?? 'all') === 'all' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+                Semua
+            </a>
+
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'status' => 'done']) }}" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+               {{ ($selectedStatus ?? '') === 'done' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ ($selectedStatus ?? '') === 'done' ? '#fff' : '#0f7a5f' }}"></span>
+                Sudah Dikerjakan
+            </a>
+
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'status' => 'not_done']) }}" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+               {{ ($selectedStatus ?? '') === 'not_done' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ ($selectedStatus ?? '') === 'not_done' ? '#fff' : '#9aa0a4' }}"></span>
+                Belum Dikerjakan
+            </a>
+
+            <a href="{{ request()->fullUrlWithQuery(['view' => 'calendar', 'status' => 'late']) }}" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+               {{ ($selectedStatus ?? '') === 'late' ? 'bg-[var(--brand-solid)] text-white' : 'bg-[var(--surface-muted)] text-[var(--text-secondary)]' }}">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: {{ ($selectedStatus ?? '') === 'late' ? '#fff' : '#c0392b' }}"></span>
+                Telat Dikerjakan
+            </a>
+        </div>
+
     </div>
 
     {{-- Legenda warna client --}}
-    <div class="flex flex-wrap gap-3 mb-4">
+    <div class="flex flex-wrap gap-3 mb-2">
         @foreach ($clientOptions as $c)
             <span class="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                 <span class="w-2.5 h-2.5 rounded-full"
@@ -62,6 +109,19 @@
                 {{ $c->name }}
             </span>
         @endforeach
+    </div>
+
+    {{-- Legenda titik status (dot kecil di pojok tiap item kalender) --}}
+    <div class="flex flex-wrap gap-3 mb-4">
+        <span class="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <span class="w-2 h-2 rounded-full" style="background-color: #0f7a5f"></span> Sudah Dikerjakan
+        </span>
+        <span class="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <span class="w-2 h-2 rounded-full" style="background-color: #9aa0a4"></span> Belum Dikerjakan
+        </span>
+        <span class="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <span class="w-2 h-2 rounded-full" style="background-color: #c0392b"></span> Telat Dikerjakan
+        </span>
     </div>
 
     {{-- Grid bulan penuh (7 kolom) nggak muat di layar sempit walau dikasih
@@ -94,10 +154,14 @@
                                     <span class="text-xs font-semibold block truncate" style="color: {{ $color }}">{{ $client->name }}</span>
                                     <span class="text-[11px] text-[var(--text-secondary)] truncate block">{{ $item->title }}</span>
                                 </div>
-                                <span title="{{ $item->contentType->name ?? '-' }}"
-                                    class="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
-                                    style="background-color: {{ $color }}">
-                                    {{ $typeBadge($item->contentType->name ?? null) }}
+                                <span class="flex items-center gap-1 shrink-0">
+                                    @php $status = $statusMeta($item->workflow); @endphp
+                                    <span title="{{ $status['label'] }}" class="w-2 h-2 rounded-full" style="background-color: {{ $status['color'] }}"></span>
+                                    <span title="{{ $item->contentType->name ?? '-' }}"
+                                        class="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0"
+                                        style="background-color: {{ $color }}">
+                                        {{ $typeBadge($item->contentType->name ?? null) }}
+                                    </span>
                                 </span>
                             </a>
                         @endforeach
@@ -158,11 +222,15 @@
                                     {{ $client->name }}
                                 </span>
 
-                                <span
-                                    title="{{ $item->contentType->name ?? '-' }}"
-                                    class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0 cursor-help"
-                                    style="background-color: {{ $color }}">
-                                    {{ $typeBadge($item->contentType->name ?? null) }}
+                                <span class="flex items-center gap-1 shrink-0">
+                                    @php $status = $statusMeta($item->workflow); @endphp
+                                    <span title="{{ $status['label'] }}" class="w-1.5 h-1.5 rounded-full" style="background-color: {{ $status['color'] }}"></span>
+                                    <span
+                                        title="{{ $item->contentType->name ?? '-' }}"
+                                        class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0 cursor-help"
+                                        style="background-color: {{ $color }}">
+                                        {{ $typeBadge($item->contentType->name ?? null) }}
+                                    </span>
                                 </span>
                             </a>
                         @endforeach
@@ -195,11 +263,15 @@
                                         {{ $client->name }}
                                     </span>
 
-                                    <span
-                                        title="{{ $item->contentType->name ?? '-' }}"
-                                        class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0 cursor-help"
-                                        style="background-color: {{ $color }}">
-                                        {{ $typeBadge($item->contentType->name ?? null) }}
+                                    <span class="flex items-center gap-1 shrink-0">
+                                        @php $status = $statusMeta($item->workflow); @endphp
+                                        <span title="{{ $status['label'] }}" class="w-1.5 h-1.5 rounded-full" style="background-color: {{ $status['color'] }}"></span>
+                                        <span
+                                            title="{{ $item->contentType->name ?? '-' }}"
+                                            class="w-4 h-4 rounded flex items-center justify-center text-white text-[10px] font-semibold shrink-0 cursor-help"
+                                            style="background-color: {{ $color }}">
+                                            {{ $typeBadge($item->contentType->name ?? null) }}
+                                        </span>
                                     </span>
                                 </a>
                             @endforeach
