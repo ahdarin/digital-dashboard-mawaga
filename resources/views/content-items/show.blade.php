@@ -7,14 +7,23 @@
         $statusLabels = \App\Support\WorkflowTransitions::labels();
 
         // url()->previous() ikut Referer header - kalau halaman ini
-        // di-reload (misal abis generate AI brief lalu redirect balik ke
-        // sini), Referer-nya jadi halaman ini sendiri, bikin tombol back
-        // looping ke diri sendiri. Fallback ke Produksi kalau ketauan
-        // previous = halaman sekarang.
+        // di-reload (misal abis generate AI brief, ubah status, dsb lalu
+        // redirect balik ke sini), Referer-nya jadi halaman ini sendiri,
+        // bikin tombol back looping ke diri sendiri kalau cuma diambil apa
+        // adanya. Supaya user konsisten balik ke halaman ASLI dia datang
+        // (misal Rencana Bulanan client tertentu), bukan tiba-tiba nyasar
+        // ke Produksi tiap habis submit form - URL awal yang BUKAN self-loop
+        // disimpan ke session per content item, dipakai lagi tiap kali
+        // Referer ternyata self-loop. Fallback ke Produksi cuma kalau
+        // memang belum pernah ada URL awal yang tercatat sama sekali
+        // (akses langsung/link luar).
+        $backSessionKey = "content_item_back_url:{$contentItem->id}";
         $backUrl = url()->previous();
         $backPath = parse_url($backUrl, PHP_URL_PATH) ?? '';
         if (trim($backPath, '/') === trim(request()->path(), '/')) {
-            $backUrl = route('production-workflow.index');
+            $backUrl = session($backSessionKey, route('production-workflow.index'));
+        } else {
+            session([$backSessionKey => $backUrl]);
         }
     @endphp
 
