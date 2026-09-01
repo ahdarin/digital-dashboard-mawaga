@@ -164,10 +164,15 @@ class GoldenPathTest extends TestCase
         $item = $plan->contentItems()->firstOrFail();
         $this->assertSame('brief_ready', $item->workflow->current_status);
 
-        // ===== 7. Copywriter buka item & buat AI Brief (KI-07: tanggal masuk akal) =====
+        // ===== 7. Copywriter buka item & buat AI Brief (KI-07: AI tidak pernah
+        // menentukan tanggal produksi/upload) =====
         $briefJson = [
             'hook_title' => 'Golden Path Hook',
-            'start_date' => '2024-01-01', // sengaja tanggal lampau - buktikan sanitizeDates() bekerja
+            // AI kadang tetap menyisipkan field ini walau sudah tidak diminta -
+            // sengaja tetap dikirim di response palsu untuk buktikan generate()
+            // benar-benar mengabaikannya (bukan cuma karena promptnya sudah
+            // tidak minta), bukan tanda AI boleh menentukan tanggal.
+            'start_date' => '2024-01-01',
             'post_date' => '2024-01-03',
             'scenes' => [['label' => 'ADEGAN 1', 'visual' => 'Buka produk', 'talent_script' => 'Halo semua!']],
             'talent' => '1 model',
@@ -192,7 +197,8 @@ class GoldenPathTest extends TestCase
         $genBrief = $this->actingAs($copywriter)->post(route('content-brief.generate', $item));
         $genBrief->assertRedirect();
         $brief = $item->contentBriefDraft()->firstOrFail();
-        $this->assertTrue($brief->start_date->gte(now()->startOfDay()), 'Tanggal brief tidak boleh di masa lalu walau AI mengarang 2024 (KI-07).');
+        $this->assertNull($brief->start_date, 'AI tidak pernah menentukan tanggal produksi (start_date) - walau ikut dikarang di response AI (termasuk tanggal lampau 2024), field ini harus tetap kosong sampai diisi manual (KI-07).');
+        $this->assertNull($brief->post_date, 'Sama seperti start_date - post_date murni pilihan manual PIC lewat setUploadDate(), bukan dari AI.');
 
         // ===== 8. Finalisasi brief =====
         $finalize = $this->actingAs($copywriter)->post(route('content-brief.finalize', $brief));

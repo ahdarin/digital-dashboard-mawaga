@@ -11,7 +11,6 @@ use App\Models\Platform;
 use App\Models\User;
 use App\Services\BriefGenerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -20,6 +19,13 @@ use Tests\TestCase;
  * docs/USER_MANUAL_SOURCE_OF_TRUTH.md Bagian 7 & Bagian 22. Tidak memanggil
  * Gemini API asli - respons di-fake supaya deterministik & tidak butuh
  * jaringan keluar.
+ *
+ * Perbaikan KI-07 SEMPAT berupa sanitizeDates() (fallback tanggal masa lalu
+ * ke hari ini) - lalu diganti total lewat larangan mutlak (BriefGenerationService,
+ * commit "AI never sets brief production/upload dates"): start_date/post_date
+ * TIDAK PERNAH diisi dari AI sama sekali, valid maupun hallucinated, jadi tidak
+ * ada lagi "fallback yang masuk akal" untuk diuji - yang diuji sekarang AI
+ * benar-benar tidak berpengaruh ke kedua kolom itu.
  */
 class BriefGenerationDateTest extends TestCase
 {
@@ -66,7 +72,7 @@ class BriefGenerationDateTest extends TestCase
         config(['services.gemini.api_key' => 'fake-key-for-test']);
     }
 
-    public function test_generate_replaces_hallucinated_past_date_with_a_sane_fallback(): void
+    public function test_generate_ignores_hallucinated_past_date_entirely(): void
     {
         $item = $this->contentItem();
 
@@ -87,30 +93,29 @@ class BriefGenerationDateTest extends TestCase
 
         $brief = (new BriefGenerationService)->generate($item);
 
-        $today = Carbon::now()->startOfDay();
-        $this->assertTrue($brief->start_date->gte($today), 'start_date tidak boleh di masa lalu.');
-        $this->assertTrue($brief->post_date->gte($brief->start_date), 'post_date tidak boleh sebelum start_date.');
-        $this->assertSame($today->copy()->addDay()->toDateString(), $brief->start_date->toDateString());
+        $this->assertNull($brief->start_date, 'AI tidak pernah menentukan start_date - hallucinated maupun tidak, field ini harus tetap kosong.');
+        $this->assertNull($brief->post_date, 'AI tidak pernah menentukan post_date - itu murni pilihan manual PIC lewat setUploadDate().');
     }
 
-    public function test_generate_keeps_a_valid_near_term_date_untouched(): void
+    public function test_generate_ignores_even_a_valid_near_term_ai_date(): void
     {
         $item = $this->contentItem();
-        $validStart = now()->addDays(2)->toDateString();
-        $validPost = now()->addDays(6)->toDateString();
 
         $this->fakeGeminiResponse([
             'hook_title' => 'Hook Test',
-            'start_date' => $validStart,
-            'post_date' => $validPost,
+            'start_date' => now()->addDays(2)->toDateString(),
+            'post_date' => now()->addDays(6)->toDateString(),
             'platform' => 'Instagram',
             'scenes' => [],
         ]);
 
         $brief = (new BriefGenerationService)->generate($item);
 
-        $this->assertSame($validStart, $brief->start_date->toDateString());
-        $this->assertSame($validPost, $brief->post_date->toDateString());
+        // Larangannya mutlak, bukan cuma soal validitas tanggal - AI tetap
+        // tidak boleh menentukan tanggal produksi/upload walau tanggalnya
+        // sendiri masuk akal (dekat & di masa depan).
+        $this->assertNull($brief->start_date);
+        $this->assertNull($brief->post_date);
     }
 
     public function test_feasibility_is_not_critical_merely_because_of_a_hallucinated_past_date(): void
