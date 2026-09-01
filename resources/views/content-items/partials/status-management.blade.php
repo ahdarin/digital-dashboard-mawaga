@@ -2,7 +2,7 @@
     $hasUnresolvedRevisions = $contentItem->revisions->whereIn('status', ['open', 'in_progress'])->isNotEmpty();
 @endphp
 
-<div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '', contentFileLink: '{{ $contentItem->content_file_link }}', showContentLinkModal: false }">
+<div id="status-management" class="card p-5 scroll-mt-6" x-data="{ scheduledUploadAt: '' }">
     <div class="flex items-center justify-between mb-1">
         <h3 class="text-sm font-semibold text-[var(--text-primary)]">Manajemen Status</h3>
     </div>
@@ -32,63 +32,18 @@
         </button>
     @elseif ($workflow->current_status === 'in_progress')
         <button type="button" :disabled="{{ $canUpdateWorkflow ? 'false' : 'true' }}"
-            @click="contentFileLink
-                ? (confirmAction = {
-                    title: 'Konten Telah Selesai',
-                    message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
-                    formAction: '{{ route('content-items.transition', $contentItem) }}',
-                    method: 'PATCH',
-                    fields: { to_status: 'waiting_review', content_file_link: contentFileLink },
-                    confirmLabel: 'Ya, Selesai',
-                })
-                : (showContentLinkModal = true)"
+            @click="confirmAction = {
+                title: 'Konten Telah Selesai',
+                message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
+                formAction: '{{ route('content-items.transition', $contentItem) }}',
+                method: 'PATCH',
+                fields: { to_status: 'waiting_review' },
+                confirmLabel: 'Ya, Selesai',
+            }"
             title="{{ $canUpdateWorkflow ? '' : 'Kamu tidak punya izin memindahkan status' }}"
             class="btn-primary w-full">
             <span class="material-symbols-outlined text-[16px]">check</span> KONTEN TELAH SELESAI
         </button>
-
-        {{-- Popup kecil buat isi Link Konten (Draft) dulu, sama persis polanya
-             dengan modal "Jadwalkan Upload" di kanban board - reviewer tidak
-             bisa menilai hasil kerja yang belum bisa dilihat. --}}
-        <div x-show="showContentLinkModal" x-cloak x-on:keydown.escape.window="showContentLinkModal = false"
-            class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
-            <div class="absolute inset-0 bg-[#14181a]/40" @click="showContentLinkModal = false"></div>
-            <div x-show="showContentLinkModal" x-transition role="dialog" aria-modal="true" aria-labelledby="content-link-modal-title"
-                x-trap="!!showContentLinkModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
-                    <div>
-                        <h3 id="content-link-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Konten Telah Selesai</h3>
-                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Isi link hasil produksi dulu supaya bisa direview</p>
-                    </div>
-                    <button type="button" @click="showContentLinkModal = false" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
-                        <span class="material-symbols-outlined text-[19px]">close</span>
-                    </button>
-                </div>
-                <div class="px-6 py-5">
-                    <label for="content_file_link_modal_input" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Konten (Draft)</label>
-                    <input id="content_file_link_modal_input" type="url" x-model="contentFileLink" autocomplete="off"
-                        placeholder="https://drive.google.com/..."
-                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                </div>
-                <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
-                    <button type="button" :disabled="!contentFileLink"
-                        @click="showContentLinkModal = false; confirmAction = {
-                            title: 'Konten Telah Selesai',
-                            message: 'Pindahkan status &quot;{{ addslashes($contentItem->title) }}&quot; ke Menunggu Persetujuan? Langkah ini tidak bisa dibatalkan - status cuma bisa maju.',
-                            formAction: '{{ route('content-items.transition', $contentItem) }}',
-                            method: 'PATCH',
-                            fields: { to_status: 'waiting_review', content_file_link: contentFileLink },
-                            confirmLabel: 'Ya, Selesai',
-                        }"
-                        class="btn-primary">
-                        Simpan &amp; Lanjutkan
-                    </button>
-                    <button type="button" @click="showContentLinkModal = false" class="btn-secondary">
-                        Batal
-                    </button>
-                </div>
-            </div>
-        </div>
     @elseif ($workflow->current_status === 'waiting_review')
         @php $approveDisabled = ! $canApprove || $hasUnresolvedRevisions; @endphp
         @if ($workflow->client_reviewed_at)
