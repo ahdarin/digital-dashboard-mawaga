@@ -40,10 +40,10 @@ class RoleSeeder extends Seeder
 
         $ceo = User::firstOrCreate(
             [
-                'email' => 'hello523studio@gmail.com',
+                'email' => 'ghazifadhlullah31@gmail.com',
             ],
             [
-                'name' => '523 Studio',
+                'name' => 'ghazi',
                 'status' => 'active',
                 'login_enabled' => true,
             ]
