@@ -33,7 +33,7 @@ class ContentBriefDraft extends Model
      */
     public function getScenesForDisplayAttribute(): array
     {
-        if (! empty($this->scenes)) {
+        if (is_array($this->scenes) && ! empty($this->scenes)) {
             return $this->scenes;
         }
 
