@@ -251,6 +251,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
     // urutan route di atas).
     Route::middleware(['permission:client,view', 'client.scope:client,id'])->group(function () {
         Route::get('/client-management/{client}', [ClientManagementController::class, 'show'])->name('client-management.show');
+
+        // Status sync TikTok (read-only, dipoll JS di client-management.show)
+        // - auth + scope SAMA persis dengan show() di atas, jadi tidak bisa
+        // dipakai intip integrasi client lain.
+        Route::get('/client-management/{client}/tiktok/sync-status', [ClientManagementController::class, 'tiktokSyncStatus'])
+            ->name('client-management.tiktok.sync-status');
     });
 
     // Callback OAuth Instagram - sengaja di luar group permission di atas dan
@@ -271,14 +277,54 @@ Route::middleware(['auth', 'internal'])->group(function () {
         ->middleware('permission:team_performance,view')
         ->name('team-performance.index');
 
+    // Phase 4.2 (Langkah 2) - route Analytics diaudit SATU-PER-SATU dan
+    // dipisah 2 grup permission: READ (GET tanpa side effect) tetap
+    // analytics,view; MUTATING (POST/PUT/PATCH/DELETE, atau GET yang
+    // ternyata nulis DB - diaudit, TIDAK ADA) pindah ke analytics,manage.
+    // Lihat PHASE_4_2_ROUTE_MATRIX.md/laporan buat tabel lengkap per route.
     Route::middleware('permission:analytics,view')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
         Route::get('/analytics/export', [AnalyticsController::class, 'export'])->name('analytics.export');
+        // Phase 4.1 (Langkah 1) - status polling TETAP read/view, sesuai
+        // instruksi eksplisit ("GET sync-status boleh tetap read/view").
+        Route::get('/analytics/sync-status', [AnalyticsController::class, 'syncStatus'])->name('analytics.sync-status');
         Route::get('/analytics/{contentItem}', [AnalyticsController::class, 'show'])
             ->middleware('client.scope:contentItem')
             ->name('analytics.show');
-        Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
         Route::get('/analytics/ai-strategy/history', [AnalyticsController::class, 'aiStrategyHistory'])->name('analytics.ai-strategy.history');
+    });
+
+    // Phase 4.1 (Langkah 1) - dispatch sync BUKAN analytics,view. Audit
+    // permission matrix (database/seeders/PermissionSeeder.php): role
+    // "Admin" SENGAJA cuma dapat 'view' di SEMUA modul termasuk analytics
+    // ("TIDAK BOLEH mengubah data apa pun lewat aplikasi") - gating dispatch
+    // ini ke analytics,view berarti Admin bisa trigger sync mutating, itu
+    // pelanggaran desain role yang sudah ada. settings,manage dipakai ulang
+    // (BUKAN permission baru) karena itu PERSIS permission yang SUDAH
+    // dipakai SettingsController::syncInstagram()/syncTiktok() buat 2 dari
+    // 3 subjob yang sama - dipegang Manager/SMO/CEO, TIDAK dipegang Admin/
+    // Content Creator/Designer/Copywriter.
+    Route::middleware('permission:settings,manage')->group(function () {
+        Route::post('/analytics/sync', [AnalyticsController::class, 'syncDispatch'])->name('analytics.sync');
+    });
+
+    // Phase 4.2 (Langkah 3) - AI Strategy generate/apply/revert/chat/refine/
+    // regenerate & Audience CSV import SEMUANYA mutating (bikin
+    // AiStrategyInsight/ContentItem/AudienceInsight rows, generateAiStrategy
+    // & sendChatMessage juga manggil Gemini API sungguhan - biaya nyata),
+    // TAPI sebelumnya cuma dijaga analytics,view - Admin (role read-only by
+    // design) bisa trigger semuanya. BUKAN settings,manage (domain beda -
+    // Settings itu integrasi API, AI Strategy itu analisis konten) DAN
+    // BUKAN permission baru - analytics,manage SUDAH ADA sebagai row
+    // (dibuat otomatis oleh loop modul x action di PermissionSeeder.php),
+    // cuma belum pernah di-assign ke role manapun selain CEO (lewat
+    // wildcard '*'). PermissionSeeder.php diupdate supaya Manager & SMO
+    // (role yang SUDAH pakai AI Strategy secara fungsional) juga
+    // dapat analytics,manage - WAJIB re-run `php artisan db:seed
+    // --class=PermissionSeeder` di database sungguhan sebelum deploy,
+    // lihat laporan Phase 4.2.
+    Route::middleware('permission:analytics,manage')->group(function () {
+        Route::post('/analytics/ai-strategy', [AnalyticsController::class, 'generateAiStrategy'])->name('analytics.ai-strategy');
         Route::post('/analytics/ai-strategy/{aiStrategyInsight}/apply', [AnalyticsController::class, 'applyAiStrategy'])
             ->middleware('client.scope:aiStrategyInsight')
             ->name('analytics.ai-strategy.apply');

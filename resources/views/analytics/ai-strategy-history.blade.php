@@ -87,24 +87,31 @@
                                 Paket belum tercatat - ide diterapkan tanpa validasi kuota paket.
                             </p>
                         @endunless
+                        {{-- Phase 4.4 (Langkah 3) - Apply/Revert MUTATING,
+                             sama gate dengan index.blade.php ($canManageAiStrategy
+                             belum tentu di-pass ke view ini - hitung ulang
+                             langsung, murah & konsisten dengan server
+                             permission analytics,manage). --}}
                         <div class="flex items-center gap-2">
-                            @if (! $insight->applied_at)
-                                <form action="{{ route('analytics.ai-strategy.apply', $insight) }}" method="POST">
-                                    @csrf
-                                    <button type="submit" class="btn-primary">
-                                        <span class="material-symbols-outlined text-[14px]">bolt</span>
-                                        Terapkan ke Content Plan
-                                    </button>
-                                </form>
-                            @else
-                                <form action="{{ route('analytics.ai-strategy.revert', $insight) }}" method="POST"
-                                      onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
-                                    @csrf
-                                    <button type="submit" class="btn-danger">
-                                        <span class="material-symbols-outlined text-[14px]">undo</span>
-                                        Tarik Kembali
-                                    </button>
-                                </form>
+                            @if (auth()->user()->hasPermissionTo('analytics', 'manage'))
+                                @if (! $insight->applied_at)
+                                    <form action="{{ route('analytics.ai-strategy.apply', $insight) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="btn-primary">
+                                            <span class="material-symbols-outlined text-[14px]">bolt</span>
+                                            Terapkan ke Content Plan
+                                        </button>
+                                    </form>
+                                @else
+                                    <form action="{{ route('analytics.ai-strategy.revert', $insight) }}" method="POST"
+                                          onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
+                                        @csrf
+                                        <button type="submit" class="btn-danger">
+                                            <span class="material-symbols-outlined text-[14px]">undo</span>
+                                            Tarik Kembali
+                                        </button>
+                                    </form>
+                                @endif
                             @endif
 
                             @if ($i === 0)

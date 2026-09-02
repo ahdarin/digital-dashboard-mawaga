@@ -3,12 +3,26 @@
      lagi). Client dipilih dari filter bar bersama di atas; filter di
      bawah ini (search/platform/tipe/sort) khusus tab ini aja. --}}
 
-{{-- Filter bar --}}
+{{-- Phase 3 (Langkah 11) - coverage historis harus jelas, JANGAN tampilkan
+     "total_views periode X" tanpa qualifier kalau datanya belum full. --}}
+@if (! empty($coverageMessage))
+    <div class="card p-4 mb-5 flex items-start gap-3" style="background: var(--warning-tint); border-color: var(--warning-text);">
+        <span class="material-symbols-outlined text-[var(--warning-text)] text-[20px]">info</span>
+        <p class="text-[13px] text-[var(--warning-text)]">{{ $coverageMessage }}</p>
+    </div>
+@endif
+
+{{-- Filter bar - LOKAL ke tab ini SAJA (search/tipe konten/sort) - platform
+     sekarang GLOBAL (dropdown di filter bar atas, Phase 1 item 3), jadi
+     duplicate dropdown platform di sini DIHAPUS. period/platform_id GLOBAL
+     tetap dibawa lewat hidden input biar submit form lokal ini nggak
+     "menjatuhkan" filter global yang lagi aktif. --}}
 <div class="card p-4 mb-5">
     <form method="GET" class="flex items-center gap-2.5 flex-wrap">
         <input type="hidden" name="tab" value="table">
         <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
         <input type="hidden" name="period" value="{{ $period }}">
+        <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
         <input type="hidden" name="sort" value="{{ $sort }}">
         <input type="hidden" name="dir" value="{{ $dir }}">
 
@@ -17,14 +31,6 @@
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari judul konten..."
                    class="bg-[var(--surface-card)] w-full pl-9 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
         </div>
-
-        <select name="platform_id" onchange="this.form.submit()"
-                class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="">Semua Platform</option>
-            @foreach ($platformOptions as $p)
-                <option value="{{ $p->id }}" {{ (string) request('platform_id') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
-            @endforeach
-        </select>
 
         <select name="content_type_id" onchange="this.form.submit()"
                 class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
@@ -38,8 +44,11 @@
             Terapkan
         </button>
 
-        @if (request('search') || request('platform_id') || request('content_type_id'))
-            <a href="{{ route('analytics', ['tab' => 'table', 'client_id' => $selectedClientId]) }}" class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Reset filter</a>
+        @if (request('search') || request('content_type_id'))
+            {{-- Reset filter LOKAL SAJA (search/tipe) - client_id/period/
+                 platform_id GLOBAL tetap dipertahankan, bukan direset. --}}
+            <a href="{{ route('analytics', array_filter(['tab' => 'table', 'client_id' => $selectedClientId, 'period' => $period, 'platform_id' => $selectedPlatformId])) }}"
+               class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Reset filter</a>
         @endif
     </form>
 </div>
@@ -143,7 +152,7 @@
                                         @endif
                                     @else
                                         @if ($item->api_integration_id)
-                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}#post-{{ $item->external_post_id }}"
+                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                         @endif
                                         @if ($item->permalink)
@@ -223,7 +232,7 @@
                             @endif
                         @else
                             @if ($item->api_integration_id)
-                                <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}#post-{{ $item->external_post_id }}"
+                                <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
                                     class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
                                     Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
                                 </a>

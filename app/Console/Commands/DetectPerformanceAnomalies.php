@@ -5,9 +5,11 @@ namespace App\Console\Commands;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\Notification;
 use App\Models\PerformanceAnomaly;
 use App\Models\User;
+use App\Services\PeriodPerformanceService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -38,7 +40,7 @@ class DetectPerformanceAnomalies extends Command
     private const DROP_THRESHOLD = 0.5;    // turun <= 50% dari rata-rata -> "Performa Turun"
     private const MIN_BASELINE_DAYS = 3;   // minimal 3 hari data histori biar rata-ratanya bermakna
 
-    public function handle(): int
+    public function handle(PeriodPerformanceService $periodPerformanceService): int
     {
         // Deteksi & rekam anomali tetap jalan biarpun nggak ada user
         // CEO/Admin buat dikirimin notifikasi - PerformanceAnomaly yang
@@ -51,7 +53,8 @@ class DetectPerformanceAnomalies extends Command
             $this->warn('Nggak ada user CEO/Admin - anomali tetap direkam, notifikasi dilewati.');
         }
 
-        $anomalyCount = $this->detectContentAnomalies($notifyUsers);
+        $anomalyCount = $this->detectContentAnomalies($notifyUsers)
+            + $this->detectApiContentAnomalies($notifyUsers, $periodPerformanceService);
         $syncFailCount = $this->detectFailedSyncs($notifyUsers);
 
         $this->info("Selesai. {$anomalyCount} anomali performa, {$syncFailCount} sync gagal ter-notifikasi.");
@@ -59,26 +62,28 @@ class DetectPerformanceAnomalies extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Jalur CSV/manual (Langkah 9H) - TIDAK DIUBAH sama sekali dari
+     * semantik lama. metric_date CSV ADALAH observasi genuine per-tanggal
+     * yang user ketik sendiri (bukan dikunci ke publish date seperti API),
+     * jadi "metrik hari ini" + "rata-rata metric_date < hari ini" TETAP
+     * valid dibandingkan langsung di sini - beda dari content API (lihat
+     * detectApiContentAnomalies() di bawah, yang genuinely butuh
+     * content_metric_snapshots karena content_metrics API cuma py 1 baris
+     * per konten, terkunci ke tanggal publish).
+     */
     private function detectContentAnomalies($notifyUsers): int
     {
         $today = Carbon::today();
         $count = 0;
 
-        // Ambil semua content item yang punya metrik HARI INI (metrik baru
-        // masuk, entah dari import CSV atau sync) - cuma yang relevan
-        // dicek, biar command-nya ringan dan nggak nyisir seluruh histori
-        // tiap kali jalan.
-        //
-        // TODO (gap diketahui, sengaja belum dibenahi - lihat audit "Data
-        // Source Architecture"): post Instagram real yang belum ke-link ke
-        // ContentItem (content_item_id NULL di content_metrics) TIDAK ikut
-        // dicek di sini. pluck() di bawah ini ikut ngambil null, tapi
-        // ContentItem::find(null) di loop bawah balikin null lalu di-skip
-        // (continue) - jadi command ini aman (nggak crash), cuma diam-diam
-        // nggak mendeteksi anomali buat post unmatched. Belum diperbaiki
-        // karena eksplisit di luar scope task ini (anomaly detection nggak
-        // boleh di-redesign dulu).
+        // Ambil semua content item CSV/manual (snapshot FK dua-duanya null)
+        // yang punya metrik HARI INI - cuma yang relevan dicek, biar
+        // command-nya ringan dan nggak nyisir seluruh histori tiap kali
+        // jalan.
         $contentItemIds = ContentMetric::whereDate('metric_date', $today)
+            ->whereNull('instagram_media_snapshot_id')
+            ->whereNull('tiktok_video_snapshot_id')
             ->distinct()
             ->pluck('content_item_id');
 
@@ -155,6 +160,125 @@ class DetectPerformanceAnomalies extends Command
             } else {
                 $title = 'Performa Turun';
                 $body = "Konten '{$contentItem->title}' ({$clientName}) turun ".abs($percentChange)."% dari rata-rata performa 30 hari terakhir.";
+            }
+
+            foreach ($notifyUsers as $user) {
+                Notification::create([
+                    'user_id' => $user->id,
+                    'title' => $title,
+                    'type' => 'ai_insight',
+                    'body' => $body,
+                    'related_type' => ContentItem::class,
+                    'related_id' => $contentItem->id,
+                    'is_read' => false,
+                ]);
+            }
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Jalur content API (Instagram/TikTok) - Langkah 9H, "jangan lagi
+     * bergantung pada ContentMetric.metric_date sebagai daily API
+     * observation". content_metrics API cuma py 1 baris per konten
+     * (dikunci ke tanggal publish, di-upsert selamanya) - "metrik hari ini
+     * vs rata-rata metric_date sebelumnya" TIDAK PERNAH match buat konten
+     * yang sudah lama di-publish (dulu command ini praktis INERT buat
+     * konten API). Fix: bandingkan GAIN HARIAN dari content_metric_snapshots
+     * (delta cumulative genuine, PeriodPerformanceService::computeContentDailyGains())
+     * - views_on_date/baseline_avg_views SEKARANG berarti "gain HARI INI"/
+     * "rata-rata gain harian 30 hari" (BUKAN raw cumulative views seperti
+     * jalur CSV di atas) - kolom PerformanceAnomaly TIDAK diubah (no
+     * migration), cuma makna angkanya buat sumber API.
+     */
+    private function detectApiContentAnomalies($notifyUsers, PeriodPerformanceService $periodPerformanceService): int
+    {
+        $today = Carbon::today();
+        $rangeStart = $today->copy()->subDays(31);
+        $count = 0;
+
+        $todayUnits = ContentMetricSnapshot::whereDate('snapshot_date', $today)
+            ->get(['instagram_media_snapshot_id', 'tiktok_video_snapshot_id'])
+            ->unique(fn ($s) => $s->instagram_media_snapshot_id ? 'ig-'.$s->instagram_media_snapshot_id : 'tt-'.$s->tiktok_video_snapshot_id);
+
+        foreach ($todayUnits as $unit) {
+            $identityColumn = $unit->instagram_media_snapshot_id ? 'instagram_media_snapshot_id' : 'tiktok_video_snapshot_id';
+            $identityId = $unit->instagram_media_snapshot_id ?? $unit->tiktok_video_snapshot_id;
+
+            $contentMetric = ContentMetric::where($identityColumn, $identityId)->first();
+            if (! $contentMetric || ! $contentMetric->content_item_id) {
+                // Sama seperti gap lama jalur CSV (unmatched belum dicek) -
+                // TIDAK diperluas scope-nya di sini, konsisten dgn behavior
+                // command ini sebelumnya.
+                continue;
+            }
+
+            $contentItem = ContentItem::with('client')->find($contentMetric->content_item_id);
+            if (! $contentItem) {
+                continue;
+            }
+
+            $gains = $periodPerformanceService->computeContentDailyGains($identityColumn, $identityId, $rangeStart, $today);
+            $todayKey = $today->toDateString();
+
+            if (! isset($gains[$todayKey])) {
+                continue; // baseline kemarin hilang / metric reset - tidak ada gain HARI INI yang valid dihitung
+            }
+
+            $todayGain = $gains[$todayKey];
+            $baselineGains = collect($gains)->except($todayKey);
+
+            if ($baselineGains->count() < self::MIN_BASELINE_DAYS) {
+                continue; // data historisnya belum cukup buat dibandingin
+            }
+
+            $avgGain = $baselineGains->avg();
+            if ($avgGain <= 0) {
+                continue;
+            }
+
+            $ratio = $todayGain / $avgGain;
+
+            $anomalyType = null;
+            if ($ratio >= self::SPIKE_THRESHOLD) {
+                $anomalyType = 'spike';
+            } elseif ($ratio <= self::DROP_THRESHOLD) {
+                $anomalyType = 'drop';
+            }
+
+            if (! $anomalyType) {
+                continue;
+            }
+
+            $alreadyRecorded = PerformanceAnomaly::where('content_item_id', $contentItem->id)
+                ->whereDate('detected_date', $today)
+                ->exists();
+
+            if ($alreadyRecorded) {
+                continue;
+            }
+
+            $percentChange = round(($ratio - 1) * 100);
+            $clientName = $contentItem->client->name ?? 'Client';
+
+            PerformanceAnomaly::create([
+                'content_item_id' => $contentItem->id,
+                'type' => $anomalyType,
+                'percent_change' => $percentChange,
+                'views_on_date' => $todayGain,
+                'baseline_avg_views' => (int) round($avgGain),
+                'detected_date' => $today,
+            ]);
+
+            if ($anomalyType === 'spike') {
+                $title = 'Trend Detected';
+                $body = "Konten '{$contentItem->title}' ({$clientName}) mendapat gain views {$percentChange}% di atas rata-rata gain harian 30 hari terakhir.";
+            } else {
+                $title = 'Performa Turun';
+                $body = "Konten '{$contentItem->title}' ({$clientName}) gain views turun ".abs($percentChange)."% dari rata-rata gain harian 30 hari terakhir.";
             }
 
             foreach ($notifyUsers as $user) {

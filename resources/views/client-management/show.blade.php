@@ -284,7 +284,7 @@
                                     {{ $instagramSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}
                                 </button>
                             </form>
-                            <a href="{{ route('publishing-tracker.instagram.unmatched', $instagramIntegration) }}"
+                            <a href="{{ route('publishing-tracker.instagram.unmatched', $instagramIntegration) }}?return_to={{ urlencode(url()->full()) }}"
                                class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
                         </div>
                         @if ($instagramSyncing)
@@ -374,7 +374,14 @@
                 </div>
 
                 @if ($ttConnected)
-                    <p class="text-xs text-[var(--text-muted)] mb-3">&commat;{{ $tiktokIntegration->external_username }}</p>
+                    <p class="text-xs text-[var(--text-muted)] mb-1">&commat;{{ $tiktokIntegration->external_username }}</p>
+                    <p class="text-[11px] text-[var(--text-muted)] mb-3">
+                        @if ($tiktokStatsScopeGranted)
+                            Followers: {{ $tiktokFollowerInsight?->follower_count !== null ? number_format($tiktokFollowerInsight->follower_count) : 'Belum ada data' }}
+                        @else
+                            Statistik profil tidak tersedia dari scope TikTok yang diberikan.
+                        @endif
+                    </p>
 
                     <div class="border-t border-[var(--surface-muted)] pt-3">
                         <div class="flex items-center justify-between mb-1">
@@ -383,31 +390,48 @@
                                 $ttSyncBadgeClass = $tiktokSyncing ? 'badge-warning' : ($tiktokLastSyncLog?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
                                 $ttSyncBadgeLabel = $tiktokSyncing ? 'Menyinkronkan' : ($tiktokLastSyncLog?->status === 'failed' ? 'Gagal' : ($tiktokIntegration->last_synced_at ? 'Tersinkron' : 'Belum Tersinkron'));
                             @endphp
-                            <span class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
+                            <span id="tiktok-sync-badge" class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
                         </div>
-                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                        <p id="tiktok-last-synced" class="text-[11px] text-[var(--text-muted)] mb-2">
                             Sinkronisasi terakhir: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
                         </p>
                         @if (! $tiktokSyncing && $tiktokLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $tiktokLastSyncLog->error_message }}</p>
+                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $tiktokLastSyncLog->error_message }}</p>
+                        @elseif ($tiktokSyncing)
+                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten TikTok.</p>
+                        @else
+                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--brand)] mb-2" hidden></p>
+                        @endif
+
+                        @if (! $tiktokVideoListScopeGranted)
+                            <p class="text-[11px] text-[var(--text-muted)] mb-2">Daftar video tidak tersedia dari scope TikTok yang diberikan.</p>
+                        @elseif ($tiktokIntegration->last_synced_at && $tiktokVideoCount === 0)
+                            <p class="text-[11px] text-[var(--text-muted)] mb-2">Tidak ada video yang dikembalikan TikTok untuk akun ini.</p>
+                        @elseif ($tiktokVideoCount > 0)
+                            <p class="text-[11px] text-[var(--text-muted)] mb-2">
+                                {{ $tiktokVideoCount }} video tersinkron
+                                @if ($tiktokLastSyncLog && $tiktokLastSyncLog->status === 'success')
+                                    &middot; {{ $tiktokLastSyncLog->synced_count }} metrik tersimpan dari sync terakhir
+                                    @if ($tiktokLastSyncLog->skipped_count > 0)
+                                        &middot; {{ $tiktokLastSyncLog->skipped_count }} belum ter-link/gagal
+                                    @endif
+                                @endif
+                            </p>
                         @endif
 
                         <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <form action="{{ route('settings.sync-tiktok') }}" method="POST">
+                            <form id="tiktok-sync-form" action="{{ route('settings.sync-tiktok') }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="client_id" value="{{ $client->id }}">
-                                <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
+                                <button id="tiktok-sync-button" type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
                                         class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <span class="material-symbols-outlined text-[14px]">sync</span>
-                                    {{ $tiktokSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}
+                                    <span id="tiktok-sync-button-label">{{ $tiktokSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}</span>
                                 </button>
                             </form>
-                            <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
+                            <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}?return_to={{ urlencode(url()->full()) }}"
                                class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
                         </div>
-                        @if ($tiktokSyncing)
-                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten TikTok.</p>
-                        @endif
                         <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
 
                         <details class="text-xs">
@@ -716,4 +740,108 @@
         </template>
     @endforeach
 </div>
+
+@if ($tiktokIntegration)
+    <script>
+        // Polling ringan/read-only status sync TikTok - job-nya async
+        // (SyncTikTokAnalyticsJob), jadi tanpa ini halaman nggak pernah tahu
+        // kapan job selesai selain user refresh manual. Endpoint di-scope ke
+        // client ini lewat auth+client.scope route middleware yang sama
+        // dengan halaman ini sendiri (lihat ClientManagementController::
+        // tiktokSyncStatus()).
+        (function () {
+            var statusUrl = @json(route('client-management.tiktok.sync-status', $client));
+            var pollTimer = null;
+
+            var badgeClass = {
+                queued: 'badge-warning', pending: 'badge-warning', running: 'badge-warning',
+                success: 'badge-success', failed: 'badge-danger', idle: 'badge-neutral',
+            };
+            var badgeLabel = {
+                queued: 'Antre', pending: 'Antre', running: 'Menyinkronkan',
+                success: 'Tersinkron', failed: 'Gagal', idle: 'Belum Tersinkron',
+            };
+
+            function applyStatus(data) {
+                var badge = document.getElementById('tiktok-sync-badge');
+                var message = document.getElementById('tiktok-sync-message');
+                var button = document.getElementById('tiktok-sync-button');
+                var buttonLabel = document.getElementById('tiktok-sync-button-label');
+                var lastSynced = document.getElementById('tiktok-last-synced');
+                if (! badge) { stopPolling(); return; }
+
+                var busy = data.status === 'queued' || data.status === 'pending' || data.status === 'running';
+
+                badge.className = 'badge ' + (badgeClass[data.status] || 'badge-neutral');
+                badge.textContent = badgeLabel[data.status] || data.status;
+
+                if (message) {
+                    var text = data.status === 'failed' && data.result && data.result.error_message
+                        ? ('Gagal - ' + data.result.error_message)
+                        : (data.message || '');
+                    message.textContent = text;
+                    message.hidden = ! text;
+                    message.className = 'text-[11px] mb-2 ' + (data.status === 'failed' ? 'text-[var(--danger-text)]' : 'text-[var(--brand)]');
+                }
+
+                if (button) button.disabled = busy;
+                if (buttonLabel) buttonLabel.textContent = busy ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten';
+
+                if (lastSynced && data.last_synced_at) {
+                    lastSynced.textContent = 'Sinkronisasi terakhir: ' + new Date(data.last_synced_at).toLocaleString('id-ID');
+                }
+
+                if (! busy) {
+                    stopPolling();
+                    // Reload SEKALI di status akhir - bagian lain halaman
+                    // (link "Video belum ter-link", dst) baca data server-
+                    // rendered yang cuma akurat lewat reload, bukan sekadar
+                    // badge ini. Jeda singkat biar pesan status sempat
+                    // kebaca dulu.
+                    if (data.status === 'success' || data.status === 'failed') {
+                        setTimeout(function () { window.location.reload(); }, 900);
+                    }
+                }
+            }
+
+            function poll() {
+                fetch(statusUrl, { headers: { Accept: 'application/json' } })
+                    .then(function (res) { return res.json(); })
+                    .then(applyStatus)
+                    .catch(function () { /* diamkan, coba lagi di poll berikutnya */ });
+            }
+
+            function startPolling() {
+                if (pollTimer) return;
+                poll();
+                pollTimer = setInterval(poll, 3000);
+            }
+
+            function stopPolling() {
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            }
+
+            if ({{ $tiktokSyncing ? 'true' : 'false' }}) {
+                startPolling();
+            }
+
+            var form = document.getElementById('tiktok-sync-form');
+            if (form) {
+                form.addEventListener('submit', function () {
+                    var button = document.getElementById('tiktok-sync-button');
+                    var buttonLabel = document.getElementById('tiktok-sync-button-label');
+                    if (button) button.disabled = true;
+                    if (buttonLabel) buttonLabel.textContent = 'Mengantre...';
+                    // Mulai poll SEKARANG (bukan nunggu redirect-back render
+                    // ulang) - form ini navigasi biasa (bukan AJAX), jadi
+                    // polling yang benar-benar jalan dimulai lagi otomatis
+                    // di page load berikutnya lewat $tiktokSyncing di atas;
+                    // baris ini cuma jaga-jaga kalau browser sempat render
+                    // sebentar sebelum redirect selesai.
+                    startPolling();
+                });
+            }
+        })();
+    </script>
+@endif
 @endsection

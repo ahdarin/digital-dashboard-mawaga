@@ -93,14 +93,22 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         );
 
         // TikTok video/list tidak punya filter "since" server-side (lihat
-        // TikTokAnalyticsService::getVideoList()) - $until dipakai buat
-        // early-stop client-side, $rangeFrom TIDAK dipakai memfilter API
-        // call, cuma tersimpan di syncLog buat konsistensi tampilan
-        // "rentang sync" dengan Instagram.
-        $until = Carbon::parse($this->rangeTo)->endOfDay();
+        // TikTokAnalyticsService::getVideoList()) - early-stop pagination
+        // dilakukan client-side pakai $cutoff = LOWER BOUND ($rangeFrom).
+        // TikTok mengurutkan video newest-first, jadi begitu 1 video
+        // create_time-nya < $cutoff, sisa halaman itu & seterusnya pasti
+        // lebih lama juga - aman berhenti di situ.
+        //
+        // BUG SEBELUMNYA (fixed): cutoff sempat dibaca dari $rangeTo (upper
+        // bound, biasanya "hari ini" buat default sync). Karena HAMPIR
+        // SEMUA video create_time-nya < hari ini, pagination berhenti di
+        // video pertama halaman pertama - video_count jadi 0 padahal akun
+        // punya video, dan sync tetap dianggap 'success' karena kode
+        // menganggap videos=[] sama dengan "API asli memang kosong".
+        $cutoff = Carbon::parse($this->rangeFrom)->startOfDay();
 
         try {
-            $service->sync($integration, $syncLog, $until, $this->userId);
+            $service->sync($integration, $syncLog, $cutoff, $this->userId);
         } catch (TikTokApiException $e) {
             if (! $e->isRetryable()) {
                 $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);

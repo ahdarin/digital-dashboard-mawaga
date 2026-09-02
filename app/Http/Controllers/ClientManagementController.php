@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\ClientCategory;
 use App\Models\ClientPackage;
 use App\Models\PackageTemplate;
+use App\Models\TikTokVideoSnapshot;
 use App\Models\User;
 use App\Services\PicReassignmentService;
 use Illuminate\Http\Request;
@@ -221,12 +222,43 @@ class ClientManagementController extends Controller
             }
         }
 
+        // Data tambahan buat card TikTok Integration - SEMUA dari data yang
+        // sudah tersimpan (bukan panggilan API baru). Scope dicek dari
+        // api_integrations.scopes (CSV hasil OAuth callback, TIDAK PERNAH
+        // NULL != granted dianggap sama - lihat catatan "NULL != 0" di
+        // laporan fix TikTok sync).
+        $tiktokGrantedScopes = $tiktokIntegration
+            ? array_map('trim', explode(',', (string) $tiktokIntegration->scopes))
+            : [];
+        $tiktokStatsScopeGranted = in_array('user.info.stats', $tiktokGrantedScopes, true);
+        $tiktokVideoListScopeGranted = in_array('video.list', $tiktokGrantedScopes, true);
+
+        // follower_count TERBARU dari AudienceInsight (ditulis
+        // TikTokAnalyticsSyncService::saveProfileSnapshot() - HANYA ada
+        // kalau user.info.stats granted, lihat docblock method itu) - NULL
+        // (bukan baris sama sekali) kalau scope tidak granted ATAU belum
+        // pernah sync sukses sejak connect.
+        $tiktokFollowerInsight = $tiktokIntegration
+            ? AudienceInsight::where('client_id', $client->id)
+                ->where('platform_id', $tiktokIntegration->platform_id)
+                ->apiSourced()->summary()->latest('snapshot_date')->first()
+            : null;
+
+        // Total video TikTok yang punya baris tiktok_video_snapshots (all-
+        // time, BUKAN cuma sync terakhir - AnalyticsSyncLog TIDAK menyimpan
+        // video_count per sync secara terpisah, lihat laporan SYNC_LOG_QUALITY
+        // di laporan fix untuk keterbatasan schema ini).
+        $tiktokVideoCount = $tiktokIntegration
+            ? TikTokVideoSnapshot::where('api_integration_id', $tiktokIntegration->id)->count()
+            : 0;
+
         return view('client-management.show', compact(
             'client', 'recentContentItems', 'contentCount', 'planCount', 'packageTemplates', 'staffOptions', 'picActiveCounts',
             'instagramIntegration', 'instagramOauthConfigured',
             'instagramLastSyncLog', 'instagramSyncing',
             'instagramAudienceLastSyncLog', 'instagramAudienceLastSuccessAt', 'instagramAudienceSyncing',
-            'tiktokIntegration', 'tiktokOauthConfigured', 'tiktokLastSyncLog', 'tiktokSyncing'
+            'tiktokIntegration', 'tiktokOauthConfigured', 'tiktokLastSyncLog', 'tiktokSyncing',
+            'tiktokStatsScopeGranted', 'tiktokVideoListScopeGranted', 'tiktokFollowerInsight', 'tiktokVideoCount'
         ));
     }
 
@@ -271,6 +303,104 @@ class ClientManagementController extends Controller
         SyncInstagramAudienceJob::dispatch($integration->id, auth()->id());
 
         return back()->with('import_success', 'Sinkronisasi Audience Instagram dimulai.');
+    }
+
+    /**
+     * Status sync TikTok "Analitik Konten" client ini, dipoll ringan/read-
+     * only dari JS di client-management.show (lihat script di bawah card
+     * TikTok) - job sync-nya async, jadi halaman butuh cara tahu kapan job
+     * selesai TANPA user refresh manual.
+     *
+     * Auth + scope SAMA seperti show() (permission:client,view +
+     * client.scope:client,id di routes/web.php) - integration SELALU
+     * diambil lewat $client->apiIntegrations(), jadi endpoint ini TIDAK
+     * PERNAH bisa dipakai buat intip integrasi client lain walau ID
+     * integration ditebak manual (tidak ada input ID di sini sama sekali).
+     *
+     * Response CUMA field yang aman ditampilkan (tidak ada token/raw API
+     * response) - lihat StatusResponse di bawah buat kontrak lengkap.
+     *
+     * Status 'queued' vs 'running': dibedakan dari ADA/TIDAKNYA baris job
+     * ini di tabel `jobs` (queue driver 'database') - begitu WithoutOverlapping
+     * lock (dipakai bareng syncTiktok()) sudah dipegang TAPI baris job masih
+     * ada di `jobs`, berarti worker baru saja mengambilnya (masih dianggap
+     * 'running' karena baris `jobs` dihapus SEBELUM handle() selesai, bukan
+     * sesudah - jadi overlap sangat singkat, diabaikan). 'queued' murni
+     * kondisi: baris job ADA di `jobs` TAPI lock BELUM dipegang (dispatch
+     * sudah terjadi, worker belum sempat mengambil).
+     */
+    public function tiktokSyncStatus(Client $client)
+    {
+        $integration = $client->apiIntegrations()
+            ->whereHas('platform', fn ($q) => $q->where('name', 'TikTok'))
+            ->first();
+
+        if (! $integration) {
+            return response()->json(['status' => 'not_connected', 'message' => 'TikTok belum terhubung untuk client ini.']);
+        }
+
+        $lock = Cache::lock(SyncTikTokAnalyticsJob::cacheLockKey($integration->id), 10);
+        $running = false;
+        if ($lock->get()) {
+            $lock->release();
+        } else {
+            $running = true;
+        }
+
+        $queued = ! $running && $this->hasQueuedTiktokJob($integration->id);
+
+        $lastLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', 'api_sync')->latest()->first();
+
+        $status = match (true) {
+            $running => 'running',
+            $queued => 'queued',
+            default => $lastLog?->status ?? 'idle',
+        };
+
+        $messages = [
+            'queued' => 'Sinkronisasi TikTok sedang antre...',
+            'running' => 'Sedang mengambil profil dan video TikTok...',
+            'success' => 'Sinkronisasi selesai.',
+            'failed' => 'Sinkronisasi gagal.',
+            'pending' => 'Sinkronisasi TikTok sedang antre...',
+            'idle' => 'Belum pernah disinkronkan.',
+        ];
+
+        return response()->json([
+            'status' => $status,
+            'message' => $messages[$status] ?? 'Belum pernah disinkronkan.',
+            'last_synced_at' => $integration->last_synced_at?->toIso8601String(),
+            // metrics_saved/unmatched_or_failed = synced_count/skipped_count
+            // AnalyticsSyncLog apa adanya - lihat catatan SYNC_LOG_QUALITY
+            // di laporan akhir soal keterbatasan schema (video_count murni
+            // hasil sync TIDAK disimpan terpisah, jadi tidak dikirim di sini
+            // supaya tidak fabricating angka).
+            'result' => $lastLog && in_array($status, ['success', 'failed'], true) ? [
+                'metrics_saved' => $lastLog->synced_count,
+                'unmatched_or_failed' => $lastLog->skipped_count,
+                'error_message' => $lastLog->error_message,
+                'finished_at' => $lastLog->updated_at?->toIso8601String(),
+            ] : null,
+        ]);
+    }
+
+    private function hasQueuedTiktokJob(int $integrationId): bool
+    {
+        return DB::table('jobs')
+            ->where('payload', 'like', '%SyncTikTokAnalyticsJob%')
+            ->get(['payload'])
+            ->contains(function ($row) use ($integrationId) {
+                $payload = json_decode($row->payload, true);
+                $serializedCommand = $payload['data']['command'] ?? null;
+                if (! is_string($serializedCommand)) {
+                    return false;
+                }
+
+                $command = @unserialize($serializedCommand);
+
+                return $command instanceof SyncTikTokAnalyticsJob && $command->apiIntegrationId === $integrationId;
+            });
     }
 
     public function edit(Client $client)

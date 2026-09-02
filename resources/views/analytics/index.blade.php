@@ -11,21 +11,85 @@
             <p class="text-[var(--text-secondary)] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
         </div>
 
-        <div class="flex items-center gap-1">
-            @if ($selectedClientId && $activeTab === 'overview')
-                <a href="{{ route('analytics.export', ['client_id' => $selectedClientId, 'period' => $period]) }}"
-                   class="btn-primary ml-1">
-                    <span class="material-symbols-outlined text-[17px]">download</span> Ekspor
-                </a>
+        @php
+            // Phase 4.2 (Langkah 1) - UI HARUS cocok dengan authorization
+            // server (POST /analytics/sync dijaga permission:settings,manage
+            // sejak Phase 4.1). Ini BUKAN security boundary (403 server-side
+            // tetap satu-satunya penjamin sungguhan) - ini cuma supaya user
+            // yang memang tidak berwenang TIDAK disodori tombol yang bakal
+            // 403 kalau diklik ("jangan mengandalkan 403 sebagai UX utama").
+            $canSync = auth()->user()->hasPermissionTo('settings', 'manage');
+            // Phase 4.4 (Langkah 3) - MIRROR $canSync, buat SEMUA mutation
+            // control AI Strategy (Generate/Apply/Revert/Refine/chat send/
+            // regenerate ide) & Audience CSV import (Langkah 3/4) - domain
+            // BEDA dari Sync (Langkah 5, JANGAN dicampur), pakai permission
+            // server yang SAMA PERSIS dengan route (analytics,manage,
+            // Phase 4.2) - read-only bagian (Ringkasan/Ide list/riwayat
+            // chat) TETAP tampil buat analytics,view-only, cuma
+            // CONTROL-nya yang di-gate.
+            $canManageAiStrategy = auth()->user()->hasPermissionTo('analytics', 'manage');
+        @endphp
+        {{-- Phase 4 - action pair "Sinkronkan Data" + "Ekspor" KONSISTEN di
+             ketiga tab (Langkah 1), bukan tombol sync terpisah per tab.
+             Sync mengikuti filter GLOBAL (client_id/platform_id) - period
+             7/30/90 SENGAJA TIDAK dikirim ke endpoint sync (itu display
+             filter, bukan sync mode - ingestion tetap pakai default
+             lookback Phase 1). --}}
+        <div class="flex flex-col items-end gap-1.5">
+            <div class="flex items-center gap-2">
+                @if ($canSync)
+                    <button type="button" id="analytics-sync-button"
+                            class="btn-secondary" {{ $selectedClientId ? '' : 'disabled' }}>
+                        <span class="material-symbols-outlined text-[17px]" id="analytics-sync-icon">sync</span>
+                        <span id="analytics-sync-button-label">Sinkronkan Data</span>
+                    </button>
+                @endif
+
+                @if ($selectedClientId)
+                    {{-- Ekspor TETAP tampil buat view-only (read-only action,
+                         tidak butuh settings,manage - Langkah 1 "Export tetap
+                         boleh jika memang read-only action"). Label eksplisit
+                         "Ekspor Performa" (Phase 4.1 Langkah 6) - tombol ini
+                         SELALU export data PERFORMA konten (lihat
+                         AnalyticsController::export()), sekarang muncul di
+                         ketiga tab termasuk Audiens, jadi label generik bisa
+                         disalahartikan sebagai export data audiens (yang
+                         TIDAK ada di sini). platform_id GLOBAL ikut dibawa. --}}
+                    <a href="{{ route('analytics.export', array_filter(['client_id' => $selectedClientId, 'period' => $period, 'platform_id' => $selectedPlatformId ?? null])) }}"
+                       class="btn-primary">
+                        <span class="material-symbols-outlined text-[17px]">download</span> Ekspor Performa
+                    </a>
+                @endif
+            </div>
+
+            @if ($canSync)
+                @if (! $selectedClientId)
+                    <p class="text-[12px] text-[var(--text-muted)]">Pilih client untuk menyinkronkan data.</p>
+                @else
+                    <p class="text-[12px] text-[var(--text-secondary)]" id="analytics-sync-message" hidden></p>
+                    {{-- Freshness (Langkah 14) - TERPISAH dari coverage
+                         banner (itu soal "apakah periode ini lengkap", ini
+                         soal "kapan data terakhir diperbarui") - JANGAN
+                         dicampur. --}}
+                    <p class="text-[11px] text-[var(--text-muted)]" id="analytics-freshness" hidden></p>
+                    <div id="analytics-sync-subjobs" class="flex flex-col gap-0.5 items-end" hidden></div>
+                @endif
             @endif
         </div>
     </div>
 
     {{-- Tab switcher - Analytics / Performance Table / Audience sekarang 1
-         halaman yang sama, tab ganti konten di bawah, client & filter yang
-         lagi dipilih ikut kebawa (reload halaman, bukan AJAX). --}}
+         halaman yang sama, tab ganti konten di bawah, GLOBAL filter (client/
+         period/platform) ikut kebawa pindah tab (reload halaman, bukan
+         AJAX) - table-only params (search/content_type_id/sort/dir/page)
+         SENGAJA TIDAK ikut, itu local ke tab Table doang (Phase 1 item 2). --}}
     @php
-        $tabHref = fn (string $tab) => route('analytics', array_filter(['tab' => $tab, 'client_id' => $selectedClientId]));
+        $tabHref = fn (string $tab) => route('analytics', array_filter([
+            'tab' => $tab,
+            'client_id' => $selectedClientId,
+            'period' => $period,
+            'platform_id' => $selectedPlatformId ?? null,
+        ]));
         $tabs = [
             ['key' => 'overview', 'label' => 'Analytics', 'icon' => 'monitoring'],
             ['key' => 'table', 'label' => 'Tabel Performa', 'icon' => 'table_rows'],
@@ -42,7 +106,9 @@
         @endforeach
     </div>
 
-    {{-- Filter bar - dipakai bareng ketiga tab --}}
+    {{-- Filter bar GLOBAL - Client / Period / Platform, IDENTIK di ketiga
+         tab (Phase 1 item 2/3 - dulu Period disembunyikan di tab Table &
+         Platform cuma muncul di tab Audience, sekarang konsisten). --}}
     <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
 
@@ -61,14 +127,16 @@
             <option value="90" {{ $period === 90 ? 'selected' : '' }}>90 Hari Terakhir</option>
         </select>
 
-        @if ($activeTab === 'audience' && ! empty($platforms) && $platforms->count() > 1)
-            <select name="platform_id" onchange="this.form.submit()"
-                    class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-                @foreach ($platforms as $p)
-                    <option value="{{ $p->id }}" {{ (string) $selectedPlatformId === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
-                @endforeach
-            </select>
-        @endif
+        {{-- Platform - SELALU tampil di ketiga tab biar layout nggak
+             bergeser pindah tab, walau cuma 1/0 opsi (disabled kalau
+             begitu) - lihat catatan "jangan bergeser" di audit. --}}
+        <select name="platform_id" onchange="this.form.submit()" {{ $platformOptions->count() <= 1 ? 'disabled' : '' }}
+                class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed">
+            <option value="">Semua Platform</option>
+            @foreach ($platformOptions as $p)
+                <option value="{{ $p->id }}" {{ (string) ($selectedPlatformId ?? '') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
+            @endforeach
+        </select>
     </form>
 
     @if (! empty($noClientSelected))
@@ -93,6 +161,15 @@
             // persis didefinisikan ulang di 2 tempat.
             $chartColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf'];
         @endphp
+
+        {{-- Phase 3 (Langkah 11) - coverage historis harus jelas, JANGAN
+        tampilkan angka periode tanpa qualifier kalau datanya belum full. --}}
+        @if (! empty($coverageMessage))
+            <div class="card p-4 mb-6 flex items-start gap-3" style="background: var(--warning-tint); border-color: var(--warning-text);">
+                <span class="material-symbols-outlined text-[var(--warning-text)] text-[20px]">info</span>
+                <p class="text-[13px] text-[var(--warning-text)]">{{ $coverageMessage }}</p>
+            </div>
+        @endif
 
         {{-- Stat cards --}}
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -140,6 +217,7 @@
                                     <span class="material-symbols-outlined text-[15px]">history</span> Riwayat
                                 </a>
                             @endif
+                        @if ($canManageAiStrategy)
                         <form action="{{ route('analytics.ai-strategy') }}" method="POST" x-on:submit="loading = true" class="shrink-0">
                             @csrf
                             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
@@ -155,6 +233,7 @@
                                 </span>
                             </button>
                         </form>
+                        @endif
                         </div>
                     </div>
 
@@ -171,7 +250,13 @@
                                 <span class="material-symbols-outlined text-[var(--brand)] text-[22px]">insights</span>
                             </div>
                             <p class="text-sm font-medium text-[var(--text-primary)] mb-1">Belum ada analisis buat client ini</p>
-                            <p class="text-xs text-[var(--text-muted)] max-w-xs">Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.</p>
+                            <p class="text-xs text-[var(--text-muted)] max-w-xs">
+                                @if ($canManageAiStrategy)
+                                    Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.
+                                @else
+                                    Belum ada yang men-generate analisis AI untuk client ini.
+                                @endif
+                            </p>
                         </div>
                     @elseif ($latestAiInsight->status === 'failed')
                         <div class="bg-[var(--danger-tint)] border border-[var(--danger-border)] rounded-lg p-4 text-sm text-[var(--danger-text)] flex items-start gap-2.5">
@@ -311,14 +396,30 @@
                             @if (! $latestAiInsight->applied_at && ! empty($latestAiInsight->suggested_split))
                                 <p class="text-xs text-[var(--text-muted)] bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 mb-4 flex items-start gap-2">
                                     <span class="material-symbols-outlined text-[15px] shrink-0 mt-0.5">info</span>
-                                    <span>Slot content plan sudah digenerate otomatis dari kuota paket - klik satu ide di bawah untuk pilih slot mana yang mau diisi ide itu, satu per satu.</span>
+                                    <span>Slot content plan sudah digenerate otomatis dari kuota paket - klik satu ide di bawah untuk pilih slot mana yang mau diisi ide itu satu per satu, atau terapkan semuanya sekaligus di bawah ini.</span>
                                 </p>
+                                @if ($canManageAiStrategy)
+                                    @unless ($latestAiInsight->client->activePackage)
+                                        <p class="text-[11px] text-[var(--text-muted)] mb-2 flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[13px]">info</span>
+                                            Paket belum tercatat - ide diterapkan tanpa validasi kuota paket.
+                                        </p>
+                                    @endunless
+                                    <form action="{{ route('analytics.ai-strategy.apply', $latestAiInsight) }}" method="POST" class="mb-4">
+                                        @csrf
+                                        <button type="submit" class="btn-primary w-full">
+                                            <span class="material-symbols-outlined text-[16px]">bolt</span>
+                                            Terapkan Semua Ide Ini ke Content Plan
+                                        </button>
+                                    </form>
+                                @endif
                             @elseif ($latestAiInsight->applied_at)
                                 <div class="border border-[var(--success-tint-soft)] bg-[var(--success-tint-soft-2)] rounded-xl p-3.5 mb-4 flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-1.5 text-sm font-medium text-[var(--success-text)]">
                                         <span class="material-symbols-outlined text-[16px]">check_circle</span>
                                         Sudah diterapkan ke Content Plan bulan ini
                                     </div>
+                                    @if ($canManageAiStrategy)
                                     <form action="{{ route('analytics.ai-strategy.revert', $latestAiInsight) }}" method="POST"
                                           onsubmit="return appConfirm(this, 'Yakin mau tarik kembali? Semua draft content item yang dibuat dari analisis ini bakal dihapus (kalau belum ada progress).', { danger: true })">
                                         @csrf
@@ -327,6 +428,7 @@
                                             Tarik Kembali
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             @endif
 
@@ -392,6 +494,11 @@
 
                             <p x-show="errorMsg" x-cloak class="text-xs text-[var(--danger-text)] mb-2" x-text="errorMsg"></p>
 
+                            {{-- Phase 4.4 (Langkah 4) - history/riwayat diskusi
+                                 di atas TETAP dibaca semua orang (read-only,
+                                 aman) - cuma INPUT/SEND yang men-generate
+                                 balasan AI baru yang di-gate. --}}
+                            @if ($canManageAiStrategy)
                             <form x-on:submit.prevent="send()" class="flex items-center gap-2 mb-3">
                                 <input type="text" x-model="draft" placeholder="Tulis masukan atau pertanyaan..."
                                        :disabled="sending"
@@ -401,22 +508,25 @@
                                     <span class="material-symbols-outlined text-[18px]">send</span>
                                 </button>
                             </form>
+                            @endif
 
-                            @if ($latestAiInsight->applied_at)
-                                <p class="text-xs text-[var(--text-muted)] text-center bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 leading-relaxed">
-                                    Analisis ini sudah diterapkan ke Content Plan, jadi nggak bisa diperbarui dari diskusi lagi (draft yang udah dibuat bisa nggak nyambung lagi).
-                                    <button type="button" x-on:click="tab = 'ide'" class="text-[var(--brand)] font-medium hover:underline">Tarik kembali dulu</button>
-                                    kalau mau update berdasarkan diskusi ini.
-                                </p>
-                            @elseif ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
-                                <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
-                                      onsubmit="return appConfirm(this, 'Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
-                                    @csrf
-                                    <button type="submit" class="w-full text-xs font-medium bg-[var(--info-tint)] text-[var(--info-text)] px-3.5 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--info-text)]">
-                                        <span class="material-symbols-outlined text-[15px]">sync</span>
-                                        Perbarui Analisis dari Diskusi Ini
-                                    </button>
-                                </form>
+                            @if ($canManageAiStrategy)
+                                @if ($latestAiInsight->applied_at)
+                                    <p class="text-xs text-[var(--text-muted)] text-center bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 leading-relaxed">
+                                        Analisis ini sudah diterapkan ke Content Plan, jadi nggak bisa diperbarui dari diskusi lagi (draft yang udah dibuat bisa nggak nyambung lagi).
+                                        <button type="button" x-on:click="tab = 'ide'" class="text-[var(--brand)] font-medium hover:underline">Tarik kembali dulu</button>
+                                        kalau mau update berdasarkan diskusi ini.
+                                    </p>
+                                @elseif ($latestAiInsight->messages->where('role', '!=', 'system')->isNotEmpty())
+                                    <form action="{{ route('analytics.ai-strategy.refine', $latestAiInsight) }}" method="POST"
+                                          onsubmit="return appConfirm(this, 'Analisis (summary, action items, suggested split) bakal diperbarui berdasarkan seluruh diskusi di atas. Lanjut?')">
+                                        @csrf
+                                        <button type="submit" class="w-full text-xs font-medium bg-[var(--info-tint)] text-[var(--info-text)] px-3.5 py-2.5 rounded-lg hover:bg-[var(--info-tint-soft)] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--info-text)]">
+                                            <span class="material-symbols-outlined text-[15px]">sync</span>
+                                            Perbarui Analisis dari Diskusi Ini
+                                        </button>
+                                    </form>
+                                @endif
                             @endif
                         </div>
 
@@ -469,33 +579,37 @@
                                                 Ide ini sudah diterapkan ke salah satu slot content plan.
                                             </p>
                                         </template>
-                                        <template x-if="!isIdeaApplied">
-                                            <div class="border-t border-[var(--surface-muted)] pt-4 mb-4">
-                                                <label class="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Terapkan ke Slot Ini</label>
-                                                <template x-if="emptySlots.length === 0">
-                                                    <p class="text-xs text-[var(--text-muted)] mb-1">Tidak ada slot kosong tersedia - semua slot Content Plan bulan ini sudah terisi, atau client ini belum punya Content Plan aktif.</p>
-                                                </template>
-                                                <template x-if="emptySlots.length > 0">
-                                                    <div class="flex items-center gap-2">
-                                                        <select x-model="selectedSlotId" :disabled="applying"
-                                                                class="flex-1 text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60">
-                                                            <option value="">Pilih slot...</option>
-                                                            <template x-for="slot in emptySlots" :key="slot.id">
-                                                                <option :value="slot.id" x-text="slot.label"></option>
-                                                            </template>
-                                                        </select>
-                                                        <button type="button" x-on:click="applyIdea()" :disabled="applying || !selectedSlotId"
-                                                                class="btn-primary whitespace-nowrap disabled:opacity-60">
-                                                            <span x-show="!applying">Terapkan</span>
-                                                            <span x-show="applying" x-cloak>...</span>
-                                                        </button>
-                                                    </div>
-                                                </template>
-                                                <p x-show="applyError" x-cloak class="text-xs text-[var(--danger-text)] mt-2" x-text="applyError"></p>
-                                            </div>
-                                        </template>
+                                        @if ($canManageAiStrategy)
+                                            <template x-if="!isIdeaApplied">
+                                                <div class="border-t border-[var(--surface-muted)] pt-4 mb-4">
+                                                    <label class="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Terapkan ke Slot Ini</label>
+                                                    <template x-if="emptySlots.length === 0">
+                                                        <p class="text-xs text-[var(--text-muted)] mb-1">Tidak ada slot kosong tersedia - semua slot Content Plan bulan ini sudah terisi, atau client ini belum punya Content Plan aktif.</p>
+                                                    </template>
+                                                    <template x-if="emptySlots.length > 0">
+                                                        <div class="flex items-center gap-2">
+                                                            <select x-model="selectedSlotId" :disabled="applying"
+                                                                    class="flex-1 text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 disabled:opacity-60">
+                                                                <option value="">Pilih slot...</option>
+                                                                <template x-for="slot in emptySlots" :key="slot.id">
+                                                                    <option :value="slot.id" x-text="slot.label"></option>
+                                                                </template>
+                                                            </select>
+                                                            <button type="button" x-on:click="applyIdea()" :disabled="applying || !selectedSlotId"
+                                                                    class="btn-primary whitespace-nowrap disabled:opacity-60">
+                                                                <span x-show="!applying">Terapkan</span>
+                                                                <span x-show="applying" x-cloak>...</span>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                    <p x-show="applyError" x-cloak class="text-xs text-[var(--danger-text)] mt-2" x-text="applyError"></p>
+                                                </div>
+                                            </template>
+                                        @endif
 
-                                        @if ($latestAiInsight->applied_at)
+                                        @if (! $canManageAiStrategy)
+                                            {{-- Phase 4.4 (Langkah 3) - regenerate MUTATING, control-nya di-gate. --}}
+                                        @elseif ($latestAiInsight->applied_at)
                                             <p class="text-xs text-[var(--text-muted)] bg-[var(--surface-page)] rounded-lg px-3.5 py-2.5 leading-relaxed">
                                                 Analisis ini udah diterapkan ke Content Plan, jadi ide di sini nggak bisa di-regenerate lagi (draft yang udah dibuat bisa nggak nyambung lagi). Tarik kembali dulu kalau mau ubah ide.
                                             </p>
@@ -642,7 +756,7 @@
                                                         @endif
                                                     @else
                                                         @if ($content['api_integration_id'] ?? null)
-                                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}#post-{{ $content['external_post_id'] }}"
+                                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
                                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                                         @endif
                                                         @if ($content['permalink'] ?? null)
@@ -704,7 +818,7 @@
                                         @else
                                             <span class="badge badge-neutral block text-center">Belum terhubung ke konten internal</span>
                                             @if ($content['api_integration_id'] ?? null)
-                                                <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}#post-{{ $content['external_post_id'] }}"
+                                                <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
                                                     class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
                                                     Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
                                                 </a>
@@ -876,6 +990,301 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         },
     }
 }
+</script>
+@endif
+
+{{-- Phase 4.2 (Langkah 1) - script cuma di-render buat user yang MEMANG
+     bisa dispatch sync (analytics-sync-button juga cuma di-render kalau
+     $canSync - lihat blok header di atas). Bukan cuma defense-in-depth
+     kosmetik: browser view-only user jadi tidak diam-diam nge-poll
+     endpoint yang tidak pernah relevan buat dia. --}}
+@if ($selectedClientId && $canSync)
+<script>
+    // Phase 4 - "Sinkronkan Data" global di halaman Performa. MIRROR pola
+    // polling TikTok yang sudah dites di client-management.show (lihat
+    // ClientManagementController::tiktokSyncStatus()) - vanilla JS,
+    // getElementById, fetch+setInterval, reload sekali di status akhir -
+    // BUKAN Alpine, biar konsisten dengan precedent yang sudah ada. Beda
+    // dari form TikTok: dispatch di sini murni fetch() POST (bukan form
+    // submit+redirect), biar user lihat progress TANPA navigasi apapun
+    // sampai status akhir (Langkah 12/13).
+    (function () {
+        var clientId = {{ (int) $selectedClientId }};
+        var platformId = {{ $selectedPlatformId ? (int) $selectedPlatformId : 'null' }};
+        var dispatchUrl = @json(route('analytics.sync'));
+        var statusUrl = @json(route('analytics.sync-status'));
+        var reconnectUrl = @json(route('client-management.show', $selectedClientId));
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        var button = document.getElementById('analytics-sync-button');
+        var icon = document.getElementById('analytics-sync-icon');
+        var label = document.getElementById('analytics-sync-button-label');
+        var message = document.getElementById('analytics-sync-message');
+        var freshness = document.getElementById('analytics-freshness');
+        var subjobsBox = document.getElementById('analytics-sync-subjobs');
+        if (! button) return;
+
+        var pollTimer = null;
+        // Phase 4.1 (Langkah 3) - PERBAIKAN bug serius: dulu SETIAP poll
+        // (termasuk yang pasif saat halaman baru dibuka) yang menemukan
+        // status terminal (success/partial/failed) langsung reload halaman
+        // - kalau client itu PERNAH punya sync sukses/gagal kapan saja
+        // sebelumnya (kasus normal di production), buka halaman ini akan
+        // reload TERUS MENERUS selamanya (poll -> lihat status lama ->
+        // reload -> poll lagi -> lihat status lama lagi -> reload lagi...).
+        // isTracking = true HANYA kalau kita BENAR-BENAR sedang melacak
+        // satu siklus operasi yang nyata (baru kita dispatch sendiri, ATAU
+        // ketemu SEDANG berjalan pas halaman dibuka/dari tab lain) - status
+        // terminal yang ditemukan TANPA sedang tracking berarti itu cuma
+        // last_result HISTORIS, ditampilkan sebagai info APA ADANYA, TIDAK
+        // PERNAH memicu reload.
+        var isTracking = false;
+        var consecutivePollFailures = 0;
+        var MAX_POLL_FAILURES = 3;
+
+        // current_state (queued/running) dipakai SAAT sedang tracking -
+        // "baru saja selesai". last_result (dari histori, BUKAN operasi
+        // aktif) dipakai saat TIDAK tracking - dilabeli eksplisit
+        // "Sinkronisasi terakhir: ..." biar tidak disalahartikan sebagai
+        // operasi yang baru saja terjadi (Langkah 3).
+        var currentStateMessages = {
+            queued: 'Sinkronisasi sedang antre...',
+            running: 'Sedang mengambil data...',
+            partial: 'Sinkronisasi selesai sebagian.',
+            success: 'Data berhasil disinkronkan.',
+            failed: 'Sinkronisasi gagal.',
+        };
+        var lastResultMessages = {
+            success: 'Sinkronisasi terakhir: berhasil.',
+            partial: 'Sinkronisasi terakhir: selesai sebagian.',
+            failed: 'Sinkronisasi terakhir: gagal.',
+            needs_reconnect: 'Ada koneksi yang butuh dihubungkan ulang.',
+            not_connected: 'Belum ada platform yang terhubung untuk client ini.',
+            idle: '',
+        };
+
+        var subjobLabels = {
+            instagram_content: 'Instagram Content',
+            instagram_audience: 'Instagram Audience',
+            tiktok_content: 'TikTok Content',
+        };
+        var subjobIcon = {
+            queued: '•', running: '⟳', partial: '◐', success: '✓', failed: '✗',
+            needs_reconnect: '⚠', not_connected: '—', idle: '—', manual_data: '✎',
+        };
+
+        function query(params) {
+            return Object.keys(params)
+                .filter(function (k) { return params[k] !== null && params[k] !== undefined; })
+                .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
+                .join('&');
+        }
+
+        function isBusy(status) {
+            return status === 'queued' || status === 'running';
+        }
+
+        function renderSubjobs(subjobs) {
+            if (! subjobsBox || ! subjobs) return;
+
+            var keys = Object.keys(subjobs);
+            // Cuma tampilkan detail per-subjob kalau memang lebih dari 1
+            // subjob relevan (All Platforms) ATAU subjob-nya bukan status
+            // sepenuhnya "diam" (Langkah 12, "tidak perlu modal besar kalau
+            // inline feedback cukup").
+            if (keys.length <= 1) { subjobsBox.hidden = true; subjobsBox.innerHTML = ''; return; }
+
+            subjobsBox.innerHTML = keys.map(function (key) {
+                var s = subjobs[key];
+                var name = subjobLabels[key] || key;
+                var icon = subjobIcon[s.status] || '•';
+                return '<span class="text-[11px] text-[var(--text-muted)]">' + icon + ' ' + name + ' - ' + (s.message || s.status) + '</span>';
+            }).join('');
+            subjobsBox.hidden = false;
+        }
+
+        // Langkah 4 - single platform + needs_reconnect: JANGAN tampilkan
+        // tombol sync normal yang lalu tidak melakukan apa-apa. Ganti jadi
+        // tombol "Hubungkan Ulang" yang mengarahkan ke Client Detail
+        // (tempat flow connect/reconnect yang SUDAH ADA), bukan dispatch.
+        // "All Platforms" TIDAK masuk sini (overall_status TIDAK PERNAH
+        // needs_reconnect kalau masih ada subjob lain yang aktif/berhasil
+        // - lihat AnalyticsSyncOrchestrator::computeOverallStatus(), yang
+        // itu jadi 'partial' - tombol tetap dispatch normal, subjob detail
+        // di bawah yang menunjukkan platform mana yang butuh reconnect).
+        function applyNeedsReconnectButtonState() {
+            button.onclick = function () { window.location.href = reconnectUrl; };
+            if (icon) { icon.classList.remove('animate-spin'); icon.textContent = 'link_off'; }
+            if (label) label.textContent = 'Hubungkan Ulang';
+            button.disabled = false;
+        }
+
+        function applyNormalButtonState(busy) {
+            button.onclick = dispatchSync;
+            if (icon) { icon.classList.toggle('animate-spin', busy); icon.textContent = 'sync'; }
+            if (label) label.textContent = busy ? 'Mengantre...' : 'Sinkronkan Data';
+            button.disabled = busy;
+        }
+
+        function applyStatus(data) {
+            var busy = isBusy(data.overall_status);
+
+            if (busy) {
+                // Operasi SEDANG berjalan - entah baru kita trigger, atau
+                // ketemu sudah jalan (tab/sesi lain) pas halaman dibuka -
+                // WAJIB dilacak sampai selesai.
+                isTracking = true;
+            }
+
+            if (message) {
+                var text = busy || isTracking
+                    ? (currentStateMessages[data.overall_status] || '')
+                    : (lastResultMessages[data.overall_status] || '');
+                message.textContent = text;
+                message.hidden = ! text;
+            }
+
+            if (freshness) {
+                if (data.last_observation_at) {
+                    // Langkah 8 - "Data performa terakhir diamati" (BUKAN
+                    // "semua data terakhir disinkronkan") - Instagram
+                    // Audience punya pipeline TERPISAH (AudienceInsight,
+                    // bukan content_metric_snapshots), jadi timestamp ini
+                    // TIDAK mencerminkan freshness audience. Coverage
+                    // (banner terpisah) tetap yang menjawab "apakah
+                    // periode ini lengkap" - dua hal beda, jangan dicampur.
+                    freshness.textContent = 'Data performa terakhir diamati: ' + new Date(data.last_observation_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+                    freshness.hidden = false;
+                } else {
+                    freshness.hidden = true;
+                }
+            }
+
+            renderSubjobs(data.subjobs);
+
+            if (! busy && data.overall_status === 'needs_reconnect') {
+                applyNeedsReconnectButtonState();
+            } else {
+                applyNormalButtonState(busy);
+            }
+
+            if (! busy) {
+                stopPolling();
+
+                // Langkah 13 - reload SEKALI, TAPI CUMA kalau kita memang
+                // sedang melacak satu siklus operasi nyata (isTracking) -
+                // last_result historis yang ditemukan TANPA tracking aktif
+                // TIDAK PERNAH memicu reload (Langkah 3 - stale log tidak
+                // boleh menang atas current dispatch lifecycle).
+                // window.location.reload() otomatis preserve SEMUA query
+                // string yang lagi aktif.
+                if (isTracking && (data.overall_status === 'success' || data.overall_status === 'partial' || data.overall_status === 'failed')) {
+                    setTimeout(function () { window.location.reload(); }, 900);
+                }
+                isTracking = false;
+            }
+        }
+
+        function showSafeError(text) {
+            if (message) { message.textContent = text; message.hidden = false; }
+        }
+
+        // Langkah 6 - status endpoint error (401/403/419/500/network
+        // timeout/malformed response) TIDAK BOLEH bikin polling jalan
+        // selamanya tanpa feedback DAN tombol tidak boleh nyangkut
+        // disabled permanen. Session expiry (401/419) berhenti SEKETIKA -
+        // itu bukan masalah transient. Error lain (500/network/malformed
+        // JSON) dikasih toleransi beberapa kali gagal berturut-turut dulu
+        // (bisa cuma blip jaringan sesaat) sebelum berhenti - TIDAK PERNAH
+        // menampilkan raw stack trace/pesan API/token, cuma pesan aman.
+        function poll() {
+            fetch(statusUrl + '?' + query({ client_id: clientId, platform_id: platformId }), { headers: { Accept: 'application/json' } })
+                .then(function (res) {
+                    if (res.status === 401 || res.status === 419) {
+                        throw { safeStop: true, message: 'Sesi Anda berakhir. Muat ulang halaman dan login kembali untuk melanjutkan.' };
+                    }
+                    if (! res.ok) {
+                        throw { safeStop: false };
+                    }
+                    return res.json();
+                })
+                .then(function (data) {
+                    consecutivePollFailures = 0;
+                    applyStatus(data);
+                })
+                .catch(function (err) {
+                    if (err && err.safeStop) {
+                        stopPolling();
+                        isTracking = false;
+                        showSafeError(err.message || 'Terjadi kesalahan. Muat ulang halaman.');
+                        applyNormalButtonState(false);
+                        return;
+                    }
+
+                    consecutivePollFailures++;
+                    if (consecutivePollFailures >= MAX_POLL_FAILURES) {
+                        stopPolling();
+                        isTracking = false;
+                        showSafeError('Gagal memuat status sinkronisasi. Coba muat ulang halaman.');
+                        applyNormalButtonState(false);
+                        return;
+                    }
+                    // < MAX_POLL_FAILURES - diamkan, kemungkinan cuma blip jaringan sesaat, coba lagi di poll berikutnya.
+                });
+        }
+
+        function startPolling() {
+            if (pollTimer) return;
+            poll();
+            pollTimer = setInterval(poll, 2500);
+        }
+
+        function stopPolling() {
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        }
+
+        function dispatchSync() {
+            isTracking = true;
+            applyNormalButtonState(true);
+
+            fetch(dispatchUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ client_id: clientId, platform_id: platformId }),
+            })
+                .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+                .then(function (result) {
+                    if (! result.ok) {
+                        isTracking = false;
+                        showSafeError(result.body.message || 'Sinkronisasi gagal dimulai.');
+                        applyNormalButtonState(false);
+                        return;
+                    }
+                    startPolling();
+                })
+                .catch(function () {
+                    isTracking = false;
+                    showSafeError('Sinkronisasi gagal dimulai.');
+                    applyNormalButtonState(false);
+                });
+        }
+
+        applyNormalButtonState(false);
+        button.onclick = dispatchSync;
+
+        // Ambil status begitu halaman dibuka (bukan cuma setelah klik) -
+        // biar freshness indicator & (kalau kebetulan ada sync yang masih
+        // berjalan dari klik sebelumnya/tab lain) badge langsung akurat
+        // tanpa perlu klik dulu. isTracking TETAP false di titik ini -
+        // kalau hasilnya status busy, applyStatus() sendiri yang akan
+        // menyalakan tracking; kalau hasilnya terminal, itu last_result
+        // historis APA ADANYA, TIDAK memicu reload (Langkah 3).
+        poll();
+    })();
 </script>
 @endif
 

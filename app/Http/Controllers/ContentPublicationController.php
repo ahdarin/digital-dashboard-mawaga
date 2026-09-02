@@ -6,6 +6,7 @@ use App\Exceptions\WorkflowTransitionException;
 use App\Models\ApiIntegration;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\ContentPublication;
 use App\Models\InstagramMediaSnapshot;
 use App\Models\TikTokVideoSnapshot;
@@ -75,6 +76,8 @@ class ContentPublicationController extends Controller
     {
         abort_unless($apiIntegration->platform->name === 'Instagram', 404);
 
+        $returnTo = $this->safeReturnTo($request, $apiIntegration->client_id);
+
         $snapshots = InstagramMediaSnapshot::where('api_integration_id', $apiIntegration->id)
             ->whereIn('match_status', ['unmatched', 'ambiguous'])
             ->orderByDesc('published_at')
@@ -107,7 +110,35 @@ class ContentPublicationController extends Controller
             'totalSnapshotted' => $totalSnapshotted,
             'lastFetchedAt' => $lastFetchedAt ? Carbon::parse($lastFetchedAt) : null,
             'contentItemOptions' => $contentItemOptions,
+            'returnTo' => $returnTo,
         ]);
+    }
+
+    /**
+     * Resolve tombol "Back" halaman unmatched (Instagram/TikTok) - context-
+     * aware (bisa dibuka dari Client Detail, Settings, Analytics Overview,
+     * atau Performance Table, masing-masing harus balik ke situ lagi
+     * lengkap dengan filter/query-nya, BUKAN selalu ke Client Detail).
+     *
+     * Validasi WAJIB internal-path-only (open-redirect-safe) - HARUS diawali
+     * '/' (path relatif ke app ini sendiri, BUKAN URL absolut ke host lain),
+     * TIDAK boleh '//...' (protocol-relative, browser tetap treat sebagai
+     * external redirect) atau mengandung '://' (skema URL absolut apapun).
+     * return_to yang tidak valid/kosong -> fallback aman ke Client Detail
+     * client integration ini (behavior lama, tidak pernah dihapus).
+     */
+    private function safeReturnTo(Request $request, int $fallbackClientId): string
+    {
+        $returnTo = $request->query('return_to');
+
+        if (is_string($returnTo)
+            && str_starts_with($returnTo, '/')
+            && ! str_starts_with($returnTo, '//')
+            && ! str_contains($returnTo, '://')) {
+            return $returnTo;
+        }
+
+        return route('client-management.show', $fallbackClientId);
     }
 
     /**
@@ -235,6 +266,19 @@ class ContentPublicationController extends Controller
                     // UPDATE content_item_id-nya, JANGAN bikin baris baru.
                     ContentMetric::where('instagram_media_snapshot_id', $snapshot->id)
                         ->update(['content_item_id' => $contentItem->id, 'client_id' => $apiIntegration->client_id]);
+
+                    // content_metric_snapshots (Phase 2) SENGAJA TIDAK
+                    // di-mass-update seperti content_metrics di atas - baris
+                    // itu 1 per (media, tanggal sync), jadi mass-update akan
+                    // menulis ulang content_item_id di SELURUH histori
+                    // observasi sebelum link ini terjadi. Cukup baris HARI
+                    // INI (kalau sync sudah jalan hari ini) yang diupdate,
+                    // biar observasi mulai sekarang konsisten tanpa
+                    // mengklaim/menyentuh histori sebelumnya (no mass
+                    // historical rewrite).
+                    ContentMetricSnapshot::where('instagram_media_snapshot_id', $snapshot->id)
+                        ->where('snapshot_date', now()->toDateString())
+                        ->update(['content_item_id' => $contentItem->id]);
                 }
             });
         } catch (\Illuminate\Database\QueryException $e) {
@@ -257,6 +301,8 @@ class ContentPublicationController extends Controller
     public function unmatchedTiktok(Request $request, ApiIntegration $apiIntegration)
     {
         abort_unless($apiIntegration->platform->name === 'TikTok', 404);
+
+        $returnTo = $this->safeReturnTo($request, $apiIntegration->client_id);
 
         $snapshots = TikTokVideoSnapshot::where('api_integration_id', $apiIntegration->id)
             ->whereIn('match_status', ['unmatched', 'ambiguous'])
@@ -287,6 +333,7 @@ class ContentPublicationController extends Controller
             'totalSnapshotted' => $totalSnapshotted,
             'lastFetchedAt' => $lastFetchedAt ? Carbon::parse($lastFetchedAt) : null,
             'contentItemOptions' => $contentItemOptions,
+            'returnTo' => $returnTo,
         ]);
     }
 
@@ -347,6 +394,13 @@ class ContentPublicationController extends Controller
 
                     ContentMetric::where('tiktok_video_snapshot_id', $snapshot->id)
                         ->update(['content_item_id' => $contentItem->id, 'client_id' => $apiIntegration->client_id]);
+
+                    // MIRROR linkInstagramMedia() - lihat catatan di sana
+                    // soal kenapa cuma baris HARI INI yang diupdate, bukan
+                    // seluruh histori.
+                    ContentMetricSnapshot::where('tiktok_video_snapshot_id', $snapshot->id)
+                        ->where('snapshot_date', now()->toDateString())
+                        ->update(['content_item_id' => $contentItem->id]);
                 }
             });
         } catch (\Illuminate\Database\QueryException $e) {

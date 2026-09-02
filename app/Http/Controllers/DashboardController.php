@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\ContentWorkflow;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
+use App\Services\PeriodPerformanceService;
 use App\Services\PicResolver;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
@@ -18,7 +20,7 @@ class DashboardController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
 
-    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PicResolver $picResolver)
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PeriodPerformanceService $periodPerformanceService, PicResolver $picResolver)
     {
         $now = Carbon::now();
         $startOfThisMonth = $now->copy()->startOfMonth();
@@ -37,6 +39,26 @@ class DashboardController extends Controller
             $assignedClientIds !== null, fn ($qq) => $qq->whereIn($column, $assignedClientIds)
         );
         $scopeViaContentItem = fn ($q) => $q->whereHas('contentItem', fn ($qq) => $scopeClient($qq));
+
+        // Phase 3 - roster performa API/CSV di-scope SAMA PERSIS dengan
+        // konvensi Dashboard yang sudah ada di atas (whereHas('contentItem',
+        // ...) - HANYA content yang SUDAH ke-link ke ContentItem internal,
+        // BEDA dari Overview/Table yang ikut post API belum ke-link -
+        // preserved apa adanya, bukan scope Phase 3). Delta/coverage/
+        // engagement MATH-nya tetap PeriodPerformanceService yang sama
+        // (Langkah 9 - "jangan bikin 8 formula terpisah").
+        $buildScopedAggregate = function (Carbon $start, Carbon $end) use ($scopeViaContentItem, $periodPerformanceService) {
+            $apiMetrics = $scopeViaContentItem(
+                ContentMetric::query()->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
+            )->with(['contentItem.client', 'contentItem.platform', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])->get();
+
+            $csvMetrics = $scopeViaContentItem(
+                ContentMetric::query()->whereNull('instagram_media_snapshot_id')->whereNull('tiktok_video_snapshot_id')
+                    ->whereBetween('metric_date', [$start, $end])
+            )->with(['contentItem.client', 'contentItem.platform', 'platform'])->get();
+
+            return $periodPerformanceService->computeAggregate($apiMetrics, $csvMetrics, $start, $end);
+        };
 
         $contentThisMonth = $scopeClient(ContentItem::whereBetween('deadline_at', [$startOfThisMonth, $endOfThisMonth]))->count();
         $contentLastMonth = $scopeClient(ContentItem::whereBetween('deadline_at', [$startOfLastMonth, $endOfLastMonth]))->count();
@@ -57,10 +79,14 @@ class DashboardController extends Controller
         $activeTeam = User::query()->where('status', 'active')->count();
 
         // --- Tambahan: performa/reach (domain PIC 3, PRD 7.3.3 Executive Dashboard) ---
-        $viewsThisMonth = (int) $scopeViaContentItem(ContentMetric::query())
-            ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])->sum('views');
-        $viewsLastMonth = (int) $scopeViaContentItem(ContentMetric::query())
-            ->whereBetween('metric_date', [$startOfLastMonth, $endOfLastMonth])->sum('views');
+        // Phase 3: pakai PeriodPerformanceService (delta cumulative genuine),
+        // BUKAN lagi sum(views) whereBetween(metric_date) - metric_date API
+        // dikunci ke tanggal publish, bukan tanggal sync.
+        $thisMonthAgg = $buildScopedAggregate($startOfThisMonth, $endOfThisMonth);
+        $lastMonthAgg = $buildScopedAggregate($startOfLastMonth, $endOfLastMonth);
+
+        $viewsThisMonth = $thisMonthAgg['totals']['views'];
+        $viewsLastMonth = $lastMonthAgg['totals']['views'];
         $viewsChange = $this->percentChange($viewsLastMonth, $viewsThisMonth);
 
         $uploadedThisMonth = $scopeViaContentItem(ContentWorkflow::query())
@@ -140,8 +166,19 @@ class DashboardController extends Controller
 
         $trendEnd = Carbon::now()->endOfDay();
         $trendStart = Carbon::now()->subDays($period - 1)->startOfDay();
-        $trendMetrics = $scopeViaContentItem(ContentMetric::query())->whereBetween('metric_date', [$trendStart, $trendEnd])->get();
-        $viewsTrend = $analyticsSummaryService->buildTrend($trendMetrics, $trendStart, $trendEnd, $period);
+
+        $trendSnapshots = ContentMetricSnapshot::query()
+            ->whereNotNull('content_item_id')
+            ->when($assignedClientIds !== null, fn ($q) => $q->whereIn('client_id', $assignedClientIds))
+            ->whereBetween('snapshot_date', [$trendStart->copy()->subDay()->toDateString(), $trendEnd->toDateString()])
+            ->get(['instagram_media_snapshot_id', 'tiktok_video_snapshot_id', 'snapshot_date', 'views']);
+        $trendCsvMetrics = $scopeViaContentItem(
+            ContentMetric::query()->whereNull('instagram_media_snapshot_id')->whereNull('tiktok_video_snapshot_id')
+                ->whereBetween('metric_date', [$trendStart, $trendEnd])
+        )->get(['metric_date', 'views']);
+
+        $trendDailySeries = $periodPerformanceService->computeDailyGainSeriesFromSnapshots($trendSnapshots, $trendStart, $trendEnd, $trendCsvMetrics);
+        $viewsTrend = $analyticsSummaryService->buildTrend($trendDailySeries, $period);
 
         $attentionItems = $scopeViaContentItem(
             ContentWorkflow::with(['contentItem.client', 'contentItem.workflow.currentPic', 'currentPic'])
@@ -182,15 +219,14 @@ class DashboardController extends Controller
             });
 
         // --- Tambahan: teaser Analytics (bulan berjalan, ikut scope client) ---
-        $monthMetrics = $scopeViaContentItem(ContentMetric::query())
-            ->whereBetween('metric_date', [$startOfThisMonth, $endOfThisMonth])
-            ->with('contentItem.client', 'contentItem.platform')
-            ->get();
+        // Phase 3: pakai $thisMonthAgg['rows'] (hasil PeriodPerformanceService,
+        // sudah dihitung di atas buat KPI Total Views) - 1 row = 1 delta
+        // periode per content, BUKAN lagi sum(views) mentah per metric_date.
+        $usableMonthRows = collect($thisMonthAgg['rows'])->filter(fn ($row) => $row['result']->isUsable());
 
-        $topContent = $monthMetrics
-            ->groupBy('content_item_id')
-            ->map(function ($rows, $contentItemId) {
-                $item = $rows->first()->contentItem;
+        $topContent = $usableMonthRows
+            ->map(function ($row) {
+                $item = $row['content_metric']->contentItem;
                 if (! $item) {
                     return null;
                 }
@@ -200,8 +236,8 @@ class DashboardController extends Controller
                     'title' => $item->title,
                     'client' => $item->client->name ?? '-',
                     'platform' => $item->platform->name ?? '-',
-                    'views' => (int) $rows->sum('views'),
-                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                    'views' => $row['result']->views() ?? 0,
+                    'engagement_rate' => $row['result']->engagementRate ?? 0,
                 ];
             })
             ->filter()
@@ -210,20 +246,22 @@ class DashboardController extends Controller
             ->values();
 
         // --- Tambahan: Top Client ranking (PRD 7.3.3 Executive Dashboard) ---
-        $topClients = $monthMetrics
-            ->groupBy(fn ($m) => $m->contentItem->client_id ?? 0)
+        $topClients = $usableMonthRows
+            ->groupBy(fn ($row) => $row['content_metric']->contentItem->client_id ?? 0)
             ->map(function ($rows) {
-                $client = $rows->first()->contentItem->client ?? null;
+                $client = $rows->first()['content_metric']->contentItem->client ?? null;
                 if (! $client) {
                     return null;
                 }
 
+                $engagementValues = $rows->pluck('result.engagementRate')->filter(fn ($v) => $v !== null);
+
                 return [
                     'id' => $client->id,
                     'name' => $client->name,
-                    'views' => (int) $rows->sum('views'),
-                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
-                    'content_count' => $rows->pluck('content_item_id')->unique()->count(),
+                    'views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0),
+                    'engagement_rate' => $engagementValues->isNotEmpty() ? round($engagementValues->avg(), 2) : 0,
+                    'content_count' => $rows->count(),
                 ];
             })
             ->filter()

@@ -6,10 +6,12 @@ use App\Exceptions\InstagramApiException;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\ContentPublication;
 use App\Models\InstagramMediaSnapshot;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Orkestrasi sync Instagram 1 ApiIntegration - dipakai BARENG oleh Artisan
@@ -29,9 +31,19 @@ class InstagramAnalyticsSyncService
     public function resolveSyncWindow(?string $month): array
     {
         if (! $month) {
-            $months = config('analytics.instagram_default_sync_months');
+            $days = config('analytics.instagram_default_sync_days');
 
-            return ['default', now()->subMonths($months)->startOfDay(), now()];
+            // CATATAN CALENDAR SEMANTICS (pre-Phase-2 check): subDays($days)
+            // TANPA "-1" di sini SENGAJA beda dari AnalyticsSummaryService::
+            // buildOverviewData() yang pakai subDays($period - 1) - dashboard
+            // period=90 mencakup 90 hari kalender (hari ini s/d 89 hari lalu,
+            // inklusif keduanya), sedangkan ingestion di sini mencakup 91
+            // hari kalender (hari ini s/d 90 hari lalu). Selisih 1 hari ini
+            // DISENGAJA sebagai buffer aman - ingestion HARUS mencakup
+            // >= horizon filter terpanjang (90 hari) supaya sync tidak
+            // pernah kekurangan 1 hari persis di ujung window filter
+            // terpanjang, bukan usaha nyamain angka "90" secara harfiah.
+            return ['default', now()->subDays($days)->startOfDay(), now()];
         }
 
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
@@ -175,6 +187,28 @@ class InstagramAnalyticsSyncService
         } catch (\Throwable $e) {
             $summary['failed']++;
             $summary['details'][] = "Media {$item['id']}: gagal simpan content_metrics - {$e->getMessage()}";
+
+            return;
+        }
+
+        // content_metrics DI ATAS SUDAH tersimpan (try block barusan
+        // berhasil) - kegagalan recordSnapshot() di sini TIDAK boleh
+        // dilaporkan sebagai "gagal simpan content_metrics" (keliru, current-
+        // state read path tetap utuh) TAPI juga TIDAK boleh didiamkan begitu
+        // saja seolah sync ini sempurna (Langkah 10: partial condition harus
+        // tercatat jelas). Dicatat ke $summary['details'] (ikut ke
+        // syncLog->error_message lewat sync()) + Log::warning buat
+        // visibilitas operasional - TANPA access token/secret apapun, TANPA
+        // mengubah skema analytics_sync_logs.
+        try {
+            $this->recordSnapshot($snapshot, $item['metrics'], $integration, $platform, $contentItemId);
+        } catch (\Throwable $e) {
+            $summary['details'][] = SnapshotFailureMarker::wrap("Media {$item['id']}", $e->getMessage());
+            Log::warning('ContentMetricSnapshot write failed after ContentMetric succeeded (Instagram)', [
+                'client_id' => $integration->client_id,
+                'instagram_media_snapshot_id' => $snapshot->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -286,6 +320,54 @@ class InstagramAnalyticsSyncService
     }
 
     /**
+     * Tulis 1 baris content_metric_snapshots per (media, tanggal SYNC hari
+     * ini) - observasi cumulative state TERPISAH dari content_metrics di
+     * atas (yang dikunci ke tanggal publish). snapshot_date SELALU
+     * now()->toDateString() - never publish date, never backfilled - baris
+     * ini representasi "kondisi metric pada saat sync dijalankan", bukan
+     * riwayat historis yang direkonstruksi.
+     *
+     * Identitas row = (instagram_media_snapshot_id, snapshot_date), BUKAN
+     * content_item_id - content_item_id cuma metadata nullable di sini,
+     * media yang belum/baru di-link tetap dapat baris snapshot yang sama
+     * (lihat ContentPublicationController::linkInstagramMedia()).
+     * updateOrCreate dengan key itu bikin sync berulang di hari yang sama
+     * (retry job, manual sync 2x) meng-update baris yang sama, bukan bikin
+     * duplicate.
+     *
+     * Metric APAPUN diteruskan TANPA "?? 0" (beda dari ContentMetric::views
+     * di atas yang kolomnya NOT NULL) - content_metric_snapshots.views dkk
+     * semua nullable, jadi NULL asli dari normalizeMetrics() (metric yang
+     * memang tidak tersedia dari API) harus tetap NULL, bukan didefault ke
+     * nol. profile_visit/watch_time_avg/completion_rate SENGAJA tidak
+     * disebut di array values (dibiarkan default NULL kolom) - Instagram
+     * API contract (InstagramAnalyticsService::normalizeMetrics()) tidak
+     * pernah menyediakan tiga metric ini sama sekali.
+     */
+    private function recordSnapshot(InstagramMediaSnapshot $snapshot, array $metrics, ApiIntegration $integration, Platform $platform, ?int $contentItemId): void
+    {
+        ContentMetricSnapshot::updateOrCreate(
+            [
+                'instagram_media_snapshot_id' => $snapshot->id,
+                'snapshot_date' => now()->toDateString(),
+            ],
+            [
+                'client_id' => $integration->client_id,
+                'platform_id' => $platform->id,
+                'content_item_id' => $contentItemId,
+                'views' => $metrics['views'] ?? null,
+                'reach' => $metrics['reach'] ?? null,
+                'impressions' => $metrics['impressions'] ?? null,
+                'likes' => $metrics['likes'] ?? null,
+                'comments' => $metrics['comments'] ?? null,
+                'shares' => $metrics['shares'] ?? null,
+                'saves' => $metrics['saves'] ?? null,
+                'engagement_rate' => $this->computeSnapshotEngagementRate($metrics),
+            ]
+        );
+    }
+
+    /**
      * engagement_rate kolom NOT NULL (decimal 5,2) - dihitung dari total
      * interaksi / reach (fallback views kalau reach nggak ada), dibulatkan
      * 2 desimal dan di-cap biar nggak overflow kolomnya.
@@ -302,6 +384,23 @@ class InstagramAnalyticsSyncService
         }
 
         return round(min($interactions / $denominator * 100, 999.99), 2);
+    }
+
+    /**
+     * Versi NULL-safe computeEngagementRate() KHUSUS content_metric_snapshots
+     * (kolomnya nullable, beda dari content_metrics yang NOT NULL) - kalau
+     * denominatornya (reach & views) dua-duanya benar-benar tidak tersedia
+     * dari API, engagement rate memang TIDAK BISA dihitung sama sekali,
+     * jadi hasilnya NULL ("belum diketahui"), BUKAN 0.0 ("diketahui nol") -
+     * disiplin NULL != 0 yang sama diterapkan ke metric mentah di atas.
+     */
+    private function computeSnapshotEngagementRate(array $metrics): ?float
+    {
+        if (($metrics['reach'] ?? null) === null && ($metrics['views'] ?? null) === null) {
+            return null;
+        }
+
+        return $this->computeEngagementRate($metrics);
     }
 
     /**

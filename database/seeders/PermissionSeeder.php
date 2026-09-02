@@ -33,6 +33,20 @@ class PermissionSeeder extends Seeder
         //   sendiri tetap cuma nyala buat yang punya client,manage.
         // - dashboard, team performance, user management: CEO & Manager
         // - analytics, report, master data, settings: CEO, Manager, SMO
+        //   (analytics,manage ditambah Phase 4.2 - AI Strategy generate/
+        //   apply/revert/chat/refine/regenerate & Audience CSV import
+        //   MUTATING (bikin AiStrategyInsight/ContentItem/AudienceInsight
+        //   rows, sebagian manggil Gemini API sungguhan) - sebelumnya cuma
+        //   dijaga analytics,view yang berarti Admin ikut bisa trigger,
+        //   padahal Admin didesain read-only. Manager/SMO dapat analytics,
+        //   manage karena dua role INI yang secara fungsional sudah pakai
+        //   fitur AI Strategy sehari-hari, bukan permission baru yang
+        //   diciptakan - baris 'analytics'+'manage' sudah ada otomatis dari
+        //   loop $modules x $actions di atas, cuma baru sekarang di-assign
+        //   ke role. WAJIB re-run seeder ini di database manapun yang
+        //   sudah punya role Manager/SMO existing, kalau tidak mereka akan
+        //   kehilangan akses AI Strategy begitu route middleware Phase 4.2
+        //   dideploy.
         // - content plan: semua role bisa lihat, tapi cuma CEO/Manager/Copywriter yang bisa buat plan/item baru
         // - production workflow, revision log, publishing tracker: semua role bisa lihat (data discope per-client di controller)
         // - publishing (submit data publikasi/mark uploaded): khusus SMO
@@ -43,7 +57,7 @@ class PermissionSeeder extends Seeder
                 ['client', 'view'], ['client', 'manage'],
                 ['team_performance', 'view'],
                 ['user_management', 'view'], ['user_management', 'manage'],
-                ['analytics', 'view'],
+                ['analytics', 'view'], ['analytics', 'manage'],
                 ['report', 'view'],
                 ['master_data', 'view'], ['master_data', 'manage'],
                 ['settings', 'view'], ['settings', 'manage'],
@@ -63,7 +77,7 @@ class PermissionSeeder extends Seeder
             'SMO' => [
                 ['dashboard', 'view'],
                 ['client', 'view'],
-                ['analytics', 'view'],
+                ['analytics', 'view'], ['analytics', 'manage'],
                 ['report', 'view'],
                 ['master_data', 'view'], ['master_data', 'manage'],
                 ['settings', 'view'], ['settings', 'manage'],
