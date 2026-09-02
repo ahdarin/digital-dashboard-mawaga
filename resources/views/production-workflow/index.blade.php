@@ -157,7 +157,7 @@
                                 : ($item->platform ? collect([['id' => $item->platform->id, 'name' => $item->platform->name]]) : collect());
                         @endphp
                         <div draggable="{{ $canUpdateWorkflow ? 'true' : 'false' }}"
-                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ Js::from($itemPlatforms) }}, @js($item->content_file_link ?? ''))"
+                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ Js::from($itemPlatforms) }})"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}" data-content-type="{{ $item->contentType->name ?? '' }}"
@@ -335,38 +335,6 @@
         @endforeach
     </div>
 
-    {{-- Modal drag-drop: in_progress -> waiting_review butuh link konten dulu --}}
-    <div x-show="contentLinkModal" x-cloak x-on:keydown.escape.window="contentLinkModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
-        <div class="absolute inset-0 bg-[#14181a]/40" @click="contentLinkModal = null"></div>
-        <div x-show="contentLinkModal" x-transition role="dialog" aria-modal="true" aria-labelledby="content-link-modal-title" x-trap="!!contentLinkModal" class="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between px-6 py-5 border-b border-[var(--border)]">
-                <div>
-                    <h3 id="content-link-modal-title" class="font-display text-lg font-semibold text-[var(--text-primary)]">Isi Link Konten</h3>
-                    <p class="text-xs text-[var(--text-muted)] mt-0.5" x-text="contentLinkModal?.title"></p>
-                </div>
-                <button type="button" @click="contentLinkModal = null" class="text-[var(--text-muted)] hover:text-[var(--text-secondary)]">
-                    <span class="material-symbols-outlined text-[19px]">close</span>
-                </button>
-            </div>
-            <div class="px-6 py-5">
-                <label for="kanban_content_file_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Konten (wajib diisi)</label>
-                <input id="kanban_content_file_link" type="url" x-model="contentLink" placeholder="https://drive.google.com/..."
-                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-                <p x-show="contentLinkError" x-cloak class="text-[11px] text-[var(--danger-text)] mt-1.5" x-text="contentLinkError"></p>
-                <p x-show="!contentLinkError" class="text-[10px] text-[var(--text-muted)] mt-1.5">Link file hasil produksi (Google Drive/Canva/dsb) - wajib diisi supaya reviewer bisa cek hasilnya.</p>
-            </div>
-            <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
-                <button type="button" @click="confirmContentLinkModal()"
-                        class="btn-primary">
-                    Pindahkan ke Menunggu Persetujuan
-                </button>
-                <button type="button" @click="contentLinkModal = null" class="btn-secondary">
-                    Batal
-                </button>
-            </div>
-        </div>
-    </div>
-
     {{-- Modal drag-drop: waiting_review -> revision butuh catatan revisi dulu --}}
     <div x-show="revisionModal" x-cloak x-on:keydown.escape.window="revisionModal = null" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;">
         <div class="absolute inset-0 bg-[#14181a]/40" @click="revisionModal = null"></div>
@@ -512,7 +480,6 @@ function kanbanBoard() {
         draggedItemId: null,
         draggedItemTitle: '',
         draggedItemPlatforms: [],
-        draggedItemContentFileLink: '',
         riskSortActive: false,
         expandedColumns: {},
         revisionModal: null,
@@ -522,9 +489,6 @@ function kanbanBoard() {
         publicationModalError: '',
         scheduledModal: null,
         scheduledUploadAt: '',
-        contentLinkModal: null,
-        contentLink: '',
-        contentLinkError: '',
         isValidUrl(value) {
             if (!value) return false;
             try { new URL(value); return true; } catch (e) { return false; }
@@ -540,31 +504,24 @@ function kanbanBoard() {
                 cards.forEach((card) => col.insertBefore(card, moreBtn || null));
             });
         },
-        onDragStart(event, itemId, title, platforms, contentFileLink) {
+        onDragStart(event, itemId, title, platforms) {
             this.draggedItemId = itemId;
             this.draggedItemTitle = title;
             this.draggedItemPlatforms = platforms || [];
-            this.draggedItemContentFileLink = contentFileLink || '';
             event.dataTransfer.effectAllowed = 'move';
         },
-        // in_progress -> waiting_review, waiting_review -> revision, dan
-        // scheduled -> uploaded butuh data tambahan sebelum status beneran
-        // berubah, jadi ditahan dulu lewat modal - bukan langsung fetch
-        // kayak transisi lain.
+        // waiting_review -> revision dan scheduled -> uploaded butuh data
+        // tambahan sebelum status beneran berubah, jadi ditahan dulu lewat
+        // modal - bukan langsung fetch kayak transisi lain. in_progress ->
+        // waiting_review TIDAK butuh apa-apa lagi (Link Konten diisi lewat
+        // card tersendiri di halaman Content Item, terpisah dari transisi
+        // status ini - lihat ContentItemController::updateContentLink()).
         onDrop(event, toStatus) {
             if (!this.draggedItemId) return;
             const itemId = this.draggedItemId;
             const title = this.draggedItemTitle;
             const platforms = this.draggedItemPlatforms;
-            const contentFileLink = this.draggedItemContentFileLink;
             this.draggedItemId = null;
-
-            if (toStatus === 'waiting_review') {
-                this.contentLink = contentFileLink || '';
-                this.contentLinkError = '';
-                this.contentLinkModal = { itemId, title };
-                return;
-            }
 
             if (toStatus === 'revision') {
                 this.revisionNote = '';
@@ -592,22 +549,6 @@ function kanbanBoard() {
             }
 
             this.submitStatusChange(itemId, toStatus, {});
-        },
-        confirmContentLinkModal() {
-            const link = this.contentLink.trim();
-            if (!link) {
-                this.contentLinkError = 'Link konten wajib diisi.';
-                return;
-            }
-            if (!this.isValidUrl(link)) {
-                this.contentLinkError = 'Link konten harus berupa URL yang valid, contoh: https://drive.google.com/...';
-                return;
-            }
-            this.contentLinkError = '';
-            this.submitStatusChange(this.contentLinkModal.itemId, 'waiting_review', { content_file_link: link }, () => {
-                this.contentLinkModal = null;
-                this.contentLink = '';
-            });
         },
         confirmRevisionModal() {
             if (!this.revisionNote.trim()) {
