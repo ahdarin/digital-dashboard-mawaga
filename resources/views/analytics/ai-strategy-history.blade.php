@@ -50,9 +50,19 @@
                 <div class="card p-5">
                     <div class="flex items-start justify-between gap-4 mb-3">
                         <div class="flex items-center gap-2 flex-wrap">
+                            {{-- Phase 4.1 (Langkah 8) - date range ASLI yang
+                                 tersimpan, bukan lagi label "F Y" (nama bulan) -
+                                 baris lama (pre-Phase-4.1, kebetulan persis 1
+                                 bulan kalender) tetap valid ditampilkan begini,
+                                 cuma bukan lagi diklaim sebagai rolling period. --}}
                             <span class="font-display text-base font-semibold text-[var(--text-primary)]">
-                                {{ $insight->period_start?->translatedFormat('F Y') ?? '-' }}
+                                @if ($insight->period_start && $insight->period_end)
+                                    {{ $insight->period_start->translatedFormat('d M Y') }} &ndash; {{ $insight->period_end->translatedFormat('d M Y') }}
+                                @else
+                                    -
+                                @endif
                             </span>
+                            <span class="badge badge-neutral">{{ $insight->platform->name ?? 'Semua Platform' }}</span>
 
                             @if ($i === 0)
                                 <span class="badge badge-info">Terbaru</span>

@@ -303,6 +303,81 @@ class AnalyticsSyncOrchestratorTest extends TestCase
         $this->assertSame('partial', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'Sync log status success TAPI mengandung marker snapshot-history gagal harus dilaporkan partial, bukan success sempurna.');
     }
 
+    // ===== Snapshot maintenance correction: KnownContentRefreshFailureMarker =====
+
+    /**
+     * Scenario G/H - sibling KnownContentRefreshFailureMarker (Langkah 5)
+     * HARUS terdeteksi orchestrator PERSIS sama seperti SnapshotFailureMarker
+     * di atas - sync utama 'success' tapi known-content refresh (rotasi
+     * observasi) sebagian gagal TIDAK BOLEH dilaporkan sebagai success
+     * sempurna.
+     */
+    public function test_known_content_refresh_failure_downgrades_subjob_and_overall_status(): void
+    {
+        $client = $this->client();
+        $ig = $this->instagramIntegration($client);
+
+        $this->syncLog($client, $ig, 'api_sync', 'success', [
+            'synced_count' => 5,
+            'error_message' => \App\Services\KnownContentRefreshFailureMarker::wrap(2, 10),
+        ]);
+
+        $status = $this->orchestrator()->statusForClient($client, $ig->platform_id);
+
+        $this->assertSame('partial', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'error_message dengan marker refresh-partial harus menurunkan subjob jadi partial, bukan success sempurna.');
+        $this->assertNotSame('success', $status['overall_status']);
+        $this->assertSame('partial', $status['overall_status']);
+    }
+
+    /**
+     * Kata generik "refresh"/"gagal"/"partial" TIDAK BOLEH memicu false-
+     * positive - hanya marker bracket exact ([KNOWN_CONTENT_REFRESH_PARTIAL])
+     * yang valid, sama disiplin dengan SnapshotFailureMarker di atas.
+     */
+    public function test_generic_refresh_wording_does_not_trigger_false_positive_partial(): void
+    {
+        $client = $this->client();
+        $ig = $this->instagramIntegration($client);
+
+        $this->syncLog($client, $ig, 'api_sync', 'success', [
+            'synced_count' => 5,
+            'error_message' => 'refresh gagal sebagian tapi tidak masalah',
+        ]);
+
+        $status = $this->orchestrator()->statusForClient($client, $ig->platform_id);
+
+        $this->assertSame('success', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'Kata generik TIDAK BOLEH memicu false-positive partial - hanya marker bracket exact yang valid.');
+    }
+
+    /**
+     * Pre-manual-QA gate (Langkah 4) - melengkapi test di atas dengan 2
+     * assertion yang belum eksplisit dicek di sana: overall_status (bukan
+     * cuma subjob) TIDAK BOLEH jadi 'success' kalau ada snapshot-history
+     * partial di dalamnya, dan payload status-nya TIDAK PERNAH menyertakan
+     * raw exception/token - cuma marker bracket + pesan aman yang memang
+     * didesain buat ditampilkan (lihat kontrak SnapshotFailureMarker::wrap()).
+     */
+    public function test_snapshot_history_failure_downgrades_overall_status_and_leaks_no_raw_detail(): void
+    {
+        $client = $this->client();
+        $ig = $this->instagramIntegration($client);
+
+        $this->syncLog($client, $ig, 'api_sync', 'success', [
+            'synced_count' => 3,
+            'error_message' => \App\Services\SnapshotFailureMarker::wrap('Media ig-1', 'simulated network timeout'),
+        ]);
+
+        $status = $this->orchestrator()->statusForClient($client, null);
+
+        $this->assertNotSame('success', $status['overall_status'], 'overall_status TIDAK BOLEH success kalau salah satu subjob-nya snapshot-history partial.');
+        $this->assertSame('partial', $status['overall_status']);
+
+        $encoded = json_encode($status);
+        $this->assertStringNotContainsString('fake-token', $encoded, 'Access token integration TIDAK BOLEH bocor ke status payload.');
+        $this->assertStringNotContainsString('Exception', $encoded, 'Raw exception class name TIDAK BOLEH bocor ke status payload.');
+        $this->assertStringNotContainsString('Stack trace', $encoded);
+    }
+
     // ===== Phase 4.1 Langkah 5: marker contract exact (bracket prefix, bukan kata generik) =====
 
     public function test_marker_detection_requires_exact_bracket_prefix_not_generic_words(): void

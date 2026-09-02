@@ -233,6 +233,13 @@ class AnalyticsSyncOrchestrator
             $status = 'partial';
         }
 
+        // Snapshot maintenance correction (Langkah 5) - sama alasan persis
+        // seperti SnapshotFailureMarker di atas: refresh known-content yang
+        // sebagian gagal TIDAK BOLEH tetap dilaporkan sukses sempurna.
+        if ($status === 'success' && KnownContentRefreshFailureMarker::detectedIn($lastLog?->error_message)) {
+            $status = 'partial';
+        }
+
         $message = $stale ? $this->staleMessage($subjob) : $this->messageFor($subjob, $status);
 
         return $this->statusPayload($status, $message, $lastLog);

@@ -46,6 +46,17 @@ Schedule::command('analytics:refresh-tiktok-tokens')->daily();
 // audience demografis seperti Instagram Insights.
 Schedule::command('analytics:sync-all-tiktok')->daily();
 
+// Retention rolling content_metric_snapshots (audit sync horizon +
+// snapshot retention) - command SUDAH ADA & struktural benar (lihat
+// PruneContentMetricSnapshots buat semantik inclusive/exclusive cutoff
+// lengkap, bisa dijalankan manual kapan saja buat testing), TAPI JADWAL
+// OTOMATISNYA SENGAJA DINONAKTIFKAN (dikomentari, BUKAN dihapus) sampai
+// ada keputusan retention policy eksplisit - deletion snapshot TIDAK BISA
+// direkonstruksi dari API manapun (lihat config/analytics.php), jadi
+// belum boleh jalan otomatis tanpa review pertumbuhan tabel/storage/
+// kebutuhan historical-reporting jangka panjang terlebih dulu.
+// Schedule::command('analytics:prune-content-metric-snapshots')->dailyAt('03:00');
+
 // PENTING - dependency operasional yang harus disetup terpisah, BUKAN
 // otomatis aktif cuma karena baris ini ada:
 // 1. Baris Schedule:: di file ini cuma "terdaftar", baru benar-benar jalan

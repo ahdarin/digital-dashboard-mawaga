@@ -134,11 +134,41 @@ class AnalyticsController extends Controller
             'coverageMessage' => $coverageMessage,
         ] = $analyticsSummaryService->buildOverviewData($selectedClientId, $period, $selectedPlatformId);
 
+        // Phase 4.1 (v2, "AI Strategy Month Selection") - insight yang
+        // ditampilkan HARUS match EXACT context yang lagi aktif (client +
+        // platform global + BULAN yang dipilih via <input type="month">
+        // khusus AI Strategy, TERPISAH dari filter period 7/30/90
+        // Overview/Table/Audience) - insight Agustus-Instagram TIDAK
+        // BOLEH nongol pas user lagi lihat September-TikTok. NULL
+        // semantics eksplisit - whereNull('platform_id') buat All
+        // Platforms, where('platform_id', X) buat platform spesifik,
+        // BUKAN where('platform_id', $selectedPlatformId) polos (NULL
+        // never equals NULL secara SQL).
+        $analysisMonth = $this->resolveAnalysisMonth($request);
+        $aiWindow = $aiStrategyService->resolveMonthWindow($analysisMonth);
         $latestAiInsight = AiStrategyInsight::where('client_id', $selectedClientId)
-            ->latest()
+            ->when(
+                $selectedPlatformId === null,
+                fn ($q) => $q->whereNull('platform_id'),
+                fn ($q) => $q->where('platform_id', $selectedPlatformId)
+            )
+            ->where('period_start', $aiWindow['start']->toDateString())
+            ->where('period_end', $aiWindow['end']->toDateString())
+            // Phase 4.2 audit (Langkah 6, "context history behavior") -
+            // orderByDesc('id') dipakai, BUKAN latest()/created_at, karena
+            // 2 Generate Ulang buat context SAMA bisa kejadian dalam detik
+            // yang sama (created_at timestamp identik) - MySQL ORDER BY
+            // created_at DESC dengan tie TIDAK dijamin urutannya. id
+            // auto-increment SELALU monoton sesuai urutan insert, jadi
+            // satu-satunya cara benar2 deterministic buat "yang paling baru".
+            ->orderByDesc('id')
             ->first();
 
-        $aiAnalysisMonth = $aiStrategyService->analysisPeriod()['start']->translatedFormat('F Y');
+        $aiAnalysisPeriodLabel = $this->analysisMonthLabel($analysisMonth).' · '.(
+            $selectedPlatformId
+                ? ($platformOptions->firstWhere('id', $selectedPlatformId)?->name ?? 'Platform')
+                : 'Semua Platform'
+        );
 
         // Slot kosong (draft, brief belum lengkap) client ini - dipakai
         // picker "Terapkan ke Slot Ini" per-ide, karena sejak Content Plan
@@ -160,7 +190,8 @@ class AnalyticsController extends Controller
             'platformBreakdown',
             'topContent',
             'latestAiInsight',
-            'aiAnalysisMonth',
+            'aiAnalysisPeriodLabel',
+            'analysisMonth',
             'coverageStatus',
             'coverageMessage',
             'emptySlots'
@@ -458,6 +489,43 @@ class AnalyticsController extends Controller
         $platformId = $request->input('platform_id');
 
         return $platformId !== null && $platformId !== '' ? (int) $platformId : null;
+    }
+
+    /**
+     * Bulan analisis AI Strategy (YYYY-MM) - READ/display context, pola
+     * tolerant-fallback SAMA seperti $period lain di controller ini
+     * (bukan hard-reject; field ini muncul di URL/GET, bukan mutating).
+     * Default bulan berjalan kalau kosong/invalid/di masa depan.
+     */
+    private function resolveAnalysisMonth(Request $request): string
+    {
+        $raw = (string) $request->input('analysis_month', '');
+        $currentMonth = Carbon::now()->format('Y-m');
+
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $raw)) {
+            return $currentMonth;
+        }
+
+        // Bulan di masa depan tidak masuk akal buat retrospective
+        // performance analysis - treat sebagai bulan berjalan.
+        return $raw > $currentMonth ? $currentMonth : $raw;
+    }
+
+    /**
+     * "Agustus 2026" buat bulan yang sudah lewat, atau "September 2026
+     * hingga 2 September 2026" buat bulan berjalan (Langkah 5/8 - jangan
+     * klaim performa bulan penuh kalau bulannya belum selesai).
+     */
+    private function analysisMonthLabel(string $month): string
+    {
+        $monthCarbon = Carbon::createFromFormat('Y-m-d', $month.'-01');
+        $label = $monthCarbon->translatedFormat('F Y');
+
+        if ($month === Carbon::now()->format('Y-m')) {
+            $label .= ' hingga '.Carbon::now()->translatedFormat('d F Y');
+        }
+
+        return $label;
     }
 
     /**
@@ -801,8 +869,10 @@ class AnalyticsController extends Controller
         $client = Client::findOrFail($validated['client_id']);
 
         $insights = AiStrategyInsight::where('client_id', $client->id)
-            ->with('generatedBy')
-            ->latest()
+            ->with(['generatedBy', 'platform'])
+            // orderByDesc('id') - lihat catatan di index()'s $latestAiInsight,
+            // same-second created_at ties tidak dijamin urut oleh latest().
+            ->orderByDesc('id')
             ->get();
 
         return view('analytics.ai-strategy-history', compact('client', 'insights'));
@@ -820,16 +890,53 @@ class AnalyticsController extends Controller
 
         $client = Client::findOrFail($validated['client_id']);
 
-        $period = $aiStrategyService->analysisPeriod();
-        $periodStart = $period['start'];
-        $periodEnd = $period['end'];
+        // Phase 4.1 (v2, "strict validation for AI generation", tetap
+        // berlaku setelah beralih dari period 7/30/90 ke calendar month) -
+        // endpoint ini MUTATING + BERBAYAR (setiap generate = 1 panggilan
+        // Gemini API sungguhan) - BEDA dari index()/export() yang read-
+        // only display filter (tolerant fallback masih wajar di sana). Di
+        // sini analysis_month/platform_id TIDAK BOLEH silently fallback -
+        // input invalid harus DITOLAK KERAS SEBELUM buildPerformanceSummary()/
+        // generateStrategy() (jadi Gemini) pernah dipanggil sama sekali,
+        // dan SEBELUM AiStrategyInsight dibuat. redirect()->with('ai_error', ...)
+        // dipakai (BUKAN default Laravel validate() error bag) karena
+        // halaman ini cuma render session('ai_error'), tidak pernah render
+        // $errors->first() di manapun - validate() gagal di sini akan
+        // silently invisible ke user. Format YYYY-MM divalidasi ketat
+        // (regex), TIDAK percaya raw date string dari request begitu saja
+        // (Langkah 10) - dan bulan di masa depan ditolak (retrospective
+        // analysis, bukan proyeksi).
+        $rawMonth = (string) $request->input('analysis_month', '');
+        $currentMonth = Carbon::now()->format('Y-m');
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $rawMonth) || $rawMonth > $currentMonth) {
+            return redirect()->route('analytics', ['client_id' => $client->id])
+                ->with('ai_error', 'Bulan analisis tidak valid - pilih bulan yang valid (tidak boleh di masa depan).');
+        }
+        $month = $rawMonth;
+
+        $platformId = $this->resolvePlatformId($request);
+        $redirectParams = array_filter(['client_id' => $client->id, 'analysis_month' => $month, 'platform_id' => $platformId]);
+
+        // "Jangan percaya arbitrary platform ID" - validasi SAMA PERSIS
+        // dengan syncDispatch() (satu-satunya platform yang valid buat
+        // performa konten sistem ini).
+        if ($platformId !== null && ! Platform::whereKey($platformId)->whereIn('name', ['Instagram', 'TikTok'])->exists()) {
+            return redirect()->route('analytics', ['client_id' => $client->id, 'analysis_month' => $month])
+                ->with('ai_error', 'Platform tidak valid untuk analisis.');
+        }
+
+        $window = $aiStrategyService->resolveMonthWindow($month);
+        $periodStart = $window['start'];
+        $periodEnd = $window['end'];
 
         try {
-            $summary = $aiStrategyService->buildPerformanceSummary($client);
+            $summary = $aiStrategyService->buildPerformanceSummary($client, $month, $platformId);
 
             if ($summary['content_published_count'] === 0) {
-                return redirect()->route('analytics', ['client_id' => $client->id])
-                    ->with('ai_error', 'Belum ada data performa konten bulan ' . $periodStart->translatedFormat('F Y') . ' buat client ini - AI butuh data buat dianalisis, bukan nebak.');
+                $platformNote = $platformId ? ' untuk '.$summary['platform_label'] : '';
+                $monthLabel = $this->analysisMonthLabel($month);
+                return redirect()->route('analytics', $redirectParams)
+                    ->with('ai_error', "Belum ada data performa konten {$monthLabel}{$platformNote} buat client ini - AI butuh data buat dianalisis, bukan nebak.");
             }
 
             $result = $aiStrategyService->generateStrategy($summary);
@@ -838,6 +945,7 @@ class AnalyticsController extends Controller
 
             AiStrategyInsight::create([
                 'client_id' => $client->id,
+                'platform_id' => $platformId,
                 'generated_by' => auth()->id(),
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
@@ -851,11 +959,12 @@ class AnalyticsController extends Controller
                 'status' => 'completed',
             ]);
 
-            return redirect()->route('analytics', ['client_id' => $client->id])
+            return redirect()->route('analytics', $redirectParams)
                 ->with('ai_success', 'Analisis AI berhasil digenerate.');
         } catch (\Throwable $e) {
             AiStrategyInsight::create([
                 'client_id' => $client->id,
+                'platform_id' => $platformId,
                 'generated_by' => auth()->id(),
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
@@ -865,7 +974,7 @@ class AnalyticsController extends Controller
                 'error_message' => $e->getMessage(),
             ]);
 
-            return redirect()->route('analytics', ['client_id' => $client->id])
+            return redirect()->route('analytics', $redirectParams)
                 ->with('ai_error', 'Gagal generate analisis AI: ' . $e->getMessage());
         }
     }

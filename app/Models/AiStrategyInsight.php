@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class AiStrategyInsight extends Model
 {
     protected $fillable = [
-        'client_id', 'generated_by', 'period_start', 'period_end', 'performance_data',
+        'client_id', 'platform_id', 'generated_by', 'period_start', 'period_end', 'performance_data',
         'summary', 'action_items', 'suggested_split', 'top_pillars', 'content_ideas',
         'data_completeness_percent',
         'status', 'error_message', 'applied_at', 'applied_by', 'applied_idea_indexes',
@@ -26,6 +26,11 @@ class AiStrategyInsight extends Model
     ];
 
     public function client() { return $this->belongsTo(Client::class); }
+    // platform_id NULL = "All Platforms" (semantik eksplisit, bukan
+    // "belum diisi") - lihat migration 2026_09_02_000001. Relasi ini
+    // simpel-simpel aja return null kalau platform_id null, caller (view)
+    // yang menampilkan label "Semua Platform" buat kasus itu.
+    public function platform() { return $this->belongsTo(Platform::class); }
     public function generatedBy() { return $this->belongsTo(User::class, 'generated_by'); }
     public function appliedBy() { return $this->belongsTo(User::class, 'applied_by'); }
     public function messages() { return $this->hasMany(AiStrategyMessage::class)->orderBy('created_at'); }

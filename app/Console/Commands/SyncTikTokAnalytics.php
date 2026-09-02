@@ -123,6 +123,26 @@ class SyncTikTokAnalytics extends Command
             $this->line("  - {$detail}");
         }
 
+        // Snapshot maintenance correction - refresh rotating buat SELURUH
+        // known/tracked video (bukan lagi dibatasi discovery window), HANYA
+        // buat default sync (historical sync 1 bulan spesifik tidak perlu
+        // efek samping ini). DIBUNGKUS try/catch TERPISAH - kegagalan di
+        // sini TIDAK PERNAH boleh mengubah return code sync utama yang
+        // sudah berhasil di atas.
+        if ($syncMode === 'default') {
+            try {
+                $refresh = $service->refreshKnownVideos($integration, $syncLog, $userId);
+                if ($refresh['refreshed_count'] > 0 || $refresh['failed_count'] > 0) {
+                    $this->info("{$refresh['refreshed_count']} known video (rotasi observasi) di-refresh, {$refresh['failed_count']} gagal, {$refresh['skipped_count']} skipped.");
+                }
+                if ($refresh['auth_failed']) {
+                    $this->warn('Token TikTok tidak valid/kadaluarsa - integration ditandai butuh reconnect.');
+                }
+            } catch (\Throwable $e) {
+                $this->warn('Refresh known video gagal (sync utama tetap sukses): '.$e->getMessage());
+            }
+        }
+
         return self::SUCCESS;
     }
 

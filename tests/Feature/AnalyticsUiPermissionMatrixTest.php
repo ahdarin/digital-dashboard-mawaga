@@ -83,14 +83,23 @@ class AnalyticsUiPermissionMatrixTest extends TestCase
      * load (kalau authorized): Generate Ulang (insight sudah ada), Apply
      * (belum applied_at, ada suggested_split), Refine (ada pesan diskusi
      * non-system), regenerate ide (belum applied_at, ada content_ideas).
+     *
+     * Phase 4.1 (v2) - period_start/period_end HARUS match EXACT context
+     * default (bulan berjalan, platform_id=null/All Platforms) yang
+     * dipakai route('analytics', ['client_id' => ...]) TANPA query string
+     * analysis_month/platform_id di test-test ini (lihat
+     * AnalyticsController::index()'s $latestAiInsight lookup context-exact)
+     * - kalau tidak, insight ini dianggap context LAIN dan tidak akan
+     * muncul sebagai $latestAiInsight.
      */
     private function insightWithAllMutationBranches(Client $client, User $generator): AiStrategyInsight
     {
         $insight = AiStrategyInsight::create([
             'client_id' => $client->id,
+            'platform_id' => null,
             'generated_by' => $generator->id,
-            'period_start' => now()->subMonthNoOverflow()->startOfMonth(),
-            'period_end' => now()->subMonthNoOverflow()->endOfMonth(),
+            'period_start' => now()->startOfMonth()->startOfDay(),
+            'period_end' => now()->endOfDay(),
             'summary' => 'Ringkasan performa bulan lalu.',
             'action_items' => ['Tingkatkan frekuensi posting'],
             'suggested_split' => [['label' => 'Education', 'value' => 60], ['label' => 'Entertainment', 'value' => 40]],

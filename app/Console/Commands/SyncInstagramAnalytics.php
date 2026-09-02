@@ -130,6 +130,27 @@ class SyncInstagramAnalytics extends Command
             $this->line("  - {$detail}");
         }
 
+        // Snapshot maintenance correction - refresh rotating buat SELURUH
+        // known/tracked media (bukan lagi dibatasi discovery window), HANYA
+        // buat default sync (historical sync 1 bulan spesifik TIDAK perlu
+        // efek samping ini - user minta 1 bulan tertentu, bukan "juga
+        // refresh content lama lainnya"). DIBUNGKUS try/catch TERPISAH -
+        // kegagalan di sini TIDAK PERNAH boleh mengubah return code sync
+        // utama yang sudah berhasil di atas.
+        if ($syncMode === 'default') {
+            try {
+                $refresh = $service->refreshKnownMedia($integration, $syncLog, $userId);
+                if ($refresh['refreshed_count'] > 0 || $refresh['failed_count'] > 0) {
+                    $this->info("{$refresh['refreshed_count']} known media (rotasi observasi) di-refresh, {$refresh['failed_count']} gagal.");
+                }
+                if ($refresh['auth_failed']) {
+                    $this->warn('Token Instagram tidak valid/kadaluarsa - integration ditandai butuh reconnect.');
+                }
+            } catch (\Throwable $e) {
+                $this->warn('Refresh known media gagal (sync utama tetap sukses): '.$e->getMessage());
+            }
+        }
+
         return self::SUCCESS;
     }
 

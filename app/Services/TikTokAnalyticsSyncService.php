@@ -115,6 +115,177 @@ class TikTokAnalyticsSyncService
     }
 
     /**
+     * Snapshot maintenance correction (audit sync horizon, "keep discovery
+     * and observation separate") - refresh metrik buat video yang SUDAH
+     * DIKENAL sistem. video/list TIDAK PERNAH mengembalikan video lama
+     * lagi begitu terlewat cutoff $since, padahal video itu genuinely
+     * bisa masih dapat views/engagement baru hari ini - method ini TIDAK
+     * melakukan discovery ulang (tidak ada paging list), cukup query
+     * LANGSUNG by ID lewat TikTokAnalyticsService::queryVideos() (endpoint
+     * video/query/ resmi TikTok, dirancang persis buat ini - lihat
+     * docblock-nya), di-batch 20 ID/request (limit resmi TikTok, BUKAN
+     * pilihan kita).
+     *
+     * SENGAJA TIDAK dibatasi published_at/discovery window/retention
+     * window sama sekali - content age TIDAK menentukan apakah observasi
+     * hari ini masih dibutuhkan. SELURUH known video integration ini
+     * eligible (termasuk unmatched).
+     *
+     * Selection: rotating, urut last_fetched_at ASC (paling lama tidak
+     * di-refresh duluan - "IS NOT NULL" duluan di ORDER BY supaya NULL,
+     * kalau pernah ada, selalu diprioritaskan PALING AWAL; kolom ini
+     * NOT NULL di schema saat ini jadi baris NULL genuine belum pernah
+     * terjadi, tapi urutan ini tetap defensif benar kalau itu berubah),
+     * dibatasi config('analytics.tiktok_known_refresh_budget') video per
+     * panggilan (jauh lebih besar dari budget Instagram - queryVideos()
+     * genuinely batched 20/request, biayanya jauh lebih murah per video).
+     *
+     * Dipanggil TERPISAH dari sync() normal oleh caller (Command/Job),
+     * DIBUNGKUS try/catch DI CALLER - kegagalan tak terduga di sini TIDAK
+     * PERNAH boleh menggagalkan/retry-loop sync utama yang sudah berhasil.
+     * TAPI failed_count > 0 TETAP direkam ke $syncLog->error_message lewat
+     * KnownContentRefreshFailureMarker, supaya AnalyticsSyncOrchestrator
+     * bisa menurunkan status jadi 'partial'.
+     *
+     * @return array{refreshed_count: int, failed_count: int, skipped_count: int, total_count: int, auth_failed: bool}
+     */
+    public function refreshKnownVideos(ApiIntegration $integration, AnalyticsSyncLog $syncLog, int $userId): array
+    {
+        $budget = max(0, (int) config('analytics.tiktok_known_refresh_budget'));
+
+        $staleKnownVideos = TikTokVideoSnapshot::where('api_integration_id', $integration->id)
+            ->orderByRaw('last_fetched_at IS NOT NULL')
+            ->orderBy('last_fetched_at', 'asc')
+            ->limit($budget)
+            ->get(['id', 'external_post_id', 'content_publication_id']);
+
+        $summary = ['refreshed_count' => 0, 'failed_count' => 0, 'skipped_count' => 0, 'total_count' => $staleKnownVideos->count(), 'auth_failed' => false];
+
+        if ($staleKnownVideos->isEmpty()) {
+            return $summary;
+        }
+
+        $platform = Platform::find($integration->platform_id);
+        $service = new TikTokAnalyticsService($integration);
+        $byExternalId = $staleKnownVideos->keyBy('external_post_id');
+
+        foreach ($staleKnownVideos->pluck('external_post_id')->chunk(20) as $batch) {
+            try {
+                $videoResults = $service->queryVideos($batch->values()->all());
+            } catch (TikTokApiException $e) {
+                $summary['failed_count'] += $batch->count();
+
+                if ($e->category === TikTokApiException::AUTHENTICATION) {
+                    // Token rusak - batch berikutnya juga pasti gagal
+                    // identik, percuma lanjut. Integration ditandai butuh
+                    // reconnect (Langkah 6) - BUKAN sekadar failed_count
+                    // tinggi yang tidak actionable.
+                    $summary['auth_failed'] = true;
+                    $this->markNeedsReconnect($integration, $e->getMessage());
+                    break;
+                }
+
+                Log::warning('TikTok refreshKnownVideos: queryVideos batch gagal, dilewati (sync utama TIDAK terpengaruh)', [
+                    'client_id' => $integration->client_id,
+                    'batch_size' => $batch->count(),
+                    'category' => $e->category,
+                    'error' => $e->getMessage(),
+                ]);
+                // Transient (network/rate_limit/server_error/malformed) -
+                // TIDAK advance last_fetched_at video di batch ini, coba
+                // lagi rotasi berikutnya lebih cepat.
+                continue;
+            } catch (\Throwable $e) {
+                $summary['failed_count'] += $batch->count();
+                Log::warning('TikTok refreshKnownVideos: queryVideos batch gagal (exception tak terduga), dilewati', [
+                    'client_id' => $integration->client_id,
+                    'batch_size' => $batch->count(),
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
+            }
+
+            $returnedIds = [];
+            foreach ($videoResults as $item) {
+                $snapshot = $byExternalId->get($item['id'] ?? null);
+                if (! $snapshot) {
+                    continue;
+                }
+                $returnedIds[] = $item['id'];
+
+                $contentItemId = $snapshot->content_publication_id
+                    ? ContentPublication::whereKey($snapshot->content_publication_id)->value('content_item_id')
+                    : null;
+
+                try {
+                    // Snapshot Phase 2 - identity sama (tiktok_video_snapshot_id)
+                    // + snapshot_date HARI INI (never publish date) - upsert
+                    // same-day, bukan histori baru (Langkah 8).
+                    $this->saveMetric($item, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+                    $this->recordSnapshot($snapshot, $item, $integration, $platform, $contentItemId);
+                    $snapshot->update(['last_fetched_at' => now()]);
+                    $summary['refreshed_count']++;
+                } catch (\Throwable $e) {
+                    $summary['failed_count']++;
+                    Log::warning('TikTok refreshKnownVideos: gagal simpan metric/snapshot buat 1 video, dilewati', [
+                        'client_id' => $integration->client_id,
+                        'tiktok_video_snapshot_id' => $snapshot->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    // Transient - TIDAK advance last_fetched_at.
+                }
+            }
+
+            // Video yang query-nya sukses TAPI TikTok tidak balikin video
+            // itu di response (mis. sudah dihapus user) - dicatat sebagai
+            // skipped, BUKAN failed (bukan error di sisi kita), DAN
+            // dianggap "sudah dicek hari ini" (Langkah 7 - ini jawaban
+            // definitif "tidak ada", bukan kegagalan transient) - advance
+            // last_fetched_at supaya tidak query ulang video yang sama
+            // tiap rotasi padahal jawabannya sudah pasti.
+            $missingIds = $batch->diff($returnedIds);
+            foreach ($missingIds as $missingId) {
+                $byExternalId->get($missingId)?->update(['last_fetched_at' => now()]);
+            }
+            $summary['skipped_count'] += $missingIds->count();
+        }
+
+        $this->recordRefreshFailureMarker($syncLog, $summary['failed_count'], $summary['total_count']);
+
+        return $summary;
+    }
+
+    /**
+     * Langkah 6 - integration ditandai butuh reconnect TANPA menyentuh
+     * status $syncLog (sync UTAMA sudah selesai & sukses sebelum refresh
+     * ini dipanggil - method ini BUKAN markFailed(), sengaja tidak
+     * menandai syncLog 'failed').
+     */
+    private function markNeedsReconnect(ApiIntegration $integration, string $message): void
+    {
+        $integration->update(['status' => 'inactive', 'last_error' => $message]);
+    }
+
+    /**
+     * Langkah 5 - failed_count > 0 TIDAK BOLEH "menghilang" jadi success
+     * sempurna. APPEND (bukan overwrite) marker ke $syncLog->error_message
+     * yang sudah ditulis sync() utama.
+     */
+    private function recordRefreshFailureMarker(AnalyticsSyncLog $syncLog, int $failedCount, int $totalCount): void
+    {
+        if ($failedCount <= 0) {
+            return;
+        }
+
+        $marker = KnownContentRefreshFailureMarker::wrap($failedCount, $totalCount);
+        $existing = $syncLog->fresh()?->error_message;
+
+        $syncLog->update([
+            'error_message' => $existing ? "{$existing} | {$marker}" : $marker,
+        ]);
+    }
+
+    /**
      * follower_count/following_count/likes_count/video_count (kalau scope
      * user.info.stats granted) disimpan sebagai snapshot TERTANGGAL lewat
      * AudienceInsight generik yang SUDAH ADA (bukan tabel/model baru) -

@@ -138,7 +138,18 @@ class DemoSeeder extends Seeder
         $categories = ClientCategory::all();
         $category = $categories->first(); // dipakai fallback lama di bawah kalau perlu
 
-        $picUser = User::where('email', 'hello523studio@gmail.com')->first() ?? User::first();
+        // Audit Phase 4.3 - dulu hardcode email literal terpisah dari
+        // RoleSeeder (drift risk, lihat config/organization.php), DAN
+        // fallback-nya User::first() (siapapun user paling lama di DB -
+        // tidak deterministic lintas environment). Sekarang: config CEO
+        // yang sama (organization.ceo_email) kalau tersedia & usernya ada,
+        // TAPI fallback ke $managerDemo (dibuat eksplisit beberapa baris di
+        // atas, akun demo yang MEMANG didesain jadi actor demo data ini) -
+        // BUKAN User::first() - demo data ini optional/non-production, jadi
+        // aman pakai demo owner deterministic sebagai pengganti kalau CEO
+        // config belum di-set, tidak perlu skip seluruh seeder.
+        $ceoEmail = config('organization.ceo_email');
+        $picUser = ($ceoEmail ? User::where('email', $ceoEmail)->first() : null) ?? $managerDemo;
 
         // ===== Staff pool (buat variasi PIC & workload) =====
         // Sebelumnya SEMUA content item (current_pic_id + assignment) selalu

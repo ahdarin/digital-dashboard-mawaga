@@ -148,6 +148,22 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
 
             throw $e; // retryable - biar Laravel jadwalkan ulang sesuai $tries/backoff()
         }
+
+        // Audit sync horizon (Langkah 3) - refresh known/tracked media di
+        // luar discovery window normal, HANYA buat default sync (historical
+        // sync 1 bulan spesifik tidak perlu efek samping ini). DIBUNGKUS
+        // try/catch TERPISAH - kegagalan di sini TIDAK PERNAH boleh
+        // menggagalkan/retry job yang sync utamanya sudah sukses di atas.
+        if ($this->syncMode === 'default') {
+            try {
+                $service->refreshKnownMedia($integration, $syncLog, $this->userId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('SyncInstagramAnalyticsJob: refreshKnownMedia gagal (sync utama tetap sukses)', [
+                    'api_integration_id' => $integration->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

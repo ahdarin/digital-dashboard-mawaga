@@ -120,6 +120,161 @@ class InstagramAnalyticsSyncService
     }
 
     /**
+     * Snapshot maintenance correction (audit sync horizon, "keep discovery
+     * and observation separate") - refresh metrik buat content yang SUDAH
+     * DIKENAL sistem, MIRROR TikTokAnalyticsSyncService::refreshKnownVideos()
+     * (Instagram API bedanya: insights per media diambil SATU-SATU via
+     * InstagramAnalyticsService::getMediaInsights($mediaId, ...) - Instagram
+     * Graph API tidak punya endpoint "batch query by IDs" resmi seperti
+     * TikTok video/query/, jadi tidak ada batching di sini, TAPI TETAP
+     * direct by-ID lookup - BUKAN discovery ulang/paging getMedia()).
+     *
+     * SENGAJA TIDAK dibatasi published_at/discovery window/retention
+     * window sama sekali - content age TIDAK menentukan apakah observasi
+     * hari ini masih dibutuhkan (post lama tetap bisa dapat views baru).
+     * SELURUH known media integration ini eligible (termasuk yang
+     * unmatched - match_status/content_publication_id TIDAK memengaruhi
+     * eligibility, cuma dipakai buat isi $contentItemId kalau ada).
+     *
+     * Selection: rotating, urut last_fetched_at ASC (paling lama tidak
+     * di-refresh duluan - "IS NOT NULL" duluan di ORDER BY supaya NULL,
+     * kalau pernah ada, selalu diprioritaskan PALING AWAL; kolom ini
+     * NOT NULL di schema saat ini jadi baris NULL genuine belum pernah
+     * terjadi, tapi urutan ini tetap defensif benar kalau itu berubah),
+     * dibatasi config('analytics.instagram_known_refresh_budget') per
+     * panggilan - budget mengontrol BIAYA (1 HTTP call/media, tidak ada
+     * batch endpoint), bukan cakupan berdasar tanggal. Setiap media
+     * eventually dapat giliran lagi (rotasi ~total_known/budget hari).
+     *
+     * Dipanggil TERPISAH dari sync() normal oleh caller, DIBUNGKUS
+     * try/catch DI CALLER - kegagalan tak terduga di sini TIDAK PERNAH
+     * boleh menggagalkan sync utama yang sudah berhasil. TAPI failed_count
+     * > 0 TETAP direkam ke $syncLog->error_message lewat
+     * KnownContentRefreshFailureMarker, supaya AnalyticsSyncOrchestrator
+     * bisa menurunkan status jadi 'partial' - kegagalan TIDAK PERNAH
+     * "menghilang" jadi sukses sempurna.
+     *
+     * @return array{refreshed_count: int, failed_count: int, skipped_count: int, total_count: int, auth_failed: bool}
+     */
+    public function refreshKnownMedia(ApiIntegration $integration, AnalyticsSyncLog $syncLog, int $userId): array
+    {
+        $budget = max(0, (int) config('analytics.instagram_known_refresh_budget'));
+
+        $staleKnownMedia = InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+            ->orderByRaw('last_fetched_at IS NOT NULL')
+            ->orderBy('last_fetched_at', 'asc')
+            ->limit($budget)
+            ->get(['id', 'external_post_id', 'media_product_type', 'published_at', 'content_publication_id']);
+
+        $summary = ['refreshed_count' => 0, 'failed_count' => 0, 'skipped_count' => 0, 'total_count' => $staleKnownMedia->count(), 'auth_failed' => false];
+
+        if ($staleKnownMedia->isEmpty()) {
+            return $summary;
+        }
+
+        $platform = Platform::find($integration->platform_id);
+        $service = new InstagramAnalyticsService($integration);
+
+        foreach ($staleKnownMedia as $snapshot) {
+            try {
+                $insight = $service->getMediaInsights($snapshot->external_post_id, $snapshot->media_product_type);
+
+                if ($insight['category'] === InstagramApiException::AUTHENTICATION) {
+                    // Token rusak - SEMUA media berikutnya di batch ini akan
+                    // gagal identik, percuma lanjut (buang budget/API call).
+                    // Integration ditandai butuh reconnect (Langkah 6) -
+                    // BUKAN sekadar failed_count tinggi yang tidak actionable.
+                    $summary['failed_count']++;
+                    $summary['auth_failed'] = true;
+                    $this->markNeedsReconnect($integration, $insight['error']);
+                    break;
+                }
+
+                if ($insight['error']) {
+                    $summary['failed_count']++;
+
+                    // Langkah 7 - last_fetched_at HANYA advance buat kondisi
+                    // yang DEFINITIF/PERMANEN (content memang tidak ada/
+                    // metric memang tidak didukung - percuma dicoba lagi
+                    // rotasi berikutnya). transient_api_error SENGAJA TIDAK
+                    // advance, supaya dicoba lagi lebih cepat, bukan
+                    // menunggu giliran rotasi penuh.
+                    if (in_array($insight['category'], ['content_unavailable', 'unsupported_metric'], true)) {
+                        $snapshot->update(['last_fetched_at' => now()]);
+                    }
+
+                    continue;
+                }
+
+                $contentItemId = $snapshot->content_publication_id
+                    ? ContentPublication::whereKey($snapshot->content_publication_id)->value('content_item_id')
+                    : null;
+
+                $item = [
+                    'id' => $snapshot->external_post_id,
+                    'timestamp' => $snapshot->published_at?->toIso8601String(),
+                    'metrics' => $insight['metrics'],
+                ];
+
+                // Snapshot Phase 2 - identity sama (instagram_media_snapshot_id)
+                // + snapshot_date HARI INI (never publish date) - upsert
+                // same-day, bukan histori baru (Langkah 8).
+                $this->saveMetric($item, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+                $this->recordSnapshot($snapshot, $insight['metrics'], $integration, $platform, $contentItemId);
+                $snapshot->update(['last_fetched_at' => now()]);
+                $summary['refreshed_count']++;
+            } catch (\Throwable $e) {
+                $summary['failed_count']++;
+                Log::warning('Instagram refreshKnownMedia: gagal refresh 1 media, dilewati (sync utama TIDAK terpengaruh)', [
+                    'client_id' => $integration->client_id,
+                    'instagram_media_snapshot_id' => $snapshot->id,
+                    'error' => $e->getMessage(),
+                ]);
+                // Transient/tak terduga - TIDAK advance last_fetched_at,
+                // coba lagi rotasi berikutnya.
+            }
+        }
+
+        $this->recordRefreshFailureMarker($syncLog, $summary['failed_count'], $summary['total_count']);
+
+        return $summary;
+    }
+
+    /**
+     * Langkah 6 - integration ditandai butuh reconnect TANPA menyentuh
+     * status $syncLog (sync UTAMA sudah selesai & sukses sebelum refresh
+     * ini dipanggil - method ini BUKAN markFailed(), sengaja tidak
+     * menandai syncLog 'failed' supaya sync utama yang genuinely sukses
+     * tidak ikut dilaporkan gagal cuma karena observation rotation-nya
+     * kena auth error).
+     */
+    private function markNeedsReconnect(ApiIntegration $integration, string $message): void
+    {
+        $integration->update(['status' => 'inactive', 'last_error' => $message]);
+    }
+
+    /**
+     * Langkah 5 - failed_count > 0 TIDAK BOLEH "menghilang" jadi success
+     * sempurna. APPEND (bukan overwrite) marker ke $syncLog->error_message
+     * yang sudah ditulis sync() utama (mungkin sudah berisi
+     * SnapshotFailureMarker sendiri) - AnalyticsSyncOrchestrator men-scan
+     * exact prefix string, urutan/gabungan marker lain tidak masalah.
+     */
+    private function recordRefreshFailureMarker(AnalyticsSyncLog $syncLog, int $failedCount, int $totalCount): void
+    {
+        if ($failedCount <= 0) {
+            return;
+        }
+
+        $marker = KnownContentRefreshFailureMarker::wrap($failedCount, $totalCount);
+        $existing = $syncLog->fresh()?->error_message;
+
+        $syncLog->update([
+            'error_message' => $existing ? "{$existing} | {$marker}" : $marker,
+        ]);
+    }
+
+    /**
      * @return array{existing_matched: int, newly_matched: int, unmatched: int, ambiguous: int, failed: int, details: array<int, string>}
      */
     private function persistMedia(array $mediaResults, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog): array

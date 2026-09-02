@@ -307,8 +307,14 @@ class PeriodPerformanceConsumerTest extends TestCase
         $client = $this->client();
         $integration = $this->instagramIntegration($client);
 
-        $analysisStart = now()->subMonthNoOverflow()->startOfMonth();
-        $analysisEnd = now()->subMonthNoOverflow()->endOfMonth();
+        // Phase 4.1 (v2) - AI Strategy sekarang calendar month yang dipilih
+        // user - lihat AiStrategyService::resolveMonthWindow(). Bulan lalu
+        // dipakai (bukan bulan berjalan) supaya window-nya SELALU 1 bulan
+        // kalender penuh, deterministic terlepas tanggal test dijalankan.
+        $month = now()->subMonthNoOverflow()->format('Y-m');
+        $window = app(AiStrategyService::class)->resolveMonthWindow($month);
+        $analysisStart = $window['start'];
+        $analysisEnd = $window['end'];
         $result = $this->apiContentWithDelta($client, $integration, $analysisStart, $analysisEnd, baselineViews: 1200, currentViews: 4700, linkToContentItem: true);
 
         // apiContentWithDelta() menaruh baseline 1 hari SEBELUM periodStart
@@ -326,7 +332,7 @@ class PeriodPerformanceConsumerTest extends TestCase
             'views' => 3000,
         ]);
 
-        $summary = app(AiStrategyService::class)->buildPerformanceSummary($client);
+        $summary = app(AiStrategyService::class)->buildPerformanceSummary($client, $month, null);
 
         $this->assertSame(4700 - 1200, $summary['total_views']);
         $this->assertGreaterThanOrEqual(2, $summary['tracked_days'], 'tracked_days harus dari snapshot_date genuine (2 baris dibuat), bukan distinct metric_date (selalu 1).');

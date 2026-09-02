@@ -118,6 +118,21 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
 
             throw $e;
         }
+
+        // Audit sync horizon (Langkah 3) - refresh known/tracked video di
+        // luar discovery window normal, HANYA buat default sync. DIBUNGKUS
+        // try/catch TERPISAH - kegagalan di sini TIDAK PERNAH boleh
+        // menggagalkan/retry job yang sync utamanya sudah sukses di atas.
+        if ($this->syncMode === 'default') {
+            try {
+                $service->refreshKnownVideos($integration, $syncLog, $this->userId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('SyncTikTokAnalyticsJob: refreshKnownVideos gagal (sync utama tetap sukses)', [
+                    'api_integration_id' => $integration->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     public function failed(\Throwable $e): void

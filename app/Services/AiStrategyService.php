@@ -19,14 +19,37 @@ use Illuminate\Support\Facades\Log;
  * teks statis.
  *
  * Alurnya:
- * 1. Ambil data performa konten 1 client, 1 bulan kalender penuh
- *    sebelumnya (misal digenerate Agustus -> datanya bulan Juli), dari
- *    content_metrics (angka asli, bukan dummy)
+ * 1. Ambil data performa konten 1 client untuk 1 CALENDAR MONTH yang
+ *    dipilih user (YYYY-MM) + platform filter global Analytics (spesifik/
+ *    All) - dari content_metric_snapshots lewat PeriodPerformanceService,
+ *    angka asli bukan dummy
  * 2. Ringkes jadi JSON kecil (total views, engagement, top 5 konten,
- *    breakdown per platform & pillar, arah tren)
+ *    breakdown per platform & pillar, coverage status)
  * 3. Kirim ke Gemini API, minta balikan terstruktur: narasi strategi,
  *    action items, suggested content split
- * 4. Simpan hasilnya ke tabel ai_strategy_insights
+ * 4. Simpan hasilnya ke tabel ai_strategy_insights, terikat ke context
+ *    (client_id, platform_id, period_start, period_end) yang dianalisis -
+ *    period_start/period_end APA ADANYA menyimpan batas bulan kalender
+ *    yang dipilih (bukan lagi rolling window)
+ *
+ * Phase 4.1 (v2, "AI Strategy Month Selection") - histori semantik jendela
+ * waktu di service ini:
+ * - Awalnya SELALU 1 bulan kalender PENUH sebelumnya, independen dari
+ *   filter Analytics.
+ * - Diubah jadi rolling window (7/30/90 hari) mengikuti filter period
+ *   Analytics global, plus previous-equal-length-window comparison.
+ * - SEKARANG (final): balik ke calendar month, TAPI kali ini eksplisit
+ *   DIPILIH user via input <input type="month"> khusus AI Strategy
+ *   (bukan lagi terpaku ke "bulan lalu" otomatis, dan BUKAN lagi
+ *   mengikuti filter period 7/30/90 Analytics - dua konsep waktu yang
+ *   sengaja terpisah: Overview/Table/Audience tetap rolling window,
+ *   AI Strategy py month-picker sendiri). TIDAK ADA previous-period
+ *   comparison lagi - "previous_month" BUKAN requirement, dihapus total
+ *   (lihat instruksi eksplisit "JANGAN otomatis membandingkan dengan
+ *   bulan sebelumnya"). "Terapkan ke Content Plan"
+ *   (AnalyticsController::applyAiStrategy()) TETAP menargetkan
+ *   ContentPlan bulan KALENDER BERJALAN (report/production cadence,
+ *   beda konsep dari bulan yang DIANALISIS AI - sengaja tidak disatukan).
  *
  * Butuh GEMINI_API_KEY di .env - ambil gratis di
  * https://aistudio.google.com/app/apikey (nggak perlu kartu kredit).
@@ -43,57 +66,61 @@ class AiStrategyService
     }
 
     /**
-     * Ambil data performa 1 BULAN KALENDER PENUH sebelumnya (bukan rolling
-     * "30 hari terakhir dari hari ini"). Kenapa: rolling window bikin
-     * periode geser tiap hari dan motong lintas bulan (misal 7 Juli - 5
-     * Agustus), padahal Content Plan sistemnya per-bulan kalender. Dengan
-     * ini, generate analisis kapan aja di bulan Agustus selalu ngasih
-     * hasil yang sama: performa penuh bulan Juli. Nggak ada overlap
-     * antar-bulan.
+     * Resolusi batas 1 calendar month yang dipilih user ($month, format
+     * "Y-m", mis. "2026-08") - period_start SELALU tanggal 1 bulan itu.
+     * period_end:
+     * - Bulan yang SUDAH LEWAT (fully in the past) -> akhir bulan itu
+     *   (tanggal terakhir, mis. 31 Agustus).
+     * - Bulan BERJALAN (current month) -> HARI INI, BUKAN endOfMonth -
+     *   jangan pernah menganggap sisa hari bulan itu (yang belum terjadi)
+     *   sudah py data (Langkah 5, "Jangan menunggu endOfMonth. Jangan
+     *   membuat 3-30 Sep sebagai zero").
+     *
+     * Caller (controller) WAJIB validasi $month sebelum manggil ini
+     * (format YYYY-MM valid, bukan bulan di masa depan) - method ini
+     * sendiri percaya $month sudah valid, tidak defensive-check ulang di
+     * sini (Langkah 10, validasi di boundary request/controller).
+     *
+     * @return array{start: Carbon, end: Carbon}
      */
-    /**
-     * Periode yang dianalisis AI Strategy - 1 bulan kalender penuh
-     * sebelumnya. Public & dipakai bareng sama AnalyticsController buat
-     * nyimpen period_start/period_end di AiStrategyInsight - biar cuma ada
-     * 1 tempat yang nentuin "periode sebelumnya" itu kapan (dulu dihitung
-     * ulang terpisah di controller, riskan nggak sinkron kalau logic-nya
-     * berubah di salah satu tempat doang).
-     */
-    public function analysisPeriod(): array
+    public function resolveMonthWindow(string $month): array
     {
+        $start = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
+        $naturalEnd = $start->copy()->endOfMonth()->endOfDay();
+        $today = Carbon::now()->endOfDay();
+
         return [
-            'start' => Carbon::now()->subMonthNoOverflow()->startOfMonth(),
-            'end' => Carbon::now()->subMonthNoOverflow()->endOfMonth(),
+            'start' => $start,
+            'end' => $naturalEnd->lt($today) ? $naturalEnd : $today,
         ];
     }
 
-    public function buildPerformanceSummary(Client $client): array
+    /**
+     * @param  string  $month  Format "Y-m" (mis. "2026-08") - calendar month yang dipilih user, DIVALIDASI di controller.
+     * @param  ?int  $platformId  null = All Platforms (gabungan), atau ID platform spesifik.
+     */
+    public function buildPerformanceSummary(Client $client, string $month, ?int $platformId = null): array
     {
-        $period = $this->analysisPeriod();
-        $start = $period['start'];
-        $end = $period['end'];
+        $window = $this->resolveMonthWindow($month);
+        $start = $window['start'];
+        $end = $window['end'];
         $days = $start->diffInDays($end) + 1;
 
-        $prevMonthEnd = $start->copy()->subDay()->endOfMonth();
-        $prevMonthStart = $start->copy()->subMonthNoOverflow()->startOfMonth();
-
-        // Phase 3 (Langkah 9G): views/engagement_rate SEKARANG delta periode
-        // genuine (PeriodPerformanceService), BUKAN lagi sum(views)
-        // whereBetween(metric_date) - AI tidak boleh dikasih angka "1 bulan"
-        // yang sebenarnya cuma "content yang PUBLISH bulan itu". Roster
-        // TETAP client_id langsung (bukan whereHas('contentItem', ...)) -
-        // biar post API yang belum ke-link ikut dianalisis AI juga, sama
-        // seperti sebelumnya.
-        $aggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $start, $end, null);
-        $prevAggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $prevMonthStart, $prevMonthEnd, null);
+        // Phase 3 (Langkah 9G): views/engagement_rate delta periode genuine
+        // (PeriodPerformanceService), BUKAN lagi sum(views)
+        // whereBetween(metric_date) - AI tidak boleh dikasih angka "bulan
+        // X" yang sebenarnya cuma "content yang PUBLISH bulan itu".
+        // Roster TETAP client_id langsung (bukan whereHas('contentItem',
+        // ...)) - biar post API yang belum ke-link ikut dianalisis AI
+        // juga. $platformId diteruskan apa adanya - AI Strategy TIDAK
+        // BOLEH diam-diam menggabungkan semua platform kalau user memilih
+        // platform spesifik. TIDAK ADA previous-period aggregate lagi -
+        // previous_month bukan requirement (lihat docblock kelas).
+        $aggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $start, $end, $platformId);
 
         $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
 
         $totalViews = $aggregate['totals']['views'];
-        $prevTotalViews = $prevAggregate['totals']['views'];
-        $trendDirection = $prevTotalViews > 0
-            ? round((($totalViews - $prevTotalViews) / $prevTotalViews) * 100, 1)
-            : null;
 
         $byPillar = $usableRows->groupBy(fn ($row) => $row['content_metric']->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
             ->map(fn ($rows) => [
@@ -119,15 +146,28 @@ class AiStrategyService
             ->values();
 
         // Data audience (demografi, top lokasi, jam aktif, tren follower) -
-        // dibatasin ke platform yang beneran ada performance_by_platform-nya
-        // periode ini, biar AI bisa korelasiin "performa di platform X" sama
-        // "audience di platform X itu siapa". Kalau client belum pernah
-        // import Audience Data sama sekali, ini otomatis kosong dan AI cuma
-        // pakai data performa konten aja (nggak wajib ada).
+        // Phase 4.2 FIX: SEBELUMNYA dibatasin ke platform yang beneran ada
+        // performance_by_platform-nya periode ini ($byPlatform derived dari
+        // content performance) - salah, terlalu coupled. Contoh nyata:
+        // TikTok dipilih, ada follower data TikTok, TAPI content performance
+        // TikTok periode ini unavailable/tidak ada baris usable -> audience
+        // TikTok yang genuinely ada ikut hilang, padahal tidak ada
+        // hubungannya sama sekali dengan ketersediaan audience.
+        // requested context ($platformId) SEKARANG yang menentukan platform
+        // mana yang di-resolve, independen dari performance_by_platform:
+        // - platform spesifik dipilih -> resolve platform itu SAJA, terlepas
+        //   dia muncul di performance_by_platform atau tidak (resolveAudienceForPlatform()
+        //   sendiri sudah honest return null kalau memang tidak ada data).
+        // - All Platforms -> resolve tiap platform yang BENERAN punya baris
+        //   AudienceInsight buat client ini (bukan asal semua platform yang
+        //   exists di sistem) - tetap platform-separated di bawah, TIDAK
+        //   PERNAH merge demografi lintas platform.
         $audienceByPlatform = [];
-        $platformsWithMetrics = Platform::whereIn('name', $byPlatform->keys()->reject(fn ($name) => $name === '-'))->get();
+        $audiencePlatforms = $platformId
+            ? Platform::whereKey($platformId)->get()
+            : Platform::whereHas('audienceInsights', fn ($q) => $q->where('client_id', $client->id))->get();
 
-        foreach ($platformsWithMetrics as $platformModel) {
+        foreach ($audiencePlatforms as $platformModel) {
             $audienceRow = $this->resolveAudienceForPlatform($client, $platformModel, $start);
 
             if (! $audienceRow) {
@@ -164,10 +204,41 @@ class AiStrategyService
         // bukan cuma angka agregat pillar/platform. Diurut dari yang paling
         // signifikan, dibatasin 10 biar prompt-nya nggak membengkak kalau
         // client-nya banyak konten yang fluktuatif.
+        // Phase 4.2 FIX (audit "notable anomaly platform scoping") - SEBELUMNYA
+        // pakai ContentItem.platform_id, scalar LEGACY yang cuma disinkronkan
+        // ke platform PERTAMA yang dipilih (lihat docblock ContentItem::
+        // platforms()) - salah kalau content item genuinely multi-platform.
+        // PerformanceAnomaly sendiri TIDAK menyimpan platform_id (audit
+        // DetectPerformanceAnomalies - anomaly direkam per content_item_id+
+        // detected_date, TIDAK menyimpan identity metric/snapshot spesifik
+        // yang memicunya, dan dedup check di command itu PER CONTENT ITEM
+        // PER HARI, bukan per platform - kalau 1 content item genuinely
+        // punya anomaly di 2 platform hari yang sama, cuma yang pertama
+        // diproses yang kerekam). Jadi platform SATU anomaly TIDAK BISA
+        // ditentukan dengan pasti dari PerformanceAnomaly sendiri.
+        //
+        // Source-of-truth yang BENAR & deterministic: ContentMetric.platform_id
+        // (kolom asli per-baris-metric, BUKAN scalar ContentItem, selalu
+        // exact - lihat migration create_content_metrics_table). Kalau
+        // SEMUA ContentMetric milik content item itu platform_id-nya SAMA
+        // (kasus normal - 1 content, 1 platform), atribusinya unambiguous.
+        // Kalau content item itu genuinely py ContentMetric di >1 platform
+        // (multi-platform), TIDAK ADA cara membuktikan anomaly SPESIFIK
+        // yang mana - dikecualikan TOTAL dari filter platform manapun
+        // (lebih baik anomaly itu hilang dari konteks AI daripada bocor ke
+        // platform yang salah/ditebak).
         $notableAnomalies = PerformanceAnomaly::whereHas('contentItem', fn ($q) => $q->where('client_id', $client->id))
             ->whereBetween('detected_date', [$start, $end])
-            ->with('contentItem.contentPillar')
+            ->with(['contentItem.contentPillar', 'contentItem.metrics:id,content_item_id,platform_id'])
             ->get()
+            ->filter(function ($anomaly) use ($platformId) {
+                if ($platformId === null) {
+                    return true; // All Platforms - semua anomaly client ini relevan.
+                }
+                $distinctPlatformIds = $anomaly->contentItem?->metrics->pluck('platform_id')->unique() ?? collect();
+
+                return $distinctPlatformIds->count() === 1 && $distinctPlatformIds->first() === $platformId;
+            })
             ->sortByDesc(fn ($a) => abs($a->percent_change))
             ->take(10)
             ->map(fn ($a) => [
@@ -179,12 +250,32 @@ class AiStrategyService
             ])
             ->values();
 
+        // Phase 4.1 (Langkah 12, "coverage-aware AI") - coverage_status/
+        // from/to APA ADANYA dari PeriodPerformanceService, dibawa ke
+        // performance_data (disimpan) DAN ke buildPrompt() (dipakai bikin
+        // instruksi eksplisit ke Gemini) - AI TIDAK BOLEH menulis seolah
+        // observed partial gain = full period performance kalau history
+        // snapshot belum selengkap periode yang diminta.
+        $coverage = $aggregate['coverage'];
+        // Bulan BERJALAN (belum selesai) - dipakai buat label UI/AI yang
+        // jujur ("hingga 2 September 2026", bukan klaim performa bulan
+        // penuh) - Langkah 5/8.
+        $isCurrentMonthInProgress = Carbon::now()->format('Y-m') === $month;
+
         return [
             'client_name' => $client->name,
+            'selected_month' => $month,
             'period' => "{$start->format('d M Y')} - {$end->format('d M Y')}",
+            'is_current_month_in_progress' => $isCurrentMonthInProgress,
+            'period_start' => $start->toDateString(),
+            'period_end' => $end->toDateString(),
+            'platform_id' => $platformId,
+            'platform_label' => $platformId ? (Platform::find($platformId)?->name ?? '-') : 'Semua Platform',
+            'coverage_status' => $coverage['status'],
+            'coverage_from' => $coverage['from']?->toDateString(),
+            'coverage_to' => $coverage['to']?->toDateString(),
             'total_views' => $totalViews,
             'avg_engagement_rate' => $this->avgEngagementFromRows($usableRows),
-            'trend_vs_previous_period_percent' => $trendDirection,
             'content_published_count' => $usableRows->count(),
             'tracked_days' => $this->countTrackedDays($client, $start, $end),
             'period_days' => $days,
@@ -690,6 +781,95 @@ PROMPT;
         return $text;
     }
 
+    /**
+     * Instruksi eksplisit ke Gemini soal coverage historis (Phase 4.1
+     * Langkah 12) - kalau snapshot history belum selengkap periode yang
+     * diminta, Gemini WAJIB tahu itu secara eksplisit di prompt (bukan
+     * cuma badge di UI), supaya dia TIDAK menulis observed partial gain
+     * seolah itu angka full-period yang lengkap.
+     */
+    private function coverageNoticeFor(array $data): string
+    {
+        $status = $data['coverage_status'] ?? null;
+
+        if ($status === ContentPeriodResult::FULL || $status === null) {
+            return '';
+        }
+
+        $monthLabel = $this->monthLabel($data);
+
+        if ($status === ContentPeriodResult::UNAVAILABLE) {
+            return <<<TEXT
+
+PENTING - COVERAGE DATA: Tidak ada data performa yang teramati sama sekali
+untuk {$monthLabel} (coverage_status="unavailable"). JANGAN membuat
+kesimpulan/angka performa apapun dari data yang tidak ada - sebutkan secara
+eksplisit di summary bahwa data performa belum tersedia untuk bulan ini,
+dan action_items/top_pillars HANYA boleh berisi rekomendasi umum yang TIDAK
+mengklaim didasarkan pada angka performa spesifik yang sebenarnya tidak ada.
+TEXT;
+        }
+
+        $from = $data['coverage_from'] ?? null;
+        $to = $data['coverage_to'] ?? null;
+        $range = ($from && $to) ? "{$from} sampai {$to}" : 'sebagian bulan yang diminta';
+
+        return <<<TEXT
+
+PENTING - COVERAGE DATA: Bulan yang diminta adalah {$monthLabel}, TAPI
+histori observasi performa yang BENAR-BENAR ada (coverage_status="partial")
+baru mencakup {$range} - lihat coverage_from/coverage_to di JSON di atas.
+Angka total_views/avg_engagement_rate di atas HANYA mencerminkan periode
+observasi yang benar-benar ada itu, BUKAN performa {$monthLabel} secara
+penuh. WAJIB akui keterbatasan ini secara eksplisit di summary (contoh:
+"berdasarkan data yang teramati sejak {$from}..."), JANGAN menyebut angka
+ini sebagai performa "{$monthLabel}" penuh tanpa qualifier itu, dan JANGAN
+mengekstrapolasi atau mengarang hari-hari yang tidak punya data sebagai
+fakta.
+TEXT;
+    }
+
+    /**
+     * Versi RINGKAS coverageNoticeFor() - diulang PERSIS sebelum instruksi
+     * format output JSON di akhir prompt (bukan cuma sekali di dekat data
+     * mentah). Reinforcement di 2 titik dalam prompt yang sama, bukan
+     * hanya 1x - satu penyisipan di awal terbukti tidak cukup mencegah
+     * struktur "Performa {bulan} = X" muncul di output kalau instruksinya
+     * cuma sekali dibaca lalu "hilang" di tengah prompt yang panjang.
+     */
+    private function coverageReminderFor(array $data): string
+    {
+        $status = $data['coverage_status'] ?? null;
+        $monthLabel = $this->monthLabel($data);
+
+        return match ($status) {
+            ContentPeriodResult::UNAVAILABLE => "\nINGAT SEKALI LAGI: coverage_status=\"unavailable\" - JANGAN tulis kalimat berbentuk \"Performa {$monthLabel} = ...\" atau semacamnya. Tidak ada data performa buat bulan ini.",
+            ContentPeriodResult::PARTIAL => "\nINGAT SEKALI LAGI: coverage_status=\"partial\" - angka di atas cuma observed subset (coverage_from s/d coverage_to), JANGAN tulis kalimat berbentuk \"Performa {$monthLabel} = ...\" tanpa qualifier observed subset itu.",
+            default => '',
+        };
+    }
+
+    /**
+     * "Agustus 2026" dari selected_month ("2026-08") - dipakai
+     * coverageNoticeFor()/coverageReminderFor() supaya bahasa prompt
+     * konsisten dengan label bulan yang sebenarnya dipilih, bukan lagi
+     * angka hari generik.
+     */
+    private function monthLabel(array $data): string
+    {
+        $month = $data['selected_month'] ?? null;
+
+        if (! $month) {
+            return 'bulan yang diminta';
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', $month.'-01')->translatedFormat('F Y');
+        } catch (\Throwable) {
+            return $month;
+        }
+    }
+
     private function buildPrompt(array $data): string
     {
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
@@ -700,19 +880,41 @@ PROMPT;
         // collect() aman buat dua-duanya.
         $platformNames = collect($data['performance_by_platform'] ?? [])->keys();
         $platformOptions = $platformNames->isNotEmpty() ? $platformNames->implode(', ') : 'Instagram, TikTok';
+        // Phase 4.2 (Langkah 5, "coverage prompt must be structurally
+        // honest") - $coverageNotice sekarang ditaruh SEBELUM JSON (model
+        // baca batasannya DULU, baru angkanya - bukan kebalik), DAN
+        // $coverageReminder (versi ringkas) diulang lagi PERSIS sebelum
+        // instruksi format output - reinforcement di 2 titik (awal & akhir
+        // prompt) supaya batasan coverage tidak "hilang" di tengah prompt
+        // yang panjang. 1 penyisipan tunggal terbukti tidak cukup buat
+        // structural honesty - lihat juga bullet eksplisit di "Aturan
+        // tambahan" di bawah yang meng-override instruksi "WAJIB sebut
+        // angka asli" buat kasus unavailable.
+        $coverageNotice = $this->coverageNoticeFor($data);
+        $coverageReminder = $this->coverageReminderFor($data);
+        $monthLabel = $this->monthLabel($data);
+        $inProgressNote = ! empty($data['is_current_month_in_progress'])
+            ? " Bulan ini MASIH BERJALAN (belum selesai) - data di atas HANYA mencakup {$data['period']}, sisa hari bulan ini belum terjadi dan TIDAK PERNAH diasumsikan nol/kosong, cukup tidak termasuk sama sekali dalam angka ini."
+            : '';
 
         return <<<PROMPT
 Kamu adalah social media strategist untuk agensi kreatif. Di bawah ini data
-performa konten asli 1 client, {$data['period']} (dari database, bukan
-contoh):
+performa konten asli 1 client untuk bulan analisis yang dipilih:
+{$monthLabel} ({$data['period']}).{$inProgressNote}
+Data ini dari database, bukan contoh:
+{$coverageNotice}
 
 {$json}
 
-Analisis data ini dan berikan rekomendasi strategi konten untuk periode
-berikutnya. Dasarkan rekomendasi HANYA pada angka yang diberikan (pillar
-mana yang performanya terbaik, platform mana yang paling efektif, tren
-naik/turun) - jangan mengarang data yang tidak ada di JSON di atas. Kalau
-ada field "audience_by_platform", pertimbangkan juga demografi (usia/gender
+Analisis data ini dan berikan rekomendasi strategi konten untuk bulan
+berikutnya, KHUSUS berdasarkan bulan {$monthLabel} ini. Dasarkan rekomendasi
+HANYA pada angka yang diberikan (pillar mana yang performanya terbaik,
+platform mana yang paling efektif) - jangan mengarang data yang tidak ada
+di JSON di atas. JANGAN membandingkan dengan bulan sebelumnya atau bulan
+manapun di luar {$monthLabel} - tidak ada data perbandingan yang diberikan
+di JSON di atas, jadi klaim "naik/turun dari bulan lalu" TIDAK PERNAH boleh
+muncul kecuali data perbandingan itu benar-benar eksplisit ada di JSON.
+Kalau ada field "audience_by_platform", pertimbangkan juga demografi (usia/gender
 dominan), top lokasi, dan peak_active_hour di sana buat mempertajam
 rekomendasi (sudut pandang konten yang relevan buat demografi itu, dan jam
 posting yang disaranin) - tapi kalau audience_by_platform kosong atau nggak
@@ -727,6 +929,7 @@ pillar/type/platform tertentu, itu sinyal kuat buat direplikasi). Kalau
 field-nya kosong, berarti nggak ada anomali terdeteksi periode ini - jangan
 disebut atau dikarang. Kalau data yang tersedia terlalu sedikit untuk suatu
 kesimpulan, katakan itu secara eksplisit di summary, jangan dipaksakan.
+{$coverageReminder}
 
 Balas HANYA dalam format JSON valid, tanpa teks lain di luar JSON, tanpa
 markdown code block, dengan struktur persis seperti ini:
@@ -744,11 +947,18 @@ markdown code block, dengan struktur persis seperti ini:
 }
 
 Aturan tambahan:
+- Kalau coverage_status di JSON di atas = "unavailable": top_pillars dan
+  suggested_split BOLEH kosong/tidak ada pillar yang di-rank sama sekali
+  (jangan dipaksakan) - TIDAK ADA angka performa asli buat dijadikan dasar
+  ranking. Rekomendasi di summary/action_items HARUS bersifat umum
+  (best-practice), BUKAN klaim berbasis data performa yang sebenarnya
+  tidak ada.
 - suggested_split harus total 100, isinya pillar YANG ADA di
   performance_by_pillar (jangan bikin pillar baru yang nggak ada di data)
 - top_pillars maksimal 3, diurutkan dari performa terbaik, WAJIB nyebut
   angka asli (views/engagement) dari data di atas di bagian reasoning,
-  jangan cuma bilang "bagus" tanpa angka
+  jangan cuma bilang "bagus" tanpa angka - KECUALI coverage_status
+  "unavailable" (lihat bullet pertama)
 - Kalau performance_by_pillar di data cuma punya 1 atau 2 pillar,
   top_pillars ya isi sejumlah yang ada aja, jangan dipaksa jadi 3
 - content_ideas: WAJIB buatkan TEPAT {$targetCount} ide konten total (ini

@@ -39,6 +39,7 @@
             <div class="flex items-center gap-2">
                 @if ($canSync)
                     <button type="button" id="analytics-sync-button"
+                            title="Sinkronisasi mengambil data terbaru. Filter periode hanya mengatur tampilan analitik, bukan rentang yang disinkronkan."
                             class="btn-secondary" {{ $selectedClientId ? '' : 'disabled' }}>
                         <span class="material-symbols-outlined text-[17px]" id="analytics-sync-icon">sync</span>
                         <span id="analytics-sync-button-label">Sinkronkan Data</span>
@@ -206,11 +207,29 @@
                             </div>
                             <div>
                                 <h2 class="font-display text-lg font-semibold text-[var(--text-primary)] leading-tight">AI Strategy Analysis</h2>
-                                <p class="text-xs text-[var(--text-secondary)] mt-0.5">Analisis performa bulan {{ $aiAnalysisMonth }}, dibangkitkan Gemini AI dari data asli client ini &mdash; independen dari filter periode di atas</p>
+                                <p class="text-xs text-[var(--text-secondary)] mt-0.5">Analisis performa {{ $aiAnalysisPeriodLabel }}, dibangkitkan Gemini AI dari data asli client ini</p>
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-4 shrink-0">
+                        <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                            {{-- Phase 4.1 (v2) - Bulan Analisis KHUSUS AI Strategy,
+                                 TERPISAH dari filter period 7/30/90 Overview/Table/
+                                 Audience - ganti bulan langsung reload buat lihat
+                                 histori bulan itu (kalau ada), tanpa perlu generate
+                                 ulang. max=bulan berjalan - retrospective analysis,
+                                 bukan proyeksi ke masa depan. --}}
+                            <form method="GET" class="shrink-0">
+                                <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                                <input type="hidden" name="tab" value="overview">
+                                <input type="hidden" name="period" value="{{ $period }}">
+                                @if ($selectedPlatformId)
+                                    <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
+                                @endif
+                                <label for="ai-analysis-month" class="sr-only">Bulan Analisis</label>
+                                <input type="month" id="ai-analysis-month" name="analysis_month" value="{{ $analysisMonth }}"
+                                       max="{{ now()->format('Y-m') }}" onchange="this.form.submit()"
+                                       class="text-xs border border-[var(--border)] rounded-lg px-2.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                            </form>
                             @if ($latestAiInsight)
                                 <a href="{{ route('analytics.ai-strategy.history', ['client_id' => $selectedClientId]) }}"
                                    class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] flex items-center gap-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">
@@ -221,6 +240,10 @@
                         <form action="{{ route('analytics.ai-strategy') }}" method="POST" x-on:submit="loading = true" class="shrink-0">
                             @csrf
                             <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
+                            {{-- Bulan Analisis + platform yang lagi dipilih di atas -
+                                 lihat AnalyticsController::generateAiStrategy(). --}}
+                            <input type="hidden" name="analysis_month" value="{{ $analysisMonth }}">
+                            <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
                             <button type="submit" :disabled="loading"
                                     class="btn-primary">
                                 <span x-show="!loading" class="flex items-center gap-1.5">
@@ -252,7 +275,7 @@
                             <p class="text-sm font-medium text-[var(--text-primary)] mb-1">Belum ada analisis buat client ini</p>
                             <p class="text-xs text-[var(--text-muted)] max-w-xs">
                                 @if ($canManageAiStrategy)
-                                    Klik "Generate Analisis" di atas — AI bakal baca performa 30 hari terakhir dan kasih rekomendasi strategi konkret.
+                                    Klik "Generate Analisis" di atas — AI bakal baca performa {{ $aiAnalysisPeriodLabel }} dan kasih rekomendasi strategi konkret.
                                 @else
                                     Belum ada yang men-generate analisis AI untuk client ini.
                                 @endif
@@ -300,6 +323,27 @@
 
                         {{-- ===== TAB: RINGKASAN ===== --}}
                         <div x-show="tab === 'ringkasan'" x-cloak>
+                            @php
+                                // Phase 4.1 (Langkah 12) - coverage_status dibawa
+                                // di performance_data (disimpan APA ADANYA dari
+                                // PeriodPerformanceService saat insight ini
+                                // digenerate) - insight lama (pre-Phase-4.1) tidak
+                                // punya field ini sama sekali, @php ?? null aman.
+                                $aiCoverageStatus = $latestAiInsight->performance_data['coverage_status'] ?? null;
+                                $aiCoverageFrom = $latestAiInsight->performance_data['coverage_from'] ?? null;
+                            @endphp
+                            @if ($aiCoverageStatus && $aiCoverageStatus !== 'full')
+                                <div class="bg-[var(--warning-tint)] border border-[var(--warning-text)] rounded-lg p-3.5 mb-4 flex items-start gap-2.5">
+                                    <span class="material-symbols-outlined text-[var(--warning-text)] text-[17px] shrink-0">info</span>
+                                    <p class="text-xs text-[var(--warning-text)] leading-relaxed">
+                                        @if ($aiCoverageStatus === 'unavailable')
+                                            Belum ada data performa yang teramati untuk periode ini - analisis di bawah bersifat umum, belum berdasarkan angka performa spesifik.
+                                        @else
+                                            Data historis untuk periode ini belum lengkap{{ $aiCoverageFrom ? ' - baru teramati sejak '.\Illuminate\Support\Carbon::parse($aiCoverageFrom)->translatedFormat('d M Y') : '' }}. Analisis di bawah didasarkan pada data yang benar-benar teramati, bukan periode penuh.
+                                        @endif
+                                    </p>
+                                </div>
+                            @endif
                             <div class="bg-[var(--surface-page)] border border-[var(--border)] rounded-xl p-4 mb-5">
                                 <p class="text-sm text-[var(--text-primary)] leading-relaxed">{{ $latestAiInsight->summary }}</p>
                             </div>

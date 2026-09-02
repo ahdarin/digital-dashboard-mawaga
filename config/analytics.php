@@ -57,4 +57,74 @@ return [
     // di atas.
     'tiktok_default_sync_days' => 90,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Snapshot Retention (audit sync horizon - REVIEW-ONLY, belum final)
+    |--------------------------------------------------------------------------
+    |
+    | content_metric_snapshots (histori observasi harian, Phase 2) - kandidat
+    | retention rolling. Fakta yang SUDAH diverifikasi terhadap
+    | PeriodPerformanceService: minimum MUTLAK buat filter 90-hari saat ini
+    | (filter terpanjang yang UI tawarkan) benar-benar full coverage adalah
+    | 91 hari (period_start s/d hari ini, PLUS 1 hari sebelum period_start
+    | sebagai baseline ideal). 120 = 91 + buffer ~29 hari buat toleransi
+    | scheduler yang kelewat/API down sementara/sync telat.
+    |
+    | PENTING - buffer 29 hari ini BELUM DIKALIBRASI dari data operasional
+    | nyata (sama seperti instagram_schedule_match_tolerance_minutes di atas)
+    | - JANGAN anggap 120 sebagai angka optimal, cuma starting point yang
+    | matematis cukup (91) plus margin aman yang masuk akal.
+    |
+    | DELETION IRREVERSIBLE - content_metric_snapshots yang terhapus TIDAK
+    | BISA direkonstruksi dari Instagram/TikTok API (kedua platform cuma
+    | expose nilai cumulative SAAT INI, bukan "nilai per tanggal X di masa
+    | lalu"). Karena itu:
+    |
+    | analytics:prune-content-metric-snapshots (app/Console/Commands) SUDAH
+    | ADA dan struktural benar (aman dijalankan manual, HANYA menyentuh
+    | content_metric_snapshots), TAPI SCHEDULE OTOMATISNYA SENGAJA
+    | DINONAKTIFKAN (lihat routes/console.php - baris Schedule:: buat
+    | command ini dikomentari, BUKAN dihapus) sampai ada keputusan retention
+    | policy eksplisit yang mempertimbangkan: pertumbuhan tabel nyata,
+    | dampak storage, kebutuhan historical-reporting jangka panjang di masa
+    | depan. Command tetap bisa dijalankan manual kapan saja buat testing.
+    |
+    */
+    'content_metric_snapshot_retention_days' => 120,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Known-Content Refresh Budget (audit sync horizon - observation rotation)
+    |--------------------------------------------------------------------------
+    |
+    | InstagramAnalyticsSyncService::refreshKnownMedia()/
+    | TikTokAnalyticsSyncService::refreshKnownVideos() - refresh metrik buat
+    | content yang SUDAH DIKENAL sistem (InstagramMediaSnapshot/
+    | TikTokVideoSnapshot manapun milik integration ini), TERLEPAS dari
+    | published_at/discovery window (*_default_sync_days)/retention window -
+    | content age TIDAK BOLEH menentukan apakah observasi hari ini masih
+    | dibutuhkan (post lama tetap bisa dapat views/interaction baru).
+    | Selection: SELURUH known content, urut last_fetched_at ASC (paling
+    | lama tidak di-refresh duluan) dibatasi budget di bawah - rotating,
+    | bukan window tanggal.
+    |
+    | Budget DIPISAH per platform karena biaya API-nya TIDAK SIMETRIS:
+    | Instagram getMediaInsights() murni per-media (Graph API tidak punya
+    | endpoint batch-by-IDs buat insights), jadi budget-nya harus dijaga
+    | konservatif. TikTok queryVideos() genuinely batched (POST
+    | video/query/, maks 20 ID/panggilan, ini batas RESMI TikTok bukan
+    | pilihan kita) - budget-nya bisa jauh lebih besar per unit biaya API
+    | yang sama.
+    |
+    | PENTING - kedua angka ini ADALAH default operasional konservatif
+    | AWAL, BUKAN batas aman API yang sudah dikalibrasi dari data
+    | operasional nyata (x-app-usage Instagram di-log tiap request tapi
+    | belum dipakai buat throttle otomatis - lihat InstagramAnalyticsService::get()).
+    | Tinjau ulang begitu ada data pemakaian API nyata dari client yang
+    | benar-benar terhubung.
+    |
+    */
+    'instagram_known_refresh_budget' => 50,
+    'tiktok_known_refresh_budget' => 500, // ~25 panggilan queryVideos() (batch 20)
+
 ];

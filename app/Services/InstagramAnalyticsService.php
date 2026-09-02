@@ -142,7 +142,16 @@ class InstagramAnalyticsService
      * metric null + pesan error - JANGAN throw, biar media lain di sync
      * tetap lanjut diproses (Test 5).
      *
-     * @return array{metrics: array<string, int|float|null>, error: string|null}
+     * Audit sync horizon (Langkah 6) - $category dipisah dari $error
+     * (string manusia) supaya caller (refreshKnownMedia()) bisa BERTINDAK
+     * beda per kategori, bukan cuma logging: 'authentication' (token
+     * invalid/expired - integration butuh reconnect, BUKAN "content tidak
+     * tersedia"), 'content_unavailable' (media dihapus/insight memang
+     * tidak ada), 'unsupported_metric' (STORY - permanen, tidak akan
+     * pernah berhasil ditanya ulang), 'transient_api_error' (network/5xx/
+     * rate limit - coba lagi rotasi berikutnya). null = sukses.
+     *
+     * @return array{metrics: array<string, int|float|null>, error: string|null, category: string|null}
      */
     public function getMediaInsights(string $mediaId, ?string $mediaProductType): array
     {
@@ -151,24 +160,39 @@ class InstagramAnalyticsService
         // sekarang (konten yang dijadwalkan lewat Content Plan/Item, bukan
         // story ephemeral), jadi sengaja dilewatin insight-nya.
         if ($mediaProductType === 'STORY') {
-            return ['metrics' => $this->emptyMetrics(), 'error' => 'Media type STORY tidak didukung untuk insights di tahap ini'];
+            return ['metrics' => $this->emptyMetrics(), 'error' => 'Media type STORY tidak didukung untuk insights di tahap ini', 'category' => 'unsupported_metric'];
         }
 
         $type = $mediaProductType ?? 'FEED';
         $preferred = self::PREFERRED_METRICS[$type] ?? self::PREFERRED_METRICS['FEED'];
         $safe = self::SAFE_METRICS[$type] ?? self::SAFE_METRICS['FEED'];
 
-        $raw = $this->fetchInsightsWithFallback($mediaId, $preferred, $safe);
-
-        if ($raw === null) {
-            return ['metrics' => $this->emptyMetrics(), 'error' => 'Insights tidak tersedia untuk media ini (mungkin sudah dihapus atau metric tidak didukung)'];
+        try {
+            $result = $this->fetchInsightsWithFallback($mediaId, $preferred, $safe);
+        } catch (InstagramApiException $e) {
+            // HANYA authentication yang throw sampai sini (lihat
+            // fetchInsightsWithFallback) - percuma coba fallback metric set
+            // kalau tokennya sendiri yang rusak, gagal identik. Kategori
+            // lain (network/5xx/dst dari $this->get()) TETAP di-swallow +
+            // coba fallback di dalam fetchInsightsWithFallback, TIDAK
+            // pernah sampai sini.
+            return ['metrics' => $this->emptyMetrics(), 'error' => $e->getMessage(), 'category' => InstagramApiException::AUTHENTICATION];
         }
 
-        return ['metrics' => $this->normalizeMetrics($raw), 'error' => null];
+        if ($result['data'] === null) {
+            return ['metrics' => $this->emptyMetrics(), 'error' => 'Insights tidak tersedia untuk media ini (mungkin sudah dihapus atau metric tidak didukung)', 'category' => $result['category']];
+        }
+
+        return ['metrics' => $this->normalizeMetrics($result['data']), 'error' => null, 'category' => null];
     }
 
-    private function fetchInsightsWithFallback(string $mediaId, array $preferred, array $safe): ?array
+    /**
+     * @return array{data: ?array, category: ?string}
+     */
+    private function fetchInsightsWithFallback(string $mediaId, array $preferred, array $safe): array
     {
+        $lastCategory = 'content_unavailable';
+
         foreach ([$preferred, $safe] as $metricSet) {
             try {
                 $response = $this->get($this->url("{$mediaId}/insights"), [
@@ -176,7 +200,24 @@ class InstagramAnalyticsService
                 ]);
 
                 if ($response->successful()) {
-                    return $this->flattenInsightValues($response->json('data') ?? []);
+                    return ['data' => $this->flattenInsightValues($response->json('data') ?? []), 'category' => null];
+                }
+
+                // Auth invalid - SATU-SATUNYA kategori yang throw di sini
+                // (bukan swallow+fallback seperti kategori lain), reuse
+                // signal PERSIS sama dengan throwApiError() (401/code 190) -
+                // jangan buat deteksi kedua yang bisa drift.
+                $code = $response->json('error.code');
+                if ($response->status() === 401 || $code === 190) {
+                    $message = $response->json('error.message') ?? "HTTP {$response->status()}";
+                    throw new InstagramApiException(
+                        "Token Instagram tidak valid atau kadaluarsa. ({$message})",
+                        InstagramApiException::AUTHENTICATION
+                    );
+                }
+
+                if ($response->status() >= 500 || $response->status() === 429) {
+                    $lastCategory = 'transient_api_error';
                 }
 
                 Log::warning('Instagram insights gagal, coba fallback metric set', [
@@ -185,7 +226,20 @@ class InstagramAnalyticsService
                     'status' => $response->status(),
                     'error' => $response->json('error.message'),
                 ]);
+            } catch (InstagramApiException $e) {
+                if ($e->category === InstagramApiException::AUTHENTICATION) {
+                    throw $e; // propagate - jangan ditelan, caller butuh tahu ini auth
+                }
+                // NETWORK/SERVER_ERROR/RATE_LIMIT dari $this->get() sendiri -
+                // transient, tetap swallow+fallback seperti semula.
+                $lastCategory = 'transient_api_error';
+                Log::warning('Instagram insights exception, coba fallback metric set', [
+                    'media_id' => $mediaId,
+                    'metric_set' => $metricSet,
+                    'error' => $e->getMessage(),
+                ]);
             } catch (\Throwable $e) {
+                $lastCategory = 'transient_api_error';
                 Log::warning('Instagram insights exception, coba fallback metric set', [
                     'media_id' => $mediaId,
                     'metric_set' => $metricSet,
@@ -194,7 +248,7 @@ class InstagramAnalyticsService
             }
         }
 
-        return null;
+        return ['data' => null, 'category' => $lastCategory];
     }
 
     /**

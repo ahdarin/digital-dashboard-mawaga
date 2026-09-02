@@ -64,14 +64,20 @@ class AiStrategyLifecycleTest extends TestCase
         return $manager;
     }
 
-    /** Metrik BULAN LALU - AiStrategyService::analysisPeriod() selalu bulan lalu, bukan bulan berjalan. */
-    private function lastMonthMetric(Client $client): void
+    /**
+     * Phase 4.1 (v2) - AI Strategy sekarang calendar month yang dipilih
+     * user (default bulan berjalan) - metric_date fixture ini pakai now()
+     * langsung supaya SELALU jatuh di bulan berjalan, terlepas tanggal
+     * berapa test ini dijalankan (CSV/manual row, difilter via metric_date
+     * langsung oleh PeriodPerformanceService::computeAggregate()).
+     */
+    private function recentMetric(Client $client): void
     {
         $plan = ContentPlan::create([
             'client_id' => $client->id,
             'created_by' => User::factory()->create()->id,
-            'month' => now()->subMonthNoOverflow()->month,
-            'year' => now()->subMonthNoOverflow()->year,
+            'month' => now()->month,
+            'year' => now()->year,
             'status' => 'draft',
         ]);
         $contentType = ContentType::firstOrCreate(['name' => 'Video']);
@@ -82,8 +88,8 @@ class AiStrategyLifecycleTest extends TestCase
             'client_id' => $client->id,
             'content_type_id' => $contentType->id,
             'platform_id' => $platform->id,
-            'title' => 'Konten Bulan Lalu',
-            'deadline_at' => now()->subMonthNoOverflow(),
+            'title' => 'Konten Terbaru',
+            'deadline_at' => now(),
         ]);
 
         ContentWorkflow::create([
@@ -97,7 +103,7 @@ class AiStrategyLifecycleTest extends TestCase
             'client_id' => $client->id,
             'platform_id' => $platform->id,
             'imported_by' => User::factory()->create()->id,
-            'metric_date' => now()->subMonthNoOverflow()->startOfMonth()->addDays(2),
+            'metric_date' => now(),
             'views' => 800,
             'engagement_rate' => 4.1,
         ]);
@@ -127,11 +133,12 @@ class AiStrategyLifecycleTest extends TestCase
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
-        $this->lastMonthMetric($client);
+        $this->recentMetric($client);
         $this->fakeGeminiStrategyResponse();
 
-        $generate = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id]);
-        $generate->assertRedirect(route('analytics', ['client_id' => $client->id]));
+        $currentMonth = now()->format('Y-m');
+        $generate = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id, 'analysis_month' => $currentMonth]);
+        $generate->assertRedirect(route('analytics', ['client_id' => $client->id, 'analysis_month' => $currentMonth]));
         $generate->assertSessionHas('ai_success');
 
         $insight = \App\Models\AiStrategyInsight::where('client_id', $client->id)->latest()->firstOrFail();
@@ -156,13 +163,16 @@ class AiStrategyLifecycleTest extends TestCase
         $this->assertGreaterThan(0, ContentItem::onlyTrashed()->where('ai_strategy_insight_id', $insight->id)->count());
     }
 
-    public function test_generate_fails_gracefully_with_no_data_message_when_no_metrics_last_month(): void
+    public function test_generate_fails_gracefully_with_no_data_message_when_no_metrics_in_period(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
         $this->fakeGeminiStrategyResponse();
 
-        $response = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id]);
+        // analysis_month eksplisit - strict validation menolak request
+        // tanpa itu SEBELUM sempat cek ada-tidaknya data performa; test
+        // ini mau membuktikan jalur "tidak ada data", bukan "month invalid".
+        $response = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id, 'analysis_month' => now()->format('Y-m')]);
 
         $response->assertRedirect();
         $response->assertSessionHas('ai_error');
@@ -234,12 +244,65 @@ class AiStrategyLifecycleTest extends TestCase
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
-        $this->lastMonthMetric($client);
+        $this->recentMetric($client);
         $this->fakeGeminiStrategyResponse();
 
-        $response = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id]);
+        $response = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id, 'analysis_month' => now()->format('Y-m')]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('ai_strategy_insights', ['client_id' => $client->id]);
+    }
+
+    // ===== Pre-manual-QA gate Langkah 5: migration blocker regression =====
+
+    /**
+     * Sebelum migration 2026_09_01_000005 dijalankan, endpoint ini
+     * throw QueryException ("Unknown column 'applied_idea_indexes'")
+     * karena $aiStrategyInsight->update(['applied_idea_indexes' => ...])
+     * menyasar kolom yang belum ada di DB. Migration sudah dijalankan
+     * (lihat laporan pre-manual-QA) - test ini membuktikan "Terapkan ke
+     * Slot Ini" beneran jalan end-to-end sekarang, bukan cuma migration
+     * status-nya "Ran".
+     */
+    public function test_apply_single_ai_idea_to_slot_no_longer_throws_unknown_column(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $plan = ContentPlan::create([
+            'client_id' => $client->id, 'created_by' => $manager->id,
+            'month' => now()->month, 'year' => now()->year, 'status' => 'draft',
+        ]);
+        $slot = ContentItem::create([
+            'content_plan_id' => $plan->id, 'client_id' => $client->id,
+            'title' => 'Slot Draft', 'provisional_code' => 'IG-01', 'deadline_at' => now()->addDays(5),
+        ]);
+        ContentWorkflow::create([
+            'content_item_id' => $slot->id, 'current_status' => 'draft', 'is_overdue' => false,
+        ]);
+
+        $insight = \App\Models\AiStrategyInsight::create([
+            'client_id' => $client->id,
+            'generated_by' => $manager->id,
+            'period_start' => now()->subDays(29),
+            'period_end' => now(),
+            'summary' => 'Ringkasan test.',
+            'action_items' => ['Item A'],
+            'suggested_split' => [['label' => 'Education', 'value' => 100]],
+            'content_ideas' => [
+                ['pillar' => 'Education', 'title' => 'Judul Ide', 'brief' => 'Brief ide', 'type' => 'Video', 'platform' => 'Instagram'],
+            ],
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($manager)->post(
+            route('analytics.ai-strategy.ideas.apply', [$insight, 0]),
+            ['content_item_id' => $slot->id]
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('Judul Ide', $slot->fresh()->title);
+        $this->assertSame([0], $insight->fresh()->applied_idea_indexes);
     }
 }
