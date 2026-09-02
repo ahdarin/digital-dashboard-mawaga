@@ -283,9 +283,30 @@ class AnalyticsSyncOrchestrator
      * AnalyticsSyncTask/Run). Browser refresh HARUS bisa "menemukan
      * kembali" run yang masih aktif (Langkah "PROGRESS SEMANTICS", "new
      * browser request must rediscover the existing active run") - method
-     * ini SELALU query run TERBARU milik client (bukan session-based),
+     * ini SELALU query state TERBARU milik client (bukan session-based),
      * jadi genuinely server-side recoverable, browser refresh/close TIDAK
      * PERNAH memutus progress-nya.
+     *
+     * BUGFIX (Langkah "CONSISTENT INSTAGRAM/TIKTOK SYNC RESULT DETAIL") -
+     * versi lama ambil task dari SATU AnalyticsSyncRun TERBARU SAJA
+     * (whereHas + latest()), lalu filter ke subjob relevan DARI RUN ITU.
+     * Kalau Instagram & TikTok terakhir kali disync di RUN TERPISAH (mis.
+     * user sync per-platform di kesempatan berbeda - platform_id filter
+     * beda tiap kali klik "Perbarui Data"), subjob yang BUKAN bagian dari
+     * run paling akhir itu "menghilang total" dari progress.tasks - JS
+     * lalu jatuh ke fallback pesan generik ("Data berhasil diperbarui.")
+     * buat platform itu, padahal reconciliation counts genuine ADA, cuma
+     * dari run yang sedikit lebih lama. TERBUKTI nyata: Instagram sync
+     * lebih dulu lalu TikTok sync belakangan (atau sebaliknya) bikin
+     * platform yang lebih dulu itu kehilangan detail-nya.
+     *
+     * FIX: task diambil PER SUBJOB (masing-masing task PALING BARU milik
+     * subjob itu SENDIRI, id descending, LINTAS run manapun), bukan lagi
+     * "seluruh subjob yang kebetulan ada di 1 run yang sama". run_id/
+     * trigger/started_at top-level (murni informational/audit - TIDAK ADA
+     * rendering JS yang bergantung ke situ, hanya per-task fields yang
+     * dipakai) tetap diisi dari run TERBARU di antara task-task yang
+     * ditemukan, supaya kontrak return tetap identik buat consumer lama.
      *
      * @return array{run_id: ?int, trigger: ?string, started_at: ?string, tasks: array<string, array>}|null
      */
@@ -293,43 +314,73 @@ class AnalyticsSyncOrchestrator
     {
         $relevantSubjobs = $this->relevantSubjobs($platformId);
 
-        $run = AnalyticsSyncRun::where('client_id', $client->id)
-            ->whereHas('tasks', fn ($q) => $q->whereIn('subjob', $relevantSubjobs))
-            ->latest()
-            ->first();
+        $tasks = [];
+        $latestRun = null;
 
-        if (! $run) {
-            return null;
-        }
+        foreach ($relevantSubjobs as $subjob) {
+            $integration = $this->integrationFor($client, $subjob);
+            if (! $integration) {
+                continue;
+            }
 
-        $tasks = $run->tasks()->whereIn('subjob', $relevantSubjobs)->get();
+            $task = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+                ->where('subjob', $subjob)
+                ->latest('id')
+                ->first();
 
-        return [
-            'run_id' => $run->id,
-            'trigger' => $run->trigger,
-            'started_at' => $run->started_at?->toIso8601String(),
-            'tasks' => $tasks->keyBy('subjob')->map(fn (AnalyticsSyncTask $t) => [
+            if (! $task) {
+                continue;
+            }
+
+            $tasks[$subjob] = [
                 // PASS 3 (Langkah H, "TARGETED RETRY UX") - 'id' TAMBAHAN
                 // (additive, key baru) - JS butuh task_id ini buat manggil
                 // POST /analytics/sync/retry-task /retry-failed-items,
                 // sebelumnya endpoint retry belum ada jadi id belum pernah
                 // perlu diekspos. Angka murni (id integer publik ke user
                 // yang sudah authorized lihat client ini), bukan secret.
-                'id' => $t->id,
-                'status' => $t->status,
-                'stage' => $t->stage,
-                'discovered_count' => $t->discovered_count,
-                'processed_count' => $t->processed_count,
-                'success_count' => $t->success_count,
-                'unavailable_count' => $t->unavailable_count,
-                'skipped_count' => $t->skipped_count,
-                'failed_count' => $t->failed_count,
-                'reconciled' => $t->reconciled,
-                'started_at' => $t->started_at?->toIso8601String(),
-                'last_progress_at' => $t->last_progress_at?->toIso8601String(),
-                'finished_at' => $t->finished_at?->toIso8601String(),
-                'attempt' => $t->attempt,
-            ])->all(),
+                'id' => $task->id,
+                // FINAL CORRECTNESS GATE (Langkah "CROSS-RUN TASK
+                // COMPOSITION SEMANTICS") - 'run_id' TAMBAHAN (additive) -
+                // JS BUTUH ini buat tahu apakah task subjob sekunder (mis.
+                // instagram_audience) genuinely bagian dari operasi
+                // TERKOORDINASI yang SAMA dengan task primary (instagram_
+                // content) - dispatch()/retryTask() SELALU membuat SATU
+                // AnalyticsSyncRun per PANGGILAN, dipakai bareng SEMUA
+                // subjob yang di-dispatch di panggilan itu (lihat dispatch()
+                // "$run ??="), jadi run_id yang SAMA = genuinely 1 update
+                // terkoordinasi, run_id BEDA = task lain, TIDAK terkait
+                // dengan operasi yang sedang/baru selesai ditampilkan.
+                'run_id' => $task->analytics_sync_run_id,
+                'status' => $task->status,
+                'stage' => $task->stage,
+                'discovered_count' => $task->discovered_count,
+                'processed_count' => $task->processed_count,
+                'success_count' => $task->success_count,
+                'unavailable_count' => $task->unavailable_count,
+                'skipped_count' => $task->skipped_count,
+                'failed_count' => $task->failed_count,
+                'reconciled' => $task->reconciled,
+                'started_at' => $task->started_at?->toIso8601String(),
+                'last_progress_at' => $task->last_progress_at?->toIso8601String(),
+                'finished_at' => $task->finished_at?->toIso8601String(),
+                'attempt' => $task->attempt,
+            ];
+
+            if (! $latestRun || $task->analytics_sync_run_id > $latestRun->id) {
+                $latestRun = $task->run;
+            }
+        }
+
+        if (empty($tasks)) {
+            return null;
+        }
+
+        return [
+            'run_id' => $latestRun?->id,
+            'trigger' => $latestRun?->trigger,
+            'started_at' => $latestRun?->started_at?->toIso8601String(),
+            'tasks' => $tasks,
         ];
     }
 

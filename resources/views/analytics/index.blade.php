@@ -56,55 +56,136 @@
         @endforeach
     </div>
 
-    {{-- Filter bar GLOBAL - Client / Period / Platform, IDENTIK di ketiga
+    {{-- Filter bar GLOBAL - Client / Periode / Platform, IDENTIK di ketiga
          tab (Phase 1 item 2/3 - dulu Period disembunyikan di tab Table &
-         Platform cuma muncul di tab Audience, sekarang konsisten). --}}
+         Platform cuma muncul di tab Audience, sekarang konsisten).
+         UX POLISH (item 8, "filter bar consistency") - Client/Periode/
+         Platform pakai SATU kelas kontrol yang sama persis (tinggi,
+         radius, border, padding, focus state) biar kelihatan sebagai 1
+         sistem filter, bukan Periode sebagai widget asing sendiri. --}}
+    @php
+        $controlClass = 'h-10 px-3.5 text-sm border border-[var(--border)] rounded-lg bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow';
+        $isMonthMode = $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH;
+    @endphp
     <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap"
-          x-data="{ mode: '{{ $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH ? 'month' : 'custom' }}' }">
+          x-data="{
+              panelOpen: false,
+              mode: '{{ $isMonthMode ? 'month' : 'custom' }}',
+              monthValue: '{{ $isMonthMode ? $period->month : now()->format('Y-m') }}',
+              dateFromValue: '{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}',
+              dateToValue: '{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}',
+              openPanel() {
+                  // UX POLISH item 5, 'Batal preserves the currently active
+                  // period exactly' - state panel di-reset ke periode AKTIF
+                  // (bukan draft yang mungkin ditinggal dari sesi buka-tutup
+                  // sebelumnya) SETIAP kali dibuka, jadi Batal (yang cuma
+                  // menutup panel tanpa submit) TIDAK PERNAH membocorkan
+                  // edit lama ke buka-panel berikutnya.
+                  this.mode = '{{ $isMonthMode ? 'month' : 'custom' }}';
+                  this.monthValue = '{{ $isMonthMode ? $period->month : now()->format('Y-m') }}';
+                  this.dateFromValue = '{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}';
+                  this.dateToValue = '{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}';
+                  this.panelOpen = true;
+              },
+              get customValid() {
+                  return this.mode !== 'custom' || (!!this.dateFromValue && !!this.dateToValue && this.dateFromValue <= this.dateToValue);
+              },
+              apply() {
+                  // UX POLISH item 5, 'Terapkan validates selection,
+                  // navigates using the existing AnalyticsPeriod query
+                  // contract' - isi hidden input SATU-SATUNYA yang benar-
+                  // benar submit (period_mode/month/date_from/date_to,
+                  // kontrak TIDAK berubah, Langkah 6), lalu submit form
+                  // asli - client_id/platform_id/tab ikut apa adanya.
+                  if (! this.customValid) return;
+                  this.$refs.periodModeInput.value = this.mode;
+                  this.$refs.monthInput.value = this.monthValue;
+                  this.$refs.dateFromInput.value = this.dateFromValue;
+                  this.$refs.dateToInput.value = this.dateToValue;
+                  this.panelOpen = false;
+                  this.$el.submit();
+              },
+          }">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
+        <input type="hidden" name="period_mode" x-ref="periodModeInput" value="{{ $isMonthMode ? 'month' : 'custom' }}">
+        <input type="hidden" name="month" x-ref="monthInput" value="{{ $isMonthMode ? $period->month : now()->format('Y-m') }}">
+        <input type="hidden" name="date_from" x-ref="dateFromInput" value="{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}">
+        <input type="hidden" name="date_to" x-ref="dateToInput" value="{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}">
 
-        <select name="client_id" onchange="this.form.submit()"
-                class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+        <select name="client_id" onchange="this.form.submit()" class="{{ $controlClass }}">
             <option value="">Pilih Klien...</option>
             @foreach ($clientOptions as $clientOption)
                 <option value="{{ $clientOption->id }}" {{ (string) $selectedClientId === (string) $clientOption->id ? 'selected' : '' }}>{{ $clientOption->name }}</option>
             @endforeach
         </select>
 
-        {{-- PASS 2 - period 7/30/90 diganti Bulan Kalender / Rentang Kustom
-             (Langkah "PRIMARY PRODUCT CHANGE") - keduanya submit lewat
-             AnalyticsPeriodResolver::resolveWithError() query-string
-             contract (period_mode=month&month=YYYY-MM ATAU
-             period_mode=custom&date_from=..&date_to=..), SATU-SATUNYA
-             sumber resmi (Langkah "URL/QUERY-STRING CONTRACT"). --}}
-        <select name="period_mode" x-model="mode" onchange="this.form.submit()"
-                class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="month">Bulan Kalender</option>
-            <option value="custom">Rentang Tanggal</option>
-        </select>
+        {{-- UX POLISH item 1/2 - SATU kontrol Periode (bukan lagi 2
+             dropdown/input terpisah tampil bersamaan) - label tombol
+             SELALU dari AnalyticsPeriod::label() (Langkah 7, satu sumber
+             format, tidak diduplikasi di JS). --}}
+        <div class="relative" data-testid="period-control">
+            <button type="button" @click="openPanel()"
+                    class="{{ $controlClass }} flex items-center gap-2 whitespace-nowrap"
+                    aria-haspopup="true" :aria-expanded="panelOpen">
+                <span class="material-symbols-outlined text-[17px] text-[var(--text-muted)]">calendar_month</span>
+                <span>{{ $period->label() }}</span>
+                <span class="material-symbols-outlined text-[17px] text-[var(--text-muted)] transition-transform" :class="panelOpen && 'rotate-180'">expand_more</span>
+            </button>
 
-        <input type="month" name="month" x-show="mode === 'month'"
-               value="{{ $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->month : now()->format('Y-m') }}"
-               max="{{ now()->format('Y-m') }}" onchange="this.form.submit()"
-               class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+            <div x-show="panelOpen" x-cloak x-transition.origin.top.left
+                 @click.outside="panelOpen = false" @keydown.escape.window="panelOpen = false"
+                 class="absolute z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] card p-4 shadow-lg">
+                <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Pilih Periode</p>
 
-        <div class="flex items-center gap-1.5" x-show="mode === 'custom'">
-            <input type="date" name="date_from"
-                   value="{{ $period->mode !== \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->dateFrom->toDateString() : '' }}"
-                   max="{{ now()->toDateString() }}" onchange="this.form.submit()"
-                   class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <span class="text-xs text-[var(--text-muted)]">–</span>
-            <input type="date" name="date_to"
-                   value="{{ $period->mode !== \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->dateTo->toDateString() : '' }}"
-                   max="{{ now()->toDateString() }}" onchange="this.form.submit()"
-                   class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+                <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-4">
+                    <button type="button" @click="mode = 'month'"
+                            class="flex-1 text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
+                            :class="mode === 'month' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">Bulan</button>
+                    <button type="button" @click="mode = 'custom'"
+                            class="flex-1 text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
+                            :class="mode === 'custom' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">Rentang Tanggal</button>
+                </div>
+
+                <div x-show="mode === 'month'">
+                    <input type="month" x-model="monthValue" max="{{ now()->format('Y-m') }}"
+                           class="w-full {{ $controlClass }}" aria-label="Pilih bulan">
+                </div>
+
+                <div x-show="mode === 'custom'" class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-[var(--text-muted)] mb-1">Dari</label>
+                        <input type="date" x-model="dateFromValue" max="{{ now()->toDateString() }}" class="w-full {{ $controlClass }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-[var(--text-muted)] mb-1">Sampai</label>
+                        <input type="date" x-model="dateToValue" max="{{ now()->toDateString() }}" class="w-full {{ $controlClass }}">
+                    </div>
+                    {{-- UX POLISH item 12, "invalid custom range cannot be
+                         applied silently" - Terapkan ke-disable + pesan
+                         inline, BUKAN submit lalu server diam-diam fallback
+                         ke bulan berjalan tanpa user sadar kenapa. --}}
+                    {{-- UX POLISH FINAL GATE item 1 - copy lama menyalahkan
+                         "Sampai" seolah-olah satu-satunya kemungkinan
+                         (padahal "Dari" kosong juga membuat customValid
+                         false) - sekarang menyebutkan KEDUA field secara
+                         eksplisit, tetap 1 baris ringkas. --}}
+                    <p class="text-[11px] text-[var(--danger-text)]" x-show="! customValid">Isi tanggal "Dari" dan "Sampai" ("Sampai" harus sama atau setelah "Dari").</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[var(--surface-muted)]">
+                    <button type="button" @click="panelOpen = false"
+                            class="text-sm font-medium text-[var(--text-secondary)] px-3.5 py-2 rounded-lg hover:bg-[var(--surface-muted)] transition-colors">Batal</button>
+                    <button type="button" @click="apply()" :disabled="! customValid"
+                            class="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed">Terapkan</button>
+                </div>
+            </div>
         </div>
 
         {{-- Platform - SELALU tampil di ketiga tab biar layout nggak
              bergeser pindah tab, walau cuma 1/0 opsi (disabled kalau
              begitu) - lihat catatan "jangan bergeser" di audit. --}}
         <select name="platform_id" onchange="this.form.submit()" {{ $platformOptions->count() <= 1 ? 'disabled' : '' }}
-                class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed">
+                class="{{ $controlClass }} disabled:opacity-50 disabled:cursor-not-allowed">
             <option value="">Semua Platform</option>
             @foreach ($platformOptions as $p)
                 <option value="{{ $p->id }}" {{ (string) ($selectedPlatformId ?? '') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
@@ -1331,6 +1412,111 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
             return '<span class="material-symbols-outlined text-[15px] text-[var(--text-muted)]">info</span>';
         }
 
+        // ===== UX POLISH item 13, "CONSISTENT INSTAGRAM/TIKTOK SYNC RESULT
+        // DETAIL" - status subjob SEKUNDER (mis. Instagram Audiens) SELALU
+        // masuk "Lihat detail" SAJA, TIDAK PERNAH bikin baris tambahan di
+        // area utama KECUALI genuinely gagal teknis/butuh reconnect - satu
+        // provider limitation (unavailable_count>0 tapi status TETAP
+        // 'success') TIDAK BOLEH bikin sync konten yang sukses kelihatan
+        // gagal (Langkah "PARTIAL EXAMPLE"). Evidence-based: baris HANYA
+        // muncul kalau ada sinyal task/status genuine, tidak pernah
+        // mengarang langkah seperti "Profil diperbarui"/"Demografi
+        // diperbarui" yang backend tidak pernah laporkan.
+        //
+        // FINAL CORRECTNESS GATE (Langkah "CROSS-RUN TASK COMPOSITION
+        // SEMANTICS") - hasil count/success/failed task SEKUNDER (mis.
+        // instagram_audience) HANYA boleh ikut ditampilkan sebagai bagian
+        // dari hasil task PRIMARY (primaryTask, mis. instagram_content)
+        // kalau KEDUANYA genuinely task dari operasi TERKOORDINASI yang
+        // SAMA - dibuktikan run_id SAMA PERSIS (analytics_sync_run_id,
+        // BUKAN heuristik timestamp/string - dispatch()/retryTask() SELALU
+        // membuat SATU AnalyticsSyncRun per panggilan, dipakai bareng
+        // SEMUA subjob yang genuinely didispatch BARENGAN). Task sekunder
+        // dari run LAIN (mis. audience sukses KEMARIN, content baru saja
+        // sukses/sedang jalan run BARU) TIDAK ikut ditampilkan sama sekali
+        // di sini - bukan "disembunyikan" (data aslinya tetap ada & terlihat
+        // di tab Audiens sendiri dengan freshness-nya sendiri), cuma TIDAK
+        // diklaim sebagai bagian dari hasil operasi yang SEDANG/BARU SAJA
+        // ditampilkan di kartu ini (Langkah B/C, "must NOT claim ... as
+        // evidence of the currently-running/just-completed update unless
+        // genuinely part of it").
+        //
+        // Pengecualian: needs_reconnect TIDAK di-gate run_id - itu FAKTA
+        // KONEKSI YANG BERLAKU SEKARANG (dibaca live dari status integrasi,
+        // subjobs[key].status, BUKAN dari 1 task/run tertentu), relevan
+        // ditampilkan kapan pun terlepas dari run task-nya.
+        function secondaryChecklistLines(group, subjobs, progressTasks, primaryTask) {
+            var lines = [];
+            group.secondary.forEach(function (secKey) {
+                var secState = subjobs[secKey];
+                var secTask = progressTasks ? progressTasks[secKey] : null;
+                var secLabel = secondaryLabels[secKey] || secKey;
+                if (! secState) return;
+
+                if (secState.status === 'needs_reconnect') {
+                    lines.push({ ok: false, text: esc(secLabel) + ' butuh dihubungkan ulang' });
+                    lines.push({ ok: null, html: '<a href="' + reconnectUrl + '" class="text-[11px] font-medium text-[var(--brand)] hover:underline">Hubungkan kembali ' + esc(group.label) + '</a>' });
+                    return;
+                }
+
+                // Task sekunder TANPA primaryTask buat dibandingkan, ATAU
+                // run_id-nya BEDA dari primaryTask - BUKAN bagian dari
+                // operasi yang sama, jangan diklaim sebagai bagian hasil
+                // ini (Langkah B/C).
+                if (! primaryTask || ! secTask || secTask.run_id !== primaryTask.run_id) return;
+
+                if (secState.status === 'failed' && secTask.failed_count > 0) {
+                    lines.push({ ok: false, text: 'Data ' + esc(secLabel).toLowerCase() + ' belum berhasil diperbarui' });
+                    if (secTask.id) {
+                        lines.push({ ok: null, html: '<button type="button" class="text-[11px] font-medium text-[var(--brand)] hover:underline analytics-retry-btn" data-task-id="' + secTask.id + '" data-action="retry-task">Coba lagi data ' + esc(secLabel) + '</button>' });
+                    }
+                    return;
+                }
+
+                if (secTask.unavailable_count > 0) {
+                    // Provider limitation (mis. threshold Meta) - INFO, BUKAN
+                    // kegagalan - tidak ditonjolkan di area utama.
+                    lines.push({ ok: null, text: 'Sebagian data ' + esc(secLabel).toLowerCase() + ' belum tersedia dari ' + esc(group.label) });
+                    return;
+                }
+
+                if (secState.status === 'success') {
+                    lines.push({ ok: true, text: 'Data ' + esc(secLabel).toLowerCase() + ' diperbarui' });
+                }
+            });
+            return lines;
+        }
+
+        // Baris peringatan di area UTAMA (visible tanpa expand "Lihat
+        // detail") - HANYA buat kegagalan genuine/reconnect, TIDAK PERNAH
+        // buat provider limitation (Langkah 13, "a provider limitation
+        // must not make successful Instagram content look like a failed
+        // sync"), DAN (Langkah "CROSS-RUN") HANYA kalau task sekunder
+        // genuinely dari run yang SAMA dengan primaryTask - lihat
+        // secondaryChecklistLines() buat penjelasan lengkap.
+        function secondaryPrimaryWarning(group, subjobs, progressTasks, primaryTask) {
+            var html = '';
+            group.secondary.forEach(function (secKey) {
+                var secState = subjobs[secKey];
+                var secTask = progressTasks ? progressTasks[secKey] : null;
+                if (! secState) return;
+
+                if (secState.status === 'needs_reconnect') {
+                    html += '<p class="text-xs text-[var(--warning-text)] mt-1.5 flex items-center gap-1.5">'
+                        + '<span class="material-symbols-outlined text-[15px]">link_off</span> Koneksi butuh dihubungkan ulang untuk sebagian data</p>';
+                    return;
+                }
+
+                if (! primaryTask || ! secTask || secTask.run_id !== primaryTask.run_id) return;
+
+                if (secState.status === 'failed' && secTask.failed_count > 0) {
+                    html += '<p class="text-xs text-[var(--danger-text)] mt-1.5 flex items-center gap-1.5">'
+                        + '<span class="material-symbols-outlined text-[15px]">warning</span> Sebagian data belum berhasil diperbarui</p>';
+                }
+            });
+            return html;
+        }
+
         // ===== PASS 3 (Langkah H) - targeted retry, HANYA menyasar scope
         // yang backend TAHU gagal (item-level buat subjob yang punya
         // AnalyticsSyncFailure retryable, task-level kalau seluruh subjob
@@ -1392,6 +1578,12 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                     body += '<p class="text-[11px] text-[var(--warning-text)] mt-1.5">Pembaruan membutuhkan waktu lebih lama dari biasanya.</p>';
                 }
             } else if (task && task.finished_at) {
+                // UX POLISH item 13 - "no generic success when better data
+                // exists": task (progressTasks[group.primary]) SEKARANG
+                // reliably terisi lintas run (lihat AnalyticsSyncOrchestrator::
+                // latestRunProgress() bugfix) - reconciliationLines() SELALU
+                // dicoba duluan, fallback pesan generik HANYA kalau memang
+                // tidak ada discovered_count sama sekali buat dilaporkan.
                 var lines = reconciliationLines(task, group.unit);
                 if (lines.length) {
                     body = lines.map(function (l) {
@@ -1400,34 +1592,23 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                 } else if (primaryState) {
                     body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || '') + '</p>';
                 }
+
+                // Sekunder (mis. Instagram Audiens) - HANYA kegagalan genuine/
+                // reconnect yang boleh nongol di area utama, provider
+                // limitation & sukses masuk "Lihat detail" saja.
+                body += secondaryPrimaryWarning(group, subjobs, progressTasks, task);
+
                 var retryHtml = retryButtonHtml(group.primary, task, group.label, group.unit);
                 if (retryHtml) body += '<div class="mt-1.5">' + retryHtml + '</div>';
             } else if (primaryState) {
                 body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || (primaryState.message || '')) + '</p>';
             }
 
-            // Secondary subjob (mis. Instagram Audiens) - GAGAL/needs_reconnect
-            // saja yang ditonjolkan (Langkah Q, "no alert overload" - sukses
-            // diam-diam saja, cukup ada di "Lihat detail").
-            group.secondary.forEach(function (secKey) {
-                var secState = subjobs[secKey];
-                if (! secState) return;
-                if (secState.status === 'needs_reconnect') {
-                    body += '<p class="text-[11px] text-[var(--warning-text)] mt-1">' + esc(secondaryLabels[secKey] || secKey) + ': butuh dihubungkan ulang</p>';
-                } else if (secState.status === 'failed') {
-                    var secTask = progressTasks ? progressTasks[secKey] : null;
-                    body += '<p class="text-[11px] text-[var(--danger-text)] mt-1">' + esc(secondaryLabels[secKey] || secKey) + ': belum berhasil diperbarui</p>';
-                    if (secTask && secTask.id) {
-                        body += '<button type="button" class="text-[11px] font-medium text-[var(--brand)] hover:underline analytics-retry-btn" data-task-id="' + secTask.id + '" data-action="retry-task">Coba lagi data Audiens</button>';
-                    }
-                }
-            });
-
-            var checklist = detailChecklist(task, group.unit);
+            var checklist = detailChecklist(task, group.unit).concat(secondaryChecklistLines(group, subjobs, progressTasks, task));
             var detailHtml = checklist.length
                 ? '<details class="mt-2"><summary class="text-[11px] font-medium text-[var(--brand)] cursor-pointer select-none">Lihat detail</summary>'
                     + '<div class="mt-2 space-y-1">' + checklist.map(function (c) {
-                        return '<p class="text-[11px] text-[var(--text-secondary)] flex items-center gap-1.5">' + checklistIcon(c.ok) + ' ' + esc(c.text) + '</p>';
+                        return '<p class="text-[11px] text-[var(--text-secondary)] flex items-center gap-1.5">' + checklistIcon(c.ok) + ' ' + (c.html || esc(c.text)) + '</p>';
                     }).join('') + '</div></details>'
                 : '';
 

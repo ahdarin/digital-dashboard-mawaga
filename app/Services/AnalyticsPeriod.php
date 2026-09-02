@@ -64,9 +64,21 @@ final class AnalyticsPeriod
     }
 
     /**
-     * Label siap-tampil - "September 2026" buat month, "10 Agu - 25 Agu
-     * 2026" buat custom/legacy_days (tanggal sama disingkat jadi "10-25
-     * Agu 2026").
+     * Label siap-tampil, SATU-SATUNYA tempat format tanggal periode
+     * ditentukan (UX POLISH item 7, "do not duplicate date-label
+     * formatting logic across Blade/JS") - Blade (tombol Periode) &
+     * manapun lain yang butuh label HARUS reuse method ini, TIDAK PERNAH
+     * hand-roll format sendiri.
+     *
+     * - "September 2026" buat month.
+     * - "10-25 Agt 2026" buat custom/legacy_days bulan+tahun sama (tanggal
+     *   TIDAK diulang).
+     * - "28 Agt-03 Sep 2026" buat custom lintas bulan TAPI tahun sama
+     *   (tahun ditulis SEKALI di akhir, tetap tidak ambigu).
+     * - "28 Des 2026 - 03 Jan 2027" (full, tahun DI KEDUA sisi) buat
+     *   custom yang genuinely lintas tahun - HARUS eksplisit di kedua sisi
+     *   biar tidak ambigu (Langkah 7, "if a custom range spans years,
+     *   include enough year context").
      */
     public function label(): string
     {
@@ -76,6 +88,10 @@ final class AnalyticsPeriod
 
         if ($this->dateFrom->isSameMonth($this->dateTo) && $this->dateFrom->isSameYear($this->dateTo)) {
             return $this->dateFrom->translatedFormat('d').'-'.$this->dateTo->translatedFormat('d M Y');
+        }
+
+        if ($this->dateFrom->isSameYear($this->dateTo)) {
+            return $this->dateFrom->translatedFormat('d M').'-'.$this->dateTo->translatedFormat('d M Y');
         }
 
         return $this->dateFrom->translatedFormat('d M Y').' - '.$this->dateTo->translatedFormat('d M Y');

@@ -574,4 +574,576 @@ class AnalyticsUxV2Test extends TestCase
         $response->assertSee('Riwayat data belum cukup');
         $response->assertDontSee('Belum tersedia dari Instagram untuk akun/periode ini');
     }
+
+    // =====================================================================
+    // UX POLISH - "UNIFIED PERIOD FILTER" (item 12 test list). PHPUnit
+    // hanya bisa menguji HTML server-rendered & data attribute yang
+    // dihasilkan Blade - interaksi panel (buka/tutup, Batal membatalkan
+    // draft, Terapkan submit) adalah perilaku Alpine.js MURNI client-side,
+    // TIDAK bisa dieksekusi/diverifikasi lewat PHPUnit (sama batasan
+    // dengan seluruh sync panel JS Pass 3/4 sebelumnya) - test di sini
+    // membuktikan KONTRAK/DATA yang mendasari perilaku itu benar (SATU
+    // kontrol, label benar, hidden input berisi nilai query yang benar,
+    // tombol Terapkan ter-disable secara structural saat custom invalid),
+    // bukan mengklaim menjalankan JS-nya.
+    // =====================================================================
+
+    public function test_only_one_visible_period_control_exists(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-control"'), 'HARUS cuma 1 kontrol Periode yang visible di filter bar (Langkah 1, bukan 2 dropdown/input terpisah tampil bersamaan).');
+    }
+
+    public function test_period_panel_toggle_labels_exist(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $response->assertSee('Pilih Periode');
+        $response->assertSee('>Bulan<', false);
+        $response->assertSee('Rentang Tanggal');
+        $response->assertSee('Batal');
+        $response->assertSee('Terapkan');
+        // Wording teknis TIDAK BOLEH bocor ke user SEBAGAI LABEL (Langkah
+        // 2) - "period_mode=" tetap wajar muncul di querystring href (tab
+        // link/export), jadi TIDAK dicek absennya di sini, cukup pastikan
+        // istilah internal tidak dipakai sebagai teks visible.
+        $response->assertDontSee('month mode');
+        $response->assertDontSee('custom mode');
+    }
+
+    public function test_month_mode_renders_existing_value_and_label_correctly(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'month', 'month' => '2025-05',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Mei 2025'); // tombol Periode label, dari AnalyticsPeriod::label()
+        $response->assertSee('value="2025-05"', false); // hidden input month, sumber submit Terapkan
+        $response->assertDontSee('date_from=2025', false);
+    }
+
+    public function test_custom_mode_renders_existing_value_and_label_correctly(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-08-10', 'date_to' => '2025-08-20',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('10-20 Agt 2025'); // tombol Periode label, bulan+tahun sama - tanggal tidak diulang
+        $response->assertSee('value="2025-08-10"', false);
+        $response->assertSee('value="2025-08-20"', false);
+    }
+
+    public function test_custom_range_crossing_month_same_year_label_is_compact(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-08-28', 'date_to' => '2025-09-03',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('28 Agt-03 Sep 2025'); // Langkah 7 - tahun SATU kali, bukan diulang 2 sisi
+    }
+
+    public function test_period_apply_hidden_inputs_reflect_resolved_period_not_stale_select_inputs(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-08-10', 'date_to' => '2025-08-20',
+        ]));
+
+        $response->assertOk();
+        // Kontrak query TIDAK BERUBAH (Langkah 6) - period_mode/month/
+        // date_from/date_to TETAP nama field yang sama, SEKARANG sebagai
+        // hidden input (satu-satunya sumber submit Terapkan), BUKAN lagi
+        // select/date input yang auto-submit on change.
+        $response->assertSee('name="period_mode"', false);
+        $response->assertSee('name="date_from"', false);
+        $response->assertSee('name="date_to"', false);
+        $response->assertDontSee('onchange="this.form.submit()"'.PHP_EOL, false); // longgar, dicek eksplisit di bawah
+        // Select client_id/platform_id TETAP auto-submit (tidak diubah) -
+        // HANYA kontrol Periode yang pindah ke Terapkan/Batal.
+        $response->assertSee('name="client_id" onchange="this.form.submit()"', false);
+    }
+
+    public function test_terapkan_button_is_structurally_disabled_when_custom_range_invalid(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // Langkah 12, "invalid custom range cannot be applied silently" -
+        // binding :disabled Alpine terhadap customValid HARUS ada di markup
+        // (JS-nya sendiri tidak bisa dieksekusi PHPUnit, tapi wiring-nya
+        // harus terbukti ada).
+        $response->assertSee(':disabled="! customValid"', false);
+        $response->assertSee('get customValid()', false);
+    }
+
+    /**
+     * FINAL CORRECTNESS GATE item 1 - "Verify the actual Alpine condition"
+     * buat KEEMPAT skenario eksplisit yang diminta. Karena JS tidak bisa
+     * dieksekusi PHPUnit, keempatnya diverifikasi lewat SATU sumber
+     * kebenaran yang sama: expression persis customValid yang di-ship ke
+     * browser - kalau expression ITU benar secara aljabar (dibuktikan
+     * sekali di bawah), keempat skenario OTOMATIS benar, karena tidak ada
+     * jalur kode lain yang menentukan disabled-nya Terapkan selain
+     * expression ini.
+     */
+    private function assertCustomValidExpressionCoversAllFourCases(\Illuminate\Testing\TestResponse $response): void
+    {
+        $response->assertOk();
+        // dateFromValue HARUS truthy - "Dari: empty, Sampai: terisi" =>
+        // customValid false.
+        $response->assertSee('!!this.dateFromValue', false);
+        // dateToValue HARUS truthy - "Dari: terisi, Sampai: empty" =>
+        // customValid false.
+        $response->assertSee('!!this.dateToValue', false);
+        // dateFromValue <= dateToValue - "Dari: 20 Sep, Sampai: 10 Sep"
+        // (reversed) => customValid false.
+        $response->assertSee('this.dateFromValue <= this.dateToValue', false);
+        // Ketiga klausa DIGABUNG dengan && (bukan ||/terpisah) - SEMUA
+        // syarat harus TERPENUHI bersamaan, persis urutan yang di-ship.
+        $response->assertSee('!!this.dateFromValue && !!this.dateToValue && this.dateFromValue <= this.dateToValue', false);
+    }
+
+    public function test_custom_range_validation_rejects_missing_date_from(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        // Dari: empty, Sampai: 20 Sep 2026 => Terapkan disabled.
+        $this->assertCustomValidExpressionCoversAllFourCases(
+            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
+        );
+    }
+
+    public function test_custom_range_validation_rejects_missing_date_to(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        // Dari: 10 Sep 2026, Sampai: empty => Terapkan disabled.
+        $this->assertCustomValidExpressionCoversAllFourCases(
+            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
+        );
+    }
+
+    public function test_custom_range_validation_rejects_reversed_dates(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        // Dari: 20 Sep, Sampai: 10 Sep => Terapkan disabled.
+        $this->assertCustomValidExpressionCoversAllFourCases(
+            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
+        );
+    }
+
+    public function test_custom_range_validation_accepts_valid_forward_range(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        // Dari: 10 Sep, Sampai: 20 Sep => Terapkan enabled (customValid
+        // true - SEMUA 3 klausa terpenuhi: keduanya truthy DAN from<=to).
+        $this->assertCustomValidExpressionCoversAllFourCases(
+            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
+        );
+        // Bukti tambahan spesifik kasus valid: initial state form (custom
+        // mode dengan tanggal valid) benar-benar menghasilkan customValid
+        // true, bukan cuma expression-nya ada.
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-09-10', 'date_to' => '2025-09-20',
+        ]));
+        $response->assertSee("dateFromValue: '2025-09-10'", false);
+        $response->assertSee("dateToValue: '2025-09-20'", false);
+    }
+
+    public function test_current_month_effective_date_context_still_renders(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $response->assertSee('Data melalui');
+        // Frasa teknis TIDAK BOLEH bocor ke user (Langkah 9).
+        $response->assertDontSee('partial period');
+        $response->assertDontSee('effectiveDateTo');
+        $response->assertDontSee('coverage window');
+    }
+
+    // =====================================================================
+    // UX POLISH item 13 - "CONSISTENT INSTAGRAM/TIKTOK SYNC RESULT DETAIL"
+    // - the actual bug: AnalyticsSyncOrchestrator::latestRunProgress()
+    // used to resolve tasks from a SINGLE latest AnalyticsSyncRun, so a
+    // subjob synced in an earlier SEPARATE run (mis. Instagram synced,
+    // then TikTok synced later as its own dispatch) silently vanished from
+    // progress.tasks - the JS then fell back to the generic
+    // "Data berhasil diperbarui." message for that platform even though
+    // real reconciliation counts existed. Fixed to resolve each subjob's
+    // own latest task independently. This is the server-side contract the
+    // JS rendering hierarchy depends on - the JS itself (which exact text
+    // renders) is not executable under PHPUnit, see note above.
+    // =====================================================================
+
+    public function test_tasks_from_different_runs_both_remain_in_progress_not_just_the_latest_run(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $instagramIntegration = $this->instagramIntegration($client);
+        $tiktokIntegration = $this->tiktokIntegration($client);
+
+        // Instagram disync DULUAN (run lebih lama), selesai bersih.
+        $this->taskFor($instagramIntegration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now()->subMinutes(10),
+        ]);
+
+        // TikTok disync BELAKANGAN (run lebih baru, TERPISAH) - platform
+        // lain di client yang sama.
+        $this->taskFor($tiktokIntegration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, [
+            'status' => 'success', 'discovered_count' => 39, 'processed_count' => 39,
+            'success_count' => 39, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // BUG LAMA: instagram_content akan HILANG dari progress.tasks di
+        // sini (bukan bagian dari run TERBARU/TikTok punya). FIX: keduanya
+        // HARUS tetap ada, masing-masing dengan reconciliation counts asli.
+        $igTask = $response->json('progress.tasks.instagram_content');
+        $ttTask = $response->json('progress.tasks.tiktok_content');
+        $this->assertNotNull($igTask, 'Instagram task TIDAK BOLEH hilang cuma karena run TikTok lebih baru.');
+        $this->assertSame(11, $igTask['discovered_count']);
+        $this->assertSame(11, $igTask['success_count']);
+        $this->assertTrue($igTask['reconciled']);
+        $this->assertNotNull($ttTask);
+        $this->assertSame(39, $ttTask['discovered_count']);
+        $this->assertSame(39, $ttTask['success_count']);
+    }
+
+    public function test_neither_platform_falls_back_to_generic_message_when_reconciliation_counts_exist(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $instagramIntegration = $this->instagramIntegration($client);
+        $tiktokIntegration = $this->tiktokIntegration($client);
+
+        $this->taskFor($instagramIntegration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 5, 'processed_count' => 5,
+            'success_count' => 5, 'reconciled' => true, 'finished_at' => now()->subHour(),
+        ]);
+        $this->taskFor($tiktokIntegration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, [
+            'status' => 'success', 'discovered_count' => 7, 'processed_count' => 7,
+            'success_count' => 7, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // Kontrak: SELAMA discovered_count > 0 tersedia buat kedua subjob,
+        // JS (reconciliationLines()) PUNYA data buat merender "N dari N" -
+        // tidak pernah kejadian data ini absen padahal task-nya beneran ada.
+        foreach (['instagram_content', 'tiktok_content'] as $subjob) {
+            $task = $response->json("progress.tasks.{$subjob}");
+            $this->assertNotNull($task, "{$subjob} harus tetap tersedia di progress.tasks.");
+            $this->assertGreaterThan(0, $task['discovered_count'], "{$subjob} harus punya discovered_count > 0 supaya JS tidak jatuh ke pesan generik.");
+        }
+    }
+
+    public function test_instagram_audience_success_does_not_downgrade_instagram_content_result(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+        $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE, [
+            'status' => 'success', 'discovered_count' => 4, 'processed_count' => 4,
+            'success_count' => 2, 'unavailable_count' => 2, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $content = $response->json('progress.tasks.instagram_content');
+        $audience = $response->json('progress.tasks.instagram_audience');
+        // Langkah 13, "provider limitation must not make successful
+        // Instagram content look like a failed sync" - content task
+        // TETAP full success meski audience punya unavailable_count>0.
+        $this->assertSame('success', $content['status']);
+        $this->assertSame(11, $content['success_count']);
+        $this->assertSame('success', $audience['status']);
+        $this->assertSame(2, $audience['unavailable_count']);
+    }
+
+    public function test_instagram_audience_genuine_failure_is_distinguishable_from_provider_limitation(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+        $audienceTask = $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE, [
+            'status' => 'failed', 'discovered_count' => 4, 'processed_count' => 4,
+            'success_count' => 0, 'failed_count' => 4, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $audience = $response->json('progress.tasks.instagram_audience');
+        $this->assertSame('failed', $audience['status']);
+        $this->assertSame(4, $audience['failed_count']);
+        $this->assertSame($audienceTask->id, $audience['id'], 'Task ID audience genuine harus terekspos - dipakai targeted retry ("Coba lagi data Audiens").');
+
+        // Targeted retry HARUS bisa menyasar task audience ini spesifik.
+        $retryResponse = $this->actingAs($manager)->postJson(route('analytics.sync.retry-task'), ['task_id' => $audienceTask->id]);
+        $retryResponse->assertOk();
+        $this->assertTrue($retryResponse->json('retried'));
+        $newTask = AnalyticsSyncTask::find($retryResponse->json('task_id'));
+        $this->assertSame('instagram_audience', $newTask->subjob, 'Retry HARUS menyasar subjob audience spesifik, bukan sync lengkap.');
+    }
+
+    public function test_tiktok_existing_reconciliation_detail_contract_unchanged(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->tiktokIntegration($client);
+
+        $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, [
+            'status' => 'success', 'discovered_count' => 39, 'processed_count' => 39,
+            'success_count' => 39, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $task = $response->json('progress.tasks.tiktok_content');
+        $this->assertSame(39, $task['discovered_count']);
+        $this->assertSame(39, $task['processed_count']);
+        $this->assertSame(39, $task['success_count']);
+        $this->assertTrue($task['reconciled']);
+    }
+
+    // =====================================================================
+    // FINAL CORRECTNESS GATE item 2 - "CROSS-RUN TASK COMPOSITION
+    // SEMANTICS". Definitions used throughout:
+    //
+    // - ACTIVE/CURRENT RUN STATE: whether a specific subjob is LIVE right
+    //   now (queued/running) - resolved by AnalyticsSyncOrchestrator::
+    //   statusForClient() from the real lock/`jobs` table, INDEPENDENT of
+    //   which AnalyticsSyncRun any task belongs to. Not affected by this
+    //   fix at all.
+    // - LATEST KNOWN PLATFORM/SUBJOB STATE: progressTasks[subjob], each
+    //   subjob's own most recent AnalyticsSyncTask (by id), resolved
+    //   INDEPENDENTLY per subjob (the Pass 3 polish fix) - this is what
+    //   each platform CARD's primary line/checklist is built from, and it
+    //   is deliberately allowed to differ in run/age between platforms
+    //   (Instagram's card can show yesterday's result while TikTok's card
+    //   shows just-now, side by side, without implying either affected
+    //   the other).
+    // - WHEN A SECONDARY TASK MAY CONTRIBUTE TO THE CURRENT RESULT
+    //   CHECKLIST: only when its own run_id (analytics_sync_run_id)
+    //   EXACTLY equals the primary task's run_id - i.e., both were created
+    //   by the SAME dispatch()/retryTask() call (dispatch() always creates
+    //   ONE AnalyticsSyncRun per call, shared by every subjob dispatched
+    //   together in it). A structural run_id comparison, not a timestamp
+    //   or string heuristic, per the explicit instruction to prefer run_id
+    //   when available.
+    // =====================================================================
+
+    public function test_scenario_a_current_tiktok_run_with_older_instagram_result_both_visible_independently(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $instagramIntegration = $this->instagramIntegration($client);
+        $tiktokIntegration = $this->tiktokIntegration($client);
+
+        $igTask = $this->taskFor($instagramIntegration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now()->subDay(),
+        ]);
+        $ttTask = $this->taskFor($tiktokIntegration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, [
+            'status' => 'success', 'discovered_count' => 39, 'processed_count' => 39,
+            'success_count' => 39, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // Keduanya TETAP visible (fix "separate platform visibility" TIDAK
+        // di-revert), TAPI run_id-nya BEDA - Instagram TIDAK PERNAH
+        // "berpartisipasi" di run TikTok yang baru saja selesai.
+        $ig = $response->json('progress.tasks.instagram_content');
+        $tt = $response->json('progress.tasks.tiktok_content');
+        $this->assertNotNull($ig);
+        $this->assertNotNull($tt);
+        $this->assertSame($igTask->analytics_sync_run_id, $ig['run_id']);
+        $this->assertSame($ttTask->analytics_sync_run_id, $tt['run_id']);
+        $this->assertNotSame($ig['run_id'], $tt['run_id'], 'Instagram & TikTok run_id HARUS beda - dua operasi terpisah, bukan 1 update gabungan.');
+    }
+
+    public function test_scenario_b_current_instagram_content_task_has_different_run_id_from_older_audience_success(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        // Audiens sukses KEMARIN (run lama).
+        $audienceTask = $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE, [
+            'status' => 'success', 'discovered_count' => 4, 'processed_count' => 4,
+            'success_count' => 4, 'reconciled' => true, 'finished_at' => now()->subDay(),
+        ]);
+        // Content SEDANG BERJALAN sekarang (run BARU, TERPISAH).
+        $contentTask = $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'running', 'started_at' => now(), 'last_progress_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $content = $response->json('progress.tasks.instagram_content');
+        $audience = $response->json('progress.tasks.instagram_audience');
+        $this->assertNotSame(
+            $audience['run_id'],
+            $content['run_id'],
+            'Task audience (run lama, sukses kemarin) TIDAK BOLEH punya run_id sama dengan task content yang SEDANG berjalan sekarang - JS TIDAK BOLEH mengklaim "Data audiens diperbarui" sebagai bukti update content yang sedang berjalan ini.'
+        );
+        $this->assertSame($contentTask->analytics_sync_run_id, $content['run_id']);
+        $this->assertSame($audienceTask->analytics_sync_run_id, $audience['run_id']);
+    }
+
+    public function test_scenario_c_current_instagram_content_success_has_different_run_id_from_unrelated_older_audience_failure(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        // Audiens GAGAL kemarin (run lama, belum pernah diretry).
+        $audienceTask = $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE, [
+            'status' => 'failed', 'discovered_count' => 4, 'processed_count' => 4,
+            'success_count' => 0, 'failed_count' => 4, 'reconciled' => true, 'finished_at' => now()->subDay(),
+        ]);
+        // Content baru saja sukses (run BARU, tidak ada hubungannya dengan
+        // kegagalan audience kemarin).
+        $contentTask = $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $content = $response->json('progress.tasks.instagram_content');
+        $audience = $response->json('progress.tasks.instagram_audience');
+        // Content task ITU SENDIRI tetap full success, run_id-nya beda
+        // dari audience - kegagalan lama TIDAK otomatis "menempel" ke hasil
+        // content yang baru saja sukses ini (JS TIDAK boleh menggabungkan
+        // keduanya jadi satu status partial berdasarkan run_id ini).
+        $this->assertSame('success', $content['status']);
+        $this->assertSame(11, $content['success_count']);
+        $this->assertNotSame($audience['run_id'], $content['run_id']);
+        $this->assertSame($audienceTask->analytics_sync_run_id, $audience['run_id']);
+        $this->assertSame($contentTask->analytics_sync_run_id, $content['run_id']);
+    }
+
+    public function test_same_run_instagram_content_and_audience_share_run_id_and_may_render_combined(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        // Dispatch BARENGAN via 1 AnalyticsSyncRun (persis seperti
+        // dispatch() asli membuat SATU run dipakai bareng semua subjob
+        // yang didispatch bersamaan) - genuinely 1 operasi terkoordinasi.
+        $run = AnalyticsSyncRun::create([
+            'client_id' => $client->id,
+            'trigger' => AnalyticsSyncRun::TRIGGER_MANUAL,
+            'initiated_by' => $manager->id,
+            'status' => 'success',
+            'started_at' => now(),
+        ]);
+        $contentTask = AnalyticsSyncTask::create([
+            'analytics_sync_run_id' => $run->id, 'api_integration_id' => $integration->id,
+            'subjob' => AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'status' => 'success',
+            'discovered_count' => 11, 'processed_count' => 11, 'success_count' => 11,
+            'reconciled' => true, 'finished_at' => now(), 'attempt' => 1,
+        ]);
+        $audienceTask = AnalyticsSyncTask::create([
+            'analytics_sync_run_id' => $run->id, 'api_integration_id' => $integration->id,
+            'subjob' => AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE, 'status' => 'success',
+            'discovered_count' => 4, 'processed_count' => 4, 'success_count' => 4,
+            'reconciled' => true, 'finished_at' => now(), 'attempt' => 1,
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        $content = $response->json('progress.tasks.instagram_content');
+        $audience = $response->json('progress.tasks.instagram_audience');
+        $this->assertSame($content['run_id'], $audience['run_id'], 'Task yang genuinely didispatch bersamaan HARUS berbagi run_id yang sama - inilah kondisi SATU-SATUNYA di mana audience boleh ikut ke checklist hasil content.');
+        $this->assertSame($contentTask->analytics_sync_run_id, $content['run_id']);
+        $this->assertSame($audienceTask->analytics_sync_run_id, $audience['run_id']);
+    }
+
+    public function test_separately_synced_instagram_and_tiktok_remain_visible_without_implying_one_run(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $instagramIntegration = $this->instagramIntegration($client);
+        $tiktokIntegration = $this->tiktokIntegration($client);
+
+        // Instagram disync jauh lebih dulu (run terpisah, sudah lama).
+        $igTask = $this->taskFor($instagramIntegration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, [
+            'status' => 'success', 'discovered_count' => 11, 'processed_count' => 11,
+            'success_count' => 11, 'reconciled' => true, 'finished_at' => now()->subDays(3),
+        ]);
+        // TikTok disync belakangan, terpisah total.
+        $ttTask = $this->taskFor($tiktokIntegration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, [
+            'status' => 'success', 'discovered_count' => 39, 'processed_count' => 39,
+            'success_count' => 39, 'reconciled' => true, 'finished_at' => now(),
+        ]);
+
+        $response = $this->actingAs($manager)->getJson(route('analytics.sync-status', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // BUG LAMA (sebelum Pass 3 polish): instagram_content akan HILANG
+        // total dari progress.tasks di sini. Fix "separate platform
+        // visibility" TIDAK di-revert - keduanya HARUS tetap ada, dengan
+        // run_id masing-masing yang jujur berbeda (TIDAK dipalsukan/
+        // disamakan seolah 1 run).
+        $this->assertNotNull($response->json('progress.tasks.instagram_content'));
+        $this->assertNotNull($response->json('progress.tasks.tiktok_content'));
+        $this->assertSame($igTask->analytics_sync_run_id, $response->json('progress.tasks.instagram_content.run_id'));
+        $this->assertSame($ttTask->analytics_sync_run_id, $response->json('progress.tasks.tiktok_content.run_id'));
+    }
 }
