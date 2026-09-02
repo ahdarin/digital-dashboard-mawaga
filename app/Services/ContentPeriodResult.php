@@ -87,4 +87,35 @@ final class ContentPeriodResult
             default => null,
         };
     }
+
+    /**
+     * PASS 2 (Langkah "DATA AVAILABILITY REASONS") - metadata TAMBAHAN
+     * (BUKAN pengganti coverageStatus/reason existing yang sudah dites
+     * ekstensif) buat Pass 3 UI, memetakan reason internal ke taksonomi
+     * bersama yang SAMA persis stringnya dengan
+     * AnalyticsFailureCategory (Pass 1) - "available", "unsupported",
+     * "provider_unavailable", "insufficient_history", "sync_failed",
+     * "no_activity" - biar Pass 3 bisa treat sinyal availability dari
+     * layer sync MAUPUN layer period-engine secara seragam.
+     *
+     * Pemetaan approximate buat beberapa reason (didokumentasikan, BUKAN
+     * 1:1 sempurna - reason internal di sini didesain buat precision
+     * kalkulasi, bukan buat taksonomi UI):
+     * - metric_reset_or_correction -> sync_failed (bukan literally
+     *   kegagalan sync, tapi closest bucket: angka tidak bisa dipercaya
+     *   karena provider correction, bukan threshold/unsupported).
+     * - manual_recorded -> available (datanya SENDIRI genuine tersedia,
+     *   cuma completeness-nya beda axis dari availability).
+     */
+    public function availabilityCategory(): string
+    {
+        return match ($this->reason) {
+            null => 'available',
+            'manual_recorded' => 'available',
+            'missing_baseline', 'baseline_too_old', 'current_before_period_end', 'history_started_mid_period' => 'insufficient_history',
+            'missing_current' => 'insufficient_history',
+            'metric_reset_or_correction' => 'sync_failed',
+            default => 'insufficient_history',
+        };
+    }
 }

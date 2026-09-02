@@ -8,6 +8,7 @@ use App\Models\ContentMetric;
 use App\Models\ContentMetricSnapshot;
 use App\Models\ContentWorkflow;
 use App\Models\User;
+use App\Services\AnalyticsPeriodResolver;
 use App\Services\AnalyticsSummaryService;
 use App\Services\DelayRiskAccuracyService;
 use App\Services\PeriodPerformanceService;
@@ -20,7 +21,7 @@ class DashboardController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
 
-    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PeriodPerformanceService $periodPerformanceService, PicResolver $picResolver)
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PeriodPerformanceService $periodPerformanceService, PicResolver $picResolver, AnalyticsPeriodResolver $periodResolver)
     {
         $now = Carbon::now();
         $startOfThisMonth = $now->copy()->startOfMonth();
@@ -161,11 +162,16 @@ class DashboardController extends Controller
         })->toArray();
 
         // --- Tambahan: trend views dengan selector periode 7/30/90 hari (domain PIC 3, PRD 7.3.3) ---
+        // PASS 2 - UI/URL widget ini TETAP int 7/30/90 sederhana (di luar
+        // scope month/custom pass ini, lihat Langkah 16), TAPI date math-nya
+        // sekarang lewat AnalyticsPeriodResolver (SATU-SATUNYA jalur resmi),
+        // bukan subDays() lokal lagi.
         $period = (int) $request->input('period', 30);
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
-        $trendEnd = Carbon::now()->endOfDay();
-        $trendStart = Carbon::now()->subDays($period - 1)->startOfDay();
+        $trendPeriod = $periodResolver->buildLegacyDays($period);
+        $trendStart = $trendPeriod->dateFrom;
+        $trendEnd = $trendPeriod->effectiveDateTo;
 
         $trendSnapshots = ContentMetricSnapshot::query()
             ->whereNotNull('content_item_id')

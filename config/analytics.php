@@ -127,4 +127,18 @@ return [
     'instagram_known_refresh_budget' => 50,
     'tiktok_known_refresh_budget' => 500, // ~25 panggilan queryVideos() (batch 20)
 
+    /*
+    |--------------------------------------------------------------------------
+    | Auto Sync - Analytics V2 Phase B
+    |--------------------------------------------------------------------------
+    |
+    | Jam refresh otomatis harian (format "HH:MM", 24 jam, timezone app -
+    | lihat config('app.timezone')) - config value SENGAJA (Langkah "AUTO
+    | SYNC", "make execution time configurable rather than scattering a
+    | hard-coded hour across code"), BUKAN angka hardcoded di
+    | routes/console.php. Dini hari default (traffic API/dashboard rendah).
+    |
+    */
+    'auto_sync_time' => env('ANALYTICS_AUTO_SYNC_TIME', '03:15'),
+
 ];

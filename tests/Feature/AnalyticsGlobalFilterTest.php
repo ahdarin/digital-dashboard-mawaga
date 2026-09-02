@@ -56,15 +56,26 @@ class AnalyticsGlobalFilterTest extends TestCase
      * dari request context asli begitu test HTTP client jalan, jadi
      * membandingkan full URL rawan false negative. Path+query cukup buat
      * membuktikan tabHref bawa param yang benar.
+     *
+     * PASS 2 - tabHref sekarang bawa AnalyticsPeriod::toQueryParams()
+     * (period_mode=... & month=.../date_from=../date_to=..), BUKAN lagi
+     * period=N mentah (Langkah "NEW LINKS USE NEW MODEL") - $legacyDays di
+     * sini murni buat MEMBANGUN expected query yang sama persis lewat
+     * AnalyticsPeriodResolver::buildLegacyDays(), key order HARUS match
+     * urutan array_merge() di tabHref() controller (tab, client_id,
+     * platform_id, lalu period params).
      */
-    private function tabHrefQuery(string $tab, Client $client, ?int $period = null, ?int $platformId = null): string
+    private function tabHrefQuery(string $tab, Client $client, ?int $legacyDays = null, ?int $platformId = null): string
     {
-        $params = array_filter([
+        $periodParams = $legacyDays
+            ? app(\App\Services\AnalyticsPeriodResolver::class)->buildLegacyDays($legacyDays)->toQueryParams()
+            : [];
+
+        $params = array_filter(array_merge([
             'tab' => $tab,
             'client_id' => $client->id,
-            'period' => $period,
             'platform_id' => $platformId,
-        ]);
+        ], $periodParams));
 
         return e('/analytics?'.http_build_query($params));
     }
@@ -233,7 +244,11 @@ class AnalyticsGlobalFilterTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('name="period"', false);
+        // PASS 2 - selector period=7/30/90 diganti period_mode (Bulan
+        // Kalender/Rentang Kustom, Langkah "PRIMARY PRODUCT CHANGE") -
+        // intent regresi ini TETAP SAMA (selector filter periode GLOBAL
+        // harus tampil di tab Table juga), cuma nama field-nya berubah.
+        $response->assertSee('name="period_mode"', false);
     }
 
     // ===== Pre-Phase-2 correction: connected-but-no-data platforms =====

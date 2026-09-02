@@ -61,8 +61,10 @@ class AiStrategyService
     // dan ganti nilai ini.
     private const MODEL = 'gemini-flash-lite-latest';
 
-    public function __construct(private readonly PeriodPerformanceService $periodPerformanceService)
-    {
+    public function __construct(
+        private readonly PeriodPerformanceService $periodPerformanceService,
+        private readonly AnalyticsPeriodResolver $periodResolver,
+    ) {
     }
 
     /**
@@ -85,13 +87,19 @@ class AiStrategyService
      */
     public function resolveMonthWindow(string $month): array
     {
-        $start = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
-        $naturalEnd = $start->copy()->endOfMonth()->endOfDay();
-        $today = Carbon::now()->endOfDay();
+        // PASS 2 - delegasi ke AnalyticsPeriodResolver (SATU-SATUNYA
+        // tempat kalkulasi month-window boleh ada sekarang, lihat
+        // docblock class itu) - method ini dipertahankan sebagai thin
+        // wrapper APA ADANYA (return shape ['start'=>Carbon,'end'=>Carbon]
+        // TIDAK berubah) biar caller/test existing (AiStrategyMonthSelectionTest
+        // dkk) tetap jalan tanpa perubahan. effectiveDateTo dipakai
+        // sebagai 'end' (SAMA PERSIS semantik lama - "end" method ini
+        // SELALU sudah capped ke hari ini buat bulan berjalan).
+        $period = $this->periodResolver->buildMonth($month);
 
         return [
-            'start' => $start,
-            'end' => $naturalEnd->lt($today) ? $naturalEnd : $today,
+            'start' => $period->dateFrom,
+            'end' => $period->effectiveDateTo->copy()->endOfDay(),
         ];
     }
 

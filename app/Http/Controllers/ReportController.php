@@ -8,6 +8,7 @@ use App\Models\GeneratedReport;
 use App\Models\ContentMetric;
 use App\Models\Platform;
 use App\Rules\AssignedClient;
+use App\Services\AnalyticsPeriodResolver;
 use App\Services\PeriodPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -150,10 +151,23 @@ class ReportController extends Controller
      */
     public function generatePerformance(Request $request)
     {
+        // PASS 2 (Langkah "CUSTOM RANGE LIMITS") - Performance Report BUKAN
+        // custom range terpisah dari Analytics, jadi pakai batas MAKSIMAL
+        // YANG SAMA dengan AnalyticsPeriodResolver (SATU-SATUNYA konstanta,
+        // tidak diduplikasi lokal di sini).
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id', new AssignedClient],
             'period_start' => 'required|date',
-            'period_end' => 'required|date|after_or_equal:period_start',
+            'period_end' => [
+                'required', 'date', 'after_or_equal:period_start',
+                function ($attribute, $value, $fail) use ($request) {
+                    $start = Carbon::parse($request->input('period_start'));
+                    $end = Carbon::parse($value);
+                    if ($start->diffInDays($end) + 1 > AnalyticsPeriodResolver::MAX_CUSTOM_RANGE_DAYS) {
+                        $fail('Rentang tanggal maksimal '.AnalyticsPeriodResolver::MAX_CUSTOM_RANGE_DAYS.' hari.');
+                    }
+                },
+            ],
             'format' => 'required|in:pdf,excel',
         ]);
 
@@ -217,7 +231,10 @@ class ReportController extends Controller
             ->values()
             ->all();
 
-        $periodDays = $periodStart->diffInDays($periodEnd) + 1;
+        // PASS 2 - label siap-tampil SAMA PERSIS dengan yang dipakai
+        // Overview/Table/Export buat custom range yang sama (AnalyticsPeriod::label(),
+        // bukan lagi angka mentah "N hari").
+        $periodLabel = app(AnalyticsPeriodResolver::class)->buildCustom($periodStart, $periodEnd)->label();
 
         return [
             'total_views' => $aggregate['totals']['views'],
@@ -230,7 +247,7 @@ class ReportController extends Controller
             'period_start' => $periodStart->format('d M Y'),
             'period_end' => $periodEnd->format('d M Y'),
             'coverage_status' => $aggregate['coverage']['status'],
-            'coverage_message' => $periodPerformanceService->coverageMessage($aggregate['coverage'], (int) $periodDays),
+            'coverage_message' => $periodPerformanceService->coverageMessage($aggregate['coverage'], $periodLabel),
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exceptions\TikTokApiException;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Services\TikTokAnalyticsSyncService;
 use Illuminate\Bus\Queueable;
@@ -45,6 +46,8 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         public readonly string $rangeFrom,
         public readonly string $rangeTo,
         public readonly int $userId,
+        // Analytics V2 Phase B - nullable, MIRROR SyncInstagramAnalyticsJob.
+        public readonly ?int $syncTaskId = null,
     ) {
     }
 
@@ -107,11 +110,15 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         // menganggap videos=[] sama dengan "API asli memang kosong".
         $cutoff = Carbon::parse($this->rangeFrom)->startOfDay();
 
+        $task = $this->syncTaskId ? AnalyticsSyncTask::find($this->syncTaskId) : null;
+        $syncResult = null;
+
         try {
-            $service->sync($integration, $syncLog, $cutoff, $this->userId);
+            $syncResult = $service->sync($integration, $syncLog, $cutoff, $this->userId, $task);
         } catch (TikTokApiException $e) {
             if (! $e->isRetryable()) {
                 $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);
+                $task?->finish($e->category === TikTokApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
                 $this->fail($e);
                 return;
             }
@@ -123,14 +130,19 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         // luar discovery window normal, HANYA buat default sync. DIBUNGKUS
         // try/catch TERPISAH - kegagalan di sini TIDAK PERNAH boleh
         // menggagalkan/retry job yang sync utamanya sudah sukses di atas.
+        // $task yang SAMA diteruskan - satu Task TikTok Content mencakup
+        // kedua fase (lihat AnalyticsSyncTask::finish()).
         if ($this->syncMode === 'default') {
             try {
-                $service->refreshKnownVideos($integration, $syncLog, $this->userId);
+                // PASS 4.1 - run_started_at dari sync() barusan diteruskan
+                // sebagai exclude boundary (lihat refreshKnownVideos() docblock).
+                $service->refreshKnownVideos($integration, $syncLog, $this->userId, $task, $syncResult['run_started_at'] ?? null);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('SyncTikTokAnalyticsJob: refreshKnownVideos gagal (sync utama tetap sukses)', [
                     'api_integration_id' => $integration->id,
                     'error' => $e->getMessage(),
                 ]);
+                $task?->finish('partial');
             }
         }
     }
@@ -153,5 +165,8 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         $category = $e instanceof TikTokApiException ? $e->category : TikTokApiException::UNKNOWN;
 
         app(TikTokAnalyticsSyncService::class)->markFailed($integration, $syncLog, $e->getMessage(), $category);
+
+        $this->syncTaskId && AnalyticsSyncTask::find($this->syncTaskId)
+            ?->finish($category === TikTokApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
     }
 }

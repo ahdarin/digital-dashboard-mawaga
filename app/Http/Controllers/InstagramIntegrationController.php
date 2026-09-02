@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SyncInstagramAudienceJob;
 use App\Models\ApiIntegration;
 use App\Models\Client;
 use App\Models\Platform;
@@ -106,18 +107,75 @@ class InstagramIntegrationController extends Controller
             $service = new InstagramAnalyticsService(new ApiIntegration(['access_token' => $longLived['access_token']]));
             $profile = $service->getProfile();
 
-            ApiIntegration::updateOrCreate(
+            // "FIX INSTAGRAM GRANTED-SCOPE PERSISTENCE" - short-lived token
+            // exchange (api.instagram.com/oauth/access_token) balikin
+            // 'permissions' (array of string) di response, PERSIS scope yang
+            // BENAR-BENAR di-grant user (bisa < requested kalau user
+            // menolak sebagian - sama semantik dengan TikTok). Kontrak ini
+            // berdasarkan dokumentasi resmi Meta per pengetahuan terakhir,
+            // BELUM live-verified lewat App production sungguhan (sama
+            // disclaimer dengan TikTokAnalyticsService - lihat docblock
+            // kelas itu) - makanya DEFENSIVE: kalau field ini TIDAK ADA di
+            // response (API berubah/asumsi salah), 'scopes' TIDAK diisi
+            // sama sekali (biarkan NULL/unknown, JANGAN fallback ke daftar
+            // scope yang KITA REQUEST - itu klaim "granted" yang tidak
+            // terbukti, persis yang dilarang eksplisit).
+            $grantedScopes = is_array($shortLived['permissions'] ?? null)
+                ? implode(',', $shortLived['permissions'])
+                : null;
+
+            $updateData = [
+                'integration_name' => 'Instagram API (OAuth)',
+                'status' => 'active',
+                'access_token' => $longLived['access_token'],
+                'access_token_expires_at' => now()->addSeconds($longLived['expires_in'] ?? 5184000),
+                'external_account_id' => $profile['id'] ?? null,
+                'external_username' => $profile['username'] ?? null,
+                'external_display_name' => $profile['name'] ?? null,
+                'external_avatar_url' => $profile['profile_picture_url'] ?? null,
+                'last_error' => null,
+            ];
+
+            // 'scopes' SENGAJA cuma ikut ditulis kalau response BENAR-BENAR
+            // menyertakan 'permissions' kali ini - updateOrCreate() TIDAK
+            // BOLEH menimpa nilai scopes LAMA yang valid (mis. reconnect
+            // yang response-nya kebetulan tidak menyertakan 'permissions')
+            // dengan NULL. Field lain di atas (termasuk last_error) TETAP
+            // SELALU ditulis eksplisit tiap connect/reconnect sukses.
+            if ($grantedScopes !== null) {
+                $updateData['scopes'] = $grantedScopes;
+            }
+
+            $integration = ApiIntegration::updateOrCreate(
                 ['client_id' => $client->id, 'platform_id' => $platform->id],
-                [
-                    'integration_name' => 'Instagram API (OAuth)',
-                    'status' => 'active',
-                    'access_token' => $longLived['access_token'],
-                    'access_token_expires_at' => now()->addSeconds($longLived['expires_in'] ?? 5184000),
-                    'external_account_id' => $profile['id'] ?? null,
-                    'external_username' => $profile['username'] ?? null,
-                    'last_error' => null,
-                ]
+                $updateData
             );
+
+            // Analytics V2 - "INSTAGRAM REACH HISTORY": integration BENAR2
+            // baru (bukan reconnect akun yang sudah pernah connect
+            // sebelumnya) dan belum pernah backfill -> ambil genuine
+            // historical reach SEKALI secara otomatis (bukan tombol manual -
+            // lihat InstagramAudienceInsightsService::backfillReachHistory()
+            // docblock). Reconnect (integration lama, wasRecentlyCreated
+            // false) TIDAK memicu ulang - marker reach_history_backfilled_at
+            // sudah ada dari connect pertama.
+            //
+            // DIBUNGKUS try/catch TERPISAH (queue driver 'sync' menjalankan
+            // job ini SEKARANG JUGA, inline) - kegagalan backfill (mis. API
+            // audience insight belum siap/gagal) TIDAK PERNAH boleh membuat
+            // koneksi Instagram yang sudah BENAR-BENAR berhasil di atas
+            // dilaporkan sebagai gagal connect.
+            if ($integration->wasRecentlyCreated && ! $integration->reach_history_backfilled_at) {
+                try {
+                    SyncInstagramAudienceJob::dispatch($integration->id, auth()->id(), true);
+                } catch (\Throwable $e) {
+                    Log::warning('Instagram OAuth callback: auto-backfill reach history gagal (koneksi utama tetap berhasil)', [
+                        'client_id' => $client->id,
+                        'api_integration_id' => $integration->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         } catch (\Throwable $e) {
             Log::error('Instagram OAuth callback gagal', ['client_id' => $client->id, 'error' => $e->getMessage()]);
 

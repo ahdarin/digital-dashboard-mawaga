@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Exceptions\InstagramApiException;
+use App\Models\AnalyticsSyncFailure;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
 use App\Models\Client;
@@ -90,6 +91,31 @@ class RefreshKnownContentTest extends TestCase
     private function userId(): int
     {
         return User::factory()->create(['status' => 'active'])->id;
+    }
+
+    /**
+     * PASS 4.1 - task fixture (file ini sebelumnya tidak pernah butuh Task
+     * instrumentation, seluruh test lama pakai refreshKnownMedia()/
+     * refreshKnownVideos() tanpa $task - pola SAMA PERSIS dengan
+     * AnalyticsSyncV2Test::task()).
+     */
+    private function task(ApiIntegration $integration, string $subjob): \App\Models\AnalyticsSyncTask
+    {
+        $run = \App\Models\AnalyticsSyncRun::create([
+            'client_id' => $integration->client_id,
+            'trigger' => \App\Models\AnalyticsSyncRun::TRIGGER_MANUAL,
+            'initiated_by' => $this->userId(),
+            'status' => 'queued',
+            'started_at' => now(),
+        ]);
+
+        return \App\Models\AnalyticsSyncTask::create([
+            'analytics_sync_run_id' => $run->id,
+            'api_integration_id' => $integration->id,
+            'subjob' => $subjob,
+            'status' => 'queued',
+            'attempt' => 1,
+        ]);
     }
 
     private function igMedia(ApiIntegration $integration, array $overrides = []): InstagramMediaSnapshot
@@ -677,5 +703,430 @@ class RefreshKnownContentTest extends TestCase
 
             return $job->rangeFrom === $expectedFrom;
         });
+    }
+
+    // =====================================================================
+    // PASS 4.1 - "UNIQUE DISCOVERY / RECONCILIATION CORRECTNESS"
+    //
+    // Live QA (real Instagram account, 11 real media) proved sync() and
+    // refreshKnownMedia()/refreshKnownVideos() can select the SAME external
+    // items within ONE task run for accounts whose total known content <=
+    // the rotation budget - Pass 4's additive recordDiscovered() fix made
+    // the reconciliation invariant mathematically true (discovered=
+    // success+unavailable+skipped+failed) WITHOUT making it semantically
+    // true (11 unique media were reported as "22 content"). The real fix
+    // is at the SOURCE: refreshKnownMedia()/refreshKnownVideos() now accept
+    // $excludeFetchedSince (sync()'s run_started_at) and exclude anything
+    // last_fetched_at-touched by sync() in the SAME run, making the two
+    // phases' candidate sets STRUCTURALLY disjoint - discovered_count
+    // (still additive across phases) is then genuinely a union of unique
+    // items, not a double-count. sync() also dedupes its own page results
+    // by media/video ID (pagination-duplicate defense) before ANY counting
+    // happens.
+    // =====================================================================
+
+    public function test_instagram_media_discovered_by_sync_is_not_recounted_by_refresh_in_same_run(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media')) {
+                return Http::response(['data' => [
+                    ['id' => 'ig-shared-1', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => now()->toIso8601String(), 'permalink' => 'https://instagram.com/p/1'],
+                ]], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 1], 200);
+            }
+            if (str_contains($url, '/insights')) {
+                return Http::response(['data' => [
+                    ['name' => 'reach', 'values' => [['value' => 500]]],
+                    ['name' => 'likes', 'values' => [['value' => 20]]],
+                ]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task);
+
+        // Real-world reality (11-media live account, budget >= total known):
+        // this SAME media is now the only row in instagram_media_snapshots,
+        // so a rotation refresh WITHOUT the exclude boundary would select
+        // it again - exactly the live bug. Pass the boundary as the job does.
+        $service->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $syncResult['run_started_at']);
+
+        $task->refresh();
+        $this->assertSame(1, InstagramMediaSnapshot::where('api_integration_id', $integration->id)->count(), 'SATU media unik, bukan dua baris.');
+        $this->assertSame(1, $task->discovered_count, 'discovered_count HARUS tetap 1 (unique media), BUKAN 2 (1 dari sync() + 1 lagi dari refresh terhadap media yang SAMA).');
+        $this->assertSame(1, $task->success_count);
+        $this->assertSame(1, $task->processed_count);
+        $this->assertTrue($task->reconciled, 'Invariant discovered=success+unavailable+skipped+failed (1=1+0+0+0) - benar KARENA unique, bukan karena kebetulan seimbang.');
+    }
+
+    public function test_instagram_refresh_excludes_only_items_touched_this_run_not_genuinely_stale_ones(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+
+        // Media B genuinely stale dari SEBELUM run ini - TIDAK PERNAH
+        // disentuh sync() (bukan bagian discovery window kali ini), harus
+        // TETAP eligible buat refresh normal.
+        $staleMedia = $this->igMedia($integration, ['external_post_id' => 'ig-genuinely-stale', 'last_fetched_at' => now()->subDays(50)]);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media')) {
+                return Http::response(['data' => [
+                    ['id' => 'ig-just-discovered', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => now()->toIso8601String(), 'permalink' => 'https://instagram.com/p/2'],
+                ]], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 2], 200);
+            }
+            if (str_contains($url, '/insights')) {
+                return Http::response(['data' => [
+                    ['name' => 'reach', 'values' => [['value' => 300]]],
+                    ['name' => 'likes', 'values' => [['value' => 10]]],
+                ]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task);
+        $service->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $syncResult['run_started_at']);
+
+        $task->refresh();
+        // 1 unique dari sync() ("ig-just-discovered") + 1 unique genuinely
+        // stale dari refresh ("ig-genuinely-stale") = 2 total, TIDAK overlap.
+        $this->assertSame(2, $task->discovered_count);
+        $this->assertSame(2, $task->success_count);
+        $this->assertTrue($task->reconciled);
+        $this->assertNotNull($staleMedia->fresh()->last_fetched_at);
+        $this->assertTrue($staleMedia->fresh()->last_fetched_at->gt(now()->subMinute()), 'Media genuinely stale HARUS tetap kena refresh (last_fetched_at ter-update), TIDAK ikut ter-exclude.');
+    }
+
+    public function test_instagram_pagination_duplicate_media_id_counted_once(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media')) {
+                // Simulasi edge case genuine cursor-based pagination: 1 media
+                // ID yang SAMA muncul di response (mis. bergeser posisi antar
+                // halaman selagi fetch berlangsung).
+                return Http::response(['data' => [
+                    ['id' => 'ig-dup-1', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => now()->toIso8601String(), 'permalink' => 'https://instagram.com/p/3'],
+                    ['id' => 'ig-dup-1', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => now()->toIso8601String(), 'permalink' => 'https://instagram.com/p/3'],
+                ]], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 1], 200);
+            }
+            if (str_contains($url, '/insights')) {
+                return Http::response(['data' => [
+                    ['name' => 'reach', 'values' => [['value' => 100]]],
+                    ['name' => 'likes', 'values' => [['value' => 5]]],
+                ]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task);
+
+        $this->assertSame(1, InstagramMediaSnapshot::where('api_integration_id', $integration->id)->where('external_post_id', 'ig-dup-1')->count(), 'Satu media = satu baris, walau muncul 2x mentah dari API.');
+        $this->assertSame(1, $syncResult['media_count']);
+        $task->refresh();
+        $this->assertSame(1, $task->discovered_count);
+        $this->assertSame(1, $task->success_count);
+        $this->assertTrue($task->reconciled);
+    }
+
+    public function test_tiktok_video_discovered_by_sync_is_not_recounted_by_refresh_in_same_run(): void
+    {
+        $client = $this->client();
+        $integration = $this->tiktokIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'video/list')) {
+                return Http::response(['data' => [
+                    'videos' => [
+                        ['id' => 'tt-shared-1', 'create_time' => now()->subDay()->timestamp, 'view_count' => 100, 'like_count' => 5, 'comment_count' => 1, 'share_count' => 0, 'share_url' => 'https://tiktok.com/@x/video/1'],
+                    ],
+                    'has_more' => false,
+                ]], 200);
+            }
+            if (str_contains($url, 'user/info')) {
+                return Http::response(['data' => ['user' => ['open_id' => 'tt-999', 'union_id' => 'u-999', 'display_name' => 'creator']]], 200);
+            }
+            if (str_contains($url, 'video/query')) {
+                return Http::response(['data' => ['videos' => [
+                    ['id' => 'tt-shared-1', 'create_time' => now()->subDay()->timestamp, 'view_count' => 120, 'like_count' => 6, 'comment_count' => 1, 'share_count' => 0, 'share_url' => 'https://tiktok.com/@x/video/1'],
+                ]]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(TikTokAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), $this->userId(), $task);
+        $service->refreshKnownVideos($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $syncResult['run_started_at']);
+
+        $task->refresh();
+        $this->assertSame(1, TikTokVideoSnapshot::where('api_integration_id', $integration->id)->count(), 'SATU video unik, bukan dua baris.');
+        $this->assertSame(1, $task->discovered_count, 'MIRROR skenario Instagram - video yang sama TIDAK boleh dihitung dua kali cuma karena melewati 2 tahap internal.');
+        $this->assertSame(1, $task->success_count);
+        $this->assertTrue($task->reconciled);
+    }
+
+    public function test_tiktok_pagination_duplicate_video_id_counted_once(): void
+    {
+        $client = $this->client();
+        $integration = $this->tiktokIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'video/list')) {
+                return Http::response(['data' => [
+                    'videos' => [
+                        ['id' => 'tt-dup-1', 'create_time' => now()->subDay()->timestamp, 'view_count' => 50, 'like_count' => 2, 'comment_count' => 0, 'share_count' => 0, 'share_url' => 'https://tiktok.com/@x/video/2'],
+                        ['id' => 'tt-dup-1', 'create_time' => now()->subDay()->timestamp, 'view_count' => 50, 'like_count' => 2, 'comment_count' => 0, 'share_count' => 0, 'share_url' => 'https://tiktok.com/@x/video/2'],
+                    ],
+                    'has_more' => false,
+                ]], 200);
+            }
+            if (str_contains($url, 'user/info')) {
+                return Http::response(['data' => ['user' => ['open_id' => 'tt-999', 'union_id' => 'u-999', 'display_name' => 'creator']]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(TikTokAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), $this->userId(), $task);
+
+        $this->assertSame(1, TikTokVideoSnapshot::where('api_integration_id', $integration->id)->where('external_post_id', 'tt-dup-1')->count());
+        $this->assertSame(1, $syncResult['video_count']);
+        $task->refresh();
+        $this->assertSame(1, $task->discovered_count);
+        $this->assertSame(1, $task->success_count);
+        $this->assertTrue($task->reconciled);
+    }
+
+    public function test_unique_failure_accounting_a_later_failure_is_not_hidden_by_an_earlier_success(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+
+        // Media genuinely stale (BUKAN bagian discovery window sync()) -
+        // refreshKnownMedia() akan mencoba refresh-nya dan GAGAL (insight
+        // API down) - "later operation" di sini murni fase refresh SENDIRI
+        // (fase 1 sync() tidak pernah menyentuhnya sama sekali, exclude
+        // boundary TIDAK relevan buat kasus ini), membuktikan kegagalan
+        // 1 item TIDAK "hilang" tertimpa hasil sukses item lain di task
+        // yang sama.
+        $this->igMedia($integration, ['external_post_id' => 'ig-will-fail', 'last_fetched_at' => now()->subDays(40)]);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media')) {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 0], 200);
+            }
+            if (str_contains($url, '/insights')) {
+                return Http::response(['error' => ['message' => 'temporarily down']], 500);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $syncResult = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task);
+        $service->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $syncResult['run_started_at']);
+
+        $task->refresh();
+        $this->assertSame(1, $task->discovered_count);
+        $this->assertSame(1, $task->failed_count, 'Kegagalan genuine TIDAK BOLEH hilang jadi 0 gara-gara sync() (fase lain) sendiri sukses trivial (0 media).');
+        $this->assertSame(0, $task->success_count);
+        $this->assertTrue($task->reconciled);
+
+        // Retry HANYA menyasar item yang genuinely gagal ini.
+        $failure = AnalyticsSyncFailure::where('analytics_sync_task_id', $task->id)->where('external_item_id', 'ig-will-fail')->first();
+        $this->assertNotNull($failure);
+        $this->assertTrue($failure->retryable);
+    }
+
+    public function test_same_day_snapshot_upsert_unaffected_by_two_phase_exclude_fix(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media')) {
+                return Http::response(['data' => [
+                    ['id' => 'ig-upsert-check', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => now()->toIso8601String(), 'permalink' => 'https://instagram.com/p/4'],
+                ]], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 1], 200);
+            }
+            if (str_contains($url, '/insights')) {
+                return Http::response(['data' => [
+                    ['name' => 'reach', 'values' => [['value' => 500]]],
+                    ['name' => 'likes', 'values' => [['value' => 20]]],
+                ]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        // 2 sync run PENUH di hari yang sama (persis skenario live QA -
+        // sync dijalankan dua kali di hari yang sama).
+        $r1 = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task);
+        $service->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $r1['run_started_at']);
+
+        $task2 = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+        $r2 = $service->sync($integration, $this->syncLog($integration, 'api_sync'), now()->subDays(90), now(), $this->userId(), $task2);
+        $service->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task2, $r2['run_started_at']);
+
+        $this->assertSame(
+            1,
+            \App\Models\ContentMetricSnapshot::where('client_id', $integration->client_id)
+                ->whereNotNull('instagram_media_snapshot_id')
+                ->whereDate('snapshot_date', now()->toDateString())
+                ->count(),
+            'Same-day upsert TETAP 1 baris walau di-sync 2x hari yang sama dan melewati dua fase - bukti langsung dari live QA (11 baris tetap 11 setelah 2 run).'
+        );
+    }
+
+    /**
+     * FINAL PRE-COMMIT HYGIENE (Langkah 12) - invariant SPESIFIK: item yang
+     * GAGAL di fase sync() TIDAK BOLEH ke-touch/ke-hitung ULANG oleh fase
+     * refreshKnownMedia()/refreshKnownVideos() dalam RUN yang sama.
+     *
+     * Dites LANGSUNG terhadap mekanisme exclusion query itu sendiri (bukan
+     * mencoba memaksa saveMetric() gagal lewat 3 lapis indirection yang
+     * rapuh/implementation-specific) - saveSnapshot() TERBUKTI (baca kode)
+     * SELALU men-set last_fetched_at=now() buat SETIAP item SEBELUM
+     * saveMetricSafely() dipanggil, TIDAK PEDULI hasil akhirnya sukses atau
+     * gagal (lihat persistMedia()/persistVideos()) - jadi exclusion di
+     * refreshKnownMedia()/refreshKnownVideos() (berdasar last_fetched_at,
+     * BUKAN status sukses/gagal) melindungi item gagal PERSIS SAMA seperti
+     * item sukses. Test ini men-simulasikan state "item baru gagal disentuh
+     * fase sync()" langsung (failed_count sudah ter-set, last_fetched_at
+     * sudah ter-bump ke sekarang - PERSIS kondisi nyata setelah
+     * saveMetricSafely() gagal), lalu membuktikan refreshKnownMedia() TIDAK
+     * memilihnya ulang.
+     */
+    public function test_item_failed_in_sync_phase_is_not_recounted_by_refresh_phase_same_run(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT);
+        $runStartedAt = now();
+
+        // Item yang BARU SAJA disentuh fase sync() DAN GAGAL - last_fetched_at
+        // sudah ter-bump (saveSnapshot() dipanggil SEBELUM saveMetricSafely(),
+        // terlepas hasil akhirnya), failed_count sudah tercatat 1.
+        $touchedButFailedMedia = $this->igMedia($integration, [
+            'external_post_id' => 'ig-touched-failed-this-run',
+            'last_fetched_at' => now(),
+        ]);
+        $task->update(['discovered_count' => 1, 'processed_count' => 1, 'failed_count' => 1]);
+
+        // Media LAIN yang genuinely stale (TIDAK disentuh fase sync() sama
+        // sekali) - HARUS tetap eligible buat refresh normal.
+        $staleMedia = $this->igMedia($integration, ['external_post_id' => 'ig-genuinely-stale-2', 'last_fetched_at' => now()->subDays(60)]);
+
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), '/insights')) {
+                return Http::response(['data' => [
+                    ['name' => 'reach', 'values' => [['value' => 200]]],
+                    ['name' => 'likes', 'values' => [['value' => 8]]],
+                ]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$request->url()], 404);
+        });
+
+        app(InstagramAnalyticsSyncService::class)->refreshKnownMedia($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $runStartedAt);
+
+        $task->refresh();
+        $this->assertSame(1, $task->failed_count, 'Kegagalan item di fase sync() TIDAK boleh dihitung ulang/ketimpa oleh fase refresh - item yang sama HARUS di-exclude, bukan diproses ulang.');
+        $this->assertSame(2, $task->discovered_count, '1 (fase sync, sudah gagal) + 1 (media genuinely stale yang benar ditemukan fase refresh) = 2, BUKAN 3 (item gagal ter-hitung ulang).');
+        $this->assertSame(1, $task->success_count, 'HANYA media genuinely stale yang berhasil di-refresh.');
+        $this->assertSame(
+            $touchedButFailedMedia->last_fetched_at->timestamp,
+            $touchedButFailedMedia->fresh()->last_fetched_at->timestamp,
+            'last_fetched_at item yang gagal di fase sync() TIDAK disentuh ulang oleh fase refresh (bukti query exclusion benar-benar mengecualikannya).'
+        );
+        $this->assertNotSame(
+            $staleMedia->last_fetched_at->timestamp,
+            $staleMedia->fresh()->last_fetched_at->timestamp,
+            'Media genuinely stale HARUS tetap di-refresh (last_fetched_at berubah).'
+        );
+    }
+
+    public function test_tiktok_item_failed_in_sync_phase_is_not_recounted_by_refresh_phase_same_run(): void
+    {
+        $client = $this->client();
+        $integration = $this->tiktokIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT);
+        $runStartedAt = now();
+
+        $touchedButFailedVideo = $this->ttVideo($integration, [
+            'external_post_id' => 'tt-touched-failed-this-run',
+            'last_fetched_at' => now(),
+        ]);
+        $task->update(['discovered_count' => 1, 'processed_count' => 1, 'failed_count' => 1]);
+
+        $staleVideo = $this->ttVideo($integration, ['external_post_id' => 'tt-genuinely-stale-2', 'last_fetched_at' => now()->subDays(60)]);
+
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), 'video/query')) {
+                return Http::response(['data' => ['videos' => [
+                    ['id' => 'tt-genuinely-stale-2', 'create_time' => now()->subDay()->timestamp, 'view_count' => 40, 'like_count' => 2, 'comment_count' => 0, 'share_count' => 0, 'share_url' => 'https://tiktok.com/@x/video/3'],
+                ]]], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$request->url()], 404);
+        });
+
+        app(TikTokAnalyticsSyncService::class)->refreshKnownVideos($integration, $this->syncLog($integration, 'api_sync'), $this->userId(), $task, $runStartedAt);
+
+        $task->refresh();
+        $this->assertSame(1, $task->failed_count, 'MIRROR skenario Instagram - kegagalan video di fase sync() TIDAK boleh dihitung ulang oleh fase refresh.');
+        $this->assertSame(2, $task->discovered_count);
+        $this->assertSame(1, $task->success_count);
+        $this->assertSame(
+            $touchedButFailedVideo->last_fetched_at->timestamp,
+            $touchedButFailedVideo->fresh()->last_fetched_at->timestamp,
+            'Video yang gagal di fase sync() TIDAK disentuh ulang oleh fase refresh.'
+        );
+        $this->assertNotSame(
+            $staleVideo->last_fetched_at->timestamp,
+            $staleVideo->fresh()->last_fetched_at->timestamp
+        );
     }
 }

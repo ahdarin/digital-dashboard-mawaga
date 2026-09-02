@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exceptions\InstagramApiException;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Services\InstagramAnalyticsSyncService;
 use Illuminate\Bus\Queueable;
@@ -58,6 +59,11 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
         public readonly string $rangeFrom,
         public readonly string $rangeTo,
         public readonly int $userId,
+        // Analytics V2 Phase B - nullable, default null (jalur lama tanpa
+        // AnalyticsSyncTask, mis. SettingsController::syncInstagram() yang
+        // dispatch job ini langsung tanpa lewat AnalyticsSyncOrchestrator,
+        // TETAP jalan identik apa adanya - Task murni ADDITIVE).
+        public readonly ?int $syncTaskId = null,
     ) {
     }
 
@@ -137,11 +143,15 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
         $since = Carbon::parse($this->rangeFrom)->startOfDay();
         $until = Carbon::parse($this->rangeTo)->endOfDay();
 
+        $task = $this->syncTaskId ? AnalyticsSyncTask::find($this->syncTaskId) : null;
+        $syncResult = null;
+
         try {
-            $service->sync($integration, $syncLog, $since, $until, $this->userId);
+            $syncResult = $service->sync($integration, $syncLog, $since, $until, $this->userId, $task);
         } catch (InstagramApiException $e) {
             if (! $e->isRetryable()) {
                 $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);
+                $task?->finish($e->category === InstagramApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
                 $this->fail($e);
                 return;
             }
@@ -154,14 +164,23 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
         // sync 1 bulan spesifik tidak perlu efek samping ini). DIBUNGKUS
         // try/catch TERPISAH - kegagalan di sini TIDAK PERNAH boleh
         // menggagalkan/retry job yang sync utamanya sudah sukses di atas.
+        // $task yang SAMA diteruskan (bukan Task baru) - satu Task Instagram
+        // Content mencakup kedua fase (Langkah "TASK" di spec: task
+        // TIDAK dipecah per-metode internal), lihat AnalyticsSyncTask::finish()
+        // buat kenapa 2 finish() berurutan aman (severity tertinggi menang).
         if ($this->syncMode === 'default') {
             try {
-                $service->refreshKnownMedia($integration, $syncLog, $this->userId);
+                // PASS 4.1 - run_started_at dari sync() barusan diteruskan
+                // sebagai exclude boundary, biar refreshKnownMedia() TIDAK
+                // memilih ulang media yang baru saja disentuh sync() di
+                // atas dalam RUN yang sama (lihat docblock refreshKnownMedia()).
+                $service->refreshKnownMedia($integration, $syncLog, $this->userId, $task, $syncResult['run_started_at'] ?? null);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('SyncInstagramAnalyticsJob: refreshKnownMedia gagal (sync utama tetap sukses)', [
                     'api_integration_id' => $integration->id,
                     'error' => $e->getMessage(),
                 ]);
+                $task?->finish('partial');
             }
         }
     }
@@ -192,5 +211,8 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
         $category = $e instanceof InstagramApiException ? $e->category : InstagramApiException::UNKNOWN;
 
         app(InstagramAnalyticsSyncService::class)->markFailed($integration, $syncLog, $e->getMessage(), $category);
+
+        $this->syncTaskId && AnalyticsSyncTask::find($this->syncTaskId)
+            ?->finish($category === InstagramApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
     }
 }

@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Exceptions\InstagramApiException;
 use App\Models\ApiIntegration;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncTask;
 use App\Models\AudienceInsight;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -226,8 +228,15 @@ class InstagramAudienceInsightsService
      *
      * @return array{summary_saved: bool, demographics_saved: array<int, string>, demographics_unavailable: array<int, string>}
      */
-    public function sync(AnalyticsSyncLog $syncLog): array
+    public function sync(AnalyticsSyncLog $syncLog, ?AnalyticsSyncTask $task = null): array
     {
+        $task?->markRunning('fetching_audience_metrics');
+        // Audience task = jumlah "metric group" yang dicoba (summary +
+        // sampai 3 demographic breakdown), BUKAN item-level seperti
+        // content - workload-nya memang selalu tetap/diketahui di muka,
+        // tidak perlu discovery terpisah.
+        $task?->recordDiscovered(4);
+
         $today = Carbon::today()->toDateString();
         $result = ['summary_saved' => false, 'demographics_saved' => [], 'demographics_unavailable' => []];
 
@@ -250,6 +259,7 @@ class InstagramAudienceInsightsService
             ], fn ($v) => $v !== null)
         );
         $result['summary_saved'] = true;
+        $task?->incrementSuccess(); // summary group
 
         $demographicFetchers = [
             AudienceInsight::TYPE_FOLLOWER => fn () => $this->getFollowerDemographics(),
@@ -263,6 +273,11 @@ class InstagramAudienceInsightsService
 
             if (! $hasAnyData) {
                 $result['demographics_unavailable'][] = $type;
+                // Threshold/tidak dihitung Meta buat akun ini - VALID
+                // (bukan error), lihat docblock class ini - masuk
+                // unavailable_count (provider_unavailable), BUKAN
+                // failed_count.
+                $task?->incrementUnavailable();
                 continue;
             }
 
@@ -277,6 +292,7 @@ class InstagramAudienceInsightsService
                 array_filter($breakdowns, fn ($v) => $v !== null)
             );
             $result['demographics_saved'][] = $type;
+            $task?->incrementSuccess();
         }
 
         $syncLog->update([
@@ -284,6 +300,13 @@ class InstagramAudienceInsightsService
             'synced_count' => 1 + count($result['demographics_saved']),
             'skipped_count' => count($result['demographics_unavailable']),
         ]);
+
+        // Audience task TIDAK PERNAH needs_reconnect di sini - auth failure
+        // sudah dilempar (InstagramApiException) sebelum sampai baris ini
+        // (lihat safeCall()), ditangani caller (Job) lewat catch terpisah.
+        // demographics_unavailable murni provider_unavailable, BUKAN
+        // kegagalan sync ini - status task tetap 'success'.
+        $task?->finish('success');
 
         return $result;
     }
@@ -346,6 +369,13 @@ class InstagramAudienceInsightsService
                 ['reach' => $reach]
             );
         }
+
+        // Marker idempotent (Langkah "INSTAGRAM REACH HISTORY") - dicatat
+        // TERLEPAS dari $history kosong atau tidak (kalau Meta genuinely
+        // balikin 0 hari data buat akun baru, itu tetap "sudah dicoba",
+        // JANGAN retry otomatis berulang-ulang setiap hari - reconnect atau
+        // command manual tetap bisa memicu ulang eksplisit kalau perlu).
+        $this->integration->update(['reach_history_backfilled_at' => now()]);
 
         return count($history);
     }
@@ -540,6 +570,53 @@ class InstagramAudienceInsightsService
             'message' => $message,
             'api_integration_id' => $this->integration->id,
         ]);
+
+        // PASS 4 (Langkah 7, "INSTAGRAM AUDIENCE AVAILABILITY PRECISION") -
+        // signal KECIL & AMAN buat Data Health, TANPA migrasi/kolom baru.
+        // HANYA disimpan buat code 3006 - itu SATU-SATUNYA kasus yang
+        // punya BUKTI eksplisit dari Meta (HTTP error response terstruktur
+        // dengan kode spesifik) bahwa ini genuinely provider
+        // threshold/availability, BUKAN riwayat data kita yang kurang.
+        // "200 + kosong" (kasus lain di docblock fetchDemographicBreakdown())
+        // SENGAJA TIDAK ditandai di sini - Meta TIDAK memberi bukti eksplisit
+        // untuk kasus itu ("kemungkinan window belum ke-compute"), jadi
+        // TETAP jatuh ke default insufficient_history yang jujur (Langkah
+        // 7, "do NOT guess provider_unavailable when no evidence exists").
+        // TTL 25 jam (sedikit lebih lama dari siklus auto-sync 24 jam) -
+        // flag ini transient/advisory, BUKAN data historis, kadaluarsa
+        // otomatis begitu sync berikutnya berjalan (baik hasilnya sama
+        // atau berubah).
+        if ($code === 3006) {
+            [$demographicType] = explode(':', $metric, 2) + [null];
+            $type = match ($demographicType) {
+                'follower_demographics' => AudienceInsight::TYPE_FOLLOWER,
+                'reached_audience_demographics' => AudienceInsight::TYPE_REACHED,
+                'engaged_audience_demographics' => AudienceInsight::TYPE_ENGAGED,
+                default => null,
+            };
+            if ($type) {
+                Cache::put(self::providerUnavailableCacheKey($this->integration->id, $type), true, now()->addHours(25));
+            }
+        }
+    }
+
+    /**
+     * PASS 4 (Langkah 7) - dibaca AnalyticsController::buildApiAudienceData()
+     * buat menandai dataHealthItems sebagai PROVIDER_UNAVAILABLE (bukan
+     * default insufficient_history) HANYA kalau sync PALING RECENT genuinely
+     * membuktikan threshold Meta (code 3006) buat demographic_type ini.
+     * Cache miss (belum pernah sync, atau sync terakhir TIDAK kena 3006)
+     * SENGAJA balikin false - fallback ke default honest, TIDAK PERNAH
+     * dianggap "ya, provider_unavailable" tanpa bukti.
+     */
+    public static function isKnownProviderUnavailable(int $apiIntegrationId, string $demographicType): bool
+    {
+        return (bool) Cache::get(self::providerUnavailableCacheKey($apiIntegrationId, $demographicType));
+    }
+
+    private static function providerUnavailableCacheKey(int $apiIntegrationId, string $demographicType): string
+    {
+        return "ig_audience_provider_unavailable:{$apiIntegrationId}:{$demographicType}";
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Exceptions\InstagramApiException;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Services\InstagramAudienceInsightsService;
 use Illuminate\Bus\Queueable;
@@ -39,6 +40,7 @@ class SyncInstagramAudienceJob implements ShouldQueue
         public readonly int $apiIntegrationId,
         public readonly int $userId,
         public readonly bool $backfill = false,
+        public readonly ?int $syncTaskId = null,
     ) {
     }
 
@@ -96,11 +98,14 @@ class SyncInstagramAudienceJob implements ShouldQueue
             ]
         );
 
+        $task = $this->syncTaskId ? AnalyticsSyncTask::find($this->syncTaskId) : null;
+
         try {
-            $service->sync($syncLog);
+            $service->sync($syncLog, $task);
         } catch (InstagramApiException $e) {
             if (! $e->isRetryable()) {
                 $service->markFailed($syncLog, $e->getMessage(), $e->category);
+                $task?->finish($e->category === InstagramApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
                 $this->fail($e);
                 return;
             }
@@ -133,5 +138,8 @@ class SyncInstagramAudienceJob implements ShouldQueue
             : 'Sync audience gagal setelah beberapa kali percobaan: '.$e->getMessage();
 
         (new InstagramAudienceInsightsService($integration))->markFailed($syncLog, $message, $category);
+
+        $this->syncTaskId && AnalyticsSyncTask::find($this->syncTaskId)
+            ?->finish($category === InstagramApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
     }
 }

@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Exceptions\InstagramApiException;
+use App\Models\AnalyticsSyncFailure;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Models\ContentMetric;
 use App\Models\ContentMetricSnapshot;
@@ -74,11 +76,37 @@ class InstagramAnalyticsSyncService
      * Caller baru panggil markFailed() begitu benar-benar final (retry
      * habis, atau errornya memang nggak retryable dari awal).
      *
+     * Analytics V2 Phase B - $task OPSIONAL (nullable, default null - jalur
+     * lama tanpa Task, mis. Artisan command langsung, TETAP jalan identik
+     * apa adanya) buat progress/reconciliation instrumentation. TIDAK
+     * mengubah kontrak return/behavior existing sama sekali kalau $task
+     * null.
+     *
      * @return array{existing_matched: int, newly_matched: int, unmatched: int, ambiguous: int, failed: int, metrics_saved: int, details: array<int, string>, media_count: int, username: ?string}
      */
-    public function sync(ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $since, Carbon $until, int $userId): array
+    public function sync(ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $since, Carbon $until, int $userId, ?AnalyticsSyncTask $task = null): array
     {
+        // PASS 4.1 (Langkah "UNIQUE DISCOVERY/RECONCILIATION CORRECTNESS") -
+        // ditangkap SEBELUM media manapun disentuh, dikembalikan ke caller
+        // (SyncInstagramAnalyticsJob) buat diteruskan ke refreshKnownMedia()
+        // sebagai batas exclude - media yang last_fetched_at-nya di-touch
+        // fase INI (mulai dari titik ini) TIDAK BOLEH dipilih ulang oleh
+        // fase kedua dalam run yang SAMA (lihat refreshKnownMedia() docblock
+        // param $excludeFetchedSince buat penjelasan lengkap).
+        $runStartedAt = now();
+
+        $task?->markRunning('discovering_media');
+
         $result = (new InstagramAnalyticsService($integration))->sync($since, $until);
+
+        // PASS 4.1 - dedupe by media ID SEBELUM discovered_count dihitung
+        // ATAUPUN diproses - defensif terhadap kasus pagination cursor-based
+        // Instagram genuinely mengembalikan 1 media 2x (item bergeser posisi
+        // saat fetch berlangsung, edge case nyata tapi jarang) - TANPA ini,
+        // 1 media unik bisa ke-hitung 2x sebagai "discovered" DAN "processed"
+        // (Langkah "unique_provider_items", "duplicate ID returned during
+        // pagination").
+        $media = $this->deduplicateById($result['media']);
 
         $profile = $result['profile'];
         $platform = Platform::find($integration->platform_id);
@@ -89,9 +117,19 @@ class InstagramAnalyticsSyncService
             'external_username' => $profile['username'] ?? null,
             'last_synced_at' => now(),
             'last_error' => null,
+            // PASS 1B - identitas profil (name/profile_picture_url, field
+            // baru di InstagramAnalyticsService::getProfile()) - array_filter
+            // biar TIDAK menimpa nilai lama dengan null kalau field ini
+            // kebetulan absen di response.
+            ...array_filter([
+                'external_display_name' => $profile['name'] ?? null,
+                'external_avatar_url' => $profile['profile_picture_url'] ?? null,
+            ], fn ($v) => $v !== null),
         ]);
 
-        $summary = $this->persistMedia($result['media'], $platform, $integration, $userId, $syncLog);
+        $task?->recordDiscovered(count($media), 'fetching_insights');
+
+        $summary = $this->persistMedia($media, $platform, $integration, $userId, $syncLog, $task);
 
         // metrics_saved = baris content_metrics yang beneran ke-upsert -
         // BUKAN lagi cuma existing_matched+newly_matched, soalnya unmatched/
@@ -101,7 +139,7 @@ class InstagramAnalyticsSyncService
         // media di batch itu unmatched.
         $metricsSaved = $summary['metrics_saved'];
         $unresolvedCount = $summary['unmatched'] + $summary['ambiguous'];
-        $status = ($metricsSaved > 0 || count($result['media']) === 0) ? 'success' : 'failed';
+        $status = ($metricsSaved > 0 || count($media) === 0) ? 'success' : 'failed';
 
         $syncLog->update([
             'status' => $status,
@@ -110,12 +148,17 @@ class InstagramAnalyticsSyncService
             'error_message' => ! empty($summary['details']) ? implode(' | ', array_slice($summary['details'], 0, 8)) : null,
         ]);
 
+        $task?->finish($summary['failed'] > 0 ? ($metricsSaved > 0 ? 'partial' : 'failed') : $status);
+
         return [
             ...$summary,
             'metrics_saved' => $metricsSaved,
-            'media_count' => count($result['media']),
+            'media_count' => count($media),
             'username' => $profile['username'] ?? null,
             'account_media_count' => $profile['media_count'] ?? null,
+            // PASS 4.1 - diteruskan ke refreshKnownMedia() lewat caller
+            // (Job) sebagai $excludeFetchedSince, BUKAN dipakai di sini.
+            'run_started_at' => $runStartedAt,
         ];
     }
 
@@ -154,13 +197,33 @@ class InstagramAnalyticsSyncService
      * bisa menurunkan status jadi 'partial' - kegagalan TIDAK PERNAH
      * "menghilang" jadi sukses sempurna.
      *
+     * PASS 4.1 (Langkah "UNIQUE DISCOVERY/RECONCILIATION CORRECTNESS") -
+     * $excludeFetchedSince (opsional, dari sync()['run_started_at'] milik
+     * RUN YANG SAMA) MENGECUALIKAN media yang last_fetched_at-nya sudah
+     * di-touch fase sync() barusan - BUKTI NYATA live QA: akun kecil
+     * (11 media total) akan membuat SELURUH 11 media itu juga terpilih
+     * lagi di sini (query "paling lama tidak di-refresh" otomatis memilih
+     * SEMUA yang ada kalau totalnya <= budget) - tanpa exclude ini, 11
+     * media unik akan diproses UA (accounting) sebagai 22 (11 di sync()
+     * + 11 lagi di sini), padahal SATU media = SATU content, bukan dua.
+     * Dengan exclude ini, kandidat method ini SECARA STRUKTURAL disjoint
+     * dari yang baru disentuh sync() - discovered_count kedua fase
+     * (dijumlahkan lewat recordDiscovered() yang SEKARANG additive) jadi
+     * genuinely = union unik, bukan lagi berpotensi tumpang tindih.
+     * null (default) - method ini TETAP bisa dipanggil independen (mis.
+     * command lain / pemanggilan tanpa sync() mendahului) tanpa exclude
+     * apapun, perilaku identik dengan sebelum Pass 4.1.
+     *
      * @return array{refreshed_count: int, failed_count: int, skipped_count: int, total_count: int, auth_failed: bool}
      */
-    public function refreshKnownMedia(ApiIntegration $integration, AnalyticsSyncLog $syncLog, int $userId): array
+    public function refreshKnownMedia(ApiIntegration $integration, AnalyticsSyncLog $syncLog, int $userId, ?AnalyticsSyncTask $task = null, ?Carbon $excludeFetchedSince = null): array
     {
         $budget = max(0, (int) config('analytics.instagram_known_refresh_budget'));
 
         $staleKnownMedia = InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+            ->when($excludeFetchedSince, fn ($q) => $q->where(fn ($q2) => $q2
+                ->whereNull('last_fetched_at')
+                ->orWhere('last_fetched_at', '<', $excludeFetchedSince)))
             ->orderByRaw('last_fetched_at IS NOT NULL')
             ->orderBy('last_fetched_at', 'asc')
             ->limit($budget)
@@ -168,7 +231,12 @@ class InstagramAnalyticsSyncService
 
         $summary = ['refreshed_count' => 0, 'failed_count' => 0, 'skipped_count' => 0, 'total_count' => $staleKnownMedia->count(), 'auth_failed' => false];
 
+        $task?->markRunning('refreshing_known_media');
+        $task?->recordDiscovered($staleKnownMedia->count());
+
         if ($staleKnownMedia->isEmpty()) {
+            $task?->finish('success');
+
             return $summary;
         }
 
@@ -187,6 +255,10 @@ class InstagramAnalyticsSyncService
                     $summary['failed_count']++;
                     $summary['auth_failed'] = true;
                     $this->markNeedsReconnect($integration, $insight['error']);
+                    if ($task) {
+                        $task->incrementFailed();
+                        AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::AUTHENTICATION, $insight['error'], $snapshot->external_post_id);
+                    }
                     break;
                 }
 
@@ -199,8 +271,27 @@ class InstagramAnalyticsSyncService
                     // rotasi berikutnya). transient_api_error SENGAJA TIDAK
                     // advance, supaya dicoba lagi lebih cepat, bukan
                     // menunggu giliran rotasi penuh.
-                    if (in_array($insight['category'], ['content_unavailable', 'unsupported_metric'], true)) {
+                    $isDefinitive = in_array($insight['category'], ['content_unavailable', 'unsupported_metric'], true);
+                    if ($isDefinitive) {
                         $snapshot->update(['last_fetched_at' => now()]);
+                    }
+
+                    if ($task) {
+                        // Definitif (unsupported/tidak tersedia) BUKAN
+                        // kegagalan teknis - masuk unavailable_count,
+                        // BUKAN failed_count (Langkah "ERROR/AVAILABILITY
+                        // CLASSIFICATION": "do not retry unsupported/
+                        // provider-threshold values as though they were
+                        // technical failures").
+                        $isDefinitive ? $task->incrementUnavailable() : $task->incrementFailed();
+                        $category = $insight['category'] === 'unsupported_metric'
+                            ? \App\Services\AnalyticsFailureCategory::UNSUPPORTED
+                            : ($insight['category'] === 'content_unavailable'
+                                ? \App\Services\AnalyticsFailureCategory::PROVIDER_UNAVAILABLE
+                                : \App\Services\AnalyticsFailureCategory::TRANSIENT);
+                        if (! $isDefinitive) {
+                            AnalyticsSyncFailure::record($task, 'fetch_insights', $category, $insight['error'], $snapshot->external_post_id);
+                        }
                     }
 
                     continue;
@@ -223,8 +314,13 @@ class InstagramAnalyticsSyncService
                 $this->recordSnapshot($snapshot, $insight['metrics'], $integration, $platform, $contentItemId);
                 $snapshot->update(['last_fetched_at' => now()]);
                 $summary['refreshed_count']++;
+                $task?->incrementSuccess();
             } catch (\Throwable $e) {
                 $summary['failed_count']++;
+                $task?->incrementFailed();
+                if ($task) {
+                    AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::UNKNOWN, $e->getMessage(), $snapshot->external_post_id);
+                }
                 Log::warning('Instagram refreshKnownMedia: gagal refresh 1 media, dilewati (sync utama TIDAK terpengaruh)', [
                     'client_id' => $integration->client_id,
                     'instagram_media_snapshot_id' => $snapshot->id,
@@ -236,6 +332,13 @@ class InstagramAnalyticsSyncService
         }
 
         $this->recordRefreshFailureMarker($syncLog, $summary['failed_count'], $summary['total_count']);
+
+        if ($task) {
+            $status = $summary['auth_failed']
+                ? 'needs_reconnect'
+                : ($summary['failed_count'] > 0 ? ($summary['refreshed_count'] > 0 ? 'partial' : 'failed') : 'success');
+            $task->finish($status);
+        }
 
         return $summary;
     }
@@ -251,6 +354,98 @@ class InstagramAnalyticsSyncService
     private function markNeedsReconnect(ApiIntegration $integration, string $message): void
     {
         $integration->update(['status' => 'inactive', 'last_error' => $message]);
+    }
+
+    /**
+     * Analytics V2 Phase B - "TARGETED RETRY", item-level (Langkah "49/50
+     * Instagram media successful: retry only the failed media"). Berbeda
+     * dari refreshKnownMedia() (rotasi budget-bounded SELURUH known media),
+     * method ini HANYA menyasar AnalyticsSyncFailure yang tercatat
+     * unresolved+retryable buat 1 task tertentu - TIDAK melakukan discovery
+     * ulang, TIDAK menyentuh item yang sudah sukses.
+     *
+     * @return array{attempted: int, resolved: int, still_failed: int}
+     */
+    public function retryFailedItems(AnalyticsSyncTask $task, int $userId): array
+    {
+        $failures = AnalyticsSyncFailure::where('analytics_sync_task_id', $task->id)->retryable()->get();
+        $summary = ['attempted' => $failures->count(), 'resolved' => 0, 'still_failed' => 0];
+
+        if ($failures->isEmpty()) {
+            return $summary;
+        }
+
+        $integration = $task->integration;
+        $platform = Platform::find($integration->platform_id);
+        $service = new InstagramAnalyticsService($integration);
+
+        // Retry-nya sendiri butuh AnalyticsSyncLog attribution (dipakai
+        // saveMetric() buat content_metrics.sync_log_id) - baris BARU, BUKAN
+        // reuse log run sebelumnya (yang statusnya sudah final/tertutup).
+        $syncLog = AnalyticsSyncLog::create([
+            'client_id' => $integration->client_id,
+            'platform_id' => $integration->platform_id,
+            'api_integration_id' => $integration->id,
+            'imported_by' => $userId,
+            'source_type' => 'api_sync',
+            'status' => 'success',
+            'sync_mode' => 'default',
+            'range_from' => now()->toDateString(),
+            'range_to' => now()->toDateString(),
+            'synced_count' => 0,
+            'skipped_count' => 0,
+        ]);
+
+        foreach ($failures as $failure) {
+            $snapshot = InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+                ->where('external_post_id', $failure->external_item_id)
+                ->first();
+
+            if (! $snapshot) {
+                // Item ini bahkan tidak sempat ke-snapshot sama sekali
+                // (gagal SEBELUM saveSnapshot()) - tidak ada yang bisa
+                // diretry per-item, biarkan unresolved buat rotasi
+                // refreshKnownMedia() berikutnya yang genuinely discovery
+                // ulang.
+                $summary['still_failed']++;
+                continue;
+            }
+
+            try {
+                $insight = $service->getMediaInsights($snapshot->external_post_id, $snapshot->media_product_type);
+
+                if ($insight['category'] === InstagramApiException::AUTHENTICATION) {
+                    $this->markNeedsReconnect($integration, $insight['error']);
+                    $failure->markAttemptFailedAgain();
+                    $summary['still_failed']++;
+                    break; // token rusak, sisa retry pasti gagal identik
+                }
+
+                if ($insight['error']) {
+                    $failure->markAttemptFailedAgain();
+                    $summary['still_failed']++;
+                    continue;
+                }
+
+                $contentItemId = $snapshot->content_publication_id
+                    ? ContentPublication::whereKey($snapshot->content_publication_id)->value('content_item_id')
+                    : null;
+
+                $item = ['id' => $snapshot->external_post_id, 'timestamp' => $snapshot->published_at?->toIso8601String(), 'metrics' => $insight['metrics']];
+                $this->saveMetric($item, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+                $this->recordSnapshot($snapshot, $insight['metrics'], $integration, $platform, $contentItemId);
+                $snapshot->update(['last_fetched_at' => now()]);
+
+                $failure->markResolved();
+                $task->incrementSuccess();
+                $summary['resolved']++;
+            } catch (\Throwable $e) {
+                $failure->markAttemptFailedAgain();
+                $summary['still_failed']++;
+            }
+        }
+
+        return $summary;
     }
 
     /**
@@ -275,9 +470,34 @@ class InstagramAnalyticsSyncService
     }
 
     /**
+     * PASS 4.1 - dedupe 1 halaman hasil pagination by media ID, pertahankan
+     * urutan asli (kemunculan PERTAMA yang menang - datanya identik untuk
+     * duplikat genuine, jadi salinan mana yang dipertahankan tidak relevan
+     * secara substansi). Defensif terhadap edge case cursor-based pagination
+     * (item bergeser posisi antar-halaman selagi fetch berlangsung).
+     *
+     * @param  array<int, array<string, mixed>>  $media
+     * @return array<int, array<string, mixed>>
+     */
+    private function deduplicateById(array $media): array
+    {
+        $seen = [];
+
+        return array_values(array_filter($media, function ($item) use (&$seen) {
+            $id = $item['id'] ?? null;
+            if ($id === null || isset($seen[$id])) {
+                return false;
+            }
+            $seen[$id] = true;
+
+            return true;
+        }));
+    }
+
+    /**
      * @return array{existing_matched: int, newly_matched: int, unmatched: int, ambiguous: int, failed: int, details: array<int, string>}
      */
-    private function persistMedia(array $mediaResults, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog): array
+    private function persistMedia(array $mediaResults, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, ?AnalyticsSyncTask $task = null): array
     {
         $matcher = new ContentPublicationMatcher();
 
@@ -289,7 +509,7 @@ class InstagramAnalyticsSyncService
             if ($result->status === 'unmatched') {
                 $summary['unmatched']++;
                 $snapshot = $this->saveSnapshot($integration, $item, 'unmatched');
-                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary);
+                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary, $task);
                 continue;
             }
 
@@ -297,7 +517,7 @@ class InstagramAnalyticsSyncService
                 $summary['ambiguous']++;
                 $summary['details'][] = "Media {$item['id']}: ambiguous - {$result->reason}";
                 $snapshot = $this->saveSnapshot($integration, $item, 'ambiguous');
-                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary);
+                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary, $task);
                 continue;
             }
 
@@ -315,14 +535,14 @@ class InstagramAnalyticsSyncService
                 $summary['failed']++;
                 $summary['details'][] = "Media {$item['id']}: gagal simpan publication - {$e->getMessage()}";
                 $snapshot = $this->saveSnapshot($integration, $item, 'unmatched');
-                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary);
+                $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, null, $summary, $task);
                 continue;
             }
 
             $wasExisting ? $summary['existing_matched']++ : $summary['newly_matched']++;
             $snapshot = $this->saveSnapshot($integration, $item, 'matched', $publication->id);
 
-            $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, $publication->content_item_id, $summary);
+            $this->saveMetricSafely($item, $snapshot, $platform, $integration, $userId, $syncLog, $publication->content_item_id, $summary, $task);
         }
 
         return $summary;
@@ -332,16 +552,26 @@ class InstagramAnalyticsSyncService
      * Bungkus saveMetric() dengan try/catch generik + hitung ke
      * $summary['failed'] kalau gagal - dipakai baik jalur matched maupun
      * unmatched/ambiguous (SEMUA media sekarang tetap dapat baris
-     * content_metrics, lihat docblock saveMetric()).
+     * content_metrics, lihat docblock saveMetric()). $task (Analytics V2
+     * Phase B, opsional) dapat increment success/failed yang SAMA PERSIS
+     * dengan $summary di atas - dua sisi TIDAK BOLEH pernah drift beda,
+     * jadi di-increment BARENGAN di titik yang sama, bukan dihitung ulang
+     * terpisah.
      */
-    private function saveMetricSafely(array $item, InstagramMediaSnapshot $snapshot, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, ?int $contentItemId, array &$summary): void
+    private function saveMetricSafely(array $item, InstagramMediaSnapshot $snapshot, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, ?int $contentItemId, array &$summary, ?AnalyticsSyncTask $task = null): void
     {
         try {
             $this->saveMetric($item, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
             $summary['metrics_saved']++;
+            $task?->incrementSuccess();
         } catch (\Throwable $e) {
             $summary['failed']++;
             $summary['details'][] = "Media {$item['id']}: gagal simpan content_metrics - {$e->getMessage()}";
+
+            if ($task) {
+                $task->incrementFailed();
+                AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::UNKNOWN, $e->getMessage(), $item['id'] ?? null, $contentItemId);
+            }
 
             return;
         }
@@ -407,17 +637,36 @@ class InstagramAnalyticsSyncService
      * external_post_id) bikin ini aman dipanggil berkali-kali (repeated
      * sync, retry job, overlap default/historical) tanpa duplicate.
      */
+    /**
+     * PASS 1B (Langkah "cover_image_url has a limited provider TTL...
+     * Keep/query-refresh semantics safe" - sama prinsip persis buat
+     * thumbnail_url Instagram) - field metadata media yang aman disegarkan
+     * ulang tiap media ini terlihat lagi (thumbnail_url TTL terbatas;
+     * caption/shortcode secara teori stabil tapi tidak ada ruginya ikut
+     * disegarkan). Dipakai BARENGAN oleh saveSnapshot() (sync utama) DAN
+     * refreshKnownMedia()/retryFailedItems() (rotasi/retry).
+     *
+     * @return array<string, mixed>
+     */
+    private function mediaMetadataFields(array $item): array
+    {
+        return [
+            'permalink' => $item['permalink'] ?? null,
+            'caption' => $item['caption'] ?? null,
+            'thumbnail_url' => $item['thumbnail_url'] ?? null,
+            'shortcode' => $item['shortcode'] ?? null,
+        ];
+    }
+
     private function saveSnapshot(ApiIntegration $integration, array $item, string $matchStatus, ?int $contentPublicationId = null): InstagramMediaSnapshot
     {
         return InstagramMediaSnapshot::updateOrCreate(
             ['api_integration_id' => $integration->id, 'external_post_id' => $item['id']],
             [
-                'permalink' => $item['permalink'] ?? null,
-                'caption' => $item['caption'] ?? null,
+                ...$this->mediaMetadataFields($item),
                 'media_type' => $item['media_type'] ?? null,
                 'media_product_type' => $item['media_product_type'] ?? null,
                 'published_at' => $item['timestamp'] ? Carbon::parse($item['timestamp']) : null,
-                'thumbnail_url' => $item['thumbnail_url'] ?? null,
                 'match_status' => $matchStatus,
                 'content_publication_id' => $contentPublicationId,
                 'last_fetched_at' => now(),

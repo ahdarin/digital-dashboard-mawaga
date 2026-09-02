@@ -718,7 +718,17 @@ class PeriodPerformanceService
      * TERPISAH (method ini cuma buat performa konten, lihat
      * AnalyticsController::buildAudienceTabData(), tidak disentuh Phase 3).
      */
-    public function coverageMessage(array $coverage, int $period): ?string
+    /**
+     * PASS 2 - $periodLabel SEKARANG string bebas (label period yang
+     * sudah dihitung AnalyticsPeriod::label(), mis. "September 2026" atau
+     * "10-25 Agu 2026"), BUKAN lagi int hari mentah - generalisasi dari
+     * rolling-days-only ke month/custom (Langkah "PERIOD PERFORMANCE
+     * SERVICE GENERALIZATION"). Signature LAMA (int $period) tetap
+     * kompatibel via type coercion PHP (int otomatis jadi string "30" di
+     * interpolasi) buat caller yang belum sempat dimigrasi - TAPI semua
+     * caller INTERNAL app ini sudah dimigrasi ke string label eksplisit.
+     */
+    public function coverageMessage(array $coverage, string $periodLabel): ?string
     {
         if ($coverage['status'] === ContentPeriodResult::FULL) {
             return null;
@@ -731,8 +741,8 @@ class PeriodPerformanceService
         $from = $coverage['from']?->translatedFormat('d M Y');
 
         return $from
-            ? "Data {$period} hari belum tersedia penuh. Menampilkan performa yang teramati sejak {$from} - cakupan akan bertambah otomatis seiring sinkronisasi harian berjalan."
-            : "Data {$period} hari belum tersedia penuh.";
+            ? "Data {$periodLabel} belum tersedia penuh. Menampilkan performa yang teramati sejak {$from} - cakupan akan bertambah otomatis seiring sinkronisasi harian berjalan."
+            : "Data {$periodLabel} belum tersedia penuh.";
     }
 
     /**

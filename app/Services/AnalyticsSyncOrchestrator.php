@@ -6,6 +6,8 @@ use App\Jobs\SyncInstagramAnalyticsJob;
 use App\Jobs\SyncInstagramAudienceJob;
 use App\Jobs\SyncTikTokAnalyticsJob;
 use App\Models\AnalyticsSyncLog;
+use App\Models\AnalyticsSyncRun;
+use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Models\Client;
 use App\Models\ContentMetricSnapshot;
@@ -82,12 +84,21 @@ class AnalyticsSyncOrchestrator
      * TIDAK di-dispatch ulang (server-side duplicate protection, bukan
      * cuma andalan tombol UI disabled).
      *
-     * @return array{dispatched: array<int, string>, skipped: array<string, string>}
+     * Analytics V2 Phase B - $trigger membedakan pemicu (Langkah "AUTO
+     * SYNC" - scheduled vs manual HARUS lewat pipeline yang SAMA persis,
+     * cuma trigger yang beda) TANPA mengubah perilaku dispatch/duplicate-
+     * protection sama sekali - existing lock/queued-job check di bawah
+     * SUDAH JADI mekanisme duplicate-protection-nya (subjob yang sudah
+     * in-flight TIDAK pernah dapat Run/Task baru, cukup dilaporkan
+     * "dispatched" apa adanya seperti sebelumnya).
+     *
+     * @return array{dispatched: array<int, string>, skipped: array<string, string>, run_id: ?int}
      */
-    public function dispatch(Client $client, ?int $platformId, int $userId): array
+    public function dispatch(Client $client, ?int $platformId, int $userId, string $trigger = AnalyticsSyncRun::TRIGGER_MANUAL): array
     {
         $dispatched = [];
         $skipped = [];
+        $run = null;
 
         foreach ($this->relevantSubjobs($platformId) as $subjob) {
             $integration = $this->integrationFor($client, $subjob);
@@ -106,24 +117,40 @@ class AnalyticsSyncOrchestrator
             if ($this->isLockHeld($jobClass, $integration->id) || $this->hasQueuedJob($jobClass, $integration->id)) {
                 // Sudah in-flight - anggap "dispatched" dari POV user (sync
                 // memang sedang berjalan buat subjob ini), TAPI JANGAN
-                // dispatch job kedua.
+                // dispatch job kedua, dan JANGAN bikin Run/Task baru buat
+                // sesuatu yang sudah punya jejak progress sendiri.
                 $dispatched[] = $subjob;
                 continue;
             }
 
-            $this->dispatchOne($subjob, $integration, $userId);
+            $run ??= AnalyticsSyncRun::create([
+                'client_id' => $client->id,
+                'trigger' => $trigger,
+                'initiated_by' => $trigger === AnalyticsSyncRun::TRIGGER_SCHEDULED ? null : $userId,
+                'status' => 'queued',
+                'started_at' => now(),
+            ]);
+
+            $task = AnalyticsSyncTask::create([
+                'analytics_sync_run_id' => $run->id,
+                'api_integration_id' => $integration->id,
+                'subjob' => $subjob,
+                'status' => 'queued',
+            ]);
+
+            $this->dispatchOne($subjob, $integration, $userId, $task->id);
             $dispatched[] = $subjob;
         }
 
-        return ['dispatched' => $dispatched, 'skipped' => $skipped];
+        return ['dispatched' => $dispatched, 'skipped' => $skipped, 'run_id' => $run?->id];
     }
 
-    private function dispatchOne(string $subjob, ApiIntegration $integration, int $userId): void
+    private function dispatchOne(string $subjob, ApiIntegration $integration, int $userId, ?int $syncTaskId): void
     {
         match ($subjob) {
-            self::SUBJOB_INSTAGRAM_CONTENT => $this->dispatchInstagramContent($integration, $userId),
-            self::SUBJOB_INSTAGRAM_AUDIENCE => SyncInstagramAudienceJob::dispatch($integration->id, $userId),
-            self::SUBJOB_TIKTOK_CONTENT => $this->dispatchTiktokContent($integration, $userId),
+            self::SUBJOB_INSTAGRAM_CONTENT => $this->dispatchInstagramContent($integration, $userId, $syncTaskId),
+            self::SUBJOB_INSTAGRAM_AUDIENCE => SyncInstagramAudienceJob::dispatch($integration->id, $userId, false, $syncTaskId),
+            self::SUBJOB_TIKTOK_CONTENT => $this->dispatchTiktokContent($integration, $userId, $syncTaskId),
         };
     }
 
@@ -133,16 +160,98 @@ class AnalyticsSyncOrchestrator
      * filter (7/30/90) dari Analytics (Langkah 1, "Period adalah DISPLAY
      * FILTER, jangan jadikan sync mode").
      */
-    private function dispatchInstagramContent(ApiIntegration $integration, int $userId): void
+    private function dispatchInstagramContent(ApiIntegration $integration, int $userId, ?int $syncTaskId): void
     {
         [$syncMode, $since, $until] = app(InstagramAnalyticsSyncService::class)->resolveSyncWindow(null);
-        SyncInstagramAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId);
+        SyncInstagramAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId, $syncTaskId);
     }
 
-    private function dispatchTiktokContent(ApiIntegration $integration, int $userId): void
+    private function dispatchTiktokContent(ApiIntegration $integration, int $userId, ?int $syncTaskId): void
     {
         [$syncMode, $since, $until] = app(TikTokAnalyticsSyncService::class)->resolveSyncWindow(null);
-        SyncTikTokAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId);
+        SyncTikTokAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId, $syncTaskId);
+    }
+
+    /**
+     * Analytics V2 Phase B - "TARGETED RETRY", task-level. Retry SATU
+     * subjob spesifik (mis. Instagram Audience gagal padahal Content
+     * sukses, atau TikTok gagal padahal Instagram sukses) TANPA menyentuh
+     * subjob lain di run yang sama - dispatch ulang PERSIS jalur normal
+     * (job/service yang sama, bukan logic terpisah), trigger='retry' biar
+     * kebedanya jelas di audit trail.
+     *
+     * TIDAK retryable kalau task masih queued/running (in-flight, retry
+     * duplikat percuma) ATAU integration butuh reconnect (auth rusak -
+     * retry otomatis TIDAK PERNAH mengubah hasil, lihat
+     * AnalyticsFailureCategory::isRetryable() - user harus reconnect
+     * manual dulu, method ini SENGAJA menolak bukan mencoba lagi).
+     *
+     * @return array{retried: bool, reason: ?string, task_id: ?int}
+     */
+    public function retryTask(AnalyticsSyncTask $task, int $userId): array
+    {
+        if (in_array($task->status, ['queued', 'running'], true)) {
+            return ['retried' => false, 'reason' => 'already_in_flight', 'task_id' => null];
+        }
+
+        $integration = $task->integration;
+
+        if (! $integration || $integration->status !== 'active') {
+            return ['retried' => false, 'reason' => 'needs_reconnect', 'task_id' => null];
+        }
+
+        $jobClass = $this->jobClassFor($task->subjob);
+        if ($this->isLockHeld($jobClass, $integration->id) || $this->hasQueuedJob($jobClass, $integration->id)) {
+            return ['retried' => false, 'reason' => 'already_in_flight', 'task_id' => null];
+        }
+
+        $run = AnalyticsSyncRun::create([
+            'client_id' => $integration->client_id,
+            'trigger' => AnalyticsSyncRun::TRIGGER_RETRY,
+            'initiated_by' => $userId,
+            'status' => 'queued',
+            'started_at' => now(),
+        ]);
+
+        $newTask = AnalyticsSyncTask::create([
+            'analytics_sync_run_id' => $run->id,
+            'api_integration_id' => $integration->id,
+            'subjob' => $task->subjob,
+            'status' => 'queued',
+            'attempt' => $task->attempt + 1,
+        ]);
+
+        $this->dispatchOne($task->subjob, $integration, $userId, $newTask->id);
+
+        return ['retried' => true, 'reason' => null, 'task_id' => $newTask->id];
+    }
+
+    /**
+     * Analytics V2 Phase B - "TARGETED RETRY", item-level (Langkah "49/50
+     * Instagram media successful: retry only the failed media"). Berbeda
+     * dari retryTask() (dispatch job ULANG dari awal) - method ini
+     * SYNCHRONOUS, langsung memanggil retryFailedItems() milik sync
+     * service yang sesuai, HANYA menyasar AnalyticsSyncFailure yang masih
+     * unresolved+retryable milik task ini.
+     *
+     * @return array{attempted: int, resolved: int, still_failed: int}|array{retried: false, reason: string}
+     */
+    public function retryFailedItemsForTask(AnalyticsSyncTask $task, int $userId): array
+    {
+        $integration = $task->integration;
+
+        if (! $integration || $integration->status !== 'active') {
+            return ['retried' => false, 'reason' => 'needs_reconnect'];
+        }
+
+        return match ($task->subjob) {
+            self::SUBJOB_INSTAGRAM_CONTENT => app(InstagramAnalyticsSyncService::class)->retryFailedItems($task, $userId),
+            self::SUBJOB_TIKTOK_CONTENT => app(TikTokAnalyticsSyncService::class)->retryFailedItems($task, $userId),
+            // Audience TIDAK punya item-level failure (workload-nya metric
+            // group tetap, bukan koleksi item) - task-level retryTask()
+            // sudah cukup, tidak perlu varian item-level.
+            default => ['retried' => false, 'reason' => 'not_applicable'],
+        };
     }
 
     /**
@@ -163,6 +272,64 @@ class AnalyticsSyncOrchestrator
             'overall_status' => $this->computeOverallStatus($subjobStatuses),
             'subjobs' => $subjobStatuses,
             'last_observation_at' => $this->lastObservationAt($client, $platformId)?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Analytics V2 Phase B - progress terstruktur DAN AMAN buat UI polling
+     * (Langkah "Update sync-status endpoint to expose structured, safe
+     * progress" - TIDAK PERNAH token/Authorization header/raw payload,
+     * murni angka/status/timestamp yang SUDAH publik lewat kolom
+     * AnalyticsSyncTask/Run). Browser refresh HARUS bisa "menemukan
+     * kembali" run yang masih aktif (Langkah "PROGRESS SEMANTICS", "new
+     * browser request must rediscover the existing active run") - method
+     * ini SELALU query run TERBARU milik client (bukan session-based),
+     * jadi genuinely server-side recoverable, browser refresh/close TIDAK
+     * PERNAH memutus progress-nya.
+     *
+     * @return array{run_id: ?int, trigger: ?string, started_at: ?string, tasks: array<string, array>}|null
+     */
+    public function latestRunProgress(Client $client, ?int $platformId): ?array
+    {
+        $relevantSubjobs = $this->relevantSubjobs($platformId);
+
+        $run = AnalyticsSyncRun::where('client_id', $client->id)
+            ->whereHas('tasks', fn ($q) => $q->whereIn('subjob', $relevantSubjobs))
+            ->latest()
+            ->first();
+
+        if (! $run) {
+            return null;
+        }
+
+        $tasks = $run->tasks()->whereIn('subjob', $relevantSubjobs)->get();
+
+        return [
+            'run_id' => $run->id,
+            'trigger' => $run->trigger,
+            'started_at' => $run->started_at?->toIso8601String(),
+            'tasks' => $tasks->keyBy('subjob')->map(fn (AnalyticsSyncTask $t) => [
+                // PASS 3 (Langkah H, "TARGETED RETRY UX") - 'id' TAMBAHAN
+                // (additive, key baru) - JS butuh task_id ini buat manggil
+                // POST /analytics/sync/retry-task /retry-failed-items,
+                // sebelumnya endpoint retry belum ada jadi id belum pernah
+                // perlu diekspos. Angka murni (id integer publik ke user
+                // yang sudah authorized lihat client ini), bukan secret.
+                'id' => $t->id,
+                'status' => $t->status,
+                'stage' => $t->stage,
+                'discovered_count' => $t->discovered_count,
+                'processed_count' => $t->processed_count,
+                'success_count' => $t->success_count,
+                'unavailable_count' => $t->unavailable_count,
+                'skipped_count' => $t->skipped_count,
+                'failed_count' => $t->failed_count,
+                'reconciled' => $t->reconciled,
+                'started_at' => $t->started_at?->toIso8601String(),
+                'last_progress_at' => $t->last_progress_at?->toIso8601String(),
+                'finished_at' => $t->finished_at?->toIso8601String(),
+                'attempt' => $t->attempt,
+            ])->all(),
         ];
     }
 

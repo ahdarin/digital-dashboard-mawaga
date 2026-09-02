@@ -9,7 +9,7 @@ class InstagramMediaSnapshot extends Model
     protected $fillable = [
         'api_integration_id', 'external_post_id', 'permalink', 'caption',
         'media_type', 'media_product_type', 'published_at', 'thumbnail_url',
-        'match_status', 'content_publication_id', 'last_fetched_at',
+        'match_status', 'content_publication_id', 'last_fetched_at', 'shortcode',
     ];
 
     protected $casts = [

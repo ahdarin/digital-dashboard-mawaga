@@ -25,16 +25,26 @@ use Illuminate\Support\Str;
  */
 class AnalyticsSummaryService
 {
-    public function __construct(private readonly PeriodPerformanceService $periodPerformanceService)
-    {
+    public function __construct(
+        private readonly PeriodPerformanceService $periodPerformanceService,
+        private readonly AnalyticsPeriodResolver $periodResolver,
+    ) {
     }
 
-    public function buildOverviewData(int|string $clientId, int $period, ?int $platformId = null): array
+    /**
+     * PASS 2 - $period SEKARANG AnalyticsPeriod (month/custom/legacy_days),
+     * BUKAN lagi int hari mentah - SATU-SATUNYA tempat previous-period
+     * dihitung (AnalyticsPeriodResolver::previousPeriod(), formula month
+     * vs custom/legacy_days BEDA, lihat docblock method itu), method ini
+     * TIDAK LAGI menghitung date math sendiri.
+     */
+    public function buildOverviewData(int|string $clientId, AnalyticsPeriod $period, ?int $platformId = null): array
     {
-        $end = Carbon::now()->endOfDay();
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
-        $prevEnd = $start->copy()->subDay()->endOfDay();
-        $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
+        $start = $period->dateFrom;
+        $end = $period->effectiveDateTo;
+        $previousPeriod = $this->periodResolver->previousPeriod($period);
+        $prevStart = $previousPeriod->dateFrom;
+        $prevEnd = $previousPeriod->effectiveDateTo;
 
         $current = $this->periodPerformanceService->computeClientPeriod($clientId, $start, $end, $platformId);
         $previous = $this->periodPerformanceService->computeClientPeriod($clientId, $prevStart, $prevEnd, $platformId);
@@ -54,37 +64,45 @@ class AnalyticsSummaryService
         // penuh (Langkah 5). Audience coverage TETAP TERPISAH (Langkah 11 -
         // ini cuma untuk performa konten, bukan buildAudienceTabData()).
         $coverageStatus = $current['coverage']['status'];
-        $coverageMessage = $this->buildCoverageMessage($current['coverage'], $period);
+        $coverageMessage = $this->periodPerformanceService->coverageMessage($current['coverage'], $period->label());
+
+        // PASS 2 (Langkah 6, "do not produce misleading percentage changes
+        // when prior period metric is unavailable") - previous coverage
+        // 'unavailable' berarti KITA TIDAK TAHU apa-apa soal periode
+        // sebelumnya (bukan genuinely nol) - percentChange() HARUS
+        // dibedakan dari kasus previous genuinely 0 (coverage full/partial
+        // tapi totalnya memang nol).
+        $previousAvailable = $previous['coverage']['status'] !== \App\Services\ContentPeriodResult::UNAVAILABLE;
 
         $stats = [
             [
                 'label' => 'Total Views',
                 'value' => number_format($totalViews),
                 'icon' => 'visibility',
-                ...$this->percentChange($prevTotalViews, $totalViews),
+                ...$this->percentChange($prevTotalViews, $totalViews, $previousAvailable),
             ],
             [
                 'label' => 'Avg. Engagement Rate',
                 'value' => number_format($avgEngagement, 2) . '%',
                 'icon' => 'favorite',
-                ...$this->percentChange($prevAvgEngagement, $avgEngagement),
+                ...$this->percentChange($prevAvgEngagement, $avgEngagement, $previousAvailable),
             ],
             [
                 'label' => 'Content Published',
                 'value' => number_format($contentPublished),
                 'icon' => 'grid_view',
-                ...$this->percentChange($prevContentPublished, $contentPublished),
+                ...$this->percentChange($prevContentPublished, $contentPublished, $previousAvailable),
             ],
             [
                 'label' => 'Platforms Tracked',
                 'value' => number_format($platformsTracked),
                 'icon' => 'hub',
-                ...$this->percentChange($prevPlatformsTracked, $platformsTracked),
+                ...$this->percentChange($prevPlatformsTracked, $platformsTracked, $previousAvailable),
             ],
         ];
 
         $dailySeries = $this->periodPerformanceService->computeDailyGainSeries($clientId, $start, $end, $platformId);
-        $trend = $this->buildTrend($dailySeries, $period);
+        $trend = $this->buildTrend($dailySeries, $period->requestedLengthInDays());
 
         $platformBreakdown = collect($current['platform_breakdown']);
 
@@ -174,13 +192,20 @@ class AnalyticsSummaryService
         return $period <= 30 ? $dailySeries : $this->periodPerformanceService->aggregateWeekly($dailySeries);
     }
 
-    private function buildCoverageMessage(array $coverage, int $period): ?string
+    /**
+     * PASS 2 (Langkah 6) - $previousAvailable membedakan "previous
+     * genuinely 0" (coverage previous full/partial, angkanya memang nol)
+     * dari "previous TIDAK DIKETAHUI" (coverage previous unavailable -
+     * belum ada observasi/sync sama sekali buat periode itu) - dua kondisi
+     * yang SEBELUMNYA collapse jadi angka 0 yang sama, menghasilkan pesan
+     * menyesatkan "Naik dari 0" padahal kita genuinely tidak tahu apa-apa.
+     */
+    private function percentChange(int|float $previous, int|float $current, bool $previousAvailable = true): array
     {
-        return $this->periodPerformanceService->coverageMessage($coverage, $period);
-    }
+        if (! $previousAvailable) {
+            return ['change' => 'Tidak ada data pembanding periode sebelumnya', 'trend' => 'flat'];
+        }
 
-    private function percentChange(int|float $previous, int|float $current): array
-    {
         if ($previous == 0) {
             return $current > 0
                 ? ['change' => 'Naik dari 0 di periode sebelumnya', 'trend' => 'up']

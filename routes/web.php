@@ -306,6 +306,12 @@ Route::middleware(['auth', 'internal'])->group(function () {
     // Content Creator/Designer/Copywriter.
     Route::middleware('permission:settings,manage')->group(function () {
         Route::post('/analytics/sync', [AnalyticsController::class, 'syncDispatch'])->name('analytics.sync');
+        // PASS 3 (Langkah H, "TARGETED RETRY UX") - permission SAMA dengan
+        // sync dispatch (retry = trigger sync juga, cuma discope), bukan
+        // permission baru. task_id lewat body (pola sama syncDispatch),
+        // authorization diverifikasi di controller lewat client task itu.
+        Route::post('/analytics/sync/retry-task', [AnalyticsController::class, 'syncRetryTask'])->name('analytics.sync.retry-task');
+        Route::post('/analytics/sync/retry-failed-items', [AnalyticsController::class, 'syncRetryFailedItems'])->name('analytics.sync.retry-failed-items');
     });
 
     // Phase 4.2 (Langkah 3) - AI Strategy generate/apply/revert/chat/refine/

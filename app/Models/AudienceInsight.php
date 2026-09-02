@@ -22,6 +22,9 @@ class AudienceInsight extends Model
         'client_id', 'platform_id', 'source', 'demographic_type', 'snapshot_date',
         'follower_count', 'reach',
         'gender_breakdown', 'age_breakdown', 'top_locations', 'top_countries', 'active_hours',
+        // TikTok-only (user.info.stats) - SELALU null buat baris Instagram,
+        // tidak ada field setara lewat scope yang dipakai app ini.
+        'following_count', 'likes_count', 'video_count',
     ];
 
     protected $casts = [

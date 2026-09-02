@@ -21,7 +21,9 @@
     <form method="GET" class="flex items-center gap-2.5 flex-wrap">
         <input type="hidden" name="tab" value="table">
         <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
-        <input type="hidden" name="period" value="{{ $period }}">
+        @foreach ($period->toQueryParams() as $key => $value)
+            <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+        @endforeach
         <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
         <input type="hidden" name="sort" value="{{ $sort }}">
         <input type="hidden" name="dir" value="{{ $dir }}">
@@ -47,7 +49,7 @@
         @if (request('search') || request('content_type_id'))
             {{-- Reset filter LOKAL SAJA (search/tipe) - client_id/period/
                  platform_id GLOBAL tetap dipertahankan, bukan direset. --}}
-            <a href="{{ route('analytics', array_filter(['tab' => 'table', 'client_id' => $selectedClientId, 'period' => $period, 'platform_id' => $selectedPlatformId])) }}"
+            <a href="{{ route('analytics', array_filter(array_merge(['tab' => 'table', 'client_id' => $selectedClientId, 'platform_id' => $selectedPlatformId], $period->toQueryParams()))) }}"
                class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Reset filter</a>
         @endif
     </form>
@@ -112,12 +114,18 @@
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</td>
                             <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform }}</td>
                             <td class="px-4 py-3.5 truncate {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">{{ $item->type ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-right font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</td>
+                            <td class="px-4 py-3.5 text-right font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                @if ($item->total_views !== null)
+                                    {{ number_format($item->total_views) }}
+                                @else
+                                    <span class="text-[var(--text-muted)] font-normal" title="{{ \App\Services\AvailabilityPresenter::label($item->availability_category) ?? 'Belum tersedia' }}">-</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3.5 text-right">
                                 @if ($item->avg_engagement !== null)
                                     <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ round($item->avg_engagement, 2) }}%</span>
                                 @else
-                                    <span class="text-[var(--text-muted)]">-</span>
+                                    <span class="text-[var(--text-muted)]" title="{{ \App\Services\AvailabilityPresenter::label($item->availability_category) ?? 'Belum tersedia' }}">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3.5 text-[var(--text-secondary)] whitespace-nowrap [font-variant-numeric:tabular-nums]">{{ $item->deadline_at?->format('d M Y') ?? '-' }}</td>

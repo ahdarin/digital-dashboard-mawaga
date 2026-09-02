@@ -14,13 +14,18 @@ class TikTokVideoSnapshot extends Model
 
     protected $fillable = [
         'api_integration_id', 'external_post_id', 'share_url', 'title',
-        'video_description', 'duration', 'cover_image_url',
+        'video_description', 'duration', 'cover_image_url', 'height', 'width', 'is_aigc',
         'match_status', 'content_publication_id', 'published_at', 'last_fetched_at',
     ];
 
     protected $casts = [
         'published_at' => 'datetime',
         'last_fetched_at' => 'datetime',
+        // Nullable boolean - null HARUS tetap null lewat cast ini (Eloquent
+        // 'boolean' cast membiarkan null apa adanya, cuma non-null value
+        // yang dikonversi ke true/false - JANGAN diasumsikan "not AI-
+        // generated" cuma karena provider tidak mengirim field ini).
+        'is_aigc' => 'boolean',
     ];
 
     public function apiIntegration() { return $this->belongsTo(ApiIntegration::class); }

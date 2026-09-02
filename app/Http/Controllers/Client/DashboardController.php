@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContentItem;
+use App\Services\AnalyticsPeriodResolver;
 use App\Services\AnalyticsSummaryService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class DashboardController extends Controller
      * TIDAK PERNAH dari $request->user() - Client Portal tidak pakai Auth
      * sama sekali, lihat ResolveClientPortal middleware.
      */
-    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService)
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, AnalyticsPeriodResolver $periodResolver)
     {
         $client = $request->attributes->get('portalClient')->loadMissing(['category', 'activePackage']);
         $clientId = $client->id;
@@ -42,7 +43,10 @@ class DashboardController extends Controller
             ->whereBetween('updated_at', [$startOfMonth, $endOfMonth])
             ->count();
 
-        ['trend' => $trend] = $analyticsSummaryService->buildOverviewData($clientId, 30);
+        // PASS 2 - SATU-SATUNYA jalur resmi (AnalyticsPeriodResolver),
+        // TETAP rolling 30 hari (widget ringkasan portal, bukan halaman
+        // Analytics penuh - di luar scope month/custom pass ini).
+        ['trend' => $trend] = $analyticsSummaryService->buildOverviewData($clientId, $periodResolver->buildLegacyDays(30));
         $totalViewsThisMonth = (int) collect($trend)->sum('value');
 
         $stats = [

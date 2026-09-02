@@ -109,7 +109,7 @@
 
     @php $isInstagramApi = $audienceSource === 'instagram_api'; @endphp
 
-    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
         <span class="badge badge-success inline-flex items-center gap-1">
             <span class="material-symbols-outlined text-[13px]">verified</span> {{ $isInstagramApi ? 'Instagram API' : 'TikTok API' }}
         </span>
@@ -117,6 +117,24 @@
             <span class="text-xs text-[var(--text-muted)]">Last Audience Sync: {{ \Illuminate\Support\Carbon::parse($lastSyncAt)->translatedFormat('d M Y, H:i') }}</span>
         @endif
     </div>
+
+    {{-- PASS 3 (Langkah J, "DATA HEALTH UX") - default sehat TIDAK
+         menampilkan apapun tambahan (cukup badge+freshness di atas) - HANYA
+         muncul kalau memang ada keterbatasan genuine, ringkas & progressive
+         disclosure (bukan banner permanen tiap kartu null - Langkah Q). --}}
+    @if (! empty($dataHealthItems ?? []))
+        <details class="mb-4">
+            <summary class="text-xs font-medium text-[var(--warning-text)] cursor-pointer inline-flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[15px]">info</span>
+                Sebagian data memiliki keterbatasan · Lihat kondisi data
+            </summary>
+            <div class="mt-2 pl-6 space-y-1">
+                @foreach ($dataHealthItems as $healthItem)
+                    <p class="text-xs text-[var(--text-muted)]">{{ $healthItem['label'] }} — {{ \App\Services\AvailabilityPresenter::labelForPlatform($healthItem['category'], $platform->name) }}</p>
+                @endforeach
+            </div>
+        </details>
+    @endif
 
     {{-- Followers + (Instagram only: Reach) overview - card followers
          GENERIC, dipakai Instagram MAUPUN TikTok (follower_count sama-sama
@@ -133,7 +151,7 @@
                 @if (! is_null($growth))
                     <p class="text-xs font-medium flex items-center gap-1 {{ $growth >= 0 ? 'text-[var(--success-strong)]' : 'text-[var(--danger-border-soft)]' }}">
                         <span class="material-symbols-outlined text-[13px]">{{ $growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
-                        {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% dalam {{ $period }} hari
+                        {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% ({{ $periodLabel ?? 'periode terpilih' }})
                     </p>
                 @else
                     <p class="text-xs text-white/50">{{ $growthMessage }}</p>
@@ -352,7 +370,7 @@
             @if (! is_null($growth))
                 <p class="text-xs font-medium flex items-center gap-1 {{ $growth >= 0 ? 'text-[var(--success-strong)]' : 'text-[var(--danger-border-soft)]' }}">
                     <span class="material-symbols-outlined text-[13px]">{{ $growth >= 0 ? 'trending_up' : 'trending_down' }}</span>
-                    {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% dalam {{ $period }} hari
+                    {{ $growth >= 0 ? '+' : '' }}{{ $growth }}% ({{ $periodLabel ?? 'periode terpilih' }})
                 </p>
             @else
                 <p class="text-xs text-white/50">{{ $growthMessage ?? 'Belum cukup data historis.' }}</p>

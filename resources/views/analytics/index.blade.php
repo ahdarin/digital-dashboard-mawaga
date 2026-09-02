@@ -5,95 +5,44 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7">
-        <div>
-            <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa</h1>
-            <p class="text-[var(--text-secondary)] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
-        </div>
-
-        @php
-            // Phase 4.2 (Langkah 1) - UI HARUS cocok dengan authorization
-            // server (POST /analytics/sync dijaga permission:settings,manage
-            // sejak Phase 4.1). Ini BUKAN security boundary (403 server-side
-            // tetap satu-satunya penjamin sungguhan) - ini cuma supaya user
-            // yang memang tidak berwenang TIDAK disodori tombol yang bakal
-            // 403 kalau diklik ("jangan mengandalkan 403 sebagai UX utama").
-            $canSync = auth()->user()->hasPermissionTo('settings', 'manage');
-            // Phase 4.4 (Langkah 3) - MIRROR $canSync, buat SEMUA mutation
-            // control AI Strategy (Generate/Apply/Revert/Refine/chat send/
-            // regenerate ide) & Audience CSV import (Langkah 3/4) - domain
-            // BEDA dari Sync (Langkah 5, JANGAN dicampur), pakai permission
-            // server yang SAMA PERSIS dengan route (analytics,manage,
-            // Phase 4.2) - read-only bagian (Ringkasan/Ide list/riwayat
-            // chat) TETAP tampil buat analytics,view-only, cuma
-            // CONTROL-nya yang di-gate.
-            $canManageAiStrategy = auth()->user()->hasPermissionTo('analytics', 'manage');
-        @endphp
-        {{-- Phase 4 - action pair "Sinkronkan Data" + "Ekspor" KONSISTEN di
-             ketiga tab (Langkah 1), bukan tombol sync terpisah per tab.
-             Sync mengikuti filter GLOBAL (client_id/platform_id) - period
-             7/30/90 SENGAJA TIDAK dikirim ke endpoint sync (itu display
-             filter, bukan sync mode - ingestion tetap pakai default
-             lookback Phase 1). --}}
-        <div class="flex flex-col items-end gap-1.5">
-            <div class="flex items-center gap-2">
-                @if ($canSync)
-                    <button type="button" id="analytics-sync-button"
-                            title="Sinkronisasi mengambil data terbaru. Filter periode hanya mengatur tampilan analitik, bukan rentang yang disinkronkan."
-                            class="btn-secondary" {{ $selectedClientId ? '' : 'disabled' }}>
-                        <span class="material-symbols-outlined text-[17px]" id="analytics-sync-icon">sync</span>
-                        <span id="analytics-sync-button-label">Sinkronkan Data</span>
-                    </button>
-                @endif
-
-                @if ($selectedClientId)
-                    {{-- Ekspor TETAP tampil buat view-only (read-only action,
-                         tidak butuh settings,manage - Langkah 1 "Export tetap
-                         boleh jika memang read-only action"). Label eksplisit
-                         "Ekspor Performa" (Phase 4.1 Langkah 6) - tombol ini
-                         SELALU export data PERFORMA konten (lihat
-                         AnalyticsController::export()), sekarang muncul di
-                         ketiga tab termasuk Audiens, jadi label generik bisa
-                         disalahartikan sebagai export data audiens (yang
-                         TIDAK ada di sini). platform_id GLOBAL ikut dibawa. --}}
-                    <a href="{{ route('analytics.export', array_filter(['client_id' => $selectedClientId, 'period' => $period, 'platform_id' => $selectedPlatformId ?? null])) }}"
-                       class="btn-primary">
-                        <span class="material-symbols-outlined text-[17px]">download</span> Ekspor Performa
-                    </a>
-                @endif
-            </div>
-
-            @if ($canSync)
-                @if (! $selectedClientId)
-                    <p class="text-[12px] text-[var(--text-muted)]">Pilih client untuk menyinkronkan data.</p>
-                @else
-                    <p class="text-[12px] text-[var(--text-secondary)]" id="analytics-sync-message" hidden></p>
-                    {{-- Freshness (Langkah 14) - TERPISAH dari coverage
-                         banner (itu soal "apakah periode ini lengkap", ini
-                         soal "kapan data terakhir diperbarui") - JANGAN
-                         dicampur. --}}
-                    <p class="text-[11px] text-[var(--text-muted)]" id="analytics-freshness" hidden></p>
-                    <div id="analytics-sync-subjobs" class="flex flex-col gap-0.5 items-end" hidden></div>
-                @endif
-            @endif
-        </div>
+    <div class="mb-6">
+        <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa</h1>
+        <p class="text-[var(--text-secondary)] text-sm mt-1">Analisis performa konten lintas client &amp; platform.</p>
     </div>
 
-    {{-- Tab switcher - Analytics / Performance Table / Audience sekarang 1
-         halaman yang sama, tab ganti konten di bawah, GLOBAL filter (client/
-         period/platform) ikut kebawa pindah tab (reload halaman, bukan
-         AJAX) - table-only params (search/content_type_id/sort/dir/page)
-         SENGAJA TIDAK ikut, itu local ke tab Table doang (Phase 1 item 2). --}}
     @php
-        $tabHref = fn (string $tab) => route('analytics', array_filter([
+        // Phase 4.2 (Langkah 1) - UI HARUS cocok dengan authorization
+        // server (POST /analytics/sync dijaga permission:settings,manage
+        // sejak Phase 4.1). Ini BUKAN security boundary (403 server-side
+        // tetap satu-satunya penjamin sungguhan) - ini cuma supaya user
+        // yang memang tidak berwenang TIDAK disodori tombol yang bakal
+        // 403 kalau diklik ("jangan mengandalkan 403 sebagai UX utama").
+        $canSync = auth()->user()->hasPermissionTo('settings', 'manage');
+        // Phase 4.4 (Langkah 3) - MIRROR $canSync, buat SEMUA mutation
+        // control AI Strategy (Generate/Apply/Revert/Refine/chat send/
+        // regenerate ide) & Audience CSV import (Langkah 3/4) - domain
+        // BEDA dari Sync (Langkah 5, JANGAN dicampur), pakai permission
+        // server yang SAMA PERSIS dengan route (analytics,manage,
+        // Phase 4.2) - read-only bagian (Ringkasan/Ide list/riwayat
+        // chat) TETAP tampil buat analytics,view-only, cuma
+        // CONTROL-nya yang di-gate.
+        $canManageAiStrategy = auth()->user()->hasPermissionTo('analytics', 'manage');
+    @endphp
+
+    {{-- PASS 3 (Langkah B, "SIMPLIFY TAB LANGUAGE") - nama tab user-facing
+         disederhanakan (Ringkasan/Konten/Audiens), TAPI $t['key'] (overview/
+         table/audience) TETAP SAMA PERSIS - itu tab= query value & route
+         contract yang sudah dites banyak tempat, mengubahnya cuma
+         menambah risiko tanpa manfaat user-facing apapun. --}}
+    @php
+        $tabHref = fn (string $tab) => route('analytics', array_filter(array_merge([
             'tab' => $tab,
             'client_id' => $selectedClientId,
-            'period' => $period,
             'platform_id' => $selectedPlatformId ?? null,
-        ]));
+        ], $period->toQueryParams())));
         $tabs = [
-            ['key' => 'overview', 'label' => 'Analytics', 'icon' => 'monitoring'],
-            ['key' => 'table', 'label' => 'Tabel Performa', 'icon' => 'table_rows'],
+            ['key' => 'overview', 'label' => 'Ringkasan', 'icon' => 'monitoring'],
+            ['key' => 'table', 'label' => 'Konten', 'icon' => 'table_rows'],
             ['key' => 'audience', 'label' => 'Audiens', 'icon' => 'groups'],
         ];
     @endphp
@@ -110,7 +59,8 @@
     {{-- Filter bar GLOBAL - Client / Period / Platform, IDENTIK di ketiga
          tab (Phase 1 item 2/3 - dulu Period disembunyikan di tab Table &
          Platform cuma muncul di tab Audience, sekarang konsisten). --}}
-    <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap">
+    <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap"
+          x-data="{ mode: '{{ $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH ? 'month' : 'custom' }}' }">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
 
         <select name="client_id" onchange="this.form.submit()"
@@ -121,12 +71,34 @@
             @endforeach
         </select>
 
-        <select name="period" onchange="this.form.submit()"
+        {{-- PASS 2 - period 7/30/90 diganti Bulan Kalender / Rentang Kustom
+             (Langkah "PRIMARY PRODUCT CHANGE") - keduanya submit lewat
+             AnalyticsPeriodResolver::resolveWithError() query-string
+             contract (period_mode=month&month=YYYY-MM ATAU
+             period_mode=custom&date_from=..&date_to=..), SATU-SATUNYA
+             sumber resmi (Langkah "URL/QUERY-STRING CONTRACT"). --}}
+        <select name="period_mode" x-model="mode" onchange="this.form.submit()"
                 class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="7" {{ $period === 7 ? 'selected' : '' }}>7 Hari Terakhir</option>
-            <option value="30" {{ $period === 30 ? 'selected' : '' }}>30 Hari Terakhir</option>
-            <option value="90" {{ $period === 90 ? 'selected' : '' }}>90 Hari Terakhir</option>
+            <option value="month">Bulan Kalender</option>
+            <option value="custom">Rentang Tanggal</option>
         </select>
+
+        <input type="month" name="month" x-show="mode === 'month'"
+               value="{{ $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->month : now()->format('Y-m') }}"
+               max="{{ now()->format('Y-m') }}" onchange="this.form.submit()"
+               class="text-sm border border-[var(--border)] rounded-lg px-3.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+
+        <div class="flex items-center gap-1.5" x-show="mode === 'custom'">
+            <input type="date" name="date_from"
+                   value="{{ $period->mode !== \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->dateFrom->toDateString() : '' }}"
+                   max="{{ now()->toDateString() }}" onchange="this.form.submit()"
+                   class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+            <span class="text-xs text-[var(--text-muted)]">–</span>
+            <input type="date" name="date_to"
+                   value="{{ $period->mode !== \App\Services\AnalyticsPeriod::MODE_MONTH ? $period->dateTo->toDateString() : '' }}"
+                   max="{{ now()->toDateString() }}" onchange="this.form.submit()"
+                   class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
+        </div>
 
         {{-- Platform - SELALU tampil di ketiga tab biar layout nggak
              bergeser pindah tab, walau cuma 1/0 opsi (disabled kalau
@@ -139,6 +111,102 @@
             @endforeach
         </select>
     </form>
+
+    {{-- PASS 3 (Langkah A, "current period state visually clear without
+         clutter") - sinyal kecil "Data melalui 2 Sep 2026" HANYA muncul
+         kalau periode yang dipilih genuinely partial (bulan berjalan/
+         rentang custom yang belum selesai) - AnalyticsPeriod::
+         effectiveThroughLabel() SUDAH null buat periode yang sudah
+         genuinely lengkap, tidak perlu logic tambahan di sini. --}}
+    @if (! empty($period) && $period->effectiveThroughLabel())
+        <p class="text-[12px] text-[var(--text-muted)] -mt-3 mb-3">{{ $period->effectiveThroughLabel() }}</p>
+    @endif
+
+    {{-- PASS 3 (Langkah A/C/O) - SATU baris ringkas: status data di kiri
+         (freshness/"Data melalui..." - JS mengisi begitu status sync
+         diketahui), SATU tombol aksi utama "Perbarui Data" + Ekspor di
+         kanan. Detail progress per-platform (Langkah D) muncul di panel
+         TERPISAH di bawah baris ini, HANYA saat relevan - bukan
+         menggantung permanen di header. --}}
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+        <div class="min-w-0">
+            @if ($selectedClientId)
+                <p class="text-[13px] text-[var(--text-secondary)]" id="analytics-freshness">Memuat status data...</p>
+            @else
+                <p class="text-[13px] text-[var(--text-muted)]">Pilih client untuk melihat status data.</p>
+            @endif
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+            @if ($canSync)
+                <button type="button" id="analytics-sync-button"
+                        title="Memperbarui data mengambil hasil terbaru dari Instagram/TikTok. Filter periode di atas hanya mengatur tampilan, bukan rentang yang diperbarui."
+                        class="btn-secondary" {{ $selectedClientId ? '' : 'disabled' }}>
+                    <span class="material-symbols-outlined text-[17px]" id="analytics-sync-icon">sync</span>
+                    <span id="analytics-sync-button-label">Perbarui Data</span>
+                </button>
+            @endif
+
+            @if ($selectedClientId)
+                {{-- Ekspor TETAP tampil buat view-only (read-only action,
+                     tidak butuh settings,manage - Langkah 1 "Export tetap
+                     boleh jika memang read-only action"). Label eksplisit
+                     "Ekspor Performa" (Phase 4.1 Langkah 6) - tombol ini
+                     SELALU export data PERFORMA konten (lihat
+                     AnalyticsController::export()), sekarang muncul di
+                     ketiga tab termasuk Audiens, jadi label generik bisa
+                     disalahartikan sebagai export data audiens (yang
+                     TIDAK ada di sini). platform_id GLOBAL ikut dibawa. --}}
+                <a href="{{ route('analytics.export', array_filter(array_merge(['client_id' => $selectedClientId, 'platform_id' => $selectedPlatformId ?? null], $period->toQueryParams()))) }}"
+                   class="btn-primary">
+                    <span class="material-symbols-outlined text-[17px]">download</span> Ekspor Performa
+                </a>
+            @endif
+        </div>
+    </div>
+
+    @if ($canSync && ! $selectedClientId)
+        <p class="text-[12px] text-[var(--text-muted)] mb-6">Pilih client untuk menyinkronkan data.</p>
+    @endif
+
+    {{-- PASS 3 (Langkah D/F/G/H/I) - panel progress/hasil sync, dirender
+         SEPENUHNYA oleh JS (renderSyncPanel()) - kosong & hidden di awal,
+         cuma muncul saat memang ada sesuatu buat ditampilkan (sedang
+         berjalan, baru selesai, atau butuh retry/reconnect). "Lihat
+         detail" di dalamnya progressive disclosure, BUKAN blok teknis
+         permanen. --}}
+    @if ($canSync && $selectedClientId)
+        <div id="analytics-sync-panel" class="mb-6" hidden></div>
+    @endif
+
+    {{-- PASS 3 (Langkah N, "SYNC HISTORY") - SECONDARY, kolaps default,
+         bukan bagian dari hierarki visual utama - server-rendered (ini
+         histori, bukan operasi aktif yang perlu di-poll). --}}
+    @if ($canSync && $selectedClientId && ! empty($syncHistory) && count($syncHistory))
+        <details class="mb-6">
+            <summary class="text-xs font-medium text-[var(--text-muted)] cursor-pointer select-none">Riwayat pembaruan</summary>
+            <div class="card p-4 mt-2 divide-y divide-[var(--surface-muted)]">
+                @foreach ($syncHistory as $entry)
+                    <div class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                            <p class="text-xs font-medium text-[var(--text-primary)]">{{ $entry['started_at']?->translatedFormat('j M H:i') }} · {{ $entry['platforms_label'] }}</p>
+                            <p class="text-[11px] text-[var(--text-muted)]">{{ $entry['status_label'] }}{{ $entry['counts_label'] ? ' · '.$entry['counts_label'] : '' }}</p>
+                        </div>
+                        @if ($entry['duration_label'])
+                            <span class="text-[11px] text-[var(--text-muted)] shrink-0">{{ $entry['duration_label'] }}</span>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </details>
+    @endif
+
+    @if (! empty($periodError))
+        <div class="card p-4 mb-6 flex items-start gap-3" style="background: var(--danger-tint); border-color: var(--danger-text);">
+            <span class="material-symbols-outlined text-[var(--danger-text)] text-[20px]">error</span>
+            <p class="text-[13px] text-[var(--danger-text)]">{{ $periodError }} Menampilkan bulan berjalan.</p>
+        </div>
+    @endif
 
     @if (! empty($noClientSelected))
         <div class="card p-16 flex flex-col items-center justify-center text-center">
@@ -221,7 +289,9 @@
                             <form method="GET" class="shrink-0">
                                 <input type="hidden" name="client_id" value="{{ $selectedClientId }}">
                                 <input type="hidden" name="tab" value="overview">
-                                <input type="hidden" name="period" value="{{ $period }}">
+                                @foreach ($period->toQueryParams() as $key => $value)
+                                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                                @endforeach
                                 @if ($selectedPlatformId)
                                     <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
                                 @endif
@@ -701,12 +771,28 @@
                 </div>
 
                 {{-- Trend chart --}}
+                @php
+                    // PASS 3 (Langkah L) - "Data melalui X"/"N hari data
+                    // tersedia" HANYA ditampilkan kalau memang relevan
+                    // (bulan berjalan/rentang masih partial ATAU ada gap
+                    // genuine di tengah) - jangan tempel di setiap chart
+                    // tanpa pandang bulu (Langkah Q, "no alert overload").
+                    $trendObservedDays = collect($trend)->filter(fn ($p) => $p['value'] !== null)->count();
+                    $trendTotalDays = collect($trend)->count();
+                @endphp
                 <div class="card p-6">
                     <div class="flex items-center gap-2 mb-1">
                         <span class="material-symbols-outlined text-[var(--text-muted)] text-[18px]">show_chart</span>
                         <h2 class="font-display text-lg font-semibold text-[var(--text-primary)]">Views dari Waktu ke Waktu</h2>
                     </div>
-                    <p class="text-xs text-[var(--text-muted)] mb-5 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
+                    <p class="text-xs text-[var(--text-muted)] mb-1 ml-[26px]">Total views seluruh konten pada periode terpilih.</p>
+                    @if ($period->effectiveThroughLabel() || ($trendTotalDays > 0 && $trendObservedDays < $trendTotalDays))
+                        <p class="text-[11px] text-[var(--text-muted)] mb-4 ml-[26px]">
+                            {{ $period->effectiveThroughLabel() ?? ($trendObservedDays.' dari '.$trendTotalDays.' hari data tersedia') }}
+                        </p>
+                    @else
+                        <div class="mb-4"></div>
+                    @endif
                     <x-trend-chart :trend="$trend" />
                 </div>
 
@@ -1037,35 +1123,39 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
 </script>
 @endif
 
-{{-- Phase 4.2 (Langkah 1) - script cuma di-render buat user yang MEMANG
-     bisa dispatch sync (analytics-sync-button juga cuma di-render kalau
-     $canSync - lihat blok header di atas). Bukan cuma defense-in-depth
-     kosmetik: browser view-only user jadi tidak diam-diam nge-poll
+{{-- Phase 4.2 (Langkah 1) / PASS 3 - script cuma di-render buat user yang
+     MEMANG bisa dispatch sync (analytics-sync-button juga cuma di-render
+     kalau $canSync - lihat blok header di atas). Bukan cuma defense-in-
+     depth kosmetik: browser view-only user jadi tidak diam-diam nge-poll
      endpoint yang tidak pernah relevan buat dia. --}}
 @if ($selectedClientId && $canSync)
 <script>
-    // Phase 4 - "Sinkronkan Data" global di halaman Performa. MIRROR pola
-    // polling TikTok yang sudah dites di client-management.show (lihat
-    // ClientManagementController::tiktokSyncStatus()) - vanilla JS,
-    // getElementById, fetch+setInterval, reload sekali di status akhir -
-    // BUKAN Alpine, biar konsisten dengan precedent yang sudah ada. Beda
-    // dari form TikTok: dispatch di sini murni fetch() POST (bukan form
-    // submit+redirect), biar user lihat progress TANPA navigasi apapun
-    // sampai status akhir (Langkah 12/13).
+    // Phase 4 - "Perbarui Data" global di halaman Performa. Arsitektur
+    // polling (fetch+setInterval, reload sekali di status akhir, rediscovery
+    // di page-load, server-side duplicate-protection) TIDAK berubah dari
+    // Phase 4/4.1 - itu yang bikin refresh browser/pindah tab TIDAK PERNAH
+    // membatalkan atau menduplikasi sync (PASS 3 Langkah E). Yang berubah
+    // PASS 3: rendering-nya SEKARANG pakai data.progress (Pass 1 structured
+    // progress - discovered/processed/stage/timestamps genuine per subjob,
+    // Langkah D) sebagai sumber utama tampilan, data.subjobs (legacy) tetap
+    // dipakai buat state machine (not_connected/needs_reconnect/manual_data/
+    // stale-detection yang sudah teruji), BUKAN diganti - dua-duanya
+    // dikombinasikan, bukan salah satu dibuang.
     (function () {
         var clientId = {{ (int) $selectedClientId }};
         var platformId = {{ $selectedPlatformId ? (int) $selectedPlatformId : 'null' }};
         var dispatchUrl = @json(route('analytics.sync'));
         var statusUrl = @json(route('analytics.sync-status'));
+        var retryTaskUrl = @json(route('analytics.sync.retry-task'));
+        var retryFailedItemsUrl = @json(route('analytics.sync.retry-failed-items'));
         var reconnectUrl = @json(route('client-management.show', $selectedClientId));
         var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
         var button = document.getElementById('analytics-sync-button');
         var icon = document.getElementById('analytics-sync-icon');
         var label = document.getElementById('analytics-sync-button-label');
-        var message = document.getElementById('analytics-sync-message');
         var freshness = document.getElementById('analytics-freshness');
-        var subjobsBox = document.getElementById('analytics-sync-subjobs');
+        var panel = document.getElementById('analytics-sync-panel');
         if (! button) return;
 
         var pollTimer = null;
@@ -1074,48 +1164,57 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         // status terminal (success/partial/failed) langsung reload halaman
         // - kalau client itu PERNAH punya sync sukses/gagal kapan saja
         // sebelumnya (kasus normal di production), buka halaman ini akan
-        // reload TERUS MENERUS selamanya (poll -> lihat status lama ->
-        // reload -> poll lagi -> lihat status lama lagi -> reload lagi...).
-        // isTracking = true HANYA kalau kita BENAR-BENAR sedang melacak
-        // satu siklus operasi yang nyata (baru kita dispatch sendiri, ATAU
-        // ketemu SEDANG berjalan pas halaman dibuka/dari tab lain) - status
-        // terminal yang ditemukan TANPA sedang tracking berarti itu cuma
-        // last_result HISTORIS, ditampilkan sebagai info APA ADANYA, TIDAK
-        // PERNAH memicu reload.
+        // reload TERUS MENERUS selamanya. isTracking = true HANYA kalau
+        // kita BENAR-BENAR sedang melacak satu siklus operasi yang nyata
+        // (baru kita dispatch sendiri, ATAU ketemu SEDANG berjalan pas
+        // halaman dibuka/dari tab/scheduled sync lain - PASS 3 Langkah E,
+        // "jika ada scheduled sync aktif, tampilkan progress-nya, jangan
+        // bikin manual run baru yang bersaing") - status terminal yang
+        // ditemukan TANPA sedang tracking berarti itu cuma last_result
+        // HISTORIS, ditampilkan sebagai info APA ADANYA, TIDAK PERNAH
+        // memicu reload.
         var isTracking = false;
         var consecutivePollFailures = 0;
         var MAX_POLL_FAILURES = 3;
 
-        // current_state (queued/running) dipakai SAAT sedang tracking -
-        // "baru saja selesai". last_result (dari histori, BUKAN operasi
-        // aktif) dipakai saat TIDAK tracking - dilabeli eksplisit
-        // "Sinkronisasi terakhir: ..." biar tidak disalahartikan sebagai
-        // operasi yang baru saja terjadi (Langkah 3).
-        var currentStateMessages = {
-            queued: 'Sinkronisasi sedang antre...',
-            running: 'Sedang mengambil data...',
-            partial: 'Sinkronisasi selesai sebagian.',
-            success: 'Data berhasil disinkronkan.',
-            failed: 'Sinkronisasi gagal.',
+        function isBusy(status) {
+            return status === 'queued' || status === 'running';
+        }
+
+        // ===== PASS 3 (Langkah D) - kosakata tampilan, TIDAK ADA angka
+        // dikarang di sini - semua label murni MEMETAKAN stage/status
+        // BACKEND YANG SUDAH ADA (lihat InstagramAnalyticsSyncService::
+        // markRunning()/recordDiscovered() dkk) ke bahasa Indonesia, bukan
+        // logic baru. =====
+        var PLATFORM_GROUPS = [
+            { key: 'instagram', label: 'Instagram', primary: 'instagram_content', unit: 'konten', secondary: ['instagram_audience'] },
+            { key: 'tiktok', label: 'TikTok', primary: 'tiktok_content', unit: 'video', secondary: [] },
+        ];
+        var stageLabels = {
+            discovering_media: 'Mengambil daftar konten...',
+            fetching_insights: 'Memproses insight konten',
+            refreshing_known_media: 'Memperbarui konten yang sudah tercatat',
+            discovering_videos: 'Mengambil daftar video...',
+            processing_videos: 'Memproses insight video',
+            refreshing_known_videos: 'Memperbarui video yang sudah tercatat',
+            fetching_audience_metrics: 'Mengambil data audiens',
         };
+        var secondaryLabels = { instagram_audience: 'Audiens' };
         var lastResultMessages = {
-            success: 'Sinkronisasi terakhir: berhasil.',
-            partial: 'Sinkronisasi terakhir: selesai sebagian.',
-            failed: 'Sinkronisasi terakhir: gagal.',
+            success: 'Data berhasil diperbarui.',
+            partial: 'Pembaruan selesai sebagian.',
+            failed: 'Pembaruan gagal.',
             needs_reconnect: 'Ada koneksi yang butuh dihubungkan ulang.',
             not_connected: 'Belum ada platform yang terhubung untuk client ini.',
             idle: '',
         };
 
-        var subjobLabels = {
-            instagram_content: 'Instagram Content',
-            instagram_audience: 'Instagram Audience',
-            tiktok_content: 'TikTok Content',
-        };
-        var subjobIcon = {
-            queued: '•', running: '⟳', partial: '◐', success: '✓', failed: '✗',
-            needs_reconnect: '⚠', not_connected: '—', idle: '—', manual_data: '✎',
-        };
+        // PASS 3 (Langkah F) - ambang "terasa lebih lama dari biasanya"
+        // SENGAJA jauh lebih pendek dari ambang backend "job dianggap mati"
+        // (staleThresholdSecondsFor(), 360-660 detik) - ini cuma SOFT
+        // warning ("masih hidup, cuma lambat"), backend tetap satu-satunya
+        // yang berwenang bilang job benar-benar berhenti/gagal.
+        var SLOW_PROGRESS_SECONDS = 45;
 
         function query(params) {
             return Object.keys(params)
@@ -1124,38 +1223,29 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                 .join('&');
         }
 
-        function isBusy(status) {
-            return status === 'queued' || status === 'running';
+        function esc(text) {
+            var div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
         }
 
-        function renderSubjobs(subjobs) {
-            if (! subjobsBox || ! subjobs) return;
+        function formatElapsed(startIso) {
+            if (! startIso) return '';
+            var totalSeconds = Math.max(0, Math.floor((Date.now() - new Date(startIso).getTime()) / 1000));
+            var m = Math.floor(totalSeconds / 60);
+            var s = totalSeconds % 60;
+            return m > 0 ? (m + 'm ' + s + 'd') : (s + 'd');
+        }
 
-            var keys = Object.keys(subjobs);
-            // Cuma tampilkan detail per-subjob kalau memang lebih dari 1
-            // subjob relevan (All Platforms) ATAU subjob-nya bukan status
-            // sepenuhnya "diam" (Langkah 12, "tidak perlu modal besar kalau
-            // inline feedback cukup").
-            if (keys.length <= 1) { subjobsBox.hidden = true; subjobsBox.innerHTML = ''; return; }
-
-            subjobsBox.innerHTML = keys.map(function (key) {
-                var s = subjobs[key];
-                var name = subjobLabels[key] || key;
-                var icon = subjobIcon[s.status] || '•';
-                return '<span class="text-[11px] text-[var(--text-muted)]">' + icon + ' ' + name + ' - ' + (s.message || s.status) + '</span>';
-            }).join('');
-            subjobsBox.hidden = false;
+        function secondsSince(iso) {
+            if (! iso) return null;
+            return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
         }
 
         // Langkah 4 - single platform + needs_reconnect: JANGAN tampilkan
         // tombol sync normal yang lalu tidak melakukan apa-apa. Ganti jadi
         // tombol "Hubungkan Ulang" yang mengarahkan ke Client Detail
         // (tempat flow connect/reconnect yang SUDAH ADA), bukan dispatch.
-        // "All Platforms" TIDAK masuk sini (overall_status TIDAK PERNAH
-        // needs_reconnect kalau masih ada subjob lain yang aktif/berhasil
-        // - lihat AnalyticsSyncOrchestrator::computeOverallStatus(), yang
-        // itu jadi 'partial' - tombol tetap dispatch normal, subjob detail
-        // di bawah yang menunjukkan platform mana yang butuh reconnect).
         function applyNeedsReconnectButtonState() {
             button.onclick = function () { window.location.href = reconnectUrl; };
             if (icon) { icon.classList.remove('animate-spin'); icon.textContent = 'link_off'; }
@@ -1163,11 +1253,243 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
             button.disabled = false;
         }
 
-        function applyNormalButtonState(busy) {
+        // PASS 3 (Langkah C) - label tombol platform-aware SAAT busy:
+        // "Memperbarui Instagram" kalau cuma 1 platform relevan, generik
+        // "Memperbarui..." kalau All Platforms - user berpikir dalam
+        // konteks platform, bukan istilah job/subjob internal.
+        function busyButtonLabel(subjobs) {
+            var keys = Object.keys(subjobs || {});
+            if (keys.length === 1 && keys[0] === 'tiktok_content') return 'Memperbarui TikTok...';
+            if (keys.length >= 1 && keys.every(function (k) { return k.indexOf('instagram') === 0; })) return 'Memperbarui Instagram...';
+            return 'Memperbarui...';
+        }
+
+        function applyNormalButtonState(busy, subjobs) {
             button.onclick = dispatchSync;
             if (icon) { icon.classList.toggle('animate-spin', busy); icon.textContent = 'sync'; }
-            if (label) label.textContent = busy ? 'Mengantre...' : 'Sinkronkan Data';
+            if (label) label.textContent = busy ? busyButtonLabel(subjobs) : 'Perbarui Data';
             button.disabled = busy;
+        }
+
+        // ===== PASS 3 (Langkah G) - ringkasan hasil dari reconciliation
+        // counts genuine (Pass 1), BUKAN sekadar "sukses"/"gagal" biner. =====
+        function reconciliationLines(task, unit) {
+            if (! task || ! task.discovered_count) return [];
+            var lines = [];
+            lines.push({ tone: 'success', text: task.success_count + ' dari ' + task.discovered_count + ' ' + unit + ' diperbarui' });
+            if (task.unavailable_count > 0) {
+                lines.push({ tone: 'muted', text: task.unavailable_count + ' ' + unit + ' tidak tersedia dari provider' });
+            }
+            if (task.skipped_count > 0) {
+                lines.push({ tone: 'muted', text: task.skipped_count + ' ' + unit + ' dilewati' });
+            }
+            if (task.failed_count > 0) {
+                lines.push({ tone: 'danger', text: task.failed_count + ' ' + unit + ' belum berhasil diperbarui' });
+            }
+            if (task.discovered_count > 0 && task.reconciled === false) {
+                // Langkah G, "do not report clean success if reconciliation
+                // is not clean" - selisih genuinely tidak diketahui alasannya.
+                lines.push({ tone: 'muted', text: 'Sebagian hasil belum bisa dipastikan statusnya.' });
+            }
+            return lines;
+        }
+
+        function toneClass(tone) {
+            if (tone === 'danger') return 'text-[var(--danger-text)]';
+            if (tone === 'success') return 'text-[var(--success-text)]';
+            return 'text-[var(--text-muted)]';
+        }
+
+        // ===== PASS 3 (Langkah I) - "Lihat detail" progressive disclosure,
+        // checklist DIDERIVASI dari counts yang genuinely ada (bukan
+        // mengarang langkah seperti "Profil diperbarui" yang tidak ada
+        // sinyalnya di data) - kalau backend tidak punya sinyalnya, baris
+        // itu TIDAK ditampilkan sama sekali (jujur lebih penting dari
+        // lengkap). TIDAK PERNAH expose stack trace/token/header. =====
+        function detailChecklist(task, unit) {
+            if (! task) return [];
+            var items = [];
+            if (task.discovered_count > 0) {
+                items.push({ ok: true, text: task.discovered_count + ' ' + unit + ' ditemukan' });
+                items.push({ ok: task.processed_count >= task.discovered_count, text: task.processed_count + ' dari ' + task.discovered_count + ' ' + unit + ' diproses' });
+            }
+            if (task.finished_at && task.reconciled) {
+                items.push({ ok: true, text: 'Data ' + unit + ' tersimpan' });
+            }
+            if (task.unavailable_count > 0) {
+                items.push({ ok: null, text: task.unavailable_count + ' ' + unit + ' tidak tersedia dari provider (bukan kegagalan teknis)' });
+            }
+            if (task.failed_count > 0) {
+                items.push({ ok: false, text: task.failed_count + ' ' + unit + ' gagal diperbarui' });
+            }
+            return items;
+        }
+
+        function checklistIcon(ok) {
+            if (ok === true) return '<span class="material-symbols-outlined text-[15px] text-[var(--success-text)]">check_circle</span>';
+            if (ok === false) return '<span class="material-symbols-outlined text-[15px] text-[var(--danger-text)]">warning</span>';
+            return '<span class="material-symbols-outlined text-[15px] text-[var(--text-muted)]">info</span>';
+        }
+
+        // ===== PASS 3 (Langkah H) - targeted retry, HANYA menyasar scope
+        // yang backend TAHU gagal (item-level buat subjob yang punya
+        // AnalyticsSyncFailure retryable, task-level kalau seluruh subjob
+        // gagal) - TIDAK PERNAH dispatch sync lengkap kalau backend sudah
+        // tahu persis apa yang perlu dicoba ulang. =====
+        function retryButtonHtml(subjobKey, task, groupLabel, unit) {
+            if (! task || ! task.id || task.status !== 'failed' || ! task.failed_count) return '';
+
+            var canItemRetry = subjobKey === 'instagram_content' || subjobKey === 'tiktok_content';
+            var text = canItemRetry
+                ? 'Coba lagi ' + task.failed_count + ' ' + unit
+                : (subjobKey === 'instagram_audience' ? 'Coba lagi data Audiens' : 'Coba lagi ' + groupLabel);
+            var action = canItemRetry ? 'retry-items' : 'retry-task';
+
+            return '<button type="button" class="text-xs font-medium text-[var(--brand)] hover:underline analytics-retry-btn" '
+                + 'data-task-id="' + task.id + '" data-action="' + action + '">' + esc(text) + '</button>';
+        }
+
+        // ===== Bangun 1 kartu platform (Langkah D/F/G/H/I) =====
+        function renderGroup(group, subjobs, progressTasks) {
+            var relevantKeys = [group.primary].concat(group.secondary).filter(function (k) { return subjobs[k]; });
+            if (! relevantKeys.length) return '';
+
+            var primaryState = subjobs[group.primary];
+            // Semua subjob grup ini not_connected - tidak ada apapun buat
+            // ditampilkan, JANGAN render kartu kosong (Langkah Q, "no alert
+            // overload").
+            if (relevantKeys.every(function (k) { return subjobs[k].status === 'not_connected'; })) return '';
+
+            var task = progressTasks ? progressTasks[group.primary] : null;
+            var body = '';
+
+            if (primaryState && primaryState.status === 'needs_reconnect') {
+                body = '<p class="text-xs text-[var(--warning-text)] flex items-center gap-1.5">'
+                    + '<span class="material-symbols-outlined text-[15px]">link_off</span> Koneksi ' + group.label + ' butuh dihubungkan ulang'
+                    + '</p><a href="' + reconnectUrl + '" class="text-xs font-medium text-[var(--brand)] hover:underline mt-1 inline-block">Hubungkan kembali ' + esc(group.label) + '</a>';
+            } else if (primaryState && isBusy(primaryState.status)) {
+                if (task && task.discovered_count > 0) {
+                    var pct = Math.min(100, Math.round((task.processed_count / task.discovered_count) * 100));
+                    body = '<div class="flex items-center justify-between text-xs mb-1.5">'
+                        + '<span class="text-[var(--text-secondary)]">' + task.processed_count + ' dari ' + task.discovered_count + ' ' + group.unit + '</span>'
+                        + '<span class="text-[var(--text-muted)]">' + formatElapsed(task.started_at) + '</span>'
+                        + '</div>'
+                        + '<div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden mb-1"><div class="h-full rounded-full bg-[var(--brand)] transition-[width]" style="width:' + pct + '%"></div></div>'
+                        + '<p class="text-[11px] text-[var(--text-muted)]">' + esc(stageLabels[task.stage] || 'Memproses...') + '</p>';
+                } else {
+                    // Langkah D - SEBELUM discovered_count diketahui: stage
+                    // indeterminate, TIDAK PERNAH mengarang persentase.
+                    body = '<div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">'
+                        + '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>'
+                        + '<span>' + esc((task && stageLabels[task.stage]) || ('Menyiapkan ' + group.label + '...')) + '</span>'
+                        + '</div>';
+                }
+
+                // Langkah F - "taking longer than usual", SOFT warning saja,
+                // backend (bukan JS) yang berwenang bilang benar-benar mati.
+                var idleSeconds = task ? secondsSince(task.last_progress_at) : null;
+                if (idleSeconds !== null && idleSeconds > SLOW_PROGRESS_SECONDS) {
+                    body += '<p class="text-[11px] text-[var(--warning-text)] mt-1.5">Pembaruan membutuhkan waktu lebih lama dari biasanya.</p>';
+                }
+            } else if (task && task.finished_at) {
+                var lines = reconciliationLines(task, group.unit);
+                if (lines.length) {
+                    body = lines.map(function (l) {
+                        return '<p class="text-xs ' + toneClass(l.tone) + '">' + esc(l.text) + '</p>';
+                    }).join('');
+                } else if (primaryState) {
+                    body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || '') + '</p>';
+                }
+                var retryHtml = retryButtonHtml(group.primary, task, group.label, group.unit);
+                if (retryHtml) body += '<div class="mt-1.5">' + retryHtml + '</div>';
+            } else if (primaryState) {
+                body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || (primaryState.message || '')) + '</p>';
+            }
+
+            // Secondary subjob (mis. Instagram Audiens) - GAGAL/needs_reconnect
+            // saja yang ditonjolkan (Langkah Q, "no alert overload" - sukses
+            // diam-diam saja, cukup ada di "Lihat detail").
+            group.secondary.forEach(function (secKey) {
+                var secState = subjobs[secKey];
+                if (! secState) return;
+                if (secState.status === 'needs_reconnect') {
+                    body += '<p class="text-[11px] text-[var(--warning-text)] mt-1">' + esc(secondaryLabels[secKey] || secKey) + ': butuh dihubungkan ulang</p>';
+                } else if (secState.status === 'failed') {
+                    var secTask = progressTasks ? progressTasks[secKey] : null;
+                    body += '<p class="text-[11px] text-[var(--danger-text)] mt-1">' + esc(secondaryLabels[secKey] || secKey) + ': belum berhasil diperbarui</p>';
+                    if (secTask && secTask.id) {
+                        body += '<button type="button" class="text-[11px] font-medium text-[var(--brand)] hover:underline analytics-retry-btn" data-task-id="' + secTask.id + '" data-action="retry-task">Coba lagi data Audiens</button>';
+                    }
+                }
+            });
+
+            var checklist = detailChecklist(task, group.unit);
+            var detailHtml = checklist.length
+                ? '<details class="mt-2"><summary class="text-[11px] font-medium text-[var(--brand)] cursor-pointer select-none">Lihat detail</summary>'
+                    + '<div class="mt-2 space-y-1">' + checklist.map(function (c) {
+                        return '<p class="text-[11px] text-[var(--text-secondary)] flex items-center gap-1.5">' + checklistIcon(c.ok) + ' ' + esc(c.text) + '</p>';
+                    }).join('') + '</div></details>'
+                : '';
+
+            return '<div class="py-3 first:pt-0 last:pb-0 border-b last:border-0 border-[var(--surface-muted)]">'
+                + '<p class="text-xs font-semibold text-[var(--text-primary)] mb-1.5">' + esc(group.label) + '</p>'
+                + body + detailHtml
+                + '</div>';
+        }
+
+        function renderSyncPanel(data) {
+            if (! panel) return;
+
+            var subjobs = data.subjobs || {};
+            var progressTasks = (data.progress && data.progress.tasks) || null;
+            var html = PLATFORM_GROUPS.map(function (g) { return renderGroup(g, subjobs, progressTasks); }).join('');
+
+            if (! html) { panel.hidden = true; panel.innerHTML = ''; return; }
+
+            panel.innerHTML = '<div class="card p-4">' + html + '</div>';
+            panel.hidden = false;
+
+            panel.querySelectorAll('.analytics-retry-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () { handleRetryClick(btn); });
+            });
+        }
+
+        function handleRetryClick(btn) {
+            var taskId = btn.getAttribute('data-task-id');
+            var action = btn.getAttribute('data-action');
+            var url = action === 'retry-items' ? retryFailedItemsUrl : retryTaskUrl;
+            btn.disabled = true;
+            btn.textContent = 'Mencoba lagi...';
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: JSON.stringify({ task_id: taskId }),
+            })
+                .then(function (res) { return res.json(); })
+                .then(function () {
+                    isTracking = true;
+                    startPolling();
+                })
+                .catch(function () {
+                    btn.disabled = false;
+                });
+        }
+
+        // PASS 3 (Langkah O, "AUTO-SYNC UX") - "Data diperbarui hari ini,
+        // 20:42" style, bukan lagi timestamp teknis mentah - user tidak
+        // perlu paham jadwal auto-sync, cukup tahu KAPAN terakhir segar.
+        function formatFreshness(iso) {
+            var date = new Date(iso);
+            var now = new Date();
+            var isToday = date.toDateString() === now.toDateString();
+            var yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+            var isYesterday = date.toDateString() === yesterday.toDateString();
+            var time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+            if (isToday) return 'Data diperbarui hari ini, ' + time;
+            if (isYesterday) return 'Data diperbarui kemarin, ' + time;
+            return 'Data diperbarui ' + date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + time;
         }
 
         function applyStatus(data) {
@@ -1175,53 +1497,36 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
 
             if (busy) {
                 // Operasi SEDANG berjalan - entah baru kita trigger, atau
-                // ketemu sudah jalan (tab/sesi lain) pas halaman dibuka -
-                // WAJIB dilacak sampai selesai.
+                // ketemu sudah jalan (tab/sesi lain/scheduled sync - Langkah
+                // E) pas halaman dibuka - WAJIB dilacak sampai selesai.
                 isTracking = true;
-            }
-
-            if (message) {
-                var text = busy || isTracking
-                    ? (currentStateMessages[data.overall_status] || '')
-                    : (lastResultMessages[data.overall_status] || '');
-                message.textContent = text;
-                message.hidden = ! text;
             }
 
             if (freshness) {
                 if (data.last_observation_at) {
-                    // Langkah 8 - "Data performa terakhir diamati" (BUKAN
-                    // "semua data terakhir disinkronkan") - Instagram
-                    // Audience punya pipeline TERPISAH (AudienceInsight,
-                    // bukan content_metric_snapshots), jadi timestamp ini
-                    // TIDAK mencerminkan freshness audience. Coverage
-                    // (banner terpisah) tetap yang menjawab "apakah
-                    // periode ini lengkap" - dua hal beda, jangan dicampur.
-                    freshness.textContent = 'Data performa terakhir diamati: ' + new Date(data.last_observation_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-                    freshness.hidden = false;
-                } else {
-                    freshness.hidden = true;
+                    freshness.textContent = formatFreshness(data.last_observation_at);
+                } else if (! busy && ! isTracking) {
+                    freshness.textContent = lastResultMessages[data.overall_status] || 'Belum ada data yang tersinkronkan.';
                 }
+                freshness.hidden = false;
             }
 
-            renderSubjobs(data.subjobs);
+            renderSyncPanel(data);
 
             if (! busy && data.overall_status === 'needs_reconnect') {
                 applyNeedsReconnectButtonState();
             } else {
-                applyNormalButtonState(busy);
+                applyNormalButtonState(busy, data.subjobs);
             }
 
             if (! busy) {
                 stopPolling();
 
-                // Langkah 13 - reload SEKALI, TAPI CUMA kalau kita memang
+                // Langkah 13/E - reload SEKALI, TAPI CUMA kalau kita memang
                 // sedang melacak satu siklus operasi nyata (isTracking) -
                 // last_result historis yang ditemukan TANPA tracking aktif
-                // TIDAK PERNAH memicu reload (Langkah 3 - stale log tidak
-                // boleh menang atas current dispatch lifecycle).
-                // window.location.reload() otomatis preserve SEMUA query
-                // string yang lagi aktif.
+                // TIDAK PERNAH memicu reload. window.location.reload()
+                // otomatis preserve SEMUA query string yang lagi aktif.
                 if (isTracking && (data.overall_status === 'success' || data.overall_status === 'partial' || data.overall_status === 'failed')) {
                     setTimeout(function () { window.location.reload(); }, 900);
                 }
@@ -1230,7 +1535,7 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
         }
 
         function showSafeError(text) {
-            if (message) { message.textContent = text; message.hidden = false; }
+            if (freshness) { freshness.textContent = text; freshness.hidden = false; }
         }
 
         // Langkah 6 - status endpoint error (401/403/419/500/network
@@ -1261,7 +1566,7 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                         stopPolling();
                         isTracking = false;
                         showSafeError(err.message || 'Terjadi kesalahan. Muat ulang halaman.');
-                        applyNormalButtonState(false);
+                        applyNormalButtonState(false, null);
                         return;
                     }
 
@@ -1270,7 +1575,7 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                         stopPolling();
                         isTracking = false;
                         showSafeError('Gagal memuat status sinkronisasi. Coba muat ulang halaman.');
-                        applyNormalButtonState(false);
+                        applyNormalButtonState(false, null);
                         return;
                     }
                     // < MAX_POLL_FAILURES - diamkan, kemungkinan cuma blip jaringan sesaat, coba lagi di poll berikutnya.
@@ -1289,7 +1594,7 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
 
         function dispatchSync() {
             isTracking = true;
-            applyNormalButtonState(true);
+            applyNormalButtonState(true, null);
 
             fetch(dispatchUrl, {
                 method: 'POST',
@@ -1304,29 +1609,29 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                 .then(function (result) {
                     if (! result.ok) {
                         isTracking = false;
-                        showSafeError(result.body.message || 'Sinkronisasi gagal dimulai.');
-                        applyNormalButtonState(false);
+                        showSafeError(result.body.message || 'Pembaruan data gagal dimulai.');
+                        applyNormalButtonState(false, null);
                         return;
                     }
                     startPolling();
                 })
                 .catch(function () {
                     isTracking = false;
-                    showSafeError('Sinkronisasi gagal dimulai.');
-                    applyNormalButtonState(false);
+                    showSafeError('Pembaruan data gagal dimulai.');
+                    applyNormalButtonState(false, null);
                 });
         }
 
-        applyNormalButtonState(false);
+        applyNormalButtonState(false, null);
         button.onclick = dispatchSync;
 
         // Ambil status begitu halaman dibuka (bukan cuma setelah klik) -
         // biar freshness indicator & (kalau kebetulan ada sync yang masih
-        // berjalan dari klik sebelumnya/tab lain) badge langsung akurat
-        // tanpa perlu klik dulu. isTracking TETAP false di titik ini -
-        // kalau hasilnya status busy, applyStatus() sendiri yang akan
-        // menyalakan tracking; kalau hasilnya terminal, itu last_result
-        // historis APA ADANYA, TIDAK memicu reload (Langkah 3).
+        // berjalan dari klik sebelumnya/tab lain/scheduled - Langkah E)
+        // panel langsung akurat tanpa perlu klik dulu. isTracking TETAP
+        // false di titik ini - kalau hasilnya status busy, applyStatus()
+        // sendiri yang akan menyalakan tracking; kalau hasilnya terminal,
+        // itu last_result historis APA ADANYA, TIDAK memicu reload.
         poll();
     })();
 </script>

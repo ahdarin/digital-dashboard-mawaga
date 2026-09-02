@@ -56,15 +56,29 @@
                     </div>
 
                     <div class="relative flex items-end gap-1.5" style="height: 180px">
+                        {{-- PASS 3 (Langkah L, "do not fabricate missing daily
+                             points") - $point['value'] === null (has_gap)
+                             HARUS dirender BEDA dari genuine zero, bukan cuma
+                             angka "0" yang divisualkan sama. Sebelumnya null
+                             diam-diam jatuh ke arithmetic (dianggap 0 PHP),
+                             bar-nya keliatan identik dengan hari yang
+                             genuinely nol - user tidak bisa membedakan "hari
+                             ini genuinely 0 views" dari "hari ini memang
+                             belum ada observasi sama sekali". --}}
                         @foreach ($trendItems as $i => $point)
+                            @php $isGap = $point['value'] === null; @endphp
                             <div class="group relative shrink-0 h-full flex flex-col items-center justify-end" style="width: {{ $barWidth }}px">
                                 <div class="pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap
                                             bg-[var(--overlay-solid)] text-white text-[10px] font-medium px-2 py-1 rounded opacity-0
                                             group-hover:opacity-100 transition-opacity z-10">
-                                    {{ number_format($point['value']) }}
+                                    {{ $isGap ? 'Tidak ada data' : number_format($point['value']) }}
                                 </div>
-                                <div class="w-full rounded-[3px] transition-colors {{ $i === $peakIndex && $point['value'] > 0 ? 'bg-[var(--brand)]' : 'bg-[var(--brand-tint-border)] group-hover:bg-[var(--brand-muted)]' }}"
-                                     style="height: {{ max(($point['value'] / $max) * 100, 2) }}%"></div>
+                                @if ($isGap)
+                                    <div class="w-full rounded-[3px] border border-dashed border-[var(--border)]" style="height: 2%"></div>
+                                @else
+                                    <div class="w-full rounded-[3px] transition-colors {{ $i === $peakIndex && $point['value'] > 0 ? 'bg-[var(--brand)]' : 'bg-[var(--brand-tint-border)] group-hover:bg-[var(--brand-muted)]' }}"
+                                         style="height: {{ max(($point['value'] / $max) * 100, 2) }}%"></div>
+                                @endif
                             </div>
                         @endforeach
                     </div>

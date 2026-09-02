@@ -64,14 +64,18 @@ class InstagramAnalyticsService
     }
 
     /**
-     * GET profile akun yang diotorisasi (id, username, account_type,
-     * media_count). Dipakai buat "Test Connection" dan buat identitas yang
-     * disimpan ke api_integrations.external_username/external_account_id.
+     * GET profile akun yang diotorisasi. Dipakai buat "Test Connection" dan
+     * identitas yang disimpan ke api_integrations.external_username/
+     * external_account_id/external_display_name/external_avatar_url.
+     *
+     * PASS 1B - name/profile_picture_url DITAMBAH (field resmi Graph API,
+     * scope instagram_business_basic yang sudah dipakai app ini, tidak ada
+     * biaya API tambahan - masih 1 panggilan /me yang sama).
      */
     public function getProfile(): array
     {
         $response = $this->get($this->url('me'), [
-            'fields' => 'id,username,account_type,media_count',
+            'fields' => 'id,username,name,account_type,media_count,profile_picture_url',
         ]);
 
         if ($response->failed()) {
@@ -100,7 +104,11 @@ class InstagramAnalyticsService
         $media = [];
         $url = $this->url('me/media');
         $params = [
-            'fields' => 'id,caption,media_type,media_product_type,permalink,timestamp,username,media_url,thumbnail_url',
+            // PASS 1B - shortcode DITAMBAH (field resmi Graph API, scope
+            // instagram_business_basic yang sama, kode pendek permalink
+            // yang stabil permanen - tidak ada biaya tambahan, 1 request
+            // media list yang sama).
+            'fields' => 'id,caption,media_type,media_product_type,permalink,timestamp,username,media_url,thumbnail_url,shortcode',
             'limit' => self::MEDIA_PER_PAGE,
         ];
 
@@ -179,6 +187,33 @@ class InstagramAnalyticsService
             return ['metrics' => $this->emptyMetrics(), 'error' => $e->getMessage(), 'category' => InstagramApiException::AUTHENTICATION];
         }
 
+        // PASS 1B (Langkah "VERIFY ITEM-LEVEL TRANSIENT RETRY") - kategori
+        // rate_limited/transient_api_error BUKAN kegagalan final sampai
+        // 1x bounded retry gagal juga (job-level $tries TIDAK PERNAH
+        // menjangkau kegagalan per-media yang ke-catch lokal di caller,
+        // lihat InstagramAnalyticsSyncService::saveMetricSafely()/
+        // refreshKnownMedia() - method ini yang jadi satu-satunya titik
+        // retry genuine buat 1 media). content_unavailable/unsupported_metric
+        // (definitif) DAN authentication (sudah throw di atas) TIDAK
+        // pernah masuk sini - retry buta buat itu cuma buang API call
+        // buat hasil yang pasti identik.
+        if (in_array($result['category'], ['rate_limited', 'transient_api_error'], true)) {
+            if ($result['category'] === 'rate_limited') {
+                usleep(1_500_000); // provider-aware backoff pendek sebelum retry
+            }
+
+            Log::info('Instagram insights: retry bounded 1x setelah kegagalan transient', [
+                'media_id' => $mediaId,
+                'category' => $result['category'],
+            ]);
+
+            try {
+                $result = $this->fetchInsightsWithFallback($mediaId, $preferred, $safe);
+            } catch (InstagramApiException $e) {
+                return ['metrics' => $this->emptyMetrics(), 'error' => $e->getMessage(), 'category' => InstagramApiException::AUTHENTICATION];
+            }
+        }
+
         if ($result['data'] === null) {
             return ['metrics' => $this->emptyMetrics(), 'error' => 'Insights tidak tersedia untuk media ini (mungkin sudah dihapus atau metric tidak didukung)', 'category' => $result['category']];
         }
@@ -216,7 +251,14 @@ class InstagramAnalyticsService
                     );
                 }
 
-                if ($response->status() >= 500 || $response->status() === 429) {
+                // PASS 1B - rate_limited (429) DIPISAH dari transient_api_error
+                // (5xx) biar getMediaInsights() bisa terapkan backoff HANYA
+                // buat rate limit (retry instan pas 5xx blip masuk akal,
+                // retry instan pas rate-limited PERCUMA - window-nya belum
+                // lewat).
+                if ($response->status() === 429) {
+                    $lastCategory = 'rate_limited';
+                } elseif ($response->status() >= 500) {
                     $lastCategory = 'transient_api_error';
                 }
 
@@ -232,7 +274,7 @@ class InstagramAnalyticsService
                 }
                 // NETWORK/SERVER_ERROR/RATE_LIMIT dari $this->get() sendiri -
                 // transient, tetap swallow+fallback seperti semula.
-                $lastCategory = 'transient_api_error';
+                $lastCategory = $e->category === InstagramApiException::RATE_LIMIT ? 'rate_limited' : 'transient_api_error';
                 Log::warning('Instagram insights exception, coba fallback metric set', [
                     'media_id' => $mediaId,
                     'metric_set' => $metricSet,
@@ -332,6 +374,9 @@ class InstagramAnalyticsService
                 // bisa kadaluarsa - dicache apa adanya, refresh otomatis
                 // tiap media ini muncul lagi di sync berikutnya.
                 'thumbnail_url' => $item['thumbnail_url'] ?? $item['media_url'] ?? null,
+                // PASS 1B - shortcode stabil permanen (beda dari thumbnail_url
+                // di atas yang TTL-nya terbatas).
+                'shortcode' => $item['shortcode'] ?? null,
                 'metrics' => $insight['metrics'],
                 'insights_error' => $insight['error'],
             ];

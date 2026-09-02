@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AnalyticsSyncRun;
+use App\Models\AnalyticsSyncTask;
 use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
@@ -11,6 +13,8 @@ use App\Models\Platform;
 use App\Models\AiStrategyInsight;
 use App\Rules\AssignedClient;
 use App\Services\AiStrategyService;
+use App\Services\AnalyticsPeriod;
+use App\Services\AnalyticsPeriodResolver;
 use App\Services\AnalyticsSummaryService;
 use App\Services\AnalyticsSyncOrchestrator;
 use App\Services\PeriodPerformanceService;
@@ -25,10 +29,19 @@ class AnalyticsController extends Controller
      * Ringkasan performa konten terpublikasi (views & engagement rate)
      * lintas client/platform untuk periode yang dipilih.
      */
-    public function index(Request $request, AiStrategyService $aiStrategyService, AnalyticsSummaryService $analyticsSummaryService)
+    public function index(Request $request, AiStrategyService $aiStrategyService, AnalyticsSummaryService $analyticsSummaryService, AnalyticsPeriodResolver $periodResolver)
     {
-        $period = (int) $request->input('period', 30); // 7 / 30 / 90 hari
-        $period = in_array($period, [7, 30, 90]) ? $period : 30;
+        // PASS 2 - "PERIOD ENGINE V2". SATU-SATUNYA tempat period
+        // di-resolve buat halaman ini (Overview/Table/Audience/Export
+        // SEMUA menerima object AnalyticsPeriod yang SAMA, bukan hitung
+        // date math sendiri-sendiri lagi - lihat AnalyticsPeriodResolver
+        // docblock). Default SEKARANG bulan kalender BERJALAN (bukan lagi
+        // period=30) - "PRIMARY PRODUCT CHANGE". $periodError (kalau ada)
+        // dari input mentah tidak valid (rentang kebalik/masa depan/lebih
+        // dari MAX_CUSTOM_RANGE_DAYS) - resolver TETAP fallback tenang ke
+        // bulan berjalan (Langkah 2 "never hard error for GET display
+        // params"), pesan ini murni informational buat user.
+        ['period' => $period, 'error' => $periodError] = $periodResolver->resolveWithError($request);
 
         // Analytics, Performance Table, dan Audience sekarang 1 halaman
         // yang sama (tab switch, full reload) - biar client & period yang
@@ -58,6 +71,7 @@ class AnalyticsController extends Controller
                 'clientOptions' => $clientOptions,
                 'selectedClientId' => null,
                 'period' => $period,
+                'periodError' => $periodError,
                 'activeTab' => $activeTab,
                 'platformOptions' => collect(),
                 'selectedPlatformId' => null,
@@ -73,7 +87,7 @@ class AnalyticsController extends Controller
         // - PUNYA ApiIntegration buat client ini (connected, TERLEPAS ada
         //   data metric/audience atau belum - client yang baru connect
         //   TikTok tapi belum pernah sync harus TETAP bisa milih TikTok di
-        //   sini, terutama buat tombol "Sinkronkan Data" global nanti), ATAU
+        //   sini, terutama buat tombol "Perbarui Data" global nanti), ATAU
         // - PUNYA ContentMetric (data performa), ATAU
         // - PUNYA AudienceInsight (data audiens, API maupun CSV)
         // buat client ini - biar dropdown nggak pernah kosong di satu tab
@@ -98,13 +112,25 @@ class AnalyticsController extends Controller
             $selectedPlatformId = null;
         }
 
+        // PASS 3 (Langkah N, "SYNC HISTORY") - riwayat SINGKAT (5 run
+        // terakhir yang sudah selesai), server-rendered (bukan JS-polled -
+        // ini histori, bukan operasi aktif), SECONDARY (disclosure kolaps,
+        // lihat blade) - BUKAN admin logging interface. Ikut GLOBAL filter
+        // (client) SAJA, dipakai identik di ketiga tab sama seperti
+        // freshness/sync panel.
+        $syncHistory = $request->user()->hasPermissionTo('settings', 'manage')
+            ? $this->buildSyncHistory((int) $selectedClientId)
+            : collect();
+
         $filterState = [
             'clientOptions' => $clientOptions,
             'selectedClientId' => $selectedClientId,
             'period' => $period,
+            'periodError' => $periodError,
             'activeTab' => $activeTab,
             'platformOptions' => $platformOptions,
             'selectedPlatformId' => $selectedPlatformId,
+            'syncHistory' => $syncHistory,
         ];
 
         // Tab Performance Table & Audience punya data & query sendiri-
@@ -358,7 +384,7 @@ class AnalyticsController extends Controller
      * lewat importPerformance() (beda semantik metric_date CSV yang
      * per-hari asli vs kolom period_end di sini).
      */
-    public function export(Request $request)
+    public function export(Request $request, AnalyticsPeriodResolver $periodResolver)
     {
         $selectedClientId = $request->input('client_id');
 
@@ -370,10 +396,27 @@ class AnalyticsController extends Controller
 
         $client = Client::findOrFail($selectedClientId);
 
-        $period = (int) $request->input('period', 30);
-        $period = in_array($period, [7, 30, 90]) ? $period : 30;
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
-        $end = Carbon::now()->endOfDay();
+        // PASS 2 - export HARUS resolve range yang SAMA PERSIS dengan
+        // Overview/Table buat client+platform yang sama (Langkah 12,
+        // "Export/Report consistency") - SATU-SATUNYA jalur resmi.
+        //
+        // PASS 2.1 (Langkah 2, "INVALID EXPORT PERIOD") - beda dari halaman
+        // utama (boleh fallback tenang + banner), export TIDAK BOLEH diam-
+        // diam ganti periode kalau input period_mode/month/date_from/
+        // date_to yang DIKIRIM EKSPLISIT ternyata tidak valid (rentang
+        // kebalik/masa depan/lebih dari MAX_CUSTOM_RANGE_DAYS/format salah)
+        // - user yang minta "export September" TIDAK BOLEH diam-diam
+        // menerima file bulan berjalan yang lain, itu salah tafsir data
+        // tanpa disadari. $error TETAP null (jadi TIDAK diblokir) buat
+        // kasus "tidak ada input period sama sekali" - itu default yang
+        // sah, bukan input tidak valid.
+        ['period' => $period, 'error' => $periodError] = $periodResolver->resolveWithError($request);
+        if ($periodError) {
+            return back()->with('export_error', $periodError);
+        }
+
+        $start = $period->dateFrom;
+        $end = $period->effectiveDateTo;
 
         // Phase 4.1 (Langkah 6) - platform_id GLOBAL filter sekarang ikut
         // dibawa ke export (dulu selalu null/"semua platform" walau user
@@ -426,7 +469,7 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Phase 4 - dispatch tombol global "Sinkronkan Data". SELALU
+     * Phase 4 - dispatch tombol global "Perbarui Data". SELALU
      * client-scoped (Langkah 2 - TIDAK PERNAH dispatch global/all-client),
      * platform_id (kalau ada) menentukan subjob mana yang relevan (Langkah
      * 3). Payload cuma client_id + platform_id - TIDAK PERNAH menerima
@@ -462,7 +505,7 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Phase 4 - status polling read-only buat tombol "Sinkronkan Data" -
+     * Phase 4 - status polling read-only buat tombol "Perbarui Data" -
      * dipoll JS tiap ~2-3 detik (Langkah 10). Client-scoped SAMA PERSIS
      * dengan syncDispatch() di atas. Response HANYA data UX yang aman
      * ditampilkan - lihat AnalyticsSyncOrchestrator::statusPayload(), tidak
@@ -481,7 +524,117 @@ class AnalyticsController extends Controller
 
         $platformId = $this->resolvePlatformId($request);
 
-        return response()->json($orchestrator->statusForClient($client, $platformId));
+        // Analytics V2 Phase B - 'progress' TAMBAHAN, additive (key baru,
+        // seluruh key existing di statusForClient() TIDAK berubah sama
+        // sekali - konsumen lama tetap jalan identik). null kalau belum
+        // pernah ada AnalyticsSyncRun buat client ini (integration belum
+        // pernah sync lewat orchestrator, mis. instalasi baru) - itu state
+        // VALID, bukan error.
+        return response()->json([
+            ...$orchestrator->statusForClient($client, $platformId),
+            'progress' => $orchestrator->latestRunProgress($client, $platformId),
+        ]);
+    }
+
+    /**
+     * PASS 3 (Langkah H, "TARGETED RETRY UX") - retry SATU subjob penuh
+     * (mis. "Coba lagi TikTok" / "Coba lagi data Audiens") - dispatch ulang
+     * dari awal lewat AnalyticsSyncOrchestrator::retryTask(), TIDAK PERNAH
+     * dispatch complete sync lain. task_id lewat body (bukan route-model-
+     * binding) - authorization diverifikasi manual lewat client milik
+     * integration task ini (pola sama syncDispatch/export di atas).
+     */
+    public function syncRetryTask(Request $request, AnalyticsSyncOrchestrator $orchestrator)
+    {
+        $task = AnalyticsSyncTask::with('integration')->find($request->input('task_id'));
+
+        if (! $task || ! $task->integration) {
+            return response()->json(['retried' => false, 'reason' => 'not_found'], 404);
+        }
+
+        $this->assertClientAccessible((int) $task->integration->client_id);
+
+        return response()->json($orchestrator->retryTask($task, auth()->id()));
+    }
+
+    /**
+     * PASS 3 (Langkah H) - retry HANYA item/failure yang masih gagal+
+     * retryable milik 1 task (mis. "Coba lagi 1 video"), TIDAK dispatch job
+     * baru dari awal - langsung lewat AnalyticsSyncOrchestrator::
+     * retryFailedItemsForTask() (Pass 1B, synchronous, cuma menyasar
+     * AnalyticsSyncFailure unresolved+retryable milik task ini).
+     */
+    public function syncRetryFailedItems(Request $request, AnalyticsSyncOrchestrator $orchestrator)
+    {
+        $task = AnalyticsSyncTask::with('integration')->find($request->input('task_id'));
+
+        if (! $task || ! $task->integration) {
+            return response()->json(['retried' => false, 'reason' => 'not_found'], 404);
+        }
+
+        $this->assertClientAccessible((int) $task->integration->client_id);
+
+        return response()->json($orchestrator->retryFailedItemsForTask($task, auth()->id()));
+    }
+
+    /**
+     * PASS 3 (Langkah N, "SYNC HISTORY") - 5 AnalyticsSyncRun TERAKHIR
+     * milik client ini yang SUDAH selesai (finished_at terisi - run yang
+     * masih queued/running ditangani panel progress aktif, bukan histori).
+     * Murni presentation query, TIDAK menyentuh AnalyticsSyncOrchestrator
+     * (itu tetap satu-satunya sumber status LIVE).
+     *
+     * @return \Illuminate\Support\Collection<int, array{started_at: \Illuminate\Support\Carbon, platforms_label: string, status_label: string, counts_label: ?string, duration_label: ?string}>
+     */
+    private function buildSyncHistory(int $clientId): \Illuminate\Support\Collection
+    {
+        return AnalyticsSyncRun::where('client_id', $clientId)
+            ->whereNotNull('finished_at')
+            ->with('tasks')
+            ->latest('started_at')
+            ->take(5)
+            ->get()
+            ->map(function (\App\Models\AnalyticsSyncRun $run) {
+                $contentTasks = $run->tasks->whereIn('subjob', ['instagram_content', 'tiktok_content']);
+
+                $platformsLabel = $contentTasks->map(fn ($t) => $t->subjob === 'tiktok_content' ? 'TikTok' : 'Instagram')
+                    ->unique()->implode(' + ');
+
+                $statusLabel = match ($run->status) {
+                    'success' => 'Selesai',
+                    'partial' => 'Selesai sebagian',
+                    'failed' => 'Gagal',
+                    'needs_reconnect' => 'Butuh dihubungkan ulang',
+                    default => 'Selesai sebagian',
+                };
+
+                $countsLabel = $contentTasks
+                    ->filter(fn ($t) => $t->discovered_count > 0)
+                    ->map(function ($t) {
+                        $short = $t->subjob === 'tiktok_content' ? 'TikTok' : 'IG';
+
+                        return $t->success_count === $t->discovered_count
+                            ? "{$t->success_count} {$short}"
+                            : "{$t->success_count}/{$t->discovered_count} {$short}";
+                    })
+                    ->implode(' · ') ?: null;
+
+                $durationLabel = null;
+                if ($run->started_at && $run->finished_at) {
+                    $seconds = $run->started_at->diffInSeconds($run->finished_at);
+                    $durationLabel = $seconds >= 60
+                        ? sprintf('%dm %dd', intdiv($seconds, 60), $seconds % 60)
+                        : "{$seconds}d";
+                }
+
+                return [
+                    'started_at' => $run->started_at,
+                    'platforms_label' => $platformsLabel ?: 'Audiens',
+                    'status_label' => $statusLabel,
+                    'counts_label' => $countsLabel,
+                    'duration_label' => $durationLabel,
+                ];
+            });
     }
 
     private function resolvePlatformId(Request $request): ?int
@@ -542,7 +695,7 @@ class AnalyticsController extends Controller
      * client (puluhan-ratusan post) masih aman diproses begini, pola yang
      * sama sudah dipakai AnalyticsSummaryService buat Top Content.
      */
-    private function buildTableTabData(int|string $selectedClientId, Request $request, int $period, ?int $platformId): array
+    private function buildTableTabData(int|string $selectedClientId, Request $request, AnalyticsPeriod $period, ?int $platformId): array
     {
         $client = Client::findOrFail($selectedClientId);
 
@@ -553,15 +706,15 @@ class AnalyticsController extends Controller
             $sort = 'total_views';
         }
 
-        // Phase 3 - "total_views"/"avg_engagement" SEKARANG delta periode
-        // (PeriodPerformanceService), BUKAN lagi lifetime cumulative
-        // content_metrics.views walau header bilang 7/30/90 hari (Langkah
-        // 12, bug lama: Table tidak pernah menerima $period sama sekali).
-        $end = Carbon::now()->endOfDay();
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        // PASS 2 - date math SEKARANG SATU-SATUNYA sumber (AnalyticsPeriod
+        // dari resolver di index()), BUKAN subDays($period) lokal lagi.
+        // effectiveDateTo (bukan dateTo mentah) yang dipakai - bulan
+        // berjalan TIDAK dievaluasi sampai tanggal yang belum terjadi.
+        $start = $period->dateFrom;
+        $end = $period->effectiveDateTo;
         $periodPerformanceService = app(PeriodPerformanceService::class);
         $aggregate = $periodPerformanceService->computeClientPeriod($client->id, $start, $end, $platformId);
-        $coverageMessage = $periodPerformanceService->coverageMessage($aggregate['coverage'], $period);
+        $coverageMessage = $periodPerformanceService->coverageMessage($aggregate['coverage'], $period->label());
 
         // Content tanpa data yang bisa dipertanggungjawabkan (unavailable -
         // belum ada observasi/terdeteksi metric reset) TIDAK ditampilkan
@@ -590,9 +743,18 @@ class AnalyticsController extends Controller
                     // content_type_id (lihat docblock InstagramMediaSnapshot::
                     // getDisplayFormatAttribute()).
                     'type' => $item ? $item->contentType?->name : $snapshot?->display_format,
-                    'total_views' => $result->views() ?? 0,
-                    'avg_engagement' => $result->engagementRate ?? 0,
+                    // PASS 3 (Data Health, "never turn missing into zero") -
+                    // BUG DITEMUKAN & DIPERBAIKI: versi lama "?? 0" di sini
+                    // diam-diam mengubah views/engagement yang genuinely NULL
+                    // (mis. metric_reset_or_correction - row TETAP 'usable'/
+                    // partial, tapi delta-nya sendiri belum bisa dipercaya)
+                    // jadi "0" SEBELUM sempat sampai ke blade - padahal blade
+                    // SUDAH benar cek `!== null`, cuma nilainya sudah keburu
+                    // ditimpa di sini. Null TETAP null sekarang.
+                    'total_views' => $result->views(),
+                    'avg_engagement' => $result->engagementRate,
                     'coverage_status' => $result->coverageStatus,
+                    'availability_category' => $result->availabilityCategory(),
                     // Deadline HANYA dari workflow internal - null kalau
                     // unmatched, TIDAK PERNAH diisi dari published_at/
                     // snapshot_date/created_at (itu bukan deadline).
@@ -665,7 +827,7 @@ class AnalyticsController extends Controller
      * jadi angka yang nggak berarti). Kalau belum pernah ada row API sama
      * sekali, fallback ke CSV/legacy persis seperti behavior lama.
      */
-    private function buildAudienceTabData(int|string $selectedClientId, int $period, ?int $platformId): array
+    private function buildAudienceTabData(int|string $selectedClientId, AnalyticsPeriod $period, ?int $platformId): array
     {
         $client = Client::findOrFail($selectedClientId);
 
@@ -701,15 +863,13 @@ class AnalyticsController extends Controller
             return ['noInsightData' => true, 'client' => $client, 'platform' => $platform];
         }
 
-        $start = Carbon::now()->subDays($period - 1)->startOfDay();
-
         $data = $hasApiData
-            ? $this->buildApiAudienceData($client, $platform, $start, $period)
-            : $this->buildCsvAudienceData($client, $platform, $start, $period);
+            ? $this->buildApiAudienceData($client, $platform, $period)
+            : $this->buildCsvAudienceData($client, $platform, $period);
 
         return array_merge(
             compact('client', 'platform'),
-            ['audienceSource' => $hasApiData ? $apiRow->source : 'csv'],
+            ['audienceSource' => $hasApiData ? $apiRow->source : 'csv', 'periodLabel' => $period->label()],
             $data
         );
     }
@@ -720,8 +880,11 @@ class AnalyticsController extends Controller
      * BOLEH null kalau memang belum ada datanya (threshold/belum sync) -
      * TIDAK PERNAH ditebak jadi 0/array kosong (Langkah 4/18).
      */
-    private function buildApiAudienceData(Client $client, Platform $platform, Carbon $start, int $period): array
+    private function buildApiAudienceData(Client $client, Platform $platform, AnalyticsPeriod $period): array
     {
+        $start = $period->dateFrom;
+        $end = $period->effectiveDateTo;
+
         $baseQuery = fn () => AudienceInsight::where('client_id', $client->id)
             ->where('platform_id', $platform->id)
             ->apiSourced();
@@ -750,13 +913,19 @@ class AnalyticsController extends Controller
 
         $followerTrend = $followerRows
             ->where('snapshot_date', '>=', $start)
+            ->where('snapshot_date', '<=', $end)
             ->map(fn ($row) => ['label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'), 'value' => $row->follower_count])
             ->values();
 
         // Reach: kebalikan dari follower_count - historis LENGKAP (backfill
         // s/d 180 hari terbukti tersedia), jadi trend-nya jauh lebih kaya.
+        // PASS 2 - dibatasi <= effectiveDateTo juga (bukan cuma >= start),
+        // supaya month/custom range yang genuinely di masa lalu TIDAK
+        // bocor data setelah date_to (dulu aman diam-diam krn "start" only
+        // filter cukup buat rolling-days, karena upper bound selalu "now").
         $reachRows = (clone $baseQuery())->summary()->whereNotNull('reach')
             ->where('snapshot_date', '>=', $start)
+            ->where('snapshot_date', '<=', $end)
             ->orderBy('snapshot_date')->get(['snapshot_date', 'reach']);
 
         $latestReach = $reachRows->last()->reach ?? null;
@@ -788,7 +957,48 @@ class AnalyticsController extends Controller
             ] : null;
         }
 
-        return compact('lastSyncAt', 'lastCount', 'growth', 'growthMessage', 'followerTrend', 'latestReach', 'reachTrend', 'activeHours', 'peakHour', 'demographics');
+        // PASS 3 (Langkah J, "DATA HEALTH UX") - ringkasan ringkas metrik
+        // yang genuinely null buat platform ini, dipakai disclosure "Lihat
+        // kondisi data" (BUKAN kalkulasi baru - murni membaca ulang null-
+        // check yang SUDAH ADA di atas, satu tempat biar view tidak perlu
+        // ulang logic yang sama). insufficient_history dipakai sebagai
+        // kategori JUJUR default (kita genuinely tidak tahu di sini apakah
+        // penyebabnya threshold Meta atau memang belum pernah sync - lihat
+        // AvailabilityPresenter, TIDAK menebak kategori yang lebih spesifik
+        // dari yang bisa dibuktikan).
+        $dataHealthItems = [];
+        if ($platform->name === 'Instagram') {
+            if ($latestReach === null) {
+                $dataHealthItems[] = ['label' => 'Reach Akun', 'category' => \App\Services\AvailabilityPresenter::INSUFFICIENT_HISTORY];
+            }
+            if ($activeHours === null) {
+                $dataHealthItems[] = ['label' => 'Jam Aktif Audiens', 'category' => \App\Services\AvailabilityPresenter::INSUFFICIENT_HISTORY];
+            }
+
+            // PASS 4 (Langkah 7) - integration id dibutuhkan buat cek signal
+            // provider-availability TERBUKTI (code 3006, lihat
+            // InstagramAudienceInsightsService::isKnownProviderUnavailable())
+            // - lookup ringan, 1 baris, cuma dipakai kalau ada demographic
+            // yang null (baris di atas TIDAK selalu butuh ini).
+            $integrationId = $client->apiIntegrations()
+                ->whereHas('platform', fn ($q) => $q->where('id', $platform->id))
+                ->value('id');
+
+            foreach (['follower' => 'Follower Demographics', 'reached' => 'Reached Audience', 'engaged' => 'Engaged Audience'] as $type => $demoLabel) {
+                if (($demographics[$type] ?? null) === null) {
+                    // PASS 4 (Langkah 7) - PROVIDER_UNAVAILABLE HANYA kalau
+                    // sync terakhir genuinely membuktikannya (code 3006
+                    // Meta) - selain itu TETAP insufficient_history yang
+                    // jujur (Langkah 7, "do NOT guess when no evidence").
+                    $category = ($integrationId && \App\Services\InstagramAudienceInsightsService::isKnownProviderUnavailable($integrationId, $type))
+                        ? \App\Services\AvailabilityPresenter::PROVIDER_UNAVAILABLE
+                        : \App\Services\AvailabilityPresenter::INSUFFICIENT_HISTORY;
+                    $dataHealthItems[] = ['label' => $demoLabel, 'category' => $category];
+                }
+            }
+        }
+
+        return compact('lastSyncAt', 'lastCount', 'growth', 'growthMessage', 'followerTrend', 'latestReach', 'reachTrend', 'activeHours', 'peakHour', 'demographics', 'dataHealthItems');
     }
 
     /**
@@ -797,15 +1007,18 @@ class AnalyticsController extends Controller
      * TIDAK diubah sama sekali selain scope query apiSourced() jadi
      * csvSourced() (Langkah 15/21 - CSV tetap compatible).
      */
-    private function buildCsvAudienceData(Client $client, Platform $platform, Carbon $start, int $period): array
+    private function buildCsvAudienceData(Client $client, Platform $platform, AnalyticsPeriod $period): array
     {
+        $start = $period->dateFrom;
+        $end = $period->effectiveDateTo;
+
         $baseQuery = fn () => AudienceInsight::where('client_id', $client->id)
             ->where('platform_id', $platform->id)
             ->csvSourced();
 
         $latestSnapshot = (clone $baseQuery())->latest('snapshot_date')->first();
 
-        $history = (clone $baseQuery())->where('snapshot_date', '>=', $start)->orderBy('snapshot_date')->get();
+        $history = (clone $baseQuery())->where('snapshot_date', '>=', $start)->where('snapshot_date', '<=', $end)->orderBy('snapshot_date')->get();
 
         $followerTrend = $history->map(fn($row) => [
             'label' => Carbon::parse($row->snapshot_date)->translatedFormat('d M'),

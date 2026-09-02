@@ -40,11 +40,27 @@ class TikTokAnalyticsService
     // Field yang benar-benar dipakai sistem ini - JANGAN minta field yang
     // tidak disimpan/ditampilkan (Langkah 8 & 10, "Store only fields the
     // system actually needs" / "Request fields actually needed").
-    private const USER_INFO_FIELDS_BASIC = ['open_id', 'union_id', 'avatar_url', 'display_name', 'username'];
+    //
+    // PASS 1B fix (Langkah "COMPLETE TIKTOK DISPLAY API COVERAGE") -
+    // 'username' DIPINDAH dari BASIC ke PROFILE (dokumentasi resmi TikTok:
+    // username butuh scope user.info.profile, BUKAN user.info.basic - kode
+    // lama SALAH menganggapnya unconditional. TikTok mengizinkan user
+    // menolak scope opsional satu-satu, jadi field ini BISA gagal diminta
+    // kalau user.info.profile ditolak - sama disiplin persis dengan
+    // USER_INFO_FIELDS_STATS di bawah).
+    private const USER_INFO_FIELDS_BASIC = ['open_id', 'union_id', 'avatar_url', 'display_name'];
+    private const USER_INFO_FIELDS_PROFILE = ['username', 'bio_description', 'profile_deep_link', 'is_verified', 'avatar_large_url'];
     private const USER_INFO_FIELDS_STATS = ['follower_count', 'following_count', 'likes_count', 'video_count'];
+    // is_aigc (PASS 1 micro-fix) - field resmi Video Object (video.list/
+    // video.query, scope video.list yang sama), diminta DEFENSIF -
+    // ditambahkan ke request TANPA syarat khusus, TAPI absen di response
+    // (akun/provider belum menyediakan) TIDAK PERNAH menggagalkan sync
+    // (lihat videoMetadataFields() di TikTokAnalyticsSyncService - null
+    // dipertahankan, tidak ditebak false).
     private const VIDEO_FIELDS = [
-        'id', 'create_time', 'title', 'video_description', 'duration',
+        'id', 'create_time', 'title', 'video_description', 'duration', 'height', 'width',
         'cover_image_url', 'share_url', 'view_count', 'like_count', 'comment_count', 'share_count',
+        'is_aigc',
     ];
 
     public function __construct(
@@ -63,6 +79,9 @@ class TikTokAnalyticsService
     public function getUserInfo(): array
     {
         $fields = self::USER_INFO_FIELDS_BASIC;
+        if ($this->hasScope('user.info.profile')) {
+            $fields = [...$fields, ...self::USER_INFO_FIELDS_PROFILE];
+        }
         if ($this->hasScope('user.info.stats')) {
             $fields = [...$fields, ...self::USER_INFO_FIELDS_STATS];
         }

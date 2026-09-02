@@ -172,6 +172,12 @@ class InstagramAudienceInsightsServiceTest extends TestCase
             'demographic_type' => AudienceInsight::TYPE_REACHED,
         ]);
         $this->assertSame('success', $syncLog->fresh()->status);
+        // PASS 4 (Langkah 7) - "200 + kosong" TIDAK PUNYA bukti eksplisit
+        // dari Meta (bukan error response, bukan kode spesifik apapun) -
+        // TIDAK BOLEH ditandai provider_unavailable, harus TETAP jatuh ke
+        // default insufficient_history yang jujur ("do NOT guess when no
+        // evidence exists").
+        $this->assertFalse(InstagramAudienceInsightsService::isKnownProviderUnavailable($integration->id, AudienceInsight::TYPE_REACHED));
     }
 
     public function test_meta_error_3006_marks_demographic_unavailable_not_sync_failure(): void
@@ -202,6 +208,14 @@ class InstagramAudienceInsightsServiceTest extends TestCase
         // Integration tidak boleh ditandai butuh reconnect - 3006 bukan
         // masalah token/auth.
         $this->assertSame('active', $integration->fresh()->status);
+        // PASS 4 (Langkah 7) - code 3006 ADALAH bukti eksplisit dari Meta
+        // (HTTP error response terstruktur) - HARUS ditandai
+        // provider_unavailable buat Data Health, TIDAK jatuh ke default
+        // insufficient_history yang lebih lemah.
+        $this->assertTrue(InstagramAudienceInsightsService::isKnownProviderUnavailable($integration->id, AudienceInsight::TYPE_ENGAGED));
+        // Demographic_type LAIN yang tidak pernah kena 3006 TIDAK ikut
+        // tertandai (signal per-type, bukan per-integration global).
+        $this->assertFalse(InstagramAudienceInsightsService::isKnownProviderUnavailable($integration->id, AudienceInsight::TYPE_FOLLOWER));
     }
 
     public function test_sync_stays_success_when_both_reached_and_engaged_are_unavailable(): void

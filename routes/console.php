@@ -20,31 +20,37 @@ Schedule::command('workflow:update-overdue')->hourly();
 // di-refresh otomatis tiap hari sebelum kadaluarsa (lihat RefreshInstagramTokens).
 Schedule::command('analytics:refresh-instagram-tokens')->daily();
 
-// Sync default (2 bulan terakhir) semua client yang sudah connect Instagram
-// - HARIAN (cadence didiskusikan & disetujui, lihat SyncAllInstagramIntegrations
-// docblock). Historical sync per bulan SELALU manual, tidak pernah di sini.
-Schedule::command('analytics:sync-all-instagram')->daily();
-
-// Audience Insights (account-level: followers/reach/active_hours/demografi)
-// - TERPISAH dari sync content di atas (lock key beda, job beda), harian,
-// selalu "hari ini" saja (tidak ada historical month-picker - lihat audit
-// "Instagram Audience Insights").
-Schedule::command('analytics:sync-all-instagram-audience')->daily();
-
 // TikTok - access_token JAUH lebih pendek umurnya dari Instagram (~24 jam,
 // bukan ~60 hari), jadi refresh dijadwalkan harian juga (lihat
 // RefreshTikTokTokens docblock - kontrak refresh token TikTok beda total
 // dari Instagram, refresh_token terpisah + dirotasi tiap dipakai).
 Schedule::command('analytics:refresh-tiktok-tokens')->daily();
 
-// Sync default (2 bulan terakhir) semua client yang sudah connect TikTok -
-// cadence disamakan dengan Instagram (Langkah "TikTok Official API
-// Integration" Section 24, "align reasonably with Instagram"). TIDAK ada
-// jadwal audience/stats terpisah - follower_count (kalau scope granted)
-// disatukan ke sync content ini (lihat TikTokAnalyticsSyncService::
-// saveProfileSnapshot()), TikTok Display API standar tidak punya endpoint
-// audience demografis seperti Instagram Insights.
-Schedule::command('analytics:sync-all-tiktok')->daily();
+// Analytics V2 Phase B - "AUTO SYNC, ONCE PER 24 HOURS" - SATU command
+// terkonsolidasi (lihat AutoSyncAnalytics docblock) menggantikan 3 baris
+// jadwal lama (analytics:sync-all-instagram, analytics:sync-all-instagram-
+// audience, analytics:sync-all-tiktok - command-nya MASIH ADA & tetap bisa
+// dijalankan manual buat debugging, cuma JADWAL OTOMATISNYA yang dipindah
+// ke sini biar tidak dispatch dobel). Command baru ini manggil
+// AnalyticsSyncOrchestrator::dispatch() PERSIS pipeline yang sama dengan
+// tombol manual "Perbarui Data" (trigger='scheduled' saja yang beda) -
+// duplicate-protection & AnalyticsSyncRun/Task tracking otomatis ikut.
+// Jam dikonfigurasi lewat config('analytics.auto_sync_time')
+// (ANALYTICS_AUTO_SYNC_TIME di .env), BUKAN hardcoded di sini.
+//
+// PASS 1B (Langkah "SCHEDULER TIMEZONE") - ->timezone() DIEKSPLISITKAN
+// (bukan diam-diam mengandalkan default implisit) walau SECARA FAKTA
+// Laravel bootstrap SUDAH memanggil date_default_timezone_set(config(
+// 'app.timezone')) di setiap request/command termasuk schedule:run
+// sendiri, jadi tanpa baris ini pun evaluasi jadwal SUDAH konsisten pakai
+// config('app.timezone') (Asia/Jakarta, default config/app.php - TIDAK
+// bergantung ke timezone OS server manapun app ini di-hosting). Baris ini
+// murni membuat kebergantungan itu EKSPLISIT/self-documenting - kalau
+// config('app.timezone') pernah berubah di masa depan, satu sumber
+// kebenaran yang sama otomatis ikut, TIDAK ADA jam kedua yang bisa drift.
+Schedule::command('analytics:auto-sync')
+    ->dailyAt(config('analytics.auto_sync_time'))
+    ->timezone(config('app.timezone'));
 
 // Retention rolling content_metric_snapshots (audit sync horizon +
 // snapshot retention) - command SUDAH ADA & struktural benar (lihat
