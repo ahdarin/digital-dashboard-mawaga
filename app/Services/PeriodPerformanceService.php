@@ -731,7 +731,7 @@ class PeriodPerformanceService
         $from = $coverage['from']?->translatedFormat('d M Y');
 
         return $from
-            ? "Data {$period} hari belum tersedia penuh. Menampilkan performa yang teramati sejak {$from}."
+            ? "Data {$period} hari belum tersedia penuh. Menampilkan performa yang teramati sejak {$from} - cakupan akan bertambah otomatis seiring sinkronisasi harian berjalan."
             : "Data {$period} hari belum tersedia penuh.";
     }
 
