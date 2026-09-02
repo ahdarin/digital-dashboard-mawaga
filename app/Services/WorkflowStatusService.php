@@ -120,10 +120,6 @@ class WorkflowStatusService
                     ->update(['status' => 'resolved']);
             }
 
-            if ($toStatus === 'waiting_review' && ! empty($payload['content_file_link'])) {
-                $contentItem->update(['content_file_link' => $payload['content_file_link']]);
-            }
-
             if ($toStatus === 'scheduled') {
                 $contentItem->update(['scheduled_upload_at' => $payload['scheduled_upload_at']]);
             }

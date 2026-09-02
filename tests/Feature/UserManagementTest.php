@@ -114,6 +114,9 @@ class UserManagementTest extends TestCase
     {
         (new \Database\Seeders\RoleSeeder)->run();
 
+        // Commit fa4f2e1 sempat mengganti email ini ke akun personal (buat
+        // kemudahan testing lokal), lalu dikembalikan lagi ke akun resmi
+        // 523 Studio - lihat komentar di RoleSeeder.
         $ceo = User::where('email', 'hello523studio@gmail.com')->firstOrFail();
         $this->assertTrue((bool) $ceo->login_enabled);
     }

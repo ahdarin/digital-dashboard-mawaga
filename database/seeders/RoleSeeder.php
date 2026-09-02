@@ -36,14 +36,18 @@ class RoleSeeder extends Seeder
         // CEO bootstrap - satu akun resmi 523 Studio, bukan akun personal.
         // (Sebelumnya 3 akun Gmail personal - Ahda/Surdik/Ghazi - diganti
         // satu akun resmi ini per keputusan pemilik produk.)
+        // Sempat salah diganti ke akun personal Ghazi (fa4f2e1) buat
+        // kemudahan testing lokal - dikembalikan ke akun resmi sesuai
+        // keputusan di atas, akun personal testing tidak ikut di-bootstrap
+        // di sini lagi.
         $ceoRole = Role::where('name', 'CEO')->first();
 
         $ceo = User::firstOrCreate(
             [
-                'email' => 'ghazifadhlullah31@gmail.com',
+                'email' => 'hello523studio@gmail.com',
             ],
             [
-                'name' => 'ghazi',
+                'name' => '523 Studio',
                 'status' => 'active',
                 'login_enabled' => true,
             ]

@@ -514,12 +514,14 @@ class GoldenPathTest extends TestCase
     }
 
     /**
-     * Sedang Dikerjakan -> Menunggu Persetujuan HARUS ditahan kalau link
-     * konten belum diisi (sama seperti catatan revisi wajib buat masuk
-     * status Revision) - baik lewat payload transisi maupun link yang
-     * sudah tersimpan sebelumnya lewat form Link Konten (Draft).
+     * Sedang Dikerjakan -> Menunggu Persetujuan TIDAK mewajibkan Link Konten
+     * diisi - requirement ini sempat ditambahkan (af35d97) lalu di-revert
+     * (78b5727) karena rekan tim sudah membangun fitur serupa secara terpisah:
+     * Link Konten sekarang diisi lewat card/route tersendiri
+     * (content-items.content-link / ContentItemController::updateContentLink),
+     * bukan lewat payload transisi status ini.
      */
-    public function test_waiting_review_requires_content_link(): void
+    public function test_waiting_review_does_not_require_content_link(): void
     {
         $client = $this->client();
 
@@ -541,20 +543,10 @@ class GoldenPathTest extends TestCase
         ]);
         $item->assignments()->create(['user_id' => $contentCreator->id, 'assignment_role' => 'primary']);
 
-        // ===== Ditolak - belum ada link konten sama sekali =====
-        $rejected = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), ['to_status' => 'waiting_review']);
-        $rejected->assertRedirect();
-        $rejected->assertSessionHas('error');
-        $this->assertSame('in_progress', $item->workflow->fresh()->current_status);
-
-        // ===== Diterima - link konten diisi lewat payload transisi =====
-        $accepted = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), [
-            'to_status' => 'waiting_review',
-            'content_file_link' => 'https://drive.google.com/drive/folders/no-link-test',
-        ]);
-        $accepted->assertRedirect();
-        $accepted->assertSessionHasNoErrors();
+        $response = $this->actingAs($contentCreator)->patch(route('content-items.transition', $item), ['to_status' => 'waiting_review']);
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
         $this->assertSame('waiting_review', $item->workflow->fresh()->current_status);
-        $this->assertSame('https://drive.google.com/drive/folders/no-link-test', $item->fresh()->content_file_link);
+        $this->assertNull($item->fresh()->content_file_link);
     }
 }
