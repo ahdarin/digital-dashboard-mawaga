@@ -42,8 +42,14 @@ class PhaseLAuthorizationLeaksTest extends TestCase
     private function smoAssignedTo(Client $client): User
     {
         $role = Role::create(['name' => 'SMO Test '.uniqid()]);
-        $permission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'view']);
-        $role->permissions()->attach($permission->id);
+        // Phase 4.2 - audience.import (dipakai test di bawah) sekarang
+        // MUTATING-gated (analytics,manage), sesuai profil SMO asli
+        // setelah PermissionSeeder.php diupdate. aiStrategyHistory (READ)
+        // tetap jalan dengan analytics,view saja, jadi aman ditambah
+        // bareng tanpa mengubah semantik test itu.
+        $viewPermission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'view']);
+        $managePermission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'manage']);
+        $role->permissions()->attach([$viewPermission->id, $managePermission->id]);
         $smo = User::factory()->create(['status' => 'active']);
         $smo->roles()->attach($role->id);
         $smo->assignedClients()->attach($client->id);

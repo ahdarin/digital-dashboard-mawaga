@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\ContentType;
 use App\Models\PerformanceAnomaly;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -35,6 +37,10 @@ class AiStrategyService
     // found", cek daftar model terbaru di https://aistudio.google.com
     // dan ganti nilai ini.
     private const MODEL = 'gemini-flash-lite-latest';
+
+    public function __construct(private readonly PeriodPerformanceService $periodPerformanceService)
+    {
+    }
 
     /**
      * Ambil data performa 1 BULAN KALENDER PENUH sebelumnya (bukan rolling
@@ -71,45 +77,45 @@ class AiStrategyService
         $prevMonthEnd = $start->copy()->subDay()->endOfMonth();
         $prevMonthStart = $start->copy()->subMonthNoOverflow()->startOfMonth();
 
-        // client_id langsung (bukan whereHas('contentItem', ...)) - biar post
-        // Instagram real yang belum ke-link ikut dianalisis AI juga, bukan
-        // cuma yang sudah punya ContentItem internal.
-        $metrics = ContentMetric::with(['contentItem.contentPillar', 'contentItem.contentType', 'platform'])
-            ->where('client_id', $client->id)
-            ->whereBetween('metric_date', [$start, $end])
-            ->get();
+        // Phase 3 (Langkah 9G): views/engagement_rate SEKARANG delta periode
+        // genuine (PeriodPerformanceService), BUKAN lagi sum(views)
+        // whereBetween(metric_date) - AI tidak boleh dikasih angka "1 bulan"
+        // yang sebenarnya cuma "content yang PUBLISH bulan itu". Roster
+        // TETAP client_id langsung (bukan whereHas('contentItem', ...)) -
+        // biar post API yang belum ke-link ikut dianalisis AI juga, sama
+        // seperti sebelumnya.
+        $aggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $start, $end, null);
+        $prevAggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $prevMonthStart, $prevMonthEnd, null);
 
-        $prevMetrics = ContentMetric::where('client_id', $client->id)
-            ->whereBetween('metric_date', [$prevMonthStart, $prevMonthEnd])
-            ->get();
+        $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
 
-        $totalViews = (int) $metrics->sum('views');
-        $prevTotalViews = (int) $prevMetrics->sum('views');
+        $totalViews = $aggregate['totals']['views'];
+        $prevTotalViews = $prevAggregate['totals']['views'];
         $trendDirection = $prevTotalViews > 0
             ? round((($totalViews - $prevTotalViews) / $prevTotalViews) * 100, 1)
             : null;
 
-        $byPillar = $metrics->groupBy(fn ($m) => $m->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
+        $byPillar = $usableRows->groupBy(fn ($row) => $row['content_metric']->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
             ->map(fn ($rows) => [
-                'total_views' => (int) $rows->sum('views'),
-                'avg_engagement' => round($rows->avg('engagement_rate'), 2),
-                'content_count' => $rows->map(fn ($m) => $m->distinct_content_key)->unique()->count(),
+                'total_views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0),
+                'avg_engagement' => $this->avgEngagementFromRows($rows),
+                'content_count' => $rows->count(),
             ]);
 
-        $byPlatform = $metrics->groupBy(fn ($m) => $m->platform->name ?? '-')
-            ->map(fn ($rows) => ['total_views' => (int) $rows->sum('views')]);
+        $byPlatform = $usableRows->groupBy(fn ($row) => $row['content_metric']->platform->name ?? '-')
+            ->map(fn ($rows) => ['total_views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0)]);
 
-        $topContent = $metrics->groupBy(fn ($m) => $m->distinct_content_key)
-            ->map(fn ($rows) => [
-                'title' => $rows->first()->contentItem?->title ?? '-',
-                'pillar' => $rows->first()->contentItem?->contentPillar?->name ?? '-',
-                'type' => $rows->first()->contentItem?->contentType?->name ?? '-',
-                'platform' => $rows->first()->platform->name ?? '-',
-                'views' => (int) $rows->sum('views'),
-                'engagement_rate' => round($rows->avg('engagement_rate'), 2),
-            ])
-            ->sortByDesc('views')
+        $topContent = $usableRows
+            ->sortByDesc(fn ($row) => $row['result']->views() ?? 0)
             ->take(5)
+            ->map(fn ($row) => [
+                'title' => $row['content_metric']->contentItem?->title ?? '-',
+                'pillar' => $row['content_metric']->contentItem?->contentPillar?->name ?? '-',
+                'type' => $row['content_metric']->contentItem?->contentType?->name ?? '-',
+                'platform' => $row['content_metric']->platform->name ?? '-',
+                'views' => $row['result']->views() ?? 0,
+                'engagement_rate' => $row['result']->engagementRate ?? 0,
+            ])
             ->values();
 
         // Data audience (demografi, top lokasi, jam aktif, tren follower) -
@@ -177,10 +183,10 @@ class AiStrategyService
             'client_name' => $client->name,
             'period' => "{$start->format('d M Y')} - {$end->format('d M Y')}",
             'total_views' => $totalViews,
-            'avg_engagement_rate' => $metrics->count() > 0 ? round($metrics->avg('engagement_rate'), 2) : 0,
+            'avg_engagement_rate' => $this->avgEngagementFromRows($usableRows),
             'trend_vs_previous_period_percent' => $trendDirection,
-            'content_published_count' => $metrics->map(fn ($m) => $m->distinct_content_key)->unique()->count(),
-            'tracked_days' => $metrics->pluck('metric_date')->unique()->count(),
+            'content_published_count' => $usableRows->count(),
+            'tracked_days' => $this->countTrackedDays($client, $start, $end),
             'period_days' => $days,
             'performance_by_pillar' => $byPillar,
             'performance_by_platform' => $byPlatform,
@@ -189,6 +195,41 @@ class AiStrategyService
             'notable_anomalies' => $notableAnomalies,
             'target_content_count' => $targetItemCount,
         ];
+    }
+
+    private function avgEngagementFromRows(Collection $rows): float
+    {
+        $values = $rows->map(fn ($row) => $row['result']->engagementRate)->filter(fn ($v) => $v !== null);
+
+        return $values->isNotEmpty() ? round($values->avg(), 2) : 0.0;
+    }
+
+    /**
+     * "tracked_days" Phase 3 = jumlah hari yang BENAR2 punya observasi
+     * genuine dalam periode (union snapshot_date content_metric_snapshots
+     * buat content API + metric_date buat CSV/manual) - dipakai
+     * AnalyticsController buat dataCompleteness (tracked_days/period_days).
+     * BUKAN lagi distinct ContentMetric.metric_date (yang buat content API
+     * dikunci ke tanggal publish, jadi cuma menghitung publish dates, bukan
+     * hari performa benar2 di-observasi).
+     */
+    private function countTrackedDays(Client $client, Carbon $start, Carbon $end): int
+    {
+        $apiDates = ContentMetricSnapshot::where('client_id', $client->id)
+            ->whereBetween('snapshot_date', [$start->toDateString(), $end->toDateString()])
+            ->distinct()
+            ->pluck('snapshot_date')
+            ->map(fn ($d) => Carbon::parse($d)->toDateString());
+
+        $csvDates = ContentMetric::where('client_id', $client->id)
+            ->whereNull('instagram_media_snapshot_id')
+            ->whereNull('tiktok_video_snapshot_id')
+            ->whereBetween('metric_date', [$start, $end])
+            ->distinct()
+            ->pluck('metric_date')
+            ->map(fn ($d) => Carbon::parse($d)->toDateString());
+
+        return $apiDates->merge($csvDates)->unique()->count();
     }
 
     /**

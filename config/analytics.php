@@ -25,11 +25,19 @@ return [
     // nyata seberapa jauh jadwal vs waktu post asli biasanya meleset.
     'instagram_schedule_match_tolerance_minutes' => 120,
 
-    // Default sync (tombol "Sync Last 2 Months" / analytics:sync-instagram
-    // tanpa --month) cuma ambil N bulan terakhir - biar operasional harian
-    // nggak perlu narik histori lama tiap kali. Data lama TETAP bisa ditarik
+    // Default sync (tombol "Sync Now" / analytics:sync-instagram tanpa
+    // --month) cuma ambil N hari terakhir - biar operasional harian nggak
+    // perlu narik histori lama tiap kali. Data lama TETAP bisa ditarik
     // manual lewat historical sync per bulan (--month=YYYY-MM).
-    'instagram_default_sync_months' => 2,
+    //
+    // EXACT DAYS (bukan "bulan") - disamakan dengan filter Performa 7/30/90
+    // hari, biar ingestion horizon selalu >= filter period terpanjang yang
+    // UI tawarkan. CATATAN PENTING: ini cuma lookback PENGAMBILAN konten
+    // dari API (video/post APA SAJA yang di-fetch) - BUKAN klaim bahwa
+    // sistem otomatis punya 90 hari GENUINE PERFORMANCE HISTORY harian
+    // (itu baru ada setelah snapshot collection harian berjalan, lihat
+    // Phase 2/3 arsitektur period calculation - JANGAN disamakan).
+    'instagram_default_sync_days' => 90,
 
     /*
     |--------------------------------------------------------------------------
@@ -45,6 +53,8 @@ return [
     */
 
     'tiktok_schedule_match_tolerance_minutes' => 120,
-    'tiktok_default_sync_months' => 2,
+    // EXACT DAYS - sama alasan persis dengan instagram_default_sync_days
+    // di atas.
+    'tiktok_default_sync_days' => 90,
 
 ];

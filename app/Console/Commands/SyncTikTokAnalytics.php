@@ -92,7 +92,11 @@ class SyncTikTokAnalytics extends Command
             : "Default sync: {$since->toDateString()} s/d {$until->toDateString()}");
 
         try {
-            $summary = $service->sync($integration, $syncLog, $until, $userId);
+            // $cutoff = LOWER bound ($since/rangeFrom), BUKAN $until - lihat
+            // catatan panjang di TikTokAnalyticsService::getVideoList() &
+            // SyncTikTokAnalyticsJob soal bug lama yang berhenti pagination
+            // di video pertama kalau upper bound yang dipakai di sini.
+            $summary = $service->sync($integration, $syncLog, $since, $userId);
         } catch (TikTokApiException $e) {
             $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);
             $this->error('Sync gagal: '.$e->getMessage());

@@ -3,7 +3,7 @@
 @section('content')
     <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
         <div class="flex items-center gap-3 mb-2">
-            <a href="{{ route('client-management.show', $apiIntegration->client_id) }}"
+            <a href="{{ $returnTo }}"
                class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-card)] text-[var(--text-secondary)] transition-colors shrink-0">
                 <span class="material-symbols-outlined text-[19px]">arrow_back</span>
             </a>

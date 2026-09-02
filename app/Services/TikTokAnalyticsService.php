@@ -81,14 +81,21 @@ class TikTokAnalyticsService
      * akun yang diotorisasi, terbaru dulu. TikTok TIDAK menyediakan filter
      * since/until server-side seperti Instagram (dibuktikan dari dokumentasi
      * resmi - endpoint ini murni cursor-based tanpa parameter rentang
-     * tanggal), jadi early-stop di sisi client dilakukan lewat $until kalau
-     * diisi (begitu 1 video di halaman ini published_at < $until, sisa
-     * halaman itu & seterusnya pasti lebih lama juga karena urutan terbaru
-     * dulu - aman berhenti tanpa scan seluruh histori tiap sync).
+     * tanggal), jadi early-stop di sisi client dilakukan lewat $cutoff kalau
+     * diisi.
+     *
+     * PENTING: $cutoff HARUS lower bound rentang sync (rangeFrom), BUKAN
+     * upper bound (rangeTo) - begitu 1 video di halaman ini create_time-nya
+     * < $cutoff, sisa halaman itu & seterusnya pasti lebih lama juga karena
+     * urutan terbaru dulu, aman berhenti tanpa scan seluruh histori tiap
+     * sync. Memakai upper bound di sini (bug lama, sudah di-fix di caller -
+     * lihat SyncTikTokAnalyticsJob) bikin pagination berhenti di video
+     * PERTAMA setiap kali rentang sync mencapai "hari ini", karena hampir
+     * semua video create_time-nya < hari ini.
      *
      * @return array{videos: array<int, array>, has_more: bool, cursor: ?int, oldest_fetched: ?int, newest_fetched: ?int}
      */
-    public function getVideoList(?\Illuminate\Support\Carbon $until = null): array
+    public function getVideoList(?\Illuminate\Support\Carbon $cutoff = null): array
     {
         $videos = [];
         $cursor = null;
@@ -114,7 +121,7 @@ class TikTokAnalyticsService
             $pageVideos = $data['videos'] ?? [];
 
             foreach ($pageVideos as $video) {
-                if ($until && isset($video['create_time']) && $video['create_time'] < $until->timestamp) {
+                if ($cutoff && isset($video['create_time']) && $video['create_time'] < $cutoff->timestamp) {
                     $stoppedEarly = true;
                     break 2; // video ini & seterusnya (urutan terbaru dulu) sudah lebih lama dari window - berhenti
                 }
@@ -177,16 +184,17 @@ class TikTokAnalyticsService
     }
 
     /**
-     * Orkestrasi profile -> video list (dibatasi $until kalau diisi) -
-     * MURNI pengambilan & normalisasi, TIDAK menyentuh database (persistensi
-     * ada di TikTokAnalyticsSyncService, sama pola dengan Instagram).
+     * Orkestrasi profile -> video list (dibatasi $cutoff = lower bound
+     * rentang sync, kalau diisi) - MURNI pengambilan & normalisasi, TIDAK
+     * menyentuh database (persistensi ada di TikTokAnalyticsSyncService,
+     * sama pola dengan Instagram).
      *
      * @return array{profile: array, videos: array<int, array>, has_more: bool, stopped_early: bool, oldest_fetched: ?int, newest_fetched: ?int}
      */
-    public function sync(?\Illuminate\Support\Carbon $until = null): array
+    public function sync(?\Illuminate\Support\Carbon $cutoff = null): array
     {
         $profile = $this->getUserInfo();
-        $result = $this->getVideoList($until);
+        $result = $this->getVideoList($cutoff);
 
         return [
             'profile' => $profile,

@@ -51,8 +51,12 @@ class AiStrategyLifecycleTest extends TestCase
     private function managerFor(Client $client): User
     {
         $role = Role::create(['name' => 'Manager Test '.uniqid()]);
-        $permission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'view']);
-        $role->permissions()->attach($permission->id);
+        // Phase 4.2 - AI Strategy generate/apply/revert MUTATING, butuh
+        // analytics,manage (bukan cuma analytics,view) - sesuai profil
+        // Manager asli setelah PermissionSeeder.php diupdate.
+        $viewPermission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'view']);
+        $managePermission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'manage']);
+        $role->permissions()->attach([$viewPermission->id, $managePermission->id]);
         $manager = User::factory()->create(['status' => 'active']);
         $manager->roles()->attach($role->id);
         $manager->assignedClients()->attach($client->id);
@@ -163,5 +167,79 @@ class AiStrategyLifecycleTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('ai_error');
         $this->assertDatabaseMissing('ai_strategy_insights', ['client_id' => $client->id]);
+    }
+
+    // ===== Phase 4.2 Langkah 3: AI Strategy authorization =====
+
+    /**
+     * Profil permission SETARA role "Admin" asli (PermissionSeeder.php) -
+     * analytics,view SAJA, TANPA analytics,manage. Role ini SENGAJA
+     * didesain read-only.
+     */
+    private function viewOnlyStaffFor(Client $client): User
+    {
+        $role = Role::create(['name' => 'Admin Test '.uniqid()]);
+        $permission = Permission::firstOrCreate(['module' => 'analytics', 'action' => 'view']);
+        $role->permissions()->attach($permission->id);
+        $staff = User::factory()->create(['status' => 'active']);
+        $staff->roles()->attach($role->id);
+        $staff->assignedClients()->attach($client->id);
+
+        return $staff;
+    }
+
+    public function test_view_only_role_cannot_generate_ai_strategy(): void
+    {
+        $client = $this->client();
+        $viewOnlyStaff = $this->viewOnlyStaffFor($client);
+        $this->fakeGeminiStrategyResponse();
+
+        $response = $this->actingAs($viewOnlyStaff)->post(route('analytics.ai-strategy'), ['client_id' => $client->id]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('ai_strategy_insights', ['client_id' => $client->id]);
+    }
+
+    public function test_view_only_role_cannot_import_audience_csv(): void
+    {
+        $client = $this->client();
+        $viewOnlyStaff = $this->viewOnlyStaffFor($client);
+
+        $response = $this->actingAs($viewOnlyStaff)->post(route('audience.import'), ['client_id' => $client->id]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_view_only_role_can_still_read_ai_strategy_history(): void
+    {
+        $client = $this->client();
+        $viewOnlyStaff = $this->viewOnlyStaffFor($client);
+
+        $response = $this->actingAs($viewOnlyStaff)->get(route('analytics.ai-strategy.history', ['client_id' => $client->id]));
+
+        $response->assertOk();
+    }
+
+    public function test_view_only_role_can_still_view_analytics_page(): void
+    {
+        $client = $this->client();
+        $viewOnlyStaff = $this->viewOnlyStaffFor($client);
+
+        $response = $this->actingAs($viewOnlyStaff)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+    }
+
+    public function test_manager_role_with_analytics_manage_can_generate_ai_strategy(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->lastMonthMetric($client);
+        $this->fakeGeminiStrategyResponse();
+
+        $response = $this->actingAs($manager)->post(route('analytics.ai-strategy'), ['client_id' => $client->id]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('ai_strategy_insights', ['client_id' => $client->id]);
     }
 }

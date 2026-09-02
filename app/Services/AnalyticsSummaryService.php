@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\ContentItem;
-use App\Models\ContentMetric;
 use App\Models\InstagramMediaSnapshot;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
@@ -14,40 +13,48 @@ use Illuminate\Support\Str;
  * content) untuk 1 client + periode - dipakai bareng oleh AnalyticsController
  * (internal, tab Overview) dan Client\AnalyticsController (client-side),
  * biar query-nya nggak dobel dan otomatis sinkron kalau logic-nya berubah.
+ *
+ * Phase 3: angka performa periode (views/engagement/content count) SEKARANG
+ * datang dari PeriodPerformanceService (delta cumulative genuine dari
+ * content_metric_snapshots buat content API, CSV/manual tetap semantik lama)
+ * - BUKAN lagi whereBetween('metric_date', period) di atas ContentMetric
+ * (bug lama: metric_date API dikunci ke tanggal PUBLISH, jadi query lama
+ * sebenarnya memfilter "diterbitkan dalam periode" bukan "performa
+ * diperoleh dalam periode"). Lihat docblock PeriodPerformanceService buat
+ * penjelasan lengkap coverage/boundary semantics.
  */
 class AnalyticsSummaryService
 {
-    public function buildOverviewData(int|string $clientId, int $period): array
+    public function __construct(private readonly PeriodPerformanceService $periodPerformanceService)
+    {
+    }
+
+    public function buildOverviewData(int|string $clientId, int $period, ?int $platformId = null): array
     {
         $end = Carbon::now()->endOfDay();
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
         $prevEnd = $start->copy()->subDay()->endOfDay();
         $prevStart = $prevEnd->copy()->subDays($period - 1)->startOfDay();
 
-        // Source-of-truth langsung dari client_id di content_metrics -
-        // BUKAN lagi whereHas('contentItem', client_id=X). whereHas mustahil
-        // ikut baris yang content_item_id-nya NULL (post Instagram real
-        // yang belum di-link manual/schedule-match) karena relasinya kosong,
-        // padahal baris itu tetap valid milik client ini (client_id sendiri
-        // sudah diisi langsung, lihat migration + InstagramAnalyticsSyncService).
-        $baseQuery = ContentMetric::query()->where('client_id', $clientId);
+        $current = $this->periodPerformanceService->computeClientPeriod($clientId, $start, $end, $platformId);
+        $previous = $this->periodPerformanceService->computeClientPeriod($clientId, $prevStart, $prevEnd, $platformId);
 
-        $currentMetrics = (clone $baseQuery)->whereBetween('metric_date', [$start, $end])->get();
-        $previousMetrics = (clone $baseQuery)->whereBetween('metric_date', [$prevStart, $prevEnd])->get();
+        $totalViews = $current['totals']['views'];
+        $avgEngagement = $current['totals']['engagement_rate'] ?? 0;
+        $contentPublished = $current['totals']['content_count'];
+        $platformsTracked = $current['totals']['platforms_tracked'];
 
-        $totalViews = (int) $currentMetrics->sum('views');
-        $avgEngagement = $currentMetrics->count() > 0
-            ? round($currentMetrics->avg('engagement_rate'), 2)
-            : 0;
-        $contentPublished = $currentMetrics->map(fn ($m) => $m->distinct_content_key)->unique()->count();
-        $platformsTracked = $currentMetrics->pluck('platform_id')->unique()->count();
+        $prevTotalViews = $previous['totals']['views'];
+        $prevAvgEngagement = $previous['totals']['engagement_rate'] ?? 0;
+        $prevContentPublished = $previous['totals']['content_count'];
+        $prevPlatformsTracked = $previous['totals']['platforms_tracked'];
 
-        $prevTotalViews = (int) $previousMetrics->sum('views');
-        $prevAvgEngagement = $previousMetrics->count() > 0
-            ? round($previousMetrics->avg('engagement_rate'), 2)
-            : 0;
-        $prevContentPublished = $previousMetrics->map(fn ($m) => $m->distinct_content_key)->unique()->count();
-        $prevPlatformsTracked = $previousMetrics->pluck('platform_id')->unique()->count();
+        // Langkah 11 - coverage historis harus jelas ke user, JANGAN
+        // tampilkan "30 Hari: X views" tanpa qualifier kalau datanya belum
+        // penuh (Langkah 5). Audience coverage TETAP TERPISAH (Langkah 11 -
+        // ini cuma untuk performa konten, bukan buildAudienceTabData()).
+        $coverageStatus = $current['coverage']['status'];
+        $coverageMessage = $this->buildCoverageMessage($current['coverage'], $period);
 
         $stats = [
             [
@@ -76,123 +83,100 @@ class AnalyticsSummaryService
             ],
         ];
 
-        $trend = $this->buildTrend($currentMetrics, $start, $end, $period);
+        $dailySeries = $this->periodPerformanceService->computeDailyGainSeries($clientId, $start, $end, $platformId);
+        $trend = $this->buildTrend($dailySeries, $period);
 
-        $platformBreakdown = $currentMetrics
-            ->groupBy('platform_id')
-            ->map(function ($rows, $platformId) {
-                $platform = Platform::find($platformId);
+        $platformBreakdown = collect($current['platform_breakdown']);
 
-                return [
-                    'label' => $platform->name ?? '-',
-                    'value' => (int) $rows->sum('views'),
-                ];
-            })
-            ->sortByDesc('value')
-            ->values();
-
-        $topContent = $currentMetrics
-            ->groupBy(fn ($m) => $m->distinct_content_key)
-            ->map(function ($rows) {
-                $first = $rows->first();
-
-                // Sudah ke-link ke ContentItem internal - tampilkan metadata
-                // lengkap seperti sebelumnya. permalink tetap diikutkan kalau
-                // post ini asalnya dari Instagram (instagram_media_snapshot_id
-                // keisi meski sudah matched) - dipakai action external
-                // "secondary" di samping "Lihat Detail" (Langkah 5/11).
-                if ($first->content_item_id) {
-                    $item = ContentItem::with(['client', 'contentType', 'platform'])->find($first->content_item_id);
-                    if (! $item) {
-                        return null;
-                    }
-
-                    $linkedSnapshot = $first->instagram_media_snapshot_id
-                        ? InstagramMediaSnapshot::find($first->instagram_media_snapshot_id)
-                        : null;
-
-                    return [
-                        'id' => $item->id,
-                        'title' => $item->title,
-                        'client' => $item->client->name ?? '-',
-                        'type' => $item->contentType->name ?? '-',
-                        'platform' => $item->platform->name ?? '-',
-                        'views' => (int) $rows->sum('views'),
-                        'engagement_rate' => round($rows->avg('engagement_rate'), 2),
-                        'last_metric_date' => $rows->max('metric_date'),
-                        'linked' => true,
-                        'permalink' => $linkedSnapshot?->permalink,
-                    ];
-                }
-
-                // Post Instagram real TAPI belum ke-link - metadata dari
-                // InstagramMediaSnapshot (caption/permalink), bukan
-                // ContentItem. TIDAK di-skip (Langkah 4/8 - tetap dihitung
-                // dalam Analytics), cuma nggak ada link "Detail" internal.
-                $snapshot = $first->instagram_media_snapshot_id
-                    ? InstagramMediaSnapshot::find($first->instagram_media_snapshot_id)
-                    : null;
-
-                return [
-                    'id' => null,
-                    'title' => $snapshot?->caption ? Str::limit($snapshot->caption, 60) : 'Instagram Post (belum terhubung)',
-                    'client' => '-',
-                    // Display-only fallback dari format Instagram (Reels/
-                    // Carousel/Image/Video) - sama seperti Performance Table,
-                    // BUKAN ContentType, tidak ditulis ke content_type_id.
-                    'type' => $snapshot?->display_format ?? '-',
-                    'platform' => Platform::find($first->platform_id)->name ?? '-',
-                    'views' => (int) $rows->sum('views'),
-                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
-                    'last_metric_date' => $rows->max('metric_date'),
-                    'linked' => false,
-                    'permalink' => $snapshot?->permalink,
-                    'api_integration_id' => $snapshot?->api_integration_id,
-                    'external_post_id' => $snapshot?->external_post_id,
-                ];
-            })
+        $topContent = collect($current['rows'])
+            ->filter(fn ($row) => $row['result']->isUsable())
+            ->map(fn ($row) => $this->presentTopContentRow($row))
             ->filter()
             ->sortByDesc('views')
             ->take(5)
             ->values();
 
-        return compact('stats', 'trend', 'platformBreakdown', 'topContent');
+        return compact('stats', 'trend', 'platformBreakdown', 'topContent', 'coverageStatus', 'coverageMessage');
     }
 
-    public function buildTrend($metrics, Carbon $start, Carbon $end, int $period): array
+    /**
+     * Bangun 1 baris Top Content dari hasil PeriodPerformanceService - views/
+     * engagement_rate SEKARANG delta periode (Phase 3), BUKAN lagi sum
+     * mentah content_metrics.views. coverage_status diikutkan biar UI bisa
+     * kasih badge "partial"/qualifier kalau bukan gain periode penuh
+     * (Langkah 12 - jangan ranking lifetime metric sementara header bilang
+     * 7/30/90 hari tanpa qualifier apapun).
+     */
+    private function presentTopContentRow(array $row): ?array
     {
-        if ($period <= 30) {
-            $byDate = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->format('Y-m-d'));
+        $metric = $row['content_metric'];
+        $result = $row['result'];
 
-            $points = collect();
-            $cursor = $start->copy();
-            while ($cursor->lte($end)) {
-                $key = $cursor->format('Y-m-d');
-                $points->push([
-                    'label' => $cursor->translatedFormat('d/m'),
-                    'value' => (int) ($byDate->get($key)?->sum('views') ?? 0),
-                ]);
-                $cursor->addDay();
+        if ($metric->content_item_id) {
+            $item = ContentItem::with(['client', 'contentType', 'platform'])->find($metric->content_item_id);
+            if (! $item) {
+                return null;
             }
 
-            return $points->toArray();
+            $linkedSnapshot = $metric->instagram_media_snapshot_id
+                ? InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id)
+                : ($metric->tiktok_video_snapshot_id ? \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id) : null);
+
+            return [
+                'id' => $item->id,
+                'title' => $item->title,
+                'client' => $item->client->name ?? '-',
+                'type' => $item->contentType->name ?? '-',
+                'platform' => $item->platform->name ?? '-',
+                'views' => $result->views() ?? 0,
+                'engagement_rate' => $result->engagementRate,
+                'coverage_status' => $result->coverageStatus,
+                'linked' => true,
+                'permalink' => $linkedSnapshot?->permalink,
+            ];
         }
 
-        // 90 hari -> kelompokkan per minggu
-        $byWeek = $metrics->groupBy(fn ($m) => Carbon::parse($m->metric_date)->startOfWeek()->format('Y-m-d'));
-
-        $points = collect();
-        $cursor = $start->copy()->startOfWeek();
-        while ($cursor->lte($end)) {
-            $key = $cursor->format('Y-m-d');
-            $points->push([
-                'label' => $cursor->translatedFormat('d M'),
-                'value' => (int) ($byWeek->get($key)?->sum('views') ?? 0),
-            ]);
-            $cursor->addWeek();
+        // Post API real TAPI belum ke-link - metadata dari
+        // InstagramMediaSnapshot/TikTokVideoSnapshot (caption/permalink),
+        // bukan ContentItem. TIDAK di-skip (tetap dihitung dalam Analytics),
+        // cuma nggak ada link "Detail" internal.
+        if ($metric->instagram_media_snapshot_id) {
+            $snapshot = InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id);
+            $title = $snapshot?->caption ? Str::limit($snapshot->caption, 60) : 'Instagram Post (belum terhubung)';
+            $type = $snapshot?->display_format ?? '-';
+        } else {
+            $snapshot = \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id);
+            $title = $snapshot?->video_description ? Str::limit($snapshot->video_description, 60) : 'TikTok Video (belum terhubung)';
+            $type = $snapshot?->display_format ?? '-';
         }
 
-        return $points->toArray();
+        return [
+            'id' => null,
+            'title' => $title,
+            'client' => '-',
+            'type' => $type,
+            'platform' => $metric->platform->name ?? Platform::find($metric->platform_id)?->name ?? '-',
+            'views' => $result->views() ?? 0,
+            'engagement_rate' => $result->engagementRate,
+            'coverage_status' => $result->coverageStatus,
+            'linked' => false,
+            'permalink' => $snapshot->permalink ?? $snapshot->share_url ?? null,
+            'api_integration_id' => $snapshot?->api_integration_id,
+            'external_post_id' => $snapshot?->external_post_id,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{date: string, label: string, value: ?int, has_gap: bool}>  $dailySeries
+     */
+    public function buildTrend(array $dailySeries, int $period): array
+    {
+        return $period <= 30 ? $dailySeries : $this->periodPerformanceService->aggregateWeekly($dailySeries);
+    }
+
+    private function buildCoverageMessage(array $coverage, int $period): ?string
+    {
+        return $this->periodPerformanceService->coverageMessage($coverage, $period);
     }
 
     private function percentChange(int|float $previous, int|float $current): array

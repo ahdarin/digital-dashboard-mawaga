@@ -6,11 +6,14 @@ use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ContentItem;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\Platform;
 use App\Models\AiStrategyInsight;
 use App\Rules\AssignedClient;
 use App\Services\AiStrategyService;
 use App\Services\AnalyticsSummaryService;
+use App\Services\AnalyticsSyncOrchestrator;
+use App\Services\PeriodPerformanceService;
 use App\Services\PicAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -56,33 +59,80 @@ class AnalyticsController extends Controller
                 'selectedClientId' => null,
                 'period' => $period,
                 'activeTab' => $activeTab,
+                'platformOptions' => collect(),
+                'selectedPlatformId' => null,
             ]);
         }
+
+        // Platform - GLOBAL filter (Client/Period/Platform), dipakai SAMA
+        // persis di ketiga tab (Overview/Table/Audience), bukan lagi filter
+        // lokal punya tab masing-masing (Langkah 3, bug lama: Table punya
+        // dropdown platform sendiri, Audience beda lagi, Overview nggak
+        // punya sama sekali - filter nggak konsisten & nggak kebawa pindah
+        // tab). Opsinya = union platform yang:
+        // - PUNYA ApiIntegration buat client ini (connected, TERLEPAS ada
+        //   data metric/audience atau belum - client yang baru connect
+        //   TikTok tapi belum pernah sync harus TETAP bisa milih TikTok di
+        //   sini, terutama buat tombol "Sinkronkan Data" global nanti), ATAU
+        // - PUNYA ContentMetric (data performa), ATAU
+        // - PUNYA AudienceInsight (data audiens, API maupun CSV)
+        // buat client ini - biar dropdown nggak pernah kosong di satu tab
+        // tapi keisi di tab lain, dan nggak "menghilangkan" platform yang
+        // baru connect/belum sync sama sekali (pre-Phase-2-check correction).
+        $platformOptions = Platform::where(function ($q) use ($selectedClientId) {
+            $q->whereHas('apiIntegrations', fn ($q2) => $q2->where('client_id', $selectedClientId))
+                ->orWhereHas('contentMetrics', fn ($q2) => $q2->where('client_id', $selectedClientId))
+                ->orWhereHas('audienceInsights', fn ($q2) => $q2->where('client_id', $selectedClientId));
+        })->orderBy('name')->get();
+
+        $selectedPlatformId = $request->input('platform_id');
+        $selectedPlatformId = $selectedPlatformId !== null && $selectedPlatformId !== ''
+            ? (int) $selectedPlatformId
+            : null;
+        // Platform yang tidak relevan/accessible buat client ini (mis. sisa
+        // query string dari client lain yang kebetulan punya platform_id
+        // sama persis, atau ID yang ditebak manual) diperlakukan sebagai
+        // "Semua Platform", BUKAN error keras - biar switch client di
+        // dropdown yang sama nggak pernah nyangkut di state platform lama.
+        if ($selectedPlatformId !== null && ! $platformOptions->contains('id', $selectedPlatformId)) {
+            $selectedPlatformId = null;
+        }
+
+        $filterState = [
+            'clientOptions' => $clientOptions,
+            'selectedClientId' => $selectedClientId,
+            'period' => $period,
+            'activeTab' => $activeTab,
+            'platformOptions' => $platformOptions,
+            'selectedPlatformId' => $selectedPlatformId,
+        ];
 
         // Tab Performance Table & Audience punya data & query sendiri-
         // sendiri (nggak nyambung ke stats/trend overview) - dihitung
         // terpisah biar tab yang lagi nggak aktif nggak ikut query
         // percuma tiap request.
         if ($activeTab === 'table') {
-            return view('analytics.index', array_merge([
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => $selectedClientId,
-                'period' => $period,
-                'activeTab' => $activeTab,
-            ], $this->buildTableTabData($selectedClientId, $request)));
+            return view('analytics.index', array_merge(
+                $filterState,
+                $this->buildTableTabData($selectedClientId, $request, $period, $selectedPlatformId)
+            ));
         }
 
         if ($activeTab === 'audience') {
-            return view('analytics.index', array_merge([
-                'clientOptions' => $clientOptions,
-                'selectedClientId' => $selectedClientId,
-                'period' => $period,
-                'activeTab' => $activeTab,
-            ], $this->buildAudienceTabData($selectedClientId, $request, $period)));
+            return view('analytics.index', array_merge(
+                $filterState,
+                $this->buildAudienceTabData($selectedClientId, $period, $selectedPlatformId)
+            ));
         }
 
-        ['stats' => $stats, 'trend' => $trend, 'platformBreakdown' => $platformBreakdown, 'topContent' => $topContent]
-            = $analyticsSummaryService->buildOverviewData($selectedClientId, $period);
+        [
+            'stats' => $stats,
+            'trend' => $trend,
+            'platformBreakdown' => $platformBreakdown,
+            'topContent' => $topContent,
+            'coverageStatus' => $coverageStatus,
+            'coverageMessage' => $coverageMessage,
+        ] = $analyticsSummaryService->buildOverviewData($selectedClientId, $period, $selectedPlatformId);
 
         $latestAiInsight = AiStrategyInsight::where('client_id', $selectedClientId)
             ->latest()
@@ -90,37 +140,42 @@ class AnalyticsController extends Controller
 
         $aiAnalysisMonth = $aiStrategyService->analysisPeriod()['start']->translatedFormat('F Y');
 
-        return view('analytics.index', compact(
+        return view('analytics.index', array_merge($filterState, compact(
             'stats',
             'trend',
             'platformBreakdown',
             'topContent',
-            'clientOptions',
-            'selectedClientId',
-            'period',
             'latestAiInsight',
             'aiAnalysisMonth',
-            'activeTab'
-        ));
+            'coverageStatus',
+            'coverageMessage'
+        )));
     }
 
     /**
      * KF3xx — Content / Client Performance Detail
      * Detail performa satu content item: histori metrik harian per platform
      * beserta log sinkronisasi/import datanya.
+     *
+     * Phase 3 (Langkah 9D): totalViews/avgEngagement/metrik video TETAP dari
+     * content_metrics APA ADANYA (current/latest cumulative, TIDAK direpurpose
+     * - Langkah 10) - itu representasi KONDISI SEKARANG, bukan gain periode.
+     * Yang diganti ke PeriodPerformanceService HANYA 3 hal yang secara
+     * eksplisit "period"/"trend": trend chart harian, daysTracked (buat
+     * content API, itu jumlah snapshot_date genuine, BUKAN 1 metric_date
+     * yang dikunci ke publish), dan peer comparison 30 hari.
      */
     public function show(ContentItem $contentItem)
     {
         $contentItem->load(['client', 'contentType', 'platform']);
 
         $metrics = ContentMetric::where('content_item_id', $contentItem->id)
-            ->with(['platform', 'syncLog', 'importedBy'])
+            ->with(['platform', 'syncLog', 'importedBy', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
             ->orderByDesc('metric_date')
             ->get();
 
         $totalViews = (int) $metrics->sum('views');
         $avgEngagement = $metrics->count() > 0 ? round($metrics->avg('engagement_rate'), 2) : 0;
-        $daysTracked = $metrics->pluck('metric_date')->unique()->count();
         $bestDate = $metrics->sortByDesc('views')->first();
 
         // Metrik video (Reels/TikTok) - null semua kalau konten ini nggak
@@ -131,13 +186,6 @@ class AnalyticsController extends Controller
         $totalShares = $hasVideoMetrics ? (int) $metrics->sum('shares') : null;
         $totalSaves = $hasVideoMetrics ? (int) $metrics->sum('saves') : null;
 
-        // Data untuk grafik tren (urut tanggal naik)
-        $chronological = $metrics->sortBy('metric_date')->values();
-        $trend = $chronological->map(fn($m) => [
-            'label' => Carbon::parse($m->metric_date)->translatedFormat('d M'),
-            'value' => (int) $m->views,
-        ])->values();
-
         $syncLogs = $metrics
             ->pluck('syncLog')
             ->filter()
@@ -145,26 +193,75 @@ class AnalyticsController extends Controller
             ->sortByDesc('created_at')
             ->values();
 
-        // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
-        // Dibatasi 30 hari terakhir biar adil dibandingin (konten yang lebih
-        // lama ditrack otomatis lebih unggul kalau dibandingin all-time).
+        $periodPerformanceService = app(PeriodPerformanceService::class);
+        $apiMetric = $metrics->first(fn ($m) => $m->instagram_media_snapshot_id || $m->tiktok_video_snapshot_id);
+
         $peerStart = Carbon::now()->subDays(29)->startOfDay();
         $peerEnd = Carbon::now()->endOfDay();
 
-        $thisContentRecent = $metrics->whereBetween('metric_date', [$peerStart, $peerEnd]);
-        $recentViews = (int) $thisContentRecent->sum('views');
-        $recentEngagement = $thisContentRecent->count() > 0 ? $thisContentRecent->avg('engagement_rate') : null;
+        if ($apiMetric) {
+            $identityColumn = $apiMetric->instagram_media_snapshot_id ? 'instagram_media_snapshot_id' : 'tiktok_video_snapshot_id';
+            $identityId = $apiMetric->instagram_media_snapshot_id ?? $apiMetric->tiktok_video_snapshot_id;
+            $platformType = $apiMetric->instagram_media_snapshot_id ? 'instagram' : 'tiktok';
+            $publishedAt = $apiMetric->instagramMediaSnapshot?->published_at ?? $apiMetric->tiktokVideoSnapshot?->published_at;
 
-        $peerMetrics = ContentMetric::whereHas('contentItem', function ($q) use ($contentItem) {
-            $q->where('client_id', $contentItem->client_id)->where('id', '!=', $contentItem->id);
-        })
-            ->whereBetween('metric_date', [$peerStart, $peerEnd])
-            ->get();
+            // Trend chart harian (90 hari) - GAIN harian genuine dari
+            // content_metric_snapshots, BUKAN lifetime cumulative
+            // content_metrics.views (yang cuma 1 baris, dikunci ke tanggal
+            // publish - chart lama praktis 1 titik doang buat content API).
+            $trendStart = Carbon::now()->subDays(89)->startOfDay();
+            $snapshotsForTrend = ContentMetricSnapshot::where($identityColumn, $identityId)
+                ->whereBetween('snapshot_date', [$trendStart->copy()->subDay()->toDateString(), $peerEnd->toDateString()])
+                ->orderBy('snapshot_date')
+                ->get(['snapshot_date', 'views', 'instagram_media_snapshot_id', 'tiktok_video_snapshot_id']);
 
-        $peerAvgViews = $peerMetrics->isNotEmpty()
-            ? $peerMetrics->groupBy('content_item_id')->map(fn($rows) => $rows->sum('views'))->avg()
-            : null;
-        $peerAvgEngagement = $peerMetrics->isNotEmpty() ? $peerMetrics->avg('engagement_rate') : null;
+            $dailySeries = $periodPerformanceService->computeDailyGainSeriesFromSnapshots($snapshotsForTrend, $trendStart, $peerEnd);
+            $trend = collect($dailySeries)->map(fn ($p) => [
+                'label' => Carbon::parse($p['date'])->translatedFormat('d M'),
+                'value' => $p['value'],
+                'has_gap' => $p['has_gap'],
+            ])->values();
+
+            $daysTracked = ContentMetricSnapshot::where($identityColumn, $identityId)->distinct()->count('snapshot_date');
+
+            $thisResult = $periodPerformanceService->computeContentDelta($platformType, $identityColumn, $identityId, $publishedAt, $peerStart, $peerEnd);
+            $recentViews = $thisResult->views() ?? 0;
+            $recentEngagement = $thisResult->engagementRate;
+            $hasRecentData = $thisResult->isUsable();
+        } else {
+            // CSV/manual - semantik lama dipertahankan APA ADANYA
+            // (metric_date CSV = nilai per-periode ASLI dari user, bukan
+            // cumulative snapshot - Langkah 8/10, TIDAK dipaksa lewat delta
+            // engine).
+            $chronological = $metrics->sortBy('metric_date')->values();
+            $trend = $chronological->map(fn($m) => [
+                'label' => Carbon::parse($m->metric_date)->translatedFormat('d M'),
+                'value' => (int) $m->views,
+                'has_gap' => false,
+            ])->values();
+            $daysTracked = $metrics->pluck('metric_date')->unique()->count();
+
+            $thisContentRecent = $metrics->whereBetween('metric_date', [$peerStart, $peerEnd]);
+            $recentViews = (int) $thisContentRecent->sum('views');
+            $recentEngagement = $thisContentRecent->count() > 0 ? (float) $thisContentRecent->avg('engagement_rate') : null;
+            $hasRecentData = $thisContentRecent->isNotEmpty();
+        }
+
+        // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
+        // Dibatasi 30 hari terakhir biar adil dibandingin (konten yang lebih
+        // lama ditrack otomatis lebih unggul kalau dibandingin all-time).
+        // Roster peer = STANDAR computeClientPeriod() (client_id langsung,
+        // API+CSV tergabung, sama seperti Overview/Table) - hanya baris
+        // usable (full/partial) yang dipakai, "unavailable" tidak boleh
+        // ikut menyeret rata-rata jadi 0 palsu.
+        $peerAggregate = $periodPerformanceService->computeClientPeriod($contentItem->client_id, $peerStart, $peerEnd, null);
+        $peerRows = collect($peerAggregate['rows'])
+            ->filter(fn ($row) => $row['result']->isUsable())
+            ->filter(fn ($row) => ($row['content_metric']->content_item_id ?? null) !== $contentItem->id);
+
+        $peerAvgViews = $peerRows->isNotEmpty() ? $peerRows->avg(fn ($row) => $row['result']->views() ?? 0) : null;
+        $peerEngagementValues = $peerRows->map(fn ($row) => $row['result']->engagementRate)->filter(fn ($v) => $v !== null);
+        $peerAvgEngagement = $peerEngagementValues->isNotEmpty() ? $peerEngagementValues->avg() : null;
 
         $viewsVsPeerPct = ($peerAvgViews && $peerAvgViews > 0)
             ? round((($recentViews - $peerAvgViews) / $peerAvgViews) * 100)
@@ -172,7 +269,7 @@ class AnalyticsController extends Controller
         $engagementVsPeerPct = ($peerAvgEngagement && $peerAvgEngagement > 0 && $recentEngagement !== null)
             ? round((($recentEngagement - $peerAvgEngagement) / $peerAvgEngagement) * 100)
             : null;
-        $hasPeerComparison = $peerMetrics->isNotEmpty() && $thisContentRecent->isNotEmpty();
+        $hasPeerComparison = $peerRows->isNotEmpty() && $hasRecentData;
 
         return view('analytics.show', compact(
             'contentItem',
@@ -200,10 +297,20 @@ class AnalyticsController extends Controller
     /**
      * KF3xx — Export Performance Data
      * Download CSV performa konten client terpilih pada periode terpilih.
-     * Sengaja pakai format kolom yang SAMA persis dengan Import CSV
-     * (content_title,platform,metric_date,views,engagement_rate) - biar
-     * hasil export bisa langsung di-import ulang (misal buat backup, atau
-     * dipindah ke client lain).
+     *
+     * Phase 3: KOLOM DIUBAH (Langkah 9C, "jangan lagi export 'content
+     * published in period' seolah period performance; label/columns harus
+     * jujur") - dulu format kolomnya SENGAJA sama persis dengan Import CSV
+     * (content_title,platform,metric_date,views,engagement_rate) biar bisa
+     * di-import ulang, TAPI itu keliru buat data API: metric_date API
+     * dikunci ke tanggal PUBLISH, jadi "views" di baris itu sebenarnya
+     * lifetime cumulative sampai publish, BUKAN performa periode terpilih.
+     * Sekarang views/engagement_rate = DELTA periode (PeriodPerformanceService),
+     * kolom period_start/period_end/coverage_status ditambahkan biar angka
+     * ini jelas maksudnya "gain periode X" dan TIDAK bisa disalahartikan
+     * sebagai baris harian - file ini TIDAK dimaksudkan buat di-import balik
+     * lewat importPerformance() (beda semantik metric_date CSV yang
+     * per-hari asli vs kolom period_end di sini).
      */
     public function export(Request $request)
     {
@@ -222,32 +329,44 @@ class AnalyticsController extends Controller
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
         $end = Carbon::now()->endOfDay();
 
-        // client_id langsung (bukan whereHas('contentItem', ...)) - sama
-        // seperti dashboard, biar post Instagram real yang belum ke-link
-        // ikut ke-export juga, bukan cuma yang sudah punya ContentItem.
-        $metrics = ContentMetric::with(['contentItem', 'platform', 'instagramMediaSnapshot'])
-            ->where('client_id', $client->id)
-            ->whereBetween('metric_date', [$start, $end])
-            ->orderBy('metric_date')
-            ->get();
+        // Phase 4.1 (Langkah 6) - platform_id GLOBAL filter sekarang ikut
+        // dibawa ke export (dulu selalu null/"semua platform" walau user
+        // lagi pilih 1 platform di halaman Analytics - export.blade link
+        // juga sudah dikirim platform_id-nya, cuma sebelumnya dibuang di
+        // sini).
+        $platformId = $this->resolvePlatformId($request);
+
+        $aggregate = app(PeriodPerformanceService::class)->computeClientPeriod($client->id, $start, $end, $platformId);
+
+        // Content tanpa angka yang bisa dipertanggungjawabkan (unavailable)
+        // TIDAK diexport sebagai baris "0 views" - itu menyesatkan (lihat
+        // catatan yang sama di buildTableTabData()).
+        $rows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
 
         $filename = 'performance-' . str($client->name)->slug() . '-' . now()->format('Ymd-His') . '.csv';
 
-        $callback = function () use ($metrics) {
+        $callback = function () use ($rows, $period) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['content_title', 'platform', 'metric_date', 'views', 'engagement_rate']);
+            fputcsv($handle, ['content_title', 'platform', 'period_start', 'period_end', 'coverage_status', 'views', 'engagement_rate']);
 
-            foreach ($metrics as $m) {
-                $title = $m->contentItem?->title
-                    ?? ($m->instagramMediaSnapshot?->caption ? \Illuminate\Support\Str::limit($m->instagramMediaSnapshot->caption, 60) : null)
+            foreach ($rows as $row) {
+                $metric = $row['content_metric'];
+                $result = $row['result'];
+
+                $snapshot = $metric->instagramMediaSnapshot ?? $metric->tiktokVideoSnapshot ?? null;
+                $title = $metric->contentItem?->title
+                    ?? ($snapshot?->caption ? \Illuminate\Support\Str::limit($snapshot->caption, 60) : null)
+                    ?? ($snapshot?->video_description ? \Illuminate\Support\Str::limit($snapshot->video_description, 60) : null)
                     ?? '-';
 
                 fputcsv($handle, [
                     $title,
-                    $m->platform->name ?? '-',
-                    Carbon::parse($m->metric_date)->toDateString(),
-                    $m->views,
-                    $m->engagement_rate,
+                    $metric->platform->name ?? '-',
+                    $result->coverageFrom?->toDateString(),
+                    $result->coverageTo?->toDateString(),
+                    $result->coverageStatus,
+                    $result->views() ?? 0,
+                    $result->engagementRate,
                 ]);
             }
 
@@ -258,6 +377,72 @@ class AnalyticsController extends Controller
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * Phase 4 - dispatch tombol global "Sinkronkan Data". SELALU
+     * client-scoped (Langkah 2 - TIDAK PERNAH dispatch global/all-client),
+     * platform_id (kalau ada) menentukan subjob mana yang relevan (Langkah
+     * 3). Payload cuma client_id + platform_id - TIDAK PERNAH menerima
+     * access_token/credential apapun dari browser (Langkah 9). CSRF
+     * terlindungi lewat middleware web stack standar (route ini ada di
+     * dalam grup `web` seperti semua route lain, VerifyCsrfToken otomatis
+     * aktif).
+     */
+    public function syncDispatch(Request $request, AnalyticsSyncOrchestrator $orchestrator)
+    {
+        $clientId = $request->input('client_id');
+
+        if (! $clientId) {
+            return response()->json(['message' => 'Pilih client untuk menyinkronkan data.'], 422);
+        }
+
+        // Manual scope check (client_id lewat body, bukan route-model-
+        // binding) - pola SAMA PERSIS dengan SettingsController::
+        // syncInstagram()/syncTiktok() (assertClientAccessible() di
+        // Controller dasar, dipakai bareng export() di atas).
+        $this->assertClientAccessible((int) $clientId);
+        $client = Client::findOrFail($clientId);
+
+        $platformId = $this->resolvePlatformId($request);
+
+        if ($platformId !== null && ! Platform::whereKey($platformId)->whereIn('name', ['Instagram', 'TikTok'])->exists()) {
+            return response()->json(['message' => 'Platform tidak valid untuk sinkronisasi.'], 422);
+        }
+
+        $result = $orchestrator->dispatch($client, $platformId, auth()->id());
+
+        return response()->json($result);
+    }
+
+    /**
+     * Phase 4 - status polling read-only buat tombol "Sinkronkan Data" -
+     * dipoll JS tiap ~2-3 detik (Langkah 10). Client-scoped SAMA PERSIS
+     * dengan syncDispatch() di atas. Response HANYA data UX yang aman
+     * ditampilkan - lihat AnalyticsSyncOrchestrator::statusPayload(), tidak
+     * ada token/secret/raw exception yang pernah keluar dari sana.
+     */
+    public function syncStatus(Request $request, AnalyticsSyncOrchestrator $orchestrator)
+    {
+        $clientId = $request->input('client_id');
+
+        if (! $clientId) {
+            return response()->json(['overall_status' => 'idle', 'message' => 'Pilih client untuk menyinkronkan data.', 'subjobs' => []]);
+        }
+
+        $this->assertClientAccessible((int) $clientId);
+        $client = Client::findOrFail($clientId);
+
+        $platformId = $this->resolvePlatformId($request);
+
+        return response()->json($orchestrator->statusForClient($client, $platformId));
+    }
+
+    private function resolvePlatformId(Request $request): ?int
+    {
+        $platformId = $request->input('platform_id');
+
+        return $platformId !== null && $platformId !== '' ? (int) $platformId : null;
     }
 
     /**
@@ -274,7 +459,7 @@ class AnalyticsController extends Controller
      * client (puluhan-ratusan post) masih aman diproses begini, pola yang
      * sama sudah dipakai AnalyticsSummaryService buat Top Content.
      */
-    private function buildTableTabData(int|string $selectedClientId, Request $request): array
+    private function buildTableTabData(int|string $selectedClientId, Request $request, int $period, ?int $platformId): array
     {
         $client = Client::findOrFail($selectedClientId);
 
@@ -285,37 +470,46 @@ class AnalyticsController extends Controller
             $sort = 'total_views';
         }
 
-        $metricsQuery = ContentMetric::where('client_id', $client->id)
-            ->with(['contentItem.platform', 'contentItem.contentType', 'contentItem.workflow', 'instagramMediaSnapshot', 'platform']);
+        // Phase 3 - "total_views"/"avg_engagement" SEKARANG delta periode
+        // (PeriodPerformanceService), BUKAN lagi lifetime cumulative
+        // content_metrics.views walau header bilang 7/30/90 hari (Langkah
+        // 12, bug lama: Table tidak pernah menerima $period sama sekali).
+        $end = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays($period - 1)->startOfDay();
+        $periodPerformanceService = app(PeriodPerformanceService::class);
+        $aggregate = $periodPerformanceService->computeClientPeriod($client->id, $start, $end, $platformId);
+        $coverageMessage = $periodPerformanceService->coverageMessage($aggregate['coverage'], $period);
 
-        if ($request->filled('platform_id')) {
-            $metricsQuery->where('platform_id', $request->input('platform_id'));
-        }
-
-        $allMetrics = $metricsQuery->get();
-
-        $rows = $allMetrics
-            ->groupBy(fn ($m) => $m->distinct_content_key)
-            ->map(function ($group) {
-                $first = $group->first();
-                $item = $first->contentItem;
-                $snapshot = $first->instagramMediaSnapshot;
+        // Content tanpa data yang bisa dipertanggungjawabkan (unavailable -
+        // belum ada observasi/terdeteksi metric reset) TIDAK ditampilkan
+        // seolah performanya 0 - itu menyesatkan ("0 views" berarti
+        // "diketahui nol", bukan "tidak diketahui"). Full & partial
+        // dua-duanya TETAP masuk (Langkah 12, "solusi minimal yang jujur")
+        // dengan coverage_status diikutkan biar UI kasih badge partial.
+        $rows = collect($aggregate['rows'])
+            ->filter(fn ($row) => $row['result']->isUsable())
+            ->map(function ($row) {
+                $metric = $row['content_metric'];
+                $result = $row['result'];
+                $item = $metric->contentItem;
+                $snapshot = $metric->instagramMediaSnapshot ?? $metric->tiktokVideoSnapshot ?? null;
 
                 return (object) [
                     'id' => $item?->id,
-                    'title' => $item?->title ?? \Illuminate\Support\Str::limit($snapshot?->caption ?: 'Instagram Post', 60),
-                    'platform' => $first->platform->name ?? '-',
+                    'title' => $item?->title ?? \Illuminate\Support\Str::limit(($snapshot?->caption ?? $snapshot?->video_description) ?: 'Post', 60),
+                    'platform' => $metric->platform->name ?? '-',
                     'content_type_id' => $item?->content_type_id,
                     // Linked: SELALU ContentType internal (taxonomy produksi) -
                     // walau content_type_id-nya kosong, JANGAN jatuh ke format
                     // Instagram (itu domain beda, jangan campur - tampil '-').
-                    // Unmatched: fallback DISPLAY-ONLY dari format Instagram
-                    // (Reels/Carousel/Image/Video) - BUKAN ContentType, tidak
-                    // pernah ditulis ke content_type_id (lihat docblock
-                    // InstagramMediaSnapshot::getDisplayFormatAttribute()).
+                    // Unmatched: fallback DISPLAY-ONLY dari format Instagram/
+                    // TikTok - BUKAN ContentType, tidak pernah ditulis ke
+                    // content_type_id (lihat docblock InstagramMediaSnapshot::
+                    // getDisplayFormatAttribute()).
                     'type' => $item ? $item->contentType?->name : $snapshot?->display_format,
-                    'total_views' => (int) $group->sum('views'),
-                    'avg_engagement' => round($group->avg('engagement_rate'), 2),
+                    'total_views' => $result->views() ?? 0,
+                    'avg_engagement' => $result->engagementRate ?? 0,
+                    'coverage_status' => $result->coverageStatus,
                     // Deadline HANYA dari workflow internal - null kalau
                     // unmatched, TIDAK PERNAH diisi dari published_at/
                     // snapshot_date/created_at (itu bukan deadline).
@@ -323,7 +517,7 @@ class AnalyticsController extends Controller
                     'is_posted' => $item?->is_posted,
                     'is_overdue' => $item?->workflow?->is_overdue ?? false,
                     'linked' => (bool) $item,
-                    'permalink' => $snapshot?->permalink,
+                    'permalink' => $snapshot?->permalink ?? $snapshot?->share_url ?? null,
                     // Dipakai action "Hubungkan Konten" - arahkan ke halaman
                     // unmatched management dgn post ini di-preselect (anchor).
                     'api_integration_id' => $snapshot?->api_integration_id,
@@ -359,10 +553,13 @@ class AnalyticsController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        $platformOptions = Platform::whereIn('id', $allMetrics->pluck('platform_id')->unique())->get();
+        // platformOptions TIDAK dihitung ulang di sini - dropdown platform
+        // sekarang GLOBAL (dihitung sekali di index(), dipakai identik di
+        // ketiga tab), jangan return key yang sama biar tidak menimpa punya
+        // global saat di-array_merge() controller.
         $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
 
-        return compact('client', 'items', 'platformOptions', 'contentTypeOptions', 'sort', 'dir');
+        return compact('client', 'items', 'contentTypeOptions', 'sort', 'dir', 'coverageMessage');
     }
 
     /**
@@ -370,31 +567,56 @@ class AnalyticsController extends Controller
      * AudienceController::index() (sekarang jadi redirect ke sini) biar
      * 1 halaman yang sama kayak Performance Table.
      *
+     * $platformId - GLOBAL filter (dihitung sekali di index(), sama persis
+     * yang dipakai Overview/Table), BUKAN lagi dropdown lokal punya tab ini
+     * (Phase 1 item 2/3). null berarti "Semua Platform" dipilih di filter
+     * global - Audience TIDAK PERNAH agregat demografi lintas platform
+     * (unit beda per platform, gabungan jadi angka yang nggak berarti),
+     * jadi minta user pilih 1 platform dulu (Phase 1 item 5).
+     *
      * Precedence (Langkah 17 "Instagram Audience Insights"): kalau
-     * client+platform SUDAH PERNAH punya row source=instagram_api, tab ini
-     * HANYA baca API (summary + 3 demographic_type terpisah) - CSV/legacy
-     * untuk kombinasi itu diabaikan sepenuhnya, tidak digabung (unit beda:
-     * CSV manual vs API real, campur jadi angka yang nggak berarti). Kalau
-     * belum pernah ada row API sama sekali, fallback ke CSV/legacy persis
-     * seperti behavior lama.
+     * client+platform SUDAH PERNAH punya row API (instagram_api ATAU
+     * tiktok_api), tab ini HANYA baca API (summary + demographic_type
+     * terpisah kalau ada) - CSV/legacy untuk kombinasi itu diabaikan
+     * sepenuhnya, tidak digabung (unit beda: CSV manual vs API real, campur
+     * jadi angka yang nggak berarti). Kalau belum pernah ada row API sama
+     * sekali, fallback ke CSV/legacy persis seperti behavior lama.
      */
-    private function buildAudienceTabData(int|string $selectedClientId, Request $request, int $period): array
+    private function buildAudienceTabData(int|string $selectedClientId, int $period, ?int $platformId): array
     {
         $client = Client::findOrFail($selectedClientId);
 
-        $platforms = Platform::whereHas('audienceInsights', fn($q) => $q->where('client_id', $client->id))->get();
-
-        if ($platforms->isEmpty()) {
-            return ['noInsightData' => true, 'client' => $client, 'platforms' => $platforms];
+        if (! $platformId) {
+            return ['noPlatformSelected' => true, 'client' => $client];
         }
 
-        $selectedPlatformId = $request->input('platform_id', $platforms->first()->id);
-        $platform = $platforms->firstWhere('id', (int) $selectedPlatformId) ?? $platforms->first();
+        $platform = Platform::find($platformId);
+        if (! $platform) {
+            return ['noPlatformSelected' => true, 'client' => $client];
+        }
 
-        $hasApiData = AudienceInsight::where('client_id', $client->id)
+        // Resolve source EXACT per platform - JANGAN pakai boolean
+        // hasApiData lalu hardcode SOURCE_API (bug lama: TikTok API data
+        // ke-render sebagai "Instagram API" karena SOURCE_API === 'instagram_api'
+        // dan apiSourced() scope sendiri sudah generic mencakup instagram_api
+        // MAUPUN tiktok_api). 1 platform_id cuma pernah py 1 source API
+        // (Instagram nulis instagram_api, TikTok nulis tiktok_api - tidak
+        // pernah dua-duanya buat platform yang sama), jadi baris apiSourced()
+        // PERTAMA sudah cukup buat tahu source sebenarnya.
+        $apiRow = AudienceInsight::where('client_id', $client->id)
             ->where('platform_id', $platform->id)
             ->apiSourced()
+            ->first();
+        $hasApiData = (bool) $apiRow;
+
+        $hasCsvData = AudienceInsight::where('client_id', $client->id)
+            ->where('platform_id', $platform->id)
+            ->csvSourced()
             ->exists();
+
+        if (! $hasApiData && ! $hasCsvData) {
+            return ['noInsightData' => true, 'client' => $client, 'platform' => $platform];
+        }
 
         $start = Carbon::now()->subDays($period - 1)->startOfDay();
 
@@ -403,8 +625,8 @@ class AnalyticsController extends Controller
             : $this->buildCsvAudienceData($client, $platform, $start, $period);
 
         return array_merge(
-            compact('client', 'platforms', 'platform', 'selectedPlatformId'),
-            ['audienceSource' => $hasApiData ? AudienceInsight::SOURCE_API : 'csv'],
+            compact('client', 'platform'),
+            ['audienceSource' => $hasApiData ? $apiRow->source : 'csv'],
             $data
         );
     }

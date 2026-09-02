@@ -142,7 +142,7 @@
                 </div>
 
                 <div class="border-t border-[var(--surface-muted)] pt-3 mt-3 flex items-center gap-3 flex-wrap">
-                    <a href="{{ route('publishing-tracker.instagram.unmatched', $integration) }}"
+                    <a href="{{ route('publishing-tracker.instagram.unmatched', $integration) }}?return_to={{ urlencode(url()->full()) }}"
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
                     @if ($instagramOauthConfigured && $canManageClientIntegration)
                         <a href="{{ route('client-management.instagram.connect', $selectedClient) }}"
@@ -244,7 +244,7 @@
                 </div>
 
                 <div class="border-t border-[var(--surface-muted)] pt-3 mt-3 flex items-center gap-3 flex-wrap">
-                    <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}"
+                    <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}?return_to={{ urlencode(url()->full()) }}"
                        class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
                     @if ($tiktokOauthConfigured && $canManageClientIntegration)
                         <a href="{{ route('client-management.tiktok.connect', $selectedClient) }}"

@@ -8,6 +8,7 @@ use App\Models\GeneratedReport;
 use App\Models\ContentMetric;
 use App\Models\Platform;
 use App\Rules\AssignedClient;
+use App\Services\PeriodPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -165,60 +166,71 @@ class ReportController extends Controller
         return $this->generatePerformanceExcel($reportData, $validated, $request->user());
     }
 
+    /**
+     * Phase 3 (Langkah 9F): views/engagement_rate SEKARANG delta periode
+     * genuine (PeriodPerformanceService), BUKAN lagi sum(views) whereBetween
+     * (metric_date) - metric_date API dikunci ke tanggal publish. Roster
+     * TETAP whereHas('contentItem', ...) (cuma content yang SUDAH ke-link -
+     * preserved dari behavior lama Report, bukan scope Phase 3).
+     */
     private function buildPerformanceData(array $filters): array
     {
         $client = Client::find($filters['client_id']);
 
-        $metrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'platform'])
+        $periodStart = Carbon::parse($filters['period_start'])->startOfDay();
+        $periodEnd = Carbon::parse($filters['period_end'])->endOfDay();
+
+        $apiMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
             ->whereHas('contentItem', fn ($q) => $q->where('client_id', $filters['client_id']))
-            ->whereBetween('metric_date', [
-                Carbon::parse($filters['period_start'])->startOfDay(),
-                Carbon::parse($filters['period_end'])->endOfDay(),
-            ])
+            ->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
             ->get();
 
-        $totalViews = (int) $metrics->sum('views');
-        $avgEngagement = $metrics->count() > 0 ? round($metrics->avg('engagement_rate'), 2) : 0;
+        $csvMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'platform'])
+            ->whereHas('contentItem', fn ($q) => $q->where('client_id', $filters['client_id']))
+            ->whereNull('instagram_media_snapshot_id')
+            ->whereNull('tiktok_video_snapshot_id')
+            ->whereBetween('metric_date', [$periodStart, $periodEnd])
+            ->get();
 
-        $topContent = $metrics
-            ->groupBy('content_item_id')
-            ->map(function ($rows) {
-                $item = $rows->first()->contentItem;
+        $periodPerformanceService = app(PeriodPerformanceService::class);
+        $aggregate = $periodPerformanceService->computeAggregate($apiMetrics, $csvMetrics, $periodStart, $periodEnd);
+        $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
+
+        $topContent = $usableRows
+            ->map(function ($row) {
+                $item = $row['content_metric']->contentItem;
+                if (! $item) {
+                    return null;
+                }
+
                 return [
                     'title' => $item->title ?? '-',
-                    'platform' => $rows->first()->platform->name ?? '-',
+                    'platform' => $row['content_metric']->platform->name ?? '-',
                     'type' => $item->contentType->name ?? '-',
-                    'views' => (int) $rows->sum('views'),
-                    'engagement_rate' => round($rows->avg('engagement_rate'), 2),
+                    'views' => $row['result']->views() ?? 0,
+                    'engagement_rate' => $row['result']->engagementRate ?? 0,
                 ];
             })
+            ->filter()
             ->sortByDesc('views')
             ->take(10)
             ->values()
             ->all();
 
-        $platformBreakdown = $metrics
-            ->groupBy('platform_id')
-            ->map(function ($rows, $platformId) {
-                return [
-                    'label' => Platform::find($platformId)->name ?? '-',
-                    'value' => (int) $rows->sum('views'),
-                ];
-            })
-            ->sortByDesc('value')
-            ->values()
-            ->all();
+        $periodDays = $periodStart->diffInDays($periodEnd) + 1;
 
         return [
-            'total_views' => $totalViews,
-            'avg_engagement' => $avgEngagement,
-            'content_count' => $metrics->pluck('content_item_id')->unique()->count(),
-            'platform_count' => $metrics->pluck('platform_id')->unique()->count(),
+            'total_views' => $aggregate['totals']['views'],
+            'avg_engagement' => $aggregate['totals']['engagement_rate'] ?? 0,
+            'content_count' => $aggregate['totals']['content_count'],
+            'platform_count' => $aggregate['totals']['platforms_tracked'],
             'top_content' => $topContent,
-            'platform_breakdown' => $platformBreakdown,
+            'platform_breakdown' => $aggregate['platform_breakdown'],
             'client_name' => $client->name ?? '-',
-            'period_start' => Carbon::parse($filters['period_start'])->format('d M Y'),
-            'period_end' => Carbon::parse($filters['period_end'])->format('d M Y'),
+            'period_start' => $periodStart->format('d M Y'),
+            'period_end' => $periodEnd->format('d M Y'),
+            'coverage_status' => $aggregate['coverage']['status'],
+            'coverage_message' => $periodPerformanceService->coverageMessage($aggregate['coverage'], (int) $periodDays),
         ];
     }
 

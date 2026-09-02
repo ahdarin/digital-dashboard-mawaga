@@ -6,10 +6,12 @@ use App\Exceptions\TikTokApiException;
 use App\Models\AnalyticsSyncLog;
 use App\Models\ApiIntegration;
 use App\Models\ContentMetric;
+use App\Models\ContentMetricSnapshot;
 use App\Models\ContentPublication;
 use App\Models\Platform;
 use App\Models\TikTokVideoSnapshot;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Orkestrasi sync TikTok 1 ApiIntegration - MIRROR InstagramAnalyticsSyncService
@@ -31,9 +33,14 @@ class TikTokAnalyticsSyncService
     public function resolveSyncWindow(?string $month): array
     {
         if (! $month) {
-            $months = config('analytics.tiktok_default_sync_months');
+            $days = config('analytics.tiktok_default_sync_days');
 
-            return ['default', now()->subMonths($months)->startOfDay(), now()];
+            // Sama persis catatan calendar semantics di
+            // InstagramAnalyticsSyncService::resolveSyncWindow() - subDays($days)
+            // TANPA "-1" DISENGAJA (91 hari kalender ingestion vs 90 hari
+            // kalender di filter dashboard) sebagai buffer aman 1 hari,
+            // bukan angka yang belum diaudit.
+            return ['default', now()->subDays($days)->startOfDay(), now()];
         }
 
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
@@ -50,16 +57,17 @@ class TikTokAnalyticsSyncService
     }
 
     /**
-     * Jalankan sync penuh: profile -> video list (dibatasi $until, TikTok
-     * TIDAK punya filter since server-side - lihat TikTokAnalyticsService::
-     * getVideoList()) -> matching -> content_metrics + tiktok_video_snapshots.
-     * $syncLog HARUS sudah dibuat caller dengan status 'pending'.
+     * Jalankan sync penuh: profile -> video list (dibatasi $cutoff = lower
+     * bound rentang sync, TikTok TIDAK punya filter since server-side -
+     * lihat TikTokAnalyticsService::getVideoList()) -> matching ->
+     * content_metrics + tiktok_video_snapshots. $syncLog HARUS sudah dibuat
+     * caller dengan status 'pending'.
      *
      * @return array{existing_matched: int, newly_matched: int, unmatched: int, ambiguous: int, failed: int, metrics_saved: int, details: array<int, string>, video_count: int, username: ?string, has_more: bool, stopped_early: bool, oldest_fetched: ?string, newest_fetched: ?string}
      */
-    public function sync(ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $until, int $userId): array
+    public function sync(ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $cutoff, int $userId): array
     {
-        $result = (new TikTokAnalyticsService($integration))->sync($until);
+        $result = (new TikTokAnalyticsService($integration))->sync($cutoff);
 
         $profile = $result['profile'];
         $platform = Platform::find($integration->platform_id);
@@ -212,6 +220,24 @@ class TikTokAnalyticsSyncService
         } catch (\Throwable $e) {
             $summary['failed']++;
             $summary['details'][] = "Video {$item['id']}: gagal simpan content_metrics - {$e->getMessage()}";
+
+            return;
+        }
+
+        // MIRROR InstagramAnalyticsSyncService::saveMetricSafely() - lihat
+        // catatan di sana soal kenapa recordSnapshot() dipisah try/catch-nya
+        // dari saveMetric() (partial condition harus tercatat jelas, tidak
+        // boleh dilaporkan sebagai "gagal simpan content_metrics" padahal
+        // content_metrics-nya sendiri sudah berhasil).
+        try {
+            $this->recordSnapshot($snapshot, $item, $integration, $platform, $contentItemId);
+        } catch (\Throwable $e) {
+            $summary['details'][] = SnapshotFailureMarker::wrap("Video {$item['id']}", $e->getMessage());
+            Log::warning('ContentMetricSnapshot write failed after ContentMetric succeeded (TikTok)', [
+                'client_id' => $integration->client_id,
+                'tiktok_video_snapshot_id' => $snapshot->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -316,6 +342,43 @@ class TikTokAnalyticsSyncService
     }
 
     /**
+     * MIRROR InstagramAnalyticsSyncService::recordSnapshot() - tulis 1 baris
+     * content_metric_snapshots per (video, tanggal SYNC hari ini), TERPISAH
+     * dari content_metrics di atas (dikunci ke tanggal publish). Identitas
+     * row = (tiktok_video_snapshot_id, snapshot_date), BUKAN content_item_id.
+     * snapshot_date SELALU now()->toDateString() - never publish date, never
+     * backfilled.
+     *
+     * $item dipakai LANGSUNG (field asli TikTok: view_count/like_count/dst),
+     * BUKAN "?? 0" seperti content_metrics.views di atas - kolom snapshot
+     * semua nullable, jadi key yang memang tidak ada di response API harus
+     * tetap NULL. reach/impressions/saves/profile_visit SENGAJA tidak
+     * disebut (dibiarkan default NULL kolom) - TikTok Display API standar
+     * tidak pernah menyediakan metric ini (sama seperti saveMetric() di
+     * atas). watch_time_avg/completion_rate juga tidak disebut - TikTok
+     * Display API standar tidak menyediakan field ini untuk video publik.
+     */
+    private function recordSnapshot(TikTokVideoSnapshot $snapshot, array $item, ApiIntegration $integration, Platform $platform, ?int $contentItemId): void
+    {
+        ContentMetricSnapshot::updateOrCreate(
+            [
+                'tiktok_video_snapshot_id' => $snapshot->id,
+                'snapshot_date' => now()->toDateString(),
+            ],
+            [
+                'client_id' => $integration->client_id,
+                'platform_id' => $platform->id,
+                'content_item_id' => $contentItemId,
+                'views' => $item['view_count'] ?? null,
+                'likes' => $item['like_count'] ?? null,
+                'comments' => $item['comment_count'] ?? null,
+                'shares' => $item['share_count'] ?? null,
+                'engagement_rate' => $this->computeSnapshotEngagementRate($item),
+            ]
+        );
+    }
+
+    /**
      * FORMULA TIKTOK - SENGAJA TERPISAH dari Instagram
      * (InstagramAnalyticsSyncService::computeEngagementRate() memprioritaskan
      * `reach`, fallback ke `views`). TikTok Display API standar TIDAK PERNAH
@@ -339,6 +402,24 @@ class TikTokAnalyticsSyncService
         $interactions = ($item['like_count'] ?? 0) + ($item['comment_count'] ?? 0) + ($item['share_count'] ?? 0);
 
         return round(min($interactions / $views * 100, 999.99), 2);
+    }
+
+    /**
+     * Versi NULL-safe computeEngagementRate() KHUSUS content_metric_snapshots
+     * (kolomnya nullable, beda dari content_metrics yang NOT NULL) - kalau
+     * view_count sendiri tidak ada di response API sama sekali, engagement
+     * rate memang TIDAK BISA dihitung (denominator tidak diketahui), jadi
+     * hasilnya NULL, BUKAN 0.0. view_count = 0 yang genuinely ada (video
+     * belum ditonton) tetap valid dihitung normal lewat computeEngagementRate()
+     * (hasilnya 0.0, correctly "diketahui nol").
+     */
+    private function computeSnapshotEngagementRate(array $item): ?float
+    {
+        if (($item['view_count'] ?? null) === null) {
+            return null;
+        }
+
+        return $this->computeEngagementRate($item);
     }
 
     /**
