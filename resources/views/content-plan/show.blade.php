@@ -81,7 +81,7 @@
                 </template>
             @endif
 
-            @if ($contentPlan->status === 'approved' && auth()->user()->hasPermissionTo('content_plan', 'approve'))
+            @if ($contentPlan->status === 'approved' && auth()->user()->hasPermissionTo('content_plan', 'approve') && $items->contains(fn ($i) => $i->workflow?->current_status === 'draft'))
                 <a href="{{ route('content-plan.deadlines', $contentPlan) }}" class="btn-primary whitespace-nowrap">
                     <span class="material-symbols-outlined text-[16px]">event</span> Atur Deadline &amp; Kirim ke Produksi
                 </a>
@@ -260,10 +260,57 @@
         @endforelse
     </div>
 
-    {{-- KI-13 - riwayat keputusan (Ajukan/Setujui/Tolak/Kembalikan ke Draf).
-         Selalu ditampilkan kalau ada entri, supaya catatan penolakan lama
-         tetap terlihat walau rencana sudah dikembalikan ke Draf & diajukan
-         ulang berkali-kali - bukan cuma status akhir saja. --}}
+    {{-- "Ajukan Rencana" diletakkan setelah daftar konten - user meninjau
+         seluruh isi rencana dulu sebelum diajukan, bukan tombol yang
+         menumpuk di header sebelum konten sempat dilihat. Riwayat Keputusan
+         & catatan penolakan digabung ke kartu yang sama, diletakkan di
+         bawah - satu tempat untuk semua konteks pengajuan rencana ini. --}}
+    @if ($contentPlan->status === 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
+        @php
+            $incompleteItems = $items->reject(fn ($i) => $i->hasCompleteBrief());
+            $rejectionLogs = $contentPlan->statusLogs->where('to_status', 'rejected')->sortByDesc('changed_at');
+        @endphp
+        <div class="card p-5 mt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <p class="text-sm font-medium text-[var(--text-primary)]">Sudah siap diajukan?</p>
+                    @if ($incompleteItems->isNotEmpty())
+                        <p class="text-xs text-[var(--warning-text)] mt-0.5">Masih ada {{ $incompleteItems->count() }} slot yang briefnya belum lengkap: {{ $incompleteItems->pluck('provisional_code')->filter()->implode(', ') ?: $incompleteItems->pluck('title')->implode(', ') }}.</p>
+                    @else
+                        <p class="text-xs text-[var(--text-muted)] mt-0.5">Setelah diajukan, rencana ini akan menunggu persetujuan Manager/CEO/SMO.</p>
+                    @endif
+                </div>
+                <form action="{{ route('content-plan.submit', $contentPlan) }}" method="POST">
+                    @csrf @method('PATCH')
+                    <button class="btn-primary whitespace-nowrap" @disabled($incompleteItems->isNotEmpty())
+                        title="{{ $incompleteItems->isNotEmpty() ? 'Lengkapi dulu semua brief sebelum mengajukan' : '' }}">
+                        <span class="material-symbols-outlined text-[16px]">send</span> Ajukan Rencana
+                    </button>
+                </form>
+            </div>
+
+            @if ($rejectionLogs->isNotEmpty())
+                <div class="mt-4 pt-4 border-t border-[var(--surface-muted)]">
+                    <h3 class="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-2.5">Catatan</h3>
+                    <div class="space-y-2.5">
+                        @foreach ($rejectionLogs as $log)
+                            <div class="border border-[var(--danger-border)] bg-[var(--danger-tint)] rounded-lg p-3">
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-xs font-medium text-[var(--danger-text)]">Ditolak oleh {{ $log->changedByUser->name ?? '-' }}</p>
+                                    <span class="text-[10px] text-[var(--danger-text)]">{{ $log->changed_at->translatedFormat('d M Y, H:i') }}</span>
+                                </div>
+                                <p class="text-xs text-[var(--danger-text)] whitespace-pre-line">{{ $log->notes }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
+    @endif
+
+    {{-- KI-13 - riwayat keputusan lengkap (Ajukan/Setujui/Tolak/Kembalikan
+         ke Draf), diletakkan di bawah kartu Ajukan Rencana - referensi
+         lengkap kalau perlu, bukan yang pertama dilihat. --}}
     @if ($contentPlan->statusLogs->isNotEmpty())
         <div class="card p-5 mt-6">
             <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Riwayat Keputusan</h2>
@@ -296,30 +343,6 @@
                     </div>
                 @endforeach
             </div>
-        </div>
-    @endif
-
-    {{-- "Ajukan Rencana" diletakkan setelah daftar konten - user meninjau
-         seluruh isi rencana dulu sebelum diajukan, bukan tombol yang
-         menumpuk di header sebelum konten sempat dilihat. --}}
-    @if ($contentPlan->status === 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
-        @php $incompleteItems = $items->reject(fn ($i) => $i->hasCompleteBrief()); @endphp
-        <div class="card p-5 mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-                <p class="text-sm font-medium text-[var(--text-primary)]">Sudah siap diajukan?</p>
-                @if ($incompleteItems->isNotEmpty())
-                    <p class="text-xs text-[var(--warning-text)] mt-0.5">Masih ada {{ $incompleteItems->count() }} slot yang briefnya belum lengkap: {{ $incompleteItems->pluck('provisional_code')->filter()->implode(', ') ?: $incompleteItems->pluck('title')->implode(', ') }}.</p>
-                @else
-                    <p class="text-xs text-[var(--text-muted)] mt-0.5">Setelah diajukan, rencana ini akan menunggu persetujuan Manager/CEO/SMO.</p>
-                @endif
-            </div>
-            <form action="{{ route('content-plan.submit', $contentPlan) }}" method="POST">
-                @csrf @method('PATCH')
-                <button class="btn-primary whitespace-nowrap" @disabled($incompleteItems->isNotEmpty())
-                    title="{{ $incompleteItems->isNotEmpty() ? 'Lengkapi dulu semua brief sebelum mengajukan' : '' }}">
-                    <span class="material-symbols-outlined text-[16px]">send</span> Ajukan Rencana
-                </button>
-            </form>
         </div>
     @endif
 </div>

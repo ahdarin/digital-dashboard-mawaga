@@ -151,8 +151,13 @@
                             $isPinned = $pinnedIds->contains($item->id);
                         @endphp
 
+                        @php
+                            $itemPlatforms = $item->platforms->isNotEmpty()
+                                ? $item->platforms->map(fn ($p) => ['id' => $p->id, 'name' => $p->name])->values()
+                                : ($item->platform ? collect([['id' => $item->platform->id, 'name' => $item->platform->name]]) : collect());
+                        @endphp
                         <div draggable="{{ $canUpdateWorkflow ? 'true' : 'false' }}"
-                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ $item->platform_id ?? 'null' }}, @js($item->content_file_link ?? ''))"
+                             x-on:dragstart="onDragStart($event, {{ $item->id }}, '{{ addslashes($item->title) }}', {{ Js::from($itemPlatforms) }}, @js($item->content_file_link ?? ''))"
                              x-show="matchesSearch('{{ addslashes($item->title) }}')"
                              data-risk="{{ $item->latestDelayRisk->risk_score ?? 0 }}" data-order="{{ $item->boardOrder }}"
                              data-item-id="{{ $item->id }}" data-content-type="{{ $item->contentType->name ?? '' }}"
@@ -347,7 +352,8 @@
                 <label for="kanban_content_file_link" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Link Konten (wajib diisi)</label>
                 <input id="kanban_content_file_link" type="url" x-model="contentLink" placeholder="https://drive.google.com/..."
                     class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-                <p class="text-[10px] text-[var(--text-muted)] mt-1.5">Link file hasil produksi (Google Drive/Canva/dsb) - wajib diisi supaya reviewer bisa cek hasilnya.</p>
+                <p x-show="contentLinkError" x-cloak class="text-[11px] text-[var(--danger-text)] mt-1.5" x-text="contentLinkError"></p>
+                <p x-show="!contentLinkError" class="text-[10px] text-[var(--text-muted)] mt-1.5">Link file hasil produksi (Google Drive/Canva/dsb) - wajib diisi supaya reviewer bisa cek hasilnya.</p>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmContentLinkModal()"
@@ -404,22 +410,34 @@
                     <span class="material-symbols-outlined text-[19px]">close</span>
                 </button>
             </div>
-            <div class="px-6 py-5 space-y-3">
-                <div>
-                    <label for="kanban_pub_published_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal Publish</label>
-                    <input id="kanban_pub_published_at" type="text" x-model="pubForm.published_at" data-flatpickr="datetime" autocomplete="off"
-                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                </div>
-                <div>
-                    <label for="kanban_pub_post_url" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
-                    <input id="kanban_pub_post_url" type="url" x-model="pubForm.post_url" placeholder="https://..."
-                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
-                </div>
-                <div>
-                    <label for="kanban_pub_caption_final" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
-                    <textarea id="kanban_pub_caption_final" x-model="pubForm.caption_final" rows="2"
-                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
-                </div>
+            <div class="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+                <template x-if="publicationModal && publicationModal.platforms.length > 1">
+                    <p class="text-xs text-[var(--text-muted)] -mt-1">Konten ini dipublikasikan ke <span x-text="publicationModal.platforms.length"></span> platform - isi data tiap platform, semua disimpan sekaligus.</p>
+                </template>
+                <template x-for="(pf, i) in (publicationModal ? publicationModal.platforms : [])" :key="pf.id">
+                    <div :class="publicationModal.platforms.length > 1 ? 'border border-[var(--border)] rounded-lg p-3 space-y-3' : 'space-y-3'">
+                        <p x-show="publicationModal.platforms.length > 1" class="text-xs font-semibold text-[var(--text-primary)]" x-text="pf.name"></p>
+                        <div>
+                            <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1" x-text="'Tanggal Publish' + (publicationModal.platforms.length > 1 ? ' - ' + pf.name : '')"></label>
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[15px] pointer-events-none">calendar_month</span>
+                                <input type="text" x-model="pubForm[i].published_at" data-flatpickr="datetime" autocomplete="off"
+                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Link Post</label>
+                            <input type="url" x-model="pubForm[i].post_url" placeholder="https://..."
+                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Caption Final</label>
+                            <textarea x-model="pubForm[i].caption_final" rows="2"
+                                class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40"></textarea>
+                        </div>
+                    </div>
+                </template>
+                <p x-show="publicationModalError" x-cloak class="text-xs text-[var(--danger-text)]" x-text="publicationModalError"></p>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmPublicationModal()"
@@ -448,8 +466,11 @@
             </div>
             <div class="px-6 py-5">
                 <label for="kanban_scheduled_upload_at" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Rencana Tanggal &amp; Jam Upload</label>
-                <input id="kanban_scheduled_upload_at" type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off"
-                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[15px] pointer-events-none">calendar_month</span>
+                    <input id="kanban_scheduled_upload_at" type="text" x-model="scheduledUploadAt" data-flatpickr="datetime" autocomplete="off"
+                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                </div>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                 <button type="button" @click="confirmScheduledModal()"
@@ -490,18 +511,24 @@ function kanbanBoard() {
         toast: '',
         draggedItemId: null,
         draggedItemTitle: '',
-        draggedItemPlatformId: null,
+        draggedItemPlatforms: [],
         draggedItemContentFileLink: '',
         riskSortActive: false,
         expandedColumns: {},
         revisionModal: null,
         revisionNote: '',
         publicationModal: null,
-        pubForm: { published_at: '', post_url: '', caption_final: '' },
+        pubForm: [],
+        publicationModalError: '',
         scheduledModal: null,
         scheduledUploadAt: '',
         contentLinkModal: null,
         contentLink: '',
+        contentLinkError: '',
+        isValidUrl(value) {
+            if (!value) return false;
+            try { new URL(value); return true; } catch (e) { return false; }
+        },
         toggleRiskSort() {
             this.riskSortActive = !this.riskSortActive;
             document.querySelectorAll('.kanban-column').forEach((col) => {
@@ -513,10 +540,10 @@ function kanbanBoard() {
                 cards.forEach((card) => col.insertBefore(card, moreBtn || null));
             });
         },
-        onDragStart(event, itemId, title, platformId, contentFileLink) {
+        onDragStart(event, itemId, title, platforms, contentFileLink) {
             this.draggedItemId = itemId;
             this.draggedItemTitle = title;
-            this.draggedItemPlatformId = platformId;
+            this.draggedItemPlatforms = platforms || [];
             this.draggedItemContentFileLink = contentFileLink || '';
             event.dataTransfer.effectAllowed = 'move';
         },
@@ -528,12 +555,13 @@ function kanbanBoard() {
             if (!this.draggedItemId) return;
             const itemId = this.draggedItemId;
             const title = this.draggedItemTitle;
-            const platformId = this.draggedItemPlatformId;
+            const platforms = this.draggedItemPlatforms;
             const contentFileLink = this.draggedItemContentFileLink;
             this.draggedItemId = null;
 
             if (toStatus === 'waiting_review') {
                 this.contentLink = contentFileLink || '';
+                this.contentLinkError = '';
                 this.contentLinkModal = { itemId, title };
                 return;
             }
@@ -545,8 +573,15 @@ function kanbanBoard() {
             }
 
             if (toStatus === 'uploaded') {
-                this.pubForm = { published_at: '', post_url: '', caption_final: '' };
-                this.publicationModal = { itemId, title, platformId };
+                this.pubForm = platforms.map(() => ({ published_at: '', post_url: '', caption_final: '' }));
+                this.publicationModalError = '';
+                this.publicationModal = { itemId, title, platforms };
+                // Field tanggal per platform dirender lewat <template x-for>,
+                // jadi baru benar-benar ada di DOM setelah Alpine selesai
+                // render - inisialisasi flatpickr-nya ditunda ke $nextTick,
+                // sama pola dengan window.initFlatpickrs(wrapper) yang
+                // dipakai moveCardToColumn() buat markup dinamis lain.
+                this.$nextTick(() => window.initFlatpickrs());
                 return;
             }
 
@@ -559,12 +594,17 @@ function kanbanBoard() {
             this.submitStatusChange(itemId, toStatus, {});
         },
         confirmContentLinkModal() {
-            if (!this.contentLink.trim()) {
-                this.toast = 'Perpindahan ke Menunggu Persetujuan dibatalkan - link konten wajib diisi.';
-                setTimeout(() => this.toast = '', 3000);
+            const link = this.contentLink.trim();
+            if (!link) {
+                this.contentLinkError = 'Link konten wajib diisi.';
                 return;
             }
-            this.submitStatusChange(this.contentLinkModal.itemId, 'waiting_review', { content_file_link: this.contentLink }, () => {
+            if (!this.isValidUrl(link)) {
+                this.contentLinkError = 'Link konten harus berupa URL yang valid, contoh: https://drive.google.com/...';
+                return;
+            }
+            this.contentLinkError = '';
+            this.submitStatusChange(this.contentLinkModal.itemId, 'waiting_review', { content_file_link: link }, () => {
                 this.contentLinkModal = null;
                 this.contentLink = '';
             });
@@ -586,19 +626,29 @@ function kanbanBoard() {
             });
         },
         confirmPublicationModal() {
-            if (!this.pubForm.published_at) {
-                this.toast = 'Perpindahan ke Uploaded dibatalkan - tanggal publish wajib diisi.';
-                setTimeout(() => this.toast = '', 3000);
-                return;
+            const platforms = this.publicationModal.platforms;
+            for (let i = 0; i < platforms.length; i++) {
+                const label = platforms.length > 1 ? ` untuk ${platforms[i].name}` : '';
+                if (!this.pubForm[i].published_at) {
+                    this.publicationModalError = `Tanggal publish${label} wajib diisi.`;
+                    return;
+                }
+                if (this.pubForm[i].post_url && !this.isValidUrl(this.pubForm[i].post_url)) {
+                    this.publicationModalError = `Link post${label} harus berupa URL yang valid, contoh: https://instagram.com/p/...`;
+                    return;
+                }
             }
+            this.publicationModalError = '';
             // Sama seperti confirmRevisionModal() - modal & form cuma
             // dibersihkan setelah sukses, biar data yang udah diisi user
             // nggak hilang kalau server menolak transisinya.
             this.submitStatusChange(this.publicationModal.itemId, 'uploaded', {
-                platform_id: this.publicationModal.platformId,
-                published_at: this.pubForm.published_at,
-                post_url: this.pubForm.post_url,
-                caption_final: this.pubForm.caption_final,
+                publications: platforms.map((pf, i) => ({
+                    platform_id: pf.id,
+                    published_at: this.pubForm[i].published_at,
+                    post_url: this.pubForm[i].post_url,
+                    caption_final: this.pubForm[i].caption_final,
+                })),
             }, () => {
                 this.publicationModal = null;
             });
@@ -614,6 +664,11 @@ function kanbanBoard() {
             });
         },
         submitStatusChange(itemId, toStatus, extra, onSuccess) {
+            // Progress bar hijau di atas (sama yang muncul tiap pindah
+            // halaman/submit form biasa) - fetch() di sini nggak lewat event
+            // 'submit' asli jadi harus dipicu manual biar user tahu ada
+            // proses berjalan, bukan cuma diam sampai selesai.
+            window.showTopLoadingBar?.();
             fetch(`/production-workflow/${itemId}/status`, {
                 method: 'PATCH',
                 headers: {
@@ -624,8 +679,19 @@ function kanbanBoard() {
                 body: JSON.stringify({ to_status: toStatus, ...extra }),
             })
             .then(async (res) => {
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Gagal memindahkan kartu');
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    // Server nggak balas JSON (mis. sesi habis lalu di-redirect
+                    // ke halaman login, atau error tak terduga) - jangan
+                    // tampilkan pesan parse mentah yang nggak dipahami user.
+                    throw new Error('Terjadi kesalahan tak terduga - coba muat ulang halaman, lalu ulangi lagi.');
+                }
+                if (!res.ok) {
+                    const fieldErrors = data.errors ? Object.values(data.errors).flat().join(' ') : '';
+                    throw new Error(fieldErrors || data.message || 'Gagal memindahkan kartu');
+                }
                 return data;
             })
             .then((data) => {
@@ -636,7 +702,10 @@ function kanbanBoard() {
             })
             .catch((err) => {
                 this.toast = err.message;
-                setTimeout(() => this.toast = '', 3000);
+                setTimeout(() => this.toast = '', 4000);
+            })
+            .finally(() => {
+                window.hideTopLoadingBar?.();
             });
         },
         // Pindahkan kartu ke kolom tujuan langsung di DOM, tanpa reload

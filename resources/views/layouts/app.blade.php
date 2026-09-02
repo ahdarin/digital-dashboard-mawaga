@@ -259,6 +259,7 @@
         (function () {
             const bar = document.getElementById('top-loading-bar');
             const show = () => bar.classList.add('loading');
+            const hide = () => bar.classList.remove('loading');
             // Buat baris tabel/kartu yang navigasi lewat onclick="window.location=..."
             // (bukan <a> asli, misal baris tabel Kelola Klien) - supaya loading
             // bar tetap muncul, bukan cuma link <a> biasa.
@@ -266,6 +267,11 @@
                 show();
                 window.location = url;
             };
+            // Dipakai submission berbasis fetch() (mis. modal drag-drop kanban)
+            // yang tidak memicu event 'submit' asli di bawah - halaman tetap
+            // sama (SPA-ish), jadi show/hide harus dipanggil manual.
+            window.showTopLoadingBar = show;
+            window.hideTopLoadingBar = hide;
             document.addEventListener('click', function (e) {
                 const link = e.target.closest('a');
                 if (!link) return;
@@ -328,11 +334,58 @@
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             };
 
+            // Auto-format SAAT diketik - mirip format ribuan uang (ketik
+            // angka, pemisah "/"/":" muncul sendiri di posisi yang benar),
+            // BUKAN input bersegmen yang perlu diklik per-bagian. Begitu
+            // jumlah digit sudah pas (dd/mm/yyyy, atau + hh:mm), langsung
+            // di-set ke instance flatpickr lewat setDate() - parsing
+            // dilakukan sendiri di sini (posisi digit sudah pasti, bukan
+            // format bebas) daripada mengandalkan parser bawaan flatpickr
+            // yang bisa ambigu untuk format custom kayak gini.
+            var attachTypingMask = function (instance, withTime) {
+                var target = instance.altInput || instance.input;
+                if (!target || target._maskAttached) return;
+                target._maskAttached = true;
+
+                var digitCount = withTime ? 12 : 8; // ddmmyyyy(hhmm)
+
+                target.addEventListener('input', function () {
+                    var digits = target.value.replace(/\D/g, '').slice(0, digitCount);
+                    var out = '';
+                    for (var i = 0; i < digits.length; i++) {
+                        if (i === 2 || i === 4) out += '/';
+                        if (withTime && i === 8) out += ' ';
+                        if (withTime && i === 10) out += ':';
+                        out += digits[i];
+                    }
+                    target.value = out;
+
+                    if (digits.length === digitCount) {
+                        var day = Number(digits.slice(0, 2));
+                        var month = Number(digits.slice(2, 4));
+                        var year = Number(digits.slice(4, 8));
+                        var hour = withTime ? Number(digits.slice(8, 10)) : 0;
+                        var minute = withTime ? Number(digits.slice(10, 12)) : 0;
+                        var date = new Date(year, month - 1, day, hour, minute);
+                        // Validasi tanggal beneran ada (bukan cuma format pas) -
+                        // mis. 31/02 harus ditolak, bukan "diloncat maju" ke
+                        // Maret diam-diam kayak default parsing JS Date.
+                        var valid = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+                            && (!withTime || (date.getHours() === hour && date.getMinutes() === minute));
+                        if (valid) instance.setDate(date, true);
+                    }
+                });
+            };
+
             root.querySelectorAll('[data-flatpickr="date"]').forEach(function (el) {
                 if (el._flatpickr) return;
                 var autosubmit = el.dataset.autosubmit === 'true';
                 flatpickr(el, {
-                    dateFormat: 'Y-m-d', altInput: true, altFormat: 'd M Y', locale: 'id', allowInput: true,
+                    dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', locale: 'id', allowInput: true,
+                    onReady: function (selectedDates, dateStr, instance) {
+                        instance.altInput.placeholder = 'dd/mm/yyyy';
+                        attachTypingMask(instance, false);
+                    },
                     onChange: function () {
                         notifyAlpine(el);
                         // el.form (bukan cuma closest('form')) - elemen ini
@@ -348,7 +401,11 @@
                 if (el._flatpickr) return;
                 flatpickr(el, {
                     enableTime: true, time_24hr: true, dateFormat: 'Y-m-d H:i',
-                    altInput: true, altFormat: 'd M Y, H:i', locale: 'id', allowInput: true,
+                    altInput: true, altFormat: 'd/m/Y H:i', locale: 'id', allowInput: true,
+                    onReady: function (selectedDates, dateStr, instance) {
+                        instance.altInput.placeholder = 'dd/mm/yyyy hh:mm';
+                        attachTypingMask(instance, true);
+                    },
                     onChange: function () { notifyAlpine(el); },
                 });
             });

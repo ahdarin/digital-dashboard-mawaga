@@ -128,7 +128,13 @@
                     const input = document.createElement('input');
                     input.type = 'hidden';
                     input.name = `fields[${key}]`;
-                    input.value = fields[key];
+                    const val = fields[key];
+                    // scenes (array of object) tidak bisa disimpan apa adanya
+                    // di hidden input - browser cuma nerima string, dan
+                    // toString() bawaan JS malah jadi "[object Object]"
+                    // (bukan JSON). JSON.stringify di sini, backend decode
+                    // lewat normalizeScenes() yang sudah biasa nanganin ini.
+                    input.value = (val !== null && typeof val === 'object') ? JSON.stringify(val) : val;
                     form.appendChild(input);
                 }
 

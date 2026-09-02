@@ -8,7 +8,7 @@ class ContentPublication extends Model
 {
     protected $fillable = [
         'content_item_id', 'platform_id', 'published_by',
-        'published_at', 'post_url', 'caption_final',
+        'published_at', 'post_url', 'thumbnail_url', 'caption_final',
         'external_post_id', 'api_integration_id',
     ];
     protected $casts = ['published_at' => 'datetime'];

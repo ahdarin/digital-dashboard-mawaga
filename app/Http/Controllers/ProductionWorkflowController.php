@@ -38,6 +38,7 @@ class ProductionWorkflowController extends Controller
             'client',
             'contentType',
             'platform',
+            'platforms',
             'workflow.currentPic',
             'assignments.user',
             'latestDelayRisk',

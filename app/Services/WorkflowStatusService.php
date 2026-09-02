@@ -81,6 +81,16 @@ class WorkflowStatusService
             throw new WorkflowTransitionException('Platform dan tanggal publish wajib diisi untuk menandai konten sebagai uploaded.');
         }
 
+        // Unfurl thumbnail dari post_url SEBELUM transaction dibuka - ini
+        // panggilan HTTP keluar (bisa lambat/timeout), jangan sampai
+        // menahan koneksi/lock database selama itu berlangsung.
+        if ($toStatus === 'uploaded') {
+            $thumbnailService = app(LinkThumbnailService::class);
+            foreach ($publications as $i => $pub) {
+                $publications[$i]['thumbnail_url'] = ! empty($pub['post_url']) ? $thumbnailService->fetch($pub['post_url']) : null;
+            }
+        }
+
         DB::transaction(function () use ($contentItem, $workflow, $fromStatus, $toStatus, $payload, $publications, $actor) {
             if ($toStatus === 'revision') {
                 $lastRound = ContentRevision::where('content_item_id', $contentItem->id)->max('revision_round') ?? 0;
@@ -126,6 +136,7 @@ class WorkflowStatusService
                         'published_by' => $actor->id,
                         'published_at' => $pub['published_at'],
                         'post_url' => $pub['post_url'] ?? null,
+                        'thumbnail_url' => $pub['thumbnail_url'] ?? null,
                         'caption_final' => $pub['caption_final'] ?? null,
                     ]);
                 }

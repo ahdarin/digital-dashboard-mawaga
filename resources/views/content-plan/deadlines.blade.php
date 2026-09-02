@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Atur Deadline - ' . $contentPlan->client->name)
 @section('content')
-<div class="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto" x-data="{ bulkDate: '' }">
+<div class="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto">
 
     <div class="flex items-start gap-3 mb-6">
         <a href="{{ route('content-plan.show', $contentPlan) }}" title="Kembali"
@@ -13,7 +13,7 @@
                 <a href="{{ route('content-plan.show', $contentPlan) }}" class="hover:text-[var(--brand)]">{{ $contentPlan->client->name }}</a> / Atur Deadline
             </p>
             <h1 class="font-display text-[26px] font-semibold text-[var(--text-primary)]">Atur Deadline Upload</h1>
-            <p class="text-sm text-[var(--text-secondary)] mt-1">Isi tanggal upload tiap item - deadline produksi otomatis dihitung 2 hari sebelumnya.</p>
+            <p class="text-sm text-[var(--text-secondary)] mt-1">Isi tanggal upload tiap item.</p>
         </div>
     </div>
 
@@ -24,18 +24,7 @@
     @if ($items->isEmpty())
         <div class="card p-8 text-center text-[var(--text-muted)] text-sm">Semua item sudah dikirim ke produksi - tidak ada lagi yang perlu diatur deadline-nya di sini.</div>
     @else
-        <div class="card p-5 mb-5 flex flex-col sm:flex-row sm:items-end gap-3">
-            <div class="flex-1">
-                <label for="bulk-date" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Terapkan ke Semua</label>
-                <input id="bulk-date" type="text" x-model="bulkDate" data-flatpickr="datetime" autocomplete="off"
-                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-            </div>
-            <button type="button"
-                @click="document.querySelectorAll('.upload-deadline-input').forEach(el => { el.value = bulkDate; el._flatpickr?.setDate(bulkDate); el.dispatchEvent(new Event('input')); })"
-                class="btn-secondary whitespace-nowrap">Terapkan ke Semua Baris</button>
-        </div>
-
-        <form action="{{ route('content-plan.deadlines.update', $contentPlan) }}" method="POST" x-data="{}">
+        <form action="{{ route('content-plan.deadlines.update', $contentPlan) }}" method="POST">
             @csrf @method('PATCH')
             <div class="card overflow-hidden">
                 <div class="overflow-x-auto">
@@ -44,22 +33,25 @@
                             <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
                                 <th class="px-5 py-3 font-medium">Item</th>
                                 <th class="px-4 py-3 font-medium">Tipe</th>
-                                <th class="px-4 py-3 font-medium w-[220px]">Tanggal Upload</th>
-                                <th class="px-5 py-3 font-medium w-[160px]">Deadline Produksi</th>
+                                <th class="px-5 py-3 font-medium w-[240px]">Tanggal Upload</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($items as $item)
-                                <tr class="border-t border-[var(--surface-muted)]" x-data="{ upload: '{{ old('upload_deadline_at.' . $item->id, optional($item->upload_deadline_at)->format('Y-m-d H:i')) }}' }">
+                                <tr class="border-t border-[var(--surface-muted)]">
                                     <td class="px-5 py-3">
                                         <p class="font-medium text-[var(--text-primary)]">{{ $item->provisional_code }} <span class="text-[var(--text-muted)] font-normal">· {{ $item->title }}</span></p>
                                     </td>
                                     <td class="px-4 py-3 text-[var(--text-secondary)]">{{ $item->contentType->name ?? '-' }}</td>
-                                    <td class="px-4 py-3">
-                                        <input type="text" name="upload_deadline_at[{{ $item->id }}]" x-model="upload" data-flatpickr="datetime" autocomplete="off"
-                                            class="upload-deadline-input w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                    <td class="px-5 py-3">
+                                        <div class="relative">
+                                            <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[16px] pointer-events-none">calendar_month</span>
+                                            <input type="text" name="upload_deadline_at[{{ $item->id }}]"
+                                                value="{{ old('upload_deadline_at.' . $item->id, optional($item->upload_deadline_at)->format('Y-m-d H:i')) }}"
+                                                data-flatpickr="datetime" autocomplete="off"
+                                                class="w-full border border-[var(--border)] rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                        </div>
                                     </td>
-                                    <td class="px-5 py-3 text-xs text-[var(--text-secondary)]" x-text="upload ? new Date(new Date(upload).getTime() - 2*86400000).toLocaleDateString('id-ID') : '-'"></td>
                                 </tr>
                             @endforeach
                         </tbody>

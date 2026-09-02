@@ -72,74 +72,28 @@
 
             <div class="lg:col-span-2 space-y-5">
 
-                @if ($workflow->current_status === 'draft')
-                    <div class="card p-5">
-                        <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-1">Info Dasar</h3>
-                        <p class="text-xs text-[var(--text-muted)] mb-4">Lengkapi dulu sebelum bisa mengisi Brief Produksi di bawah.</p>
-                        <form action="{{ route('content-items.update-info', $contentItem) }}" method="POST" class="space-y-3">
-                            @csrf @method('PATCH')
-                            <div>
-                                <label for="info-title" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Judul</label>
-                                <input id="info-title" type="text" name="title" required value="{{ old('title', $contentItem->title === $contentItem->provisional_code ? '' : $contentItem->title) }}"
-                                    placeholder="Judul konten..."
-                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
-                            </div>
-                            <div>
-                                <label for="info-brief" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Brief Singkat</label>
-                                <textarea id="info-brief" name="brief" rows="3" placeholder="Gambaran singkat konten ini..."
-                                    class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ old('brief', $contentItem->brief) }}</textarea>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div>
-                                    <label for="info-pillar" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Pilar</label>
-                                    <select id="info-pillar" name="content_pillar_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                        <option value="">Pilih pilar...</option>
-                                        @foreach ($pillarOptions as $pillar)
-                                            <option value="{{ $pillar->id }}" @selected($contentItem->content_pillar_id === $pillar->id)>{{ $pillar->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Platform (bisa lebih dari satu)</label>
-                                    @php $selectedPlatformIds = $contentItem->platforms->pluck('id')->all() ?: array_filter([$contentItem->platform_id]); @endphp
-                                    <div class="flex flex-wrap gap-1.5">
-                                        @foreach ($platformOptions as $platform)
-                                            <label class="inline-flex items-center gap-1.5 border border-[var(--border)] rounded-full px-2.5 py-1 text-xs cursor-pointer has-[:checked]:bg-[var(--brand-tint)] has-[:checked]:border-[var(--brand)] has-[:checked]:text-[var(--brand)]">
-                                                <input type="checkbox" name="platform_ids[]" value="{{ $platform->id }}" class="sr-only"
-                                                    @checked(in_array($platform->id, $selectedPlatformIds))>
-                                                {{ $platform->name }}
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                <div>
-                                    <label for="info-pic" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">PIC</label>
-                                    <select id="info-pic" name="pic_user_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                        <option value="">Pilih PIC...</option>
-                                        @foreach ($reassignCandidates as $candidate)
-                                            <option value="{{ $candidate->id }}" @selected($workflow->current_pic_id === $candidate->id)>{{ $candidate->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <span class="material-symbols-outlined text-[16px]">save</span> Simpan Info Dasar
-                            </button>
-                        </form>
-                    </div>
-                @endif
-
-                @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
+                @php
+                    $hasBasicInfo = $contentItem->title !== $contentItem->provisional_code;
+                    $selectedPlatformIds = $contentItem->platforms->pluck('id')->all() ?: array_filter([$contentItem->platform_id]);
+                @endphp
 
                 @unless ($workflow->current_status === 'draft')
                     <div class="card p-5">
                         <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Brief Awal</h3>
-                        <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line mb-4">
-                            {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
+                        <div class="flex items-start justify-between gap-3 mb-4">
+                            <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line">
+                                {{ $contentItem->brief ?: 'Belum ada brief.' }}</p>
+                            @if ($contentItem->reference_link)
+                                <a href="{{ $contentItem->reference_link }}" target="_blank"
+                                    class="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] px-2.5 py-1.5 rounded-lg whitespace-nowrap">
+                                    <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Referensi
+                                </a>
+                            @endif
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div>
                                 <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Platform</p>
-                                <p class="text-[var(--text-secondary)]">{{ $contentItem->platform->name ?? '-' }}</p>
+                                <p class="text-[var(--text-secondary)]">{{ $contentItem->platforms->pluck('name')->implode(', ') ?: ($contentItem->platform->name ?? '-') }}</p>
                             </div>
                             <div>
                                 <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Deadline</p>
@@ -159,7 +113,130 @@
                     </div>
                 @endunless
 
-                @if (auth()->user()->hasPermissionTo('content_plan', 'create'))
+                @if ($workflow->current_status === 'draft')
+                    <div class="card p-5" x-data="{ editingInfo: {{ $hasBasicInfo ? 'false' : 'true' }} }">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 class="text-sm font-semibold text-[var(--text-primary)]">Info Dasar</h3>
+                            @if ($hasBasicInfo)
+                                <button type="button" @click="editingInfo = !editingInfo" class="text-xs font-medium text-[var(--brand)] hover:underline">
+                                    <span x-text="editingInfo ? 'Batal' : 'Edit'"></span>
+                                </button>
+                            @endif
+                        </div>
+
+                        {{-- VIEW MODE - begitu tersimpan, tampil seperti Brief Awal
+                             (baca-saja + tombol Edit), bukan tetap berbentuk form
+                             supaya tidak membingungkan apakah sudah disimpan. --}}
+                        <div x-show="!editingInfo" x-cloak class="space-y-3">
+                            <div>
+                                <div class="flex items-center justify-between gap-3 mb-0.5">
+                                    <p class="text-[10px] font-medium text-[var(--text-muted)] uppercase">Brief Singkat</p>
+                                    @if ($contentItem->reference_link)
+                                        <a href="{{ $contentItem->reference_link }}" target="_blank"
+                                            class="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--brand)] hover:underline">
+                                            <span class="material-symbols-outlined text-[13px]">open_in_new</span> Lihat Referensi
+                                        </a>
+                                    @endif
+                                </div>
+                                <p class="text-sm text-[var(--text-secondary)] whitespace-pre-line">{{ $contentItem->brief ?: '-' }}</p>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs pt-2 border-t border-[var(--surface-muted)]">
+                                <div>
+                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Pilar</p>
+                                    <p class="text-[var(--text-secondary)]">{{ $contentItem->contentPillar->name ?? '-' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Platform</p>
+                                    <p class="text-[var(--text-secondary)]">{{ $contentItem->platforms->pluck('name')->implode(', ') ?: '-' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">PIC</p>
+                                    <p class="text-[var(--text-secondary)]">{{ $workflow->currentPic->name ?? $contentItem->external_pic_name ?? '-' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- FORM MODE --}}
+                        <div x-show="editingInfo" x-cloak>
+                            <p class="text-xs text-[var(--text-muted)] mb-4">Lengkapi dulu sebelum bisa mengisi Brief Produksi di bawah.</p>
+                            <form action="{{ route('content-items.update-info', $contentItem) }}" method="POST" class="space-y-3">
+                                @csrf @method('PATCH')
+                                <div>
+                                    <label for="info-title" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Judul</label>
+                                    <input id="info-title" type="text" name="title" required value="{{ old('title', $hasBasicInfo ? $contentItem->title : '') }}"
+                                        placeholder="Judul konten..."
+                                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                                </div>
+                                <div>
+                                    <label for="info-brief" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Brief Singkat</label>
+                                    <textarea id="info-brief" name="brief" rows="3" placeholder="Gambaran singkat konten ini..."
+                                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">{{ old('brief', $contentItem->brief) }}</textarea>
+                                </div>
+                                <div>
+                                    <label for="info-reference" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Referensi <span class="normal-case text-[var(--text-muted)]">(opsional)</span></label>
+                                    <input id="info-reference" type="url" name="reference_link" value="{{ old('reference_link', $contentItem->reference_link) }}"
+                                        placeholder="Link konten orang lain sebagai referensi/inspirasi..."
+                                        class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#044b46]/40">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="info-pillar" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Pilar</label>
+                                        <select id="info-pillar" name="content_pillar_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                            <option value="">Pilih pilar...</option>
+                                            @foreach ($pillarOptions as $pillar)
+                                                <option value="{{ $pillar->id }}" @selected($contentItem->content_pillar_id === $pillar->id)>{{ $pillar->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="info-pic" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">PIC</label>
+                                        <select id="info-pic" name="pic_user_id" class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                            <option value="">Pilih PIC...</option>
+                                            @foreach ($reassignCandidates as $candidate)
+                                                <option value="{{ $candidate->id }}" @selected($workflow->current_pic_id === $candidate->id)>{{ $candidate->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div x-data="{
+                                    selected: @js($selectedPlatformIds),
+                                    options: @js($platformOptions->pluck('id')),
+                                }">
+                                    <label class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Platform</label>
+                                    <div class="border border-[var(--border)] rounded-lg p-2.5 space-y-1.5">
+                                        <label class="flex items-center gap-2 text-xs font-medium pb-1.5 mb-1 border-b border-[var(--surface-muted)] cursor-pointer">
+                                            <input type="checkbox" :checked="selected.length === options.length"
+                                                @change="selected = $event.target.checked ? [...options] : []"
+                                                class="rounded border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
+                                            Pilih Semua
+                                        </label>
+                                        @foreach ($platformOptions as $platform)
+                                            <label class="flex items-center gap-2 text-xs cursor-pointer">
+                                                <input type="checkbox" name="platform_ids[]" value="{{ $platform->id }}" x-model="selected"
+                                                    class="rounded border-[var(--border-strong)] text-[var(--brand)] focus:ring-[var(--brand)]">
+                                                {{ $platform->name }}
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="submit" class="btn-primary">
+                                        <span class="material-symbols-outlined text-[16px]">save</span> Simpan Info Dasar
+                                    </button>
+                                    @if ($hasBasicInfo)
+                                        <button type="button" @click="editingInfo = false" class="btn-secondary">Batal</button>
+                                    @endif
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($workflow->current_status !== 'draft' || $hasBasicInfo)
+                    @include('content-items.partials.ai-brief', ['contentItem' => $contentItem])
+                @endif
+
+                @if ($workflow->current_status !== 'draft' && auth()->user()->hasPermissionTo('content_plan', 'create'))
                     <div class="card p-5" x-data="{ editingCaption: {{ $contentItem->caption_draft ? 'false' : 'true' }} }">
                         <div class="flex items-center justify-between mb-1">
                             <h3 class="text-sm font-semibold text-[var(--text-primary)]">Caption / Copy</h3>
@@ -186,7 +263,7 @@
                     </div>
                 @endif
 
-                @unless ($workflow->current_status === 'brief_ready')
+                @unless (in_array($workflow->current_status, ['draft', 'brief_ready']))
                     <div class="card p-5" x-data="{ editingLink: {{ $contentItem->content_file_link ? 'false' : 'true' }} }">
                         <div class="flex items-center justify-between mb-1">
                             <h3 class="text-sm font-semibold text-[var(--text-primary)]">Link Konten (Draft)</h3>
@@ -215,6 +292,7 @@
                     </div>
                 @endunless
 
+                @unless ($workflow->current_status === 'draft')
                 <div class="card p-5">
                     <h3 class="text-sm font-semibold text-[var(--text-primary)] mb-4">Catatan Revisi
                         ({{ $contentItem->revisions->count() }})</h3>
@@ -276,6 +354,7 @@
                         <p class="text-[11px] text-[var(--text-muted)] italic">Catatan revisi cuma bisa ditambahkan saat status Menunggu Persetujuan atau Perlu Revisi.</p>
                     @endif
                 </div>
+                @endunless
 
                 @if ($contentItem->is_posted)
                     <div class="card p-5">
@@ -330,8 +409,11 @@
                                             <div>
                                                 <label for="published_at-{{ $pf->id }}" class="block text-[10px] font-medium text-[var(--text-muted)] uppercase mb-1">Tanggal
                                                     Publish</label>
-                                                <input id="published_at-{{ $pf->id }}" type="text" name="publications[{{ $loop->index }}][published_at]" required data-flatpickr="datetime" autocomplete="off"
-                                                    class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                                <div class="relative">
+                                                    <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[15px] pointer-events-none">calendar_month</span>
+                                                    <input id="published_at-{{ $pf->id }}" type="text" name="publications[{{ $loop->index }}][published_at]" required data-flatpickr="datetime" autocomplete="off"
+                                                        class="bg-[var(--surface-card)] w-full border border-[var(--border)] rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-[#044b46]/40">
+                                                </div>
                                             </div>
                                         </div>
                                         <div>
@@ -357,10 +439,13 @@
             </div>
 
             <div class="space-y-5">
-                @include('content-items.partials.ai-brief-discussion', ['contentItem' => $contentItem])
+                @unless ($contentItem->contentBriefDraft?->isLocked())
+                    @include('content-items.partials.ai-brief-discussion', ['contentItem' => $contentItem])
+                @endunless
 
                 @include('content-items.partials.client-assets', ['contentItem' => $contentItem])
 
+                @unless ($workflow->current_status === 'draft')
                 <div class="card p-5">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="text-sm font-semibold text-[var(--text-primary)]">Penanggung Jawab</h3>
@@ -408,8 +493,9 @@
                         @endforelse
                     </div>
                 </div>
+                @endunless
 
-                @unless (in_array($workflow->current_status, ['uploaded', 'cancelled']))
+                @unless (in_array($workflow->current_status, ['draft', 'uploaded', 'cancelled']))
                     @include('content-items.partials.status-management', [
                         'contentItem' => $contentItem,
                         'workflow' => $workflow,
@@ -485,6 +571,7 @@
                         </div>
                     @endif
 
+                    @unless ($workflow->current_status === 'draft')
                     <div class="card p-5">
                         <div class="flex items-center justify-between mb-3">
                             <h3 class="text-sm font-semibold text-[var(--text-primary)]">Riwayat Status</h3>
@@ -517,6 +604,7 @@
                             @endforelse
                         </div>
                     </div>
+                    @endunless
                 </div>
             </div>
 

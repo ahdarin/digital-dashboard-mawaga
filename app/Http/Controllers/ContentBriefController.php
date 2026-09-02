@@ -49,15 +49,42 @@ class ContentBriefController extends Controller
         }
 
         $validated = $request->validate([
-            'hook_title' => 'nullable|string|max:255',
+            'talent' => 'nullable|string',
+            'properti' => 'nullable|string',
+            'scenes' => 'array',
+            'scenes.*.label' => 'nullable|string|max:100',
+            'scenes.*.visual' => 'nullable|string',
+            'scenes.*.talent_script' => 'nullable|string',
         ]);
 
+        $scenes = array_values($validated['scenes'] ?? []);
+
         $this->briefService->createManual($contentItem, [
-            'hook_title' => $validated['hook_title'] ?? $contentItem->title,
+            'hook_title' => $contentItem->title,
+            'talent' => $validated['talent'] ?? null,
+            'properti' => $validated['properti'] ?? null,
+            'scenes' => $scenes,
         ], auth()->id());
 
         return redirect()->route('content-items.show', $contentItem)
-            ->with('status', 'Brief manual dibuat - lengkapi script/talent/properti di bawah, atau pakai "Isi dengan AI" per bagian kalau perlu bantuan.');
+            ->with('status', 'Brief berhasil disimpan.');
+    }
+
+    /**
+     * AI-assist SATU field brief saja (naskah/talent/properti), berdasarkan
+     * Info Dasar - dipanggil per tombol ✨ di form manual, TIDAK mengubah
+     * field lain dan TIDAK langsung menyimpan ke database (cuma dikembalikan
+     * ke form supaya user masih bisa review/edit sebelum "Simpan Perubahan").
+     */
+    public function assistField(Request $request, ContentItem $contentItem)
+    {
+        $validated = $request->validate([
+            'field' => 'required|in:scenes,talent,properti',
+        ]);
+
+        $value = $this->briefService->assistField($contentItem, $validated['field']);
+
+        return response()->json(['field' => $validated['field'], 'value' => $value]);
     }
 
     /**
@@ -147,8 +174,6 @@ class ContentBriefController extends Controller
         abort_if($contentBrief->isLocked(), 422, 'Brief sudah diterapkan, tarik kembali dulu sebelum diedit.');
 
         $validated = $request->validate([
-            'hook_title' => 'required|string|max:255',
-            'platform' => 'nullable|string|max:255',
             'talent' => 'nullable|string',
             'properti' => 'nullable|string',
             'scenes' => 'array',
@@ -161,8 +186,7 @@ class ContentBriefController extends Controller
 
         $contentBrief->update([
             'previous_snapshot' => $contentBrief->only(BriefGenerationService::EDITABLE_FIELDS),
-            'hook_title' => $validated['hook_title'],
-            'platform' => $validated['platform'] ?? null,
+            'hook_title' => $contentBrief->hook_title ?: $contentBrief->contentItem->title,
             'talent' => $validated['talent'] ?? null,
             'properti' => $validated['properti'] ?? null,
             'scenes' => $scenes,

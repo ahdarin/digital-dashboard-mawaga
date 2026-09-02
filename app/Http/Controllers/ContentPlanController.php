@@ -154,9 +154,16 @@ class ContentPlanController extends Controller
         // Sejak slot konten digenerate otomatis dari kuota paket (bukan lagi
         // ditambah manual satu-satu), client WAJIB punya paket aktif dulu -
         // tanpa paket tidak ada cara lain buat mengisi Content Plan-nya sama
-        // sekali (form "Tambah Konten" sudah dihapus).
+        // sekali (form "Tambah Konten" sudah dihapus). Balikin sebagai error
+        // validasi (bukan abort/halaman 422) supaya modal "Buat Rencana
+        // Konten Baru" tetap terbuka dengan pesan errornya, bukan melempar
+        // user ke halaman error terpisah.
         $package = $client->activePackage;
-        abort_unless($package, 422, "Client \"{$client->name}\" belum punya paket aktif. Atur paket klien dulu di Kelola Klien sebelum membuat Content Plan - slot konten digenerate otomatis dari kuota paket.");
+        if (! $package) {
+            return back()->withErrors([
+                'client_id' => "Client \"{$client->name}\" belum punya paket aktif. Atur paket klien dulu di Kelola Klien sebelum membuat Content Plan - slot konten digenerate otomatis dari kuota paket.",
+            ], 'createContentPlan')->withInput();
+        }
 
         $plan = ContentPlan::create([
             'client_id' => $client->id,

@@ -112,7 +112,8 @@ class ContentPlanTest extends TestCase
             'year' => now()->year,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertRedirect();
+        $response->assertSessionHasErrors('client_id', null, 'createContentPlan');
         $this->assertDatabaseMissing('content_plans', ['client_id' => $client->id]);
     }
 

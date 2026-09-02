@@ -21,6 +21,7 @@ class ContentItem extends Model
         'platform_id',
         'title',
         'brief',
+        'reference_link',
         'caption_draft',
         'deadline_at',
         'upload_deadline_at',

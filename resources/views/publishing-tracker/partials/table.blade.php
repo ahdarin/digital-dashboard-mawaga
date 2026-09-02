@@ -5,7 +5,8 @@
     <table class="w-full table-fixed text-sm text-left">
         <thead class="bg-[var(--surface-page)]">
             <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
-                <th class="w-[26%] px-6 py-3 font-medium whitespace-nowrap">Konten</th>
+                <th class="w-[8%] px-6 py-3 font-medium whitespace-nowrap"></th>
+                <th class="w-[24%] px-4 py-3 font-medium whitespace-nowrap">Konten</th>
                 <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
                 <th class="w-[10%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
                 <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Tanggal Tayang</th>
@@ -18,7 +19,18 @@
                 <tr x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
                     onclick="navigateTo('{{ route('content-items.show', $pub->contentItem) }}')"
                     class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors cursor-pointer">
-                    <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $pub->contentItem->title }}">
+                    <td class="px-6 py-3.5">
+                        <div class="w-11 h-11 rounded-lg bg-[var(--surface-muted)] flex items-center justify-center shrink-0 text-[var(--text-muted)] overflow-hidden">
+                            @if ($pub->thumbnail_url)
+                                <img src="{{ $pub->thumbnail_url }}" alt="" class="w-full h-full object-cover"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                <span class="material-symbols-outlined text-[18px]" style="display:none">image</span>
+                            @else
+                                <span class="material-symbols-outlined text-[18px]">image</span>
+                            @endif
+                        </div>
+                    </td>
+                    <td class="px-4 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $pub->contentItem->title }}">
                         {{ $pub->contentItem->title }}
                     </td>
                     <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $pub->contentItem->client->name ?? '-' }}</td>
@@ -38,7 +50,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="px-6 py-12 text-center">
+                    <td colspan="7" class="px-6 py-12 text-center">
                         <span class="material-symbols-outlined text-[var(--icon-disabled)] text-[28px] mb-2 block">rocket_launch</span>
                         <p class="text-sm text-[var(--text-muted)]">Belum ada konten yang dipublikasikan.</p>
                         <p class="text-xs text-[var(--text-muted)] mt-1">Konten muncul di sini otomatis begitu ditandai Uploaded di papan Produksi atau lewat Record Publication.</p>
@@ -55,6 +67,15 @@
           <div x-show="matches('{{ addslashes($pub->contentItem->title) }}', '{{ addslashes($pub->contentItem->client->name ?? '') }}')"
               class="card p-3.5" x-data="{ open: false }">
               <button type="button" class="w-full text-left flex items-start gap-2 cursor-pointer" @click="open = !open" :aria-expanded="open">
+                  <div class="w-10 h-10 rounded-lg bg-[var(--surface-muted)] flex items-center justify-center shrink-0 text-[var(--text-muted)] overflow-hidden">
+                      @if ($pub->thumbnail_url)
+                          <img src="{{ $pub->thumbnail_url }}" alt="" class="w-full h-full object-cover"
+                               onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                          <span class="material-symbols-outlined text-[16px]" style="display:none">image</span>
+                      @else
+                          <span class="material-symbols-outlined text-[16px]">image</span>
+                      @endif
+                  </div>
                   <div class="flex-1 min-w-0">
                       <p class="font-medium text-[var(--text-primary)] text-sm">{{ $pub->contentItem->title }}</p>
                       <div class="flex items-center gap-1.5 flex-wrap mt-1.5">

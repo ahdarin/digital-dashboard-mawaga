@@ -192,7 +192,12 @@ class BriefGenerationService
         }
 
         if (array_key_exists('scenes', $incoming)) {
-            $incoming['scenes'] = array_values($incoming['scenes'] ?? []);
+            // Dikirim dari form "Terapkan perubahan ini" (diskusi AI) sebagai
+            // hidden input - browser cuma bisa nyimpen string di situ, jadi
+            // scenes selalu sampai ke sini sebagai JSON string, bukan array
+            // PHP asli. normalizeScenes() sudah biasa nanganin ini (sama
+            // seperti respons Gemini yang kadang double-encode).
+            $incoming['scenes'] = array_values($this->normalizeScenes($incoming['scenes']) ?? []);
             $incoming['slide_count'] = count($incoming['scenes']) ?: null;
         }
 
@@ -218,6 +223,77 @@ class BriefGenerationService
         ]));
 
         return $brief->fresh();
+    }
+
+    /**
+     * AI-assist SATU field brief saja (naskah/talent/properti), berdasarkan
+     * Info Dasar (judul, brief singkat, pilar, platform, tipe) - dipakai
+     * tombol ✨ per-field di form manual, bukan generate/regenerate
+     * seluruh brief sekaligus.
+     */
+    public function assistField(ContentItem $item, string $field): mixed
+    {
+        $parsed = $this->callGemini($this->buildFieldAssistPrompt($item, $field));
+
+        return match ($field) {
+            'scenes' => $this->normalizeScenes($parsed['scenes'] ?? null) ?? [],
+            default => $parsed['value'] ?? null,
+        };
+    }
+
+    private function buildFieldAssistPrompt(ContentItem $item, string $field): string
+    {
+        $typeName = $item->contentType->name ?? 'Tidak diketahui';
+        $isVideo = $typeName === 'Video';
+        $platformNames = $item->platforms->pluck('name')->implode(', ') ?: ($item->platform->name ?? 'Tidak diketahui');
+        $pillarName = $item->contentPillar->name ?? 'Tidak diketahui';
+
+        $context = <<<CONTEXT
+        - Judul: {$item->title}
+        - Brief singkat: {$item->brief}
+        - Pilar: {$pillarName}
+        - Tipe konten: {$typeName}
+        - Platform: {$platformNames}
+        CONTEXT;
+
+        $secondFieldSpec = $isVideo
+            ? 'talent_script: naskah/dialog/voice over yang diucapkan talent di adegan ini'
+            : 'talent_script: isi design/copywriting yang TAMPIL TERTULIS di slide ini (headline, caption, body text, CTA)';
+
+        return match ($field) {
+            'scenes' => <<<PROMPT
+                Kamu asisten produksi konten agensi kreatif. Berdasarkan Info Dasar berikut:
+                {$context}
+
+                Susun naskah/script produksinya sebagai array "scenes" - satu object per SLIDE
+                (Design/Carousel) atau ADEGAN (Video), tiap object wajib punya key: label (contoh
+                "ADEGAN 1"/"SLIDE 1", huruf besar, urut dari 1), visual (deskripsi visual/aksi/layout),
+                {$secondFieldSpec}. visual dan talent_script HARUS dua field terpisah, jangan digabung.
+
+                PENTING: Balas HANYA dengan JSON valid: {"scenes": [...]}. Tanpa markdown code fence.
+                PROMPT,
+            'talent' => <<<PROMPT
+                Kamu asisten produksi konten agensi kreatif. Berdasarkan Info Dasar berikut:
+                {$context}
+
+                Tentukan talent yang dibutuhkan (contoh: "1 model wanita, 1 model pria" - JANGAN pakai
+                nama asli orang, cukup peran/jumlahnya).
+
+                PENTING: Balas HANYA dengan JSON valid: {"value": "..."}. Tanpa markdown code fence.
+                PROMPT,
+            'properti' => <<<PROMPT
+                Kamu asisten produksi konten agensi kreatif. Berdasarkan Info Dasar berikut:
+                {$context}
+
+                Tentukan properti/alat KHUSUS yang dibutuhkan di luar peralatan standar tim produksi
+                (jangan sebutkan laptop/PC, software desain umum, kamera, tripod dasar, koneksi internet
+                - itu semua sudah pasti ada). Kalau memang tidak ada yang khusus, isi: "Tidak ada
+                properti khusus, cukup peralatan standar tim produksi."
+
+                PENTING: Balas HANYA dengan JSON valid: {"value": "..."}. Tanpa markdown code fence.
+                PROMPT,
+            default => throw new \InvalidArgumentException("Field tidak dikenal: {$field}"),
+        };
     }
 
     private function buildGeneratePrompt(ContentItem $idea): string

@@ -197,6 +197,10 @@ class GoldenPathTest extends TestCase
                     ['content' => ['parts' => [['text' => json_encode($briefJson)]]]],
                 ],
             ], 200),
+            // Fallback - LinkThumbnailService (unfurl thumbnail dari post_url
+            // saat publish, lihat step 13) TIDAK boleh memanggil jaringan
+            // sungguhan di test manapun. Bukan cuma golden path ini.
+            '*' => Http::response('', 200),
         ]);
         config(['services.gemini.api_key' => 'fake-key-golden-path']);
 

@@ -128,8 +128,11 @@
                         </div>
                         <div>
                             <label for="urgent_deadline_at" class="block text-xs font-medium text-[var(--text-muted)] uppercase mb-1.5">Deadline <span class="text-[var(--danger-text)]">*</span></label>
-                            <input id="urgent_deadline_at" type="text" name="deadline_at" required value="{{ old('deadline_at', now()->addDay()->format('Y-m-d H:i')) }}" data-flatpickr="datetime" autocomplete="off"
-                                class="w-full border rounded-lg px-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('deadline_at') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            <div class="relative">
+                                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
+                                <input id="urgent_deadline_at" type="text" name="deadline_at" required value="{{ old('deadline_at', now()->addDay()->format('Y-m-d H:i')) }}" data-flatpickr="datetime" autocomplete="off"
+                                    class="w-full border rounded-lg pl-10 pr-3.5 py-2.5 text-sm bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 {{ $errors->urgentContent->has('deadline_at') ? 'border-[var(--field-error-border)]' : 'border-[var(--border)]' }}">
+                            </div>
                             @error('deadline_at', 'urgentContent') <p class="text-xs text-[var(--danger-text)] mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>

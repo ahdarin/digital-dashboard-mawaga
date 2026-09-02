@@ -126,6 +126,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::post('/content-brief/manual/{contentItem}', [ContentBriefController::class, 'storeManual'])
             ->middleware('client.scope:contentItem')
             ->name('content-brief.store-manual');
+        Route::post('/content-brief/assist/{contentItem}', [ContentBriefController::class, 'assistField'])
+            ->middleware('client.scope:contentItem')
+            ->name('content-brief.assist-field');
         Route::post('/content-brief/{contentBrief}/regenerate', [ContentBriefController::class, 'regenerate'])
             ->middleware('client.scope:contentBrief,contentItem.client_id')
             ->name('content-brief.regenerate');

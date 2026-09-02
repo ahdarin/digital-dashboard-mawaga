@@ -187,6 +187,7 @@ class ContentItemController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'brief' => 'nullable|string',
+            'reference_link' => 'nullable|url|max:2048',
             'content_pillar_id' => 'nullable|exists:content_pillars,id',
             'platform_ids' => 'nullable|array',
             'platform_ids.*' => 'exists:platforms,id',
@@ -208,6 +209,7 @@ class ContentItemController extends Controller
         $contentItem->update([
             'title' => $validated['title'],
             'brief' => $validated['brief'] ?? null,
+            'reference_link' => $validated['reference_link'] ?? null,
             'content_pillar_id' => $validated['content_pillar_id'] ?? null,
             // platform_id (scalar lama) tetap disinkronkan ke platform pertama
             // yang dipilih - dibaca banyak titik lama (laporan, analytics,
