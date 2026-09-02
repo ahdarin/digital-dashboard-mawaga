@@ -26,7 +26,7 @@
 
         <button type="button" @click="sidebarOpen = true"
             aria-label="Buka menu"
-            class="lg:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
+            class="lg:hidden shrink-0 w-11 h-11 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
             <span class="material-symbols-outlined text-[var(--text-secondary)] text-[22px]">menu</span>
         </button>
 
@@ -68,8 +68,8 @@
         <div class="flex items-center gap-3 shrink-0">
 
             <div x-data="{ open: false, tab: 'all', tabCounts: {{ Illuminate\Support\Js::from($tabCounts) }} }" class="relative">
-                <button @click="open = !open" type="button"
-                        class="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
+                <button @click="open = !open" type="button" aria-label="Notifikasi"
+                        class="relative w-11 h-11 flex items-center justify-center rounded-lg hover:bg-[var(--surface-page)] transition-colors">
                     <span class="material-symbols-outlined text-[var(--text-secondary)] text-[20px]">notifications</span>
                     @if ($unreadCount > 0)
                         <span class="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-[var(--danger-solid)] text-white text-[10px] font-semibold rounded-full flex items-center justify-center">
@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            <a href="{{ route('profile.show', auth()->id()) }}" class="flex items-center gap-2.5 pl-3 border-l border-[var(--border)]">
+            <a href="{{ route('profile.show', auth()->id()) }}" class="flex items-center gap-2.5 pl-3 py-2 -my-2 border-l border-[var(--border)]">
                 @if (auth()->user()->avatar_url)
                     <img src="{{ auth()->user()->avatar_url }}" alt="{{ auth()->user()->name ?? 'User' }}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover">
                 @else

@@ -121,8 +121,8 @@
         </span>
     </button>
 
-    <button type="button" @click="sidebarOpen = false" title="Close menu"
-        class="lg:hidden absolute top-6 right-3 w-8 h-8 rounded-full bg-[var(--surface-muted)] flex items-center justify-center text-[var(--text-secondary)]"
+    <button type="button" @click="sidebarOpen = false" title="Close menu" aria-label="Tutup menu"
+        class="lg:hidden absolute top-4 right-2 w-11 h-11 rounded-full bg-[var(--surface-muted)] flex items-center justify-center text-[var(--text-secondary)]"
         style="z-index: 30;">
         <span class="material-symbols-outlined text-[18px]">close</span>
     </button>

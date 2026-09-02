@@ -94,7 +94,13 @@
                 @if ($recentContentItems->isEmpty())
                     <p class="text-sm text-[var(--text-muted)] py-6 text-center">Belum ada konten untuk klien ini.</p>
                 @else
-                    <div class="overflow-x-auto">
+                    {{-- Desktop table - kolom "Judul" di-truncate dengan lebar
+                         cukup (>=sm), aman. Di viewport sempit, truncate +
+                         table-fixed bikin judul kepotong tanpa cara dibaca
+                         penuh (title="" tooltip tidak jalan di touch) - lihat
+                         list mobile di bawah, pola sama dengan
+                         client-management/index.blade.php. --}}
+                    <div class="overflow-x-auto hidden sm:block">
                         <table class="w-full table-fixed text-sm text-left">
                             <thead class="bg-[var(--surface-page)]">
                                 <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
@@ -119,6 +125,26 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    {{-- Mobile card list - judul tampil PENUH (wrap, bukan
+                         truncate), status jadi badge yang selalu terlihat. --}}
+                    <div class="sm:hidden space-y-2.5">
+                        @foreach ($recentContentItems as $item)
+                            <div class="card p-3.5">
+                                <div class="flex items-start justify-between gap-3 mb-1.5">
+                                    <p class="text-sm font-medium text-[var(--text-primary)] leading-snug">{{ $item->title }}</p>
+                                    <span class="badge shrink-0 {{ ($item->workflow->is_overdue ?? false) ? 'badge-danger' : 'badge-success' }}">
+                                        {{ $item->workflow ? \App\Support\WorkflowTransitions::label($item->workflow->current_status) : '-' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                                    <span>{{ $item->contentType->name ?? '-' }}</span>
+                                    <span>&middot;</span>
+                                    <span>{{ $item->deadline_at ? $item->deadline_at->translatedFormat('d M Y') : '-' }}</span>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 @endif
             </div>
