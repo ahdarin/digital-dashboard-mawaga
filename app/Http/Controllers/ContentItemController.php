@@ -79,13 +79,6 @@ class ContentItemController extends Controller
             'to_status' => 'required|string',
             'notes' => 'nullable|string',
             'scheduled_upload_at' => 'nullable|date',
-            // Modal konfirmasi generik (withLink) di content-items/show.blade.php
-            // mengirim ini saat transisi ke waiting_review - field ini HILANG
-            // dari whitelist sejak revert 78b5727 ("teammate sudah bangun
-            // fitur ini terpisah"), jadi walau UI sudah men-require & submit,
-            // backend diam-diam membuangnya. WorkflowStatusService::transition()
-            // yang menegakkan requirement-nya (Langkah audit Phase 4.2).
-            'content_file_link' => 'nullable|url|max:2048',
         ]);
 
         $toStatus = $validated['to_status'];

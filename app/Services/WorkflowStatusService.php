@@ -62,17 +62,6 @@ class WorkflowStatusService
             throw new WorkflowTransitionException('Tanggal & jam rencana upload wajib diisi untuk menjadwalkan konten.');
         }
 
-        // Link konten wajib sebelum masuk Menunggu Persetujuan (audit Phase
-        // 4.2) - baik lewat payload transisi (modal konfirmasi withLink) MAUPUN
-        // yang sudah tersimpan sebelumnya lewat form Link Konten (Draft,
-        // ContentItemController::updateContentLink()) - dua-duanya valid,
-        // TIDAK wajib diisi ulang tiap transisi kalau sudah ada dari draft.
-        if ($toStatus === 'waiting_review'
-            && trim($payload['content_file_link'] ?? '') === ''
-            && empty($contentItem->content_file_link)) {
-            throw new WorkflowTransitionException('Link konten (file hasil produksi) wajib diisi untuk memindahkan konten ke status Menunggu Persetujuan.');
-        }
-
         // Multi-platform (Info Dasar sekarang bisa pilih >1 platform): payload
         // bisa berupa array publications[] (satu entri per platform), atau
         // bentuk lama satu platform_id/published_at scalar - item lama/
@@ -129,10 +118,6 @@ class WorkflowStatusService
                 ContentRevision::where('content_item_id', $contentItem->id)
                     ->where('status', 'in_progress')
                     ->update(['status' => 'resolved']);
-            }
-
-            if ($toStatus === 'waiting_review' && ! empty($payload['content_file_link'])) {
-                $contentItem->update(['content_file_link' => $payload['content_file_link']]);
             }
 
             if ($toStatus === 'scheduled') {
