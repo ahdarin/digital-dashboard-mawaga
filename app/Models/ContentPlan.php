@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentPlan extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'client_id', 'client_package_id', 'created_by',
         'approved_by', 'month', 'year', 'status',

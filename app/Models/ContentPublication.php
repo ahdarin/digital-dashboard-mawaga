@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentPublication extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'platform_id', 'published_by',
         'published_at', 'post_url', 'thumbnail_url', 'caption_final',

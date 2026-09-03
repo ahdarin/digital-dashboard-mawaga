@@ -39,6 +39,10 @@
         </div>
     </div>
 
+    @if ($canViewKpi)
+        @include('partials.user-kpi-summary')
+    @endif
+
     @include('partials.copywriter-brief-queue')
 </div>
 @endsection

@@ -3,23 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
-use App\Models\ContentItemAssignment;
-use App\Models\ContentRevision;
 use App\Models\User;
-use App\Models\DelayRiskScore;
+use App\Models\UserMonthlyKpiResult;
 use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
-use App\Services\UserContentResolver;
-use App\Support\WorkflowTransitions;
+use App\Services\TeamPerformanceKpiCalculator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class TeamPerformanceController extends Controller
 {
-    private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
-    private int $overloadThreshold = 5;
+    private const TREND_MONTHS = 6;
 
-    public function index(Request $request, AttendanceService $attendanceService, UserContentResolver $contentResolver)
+    public function index(Request $request, AttendanceService $attendanceService, TeamPerformanceKpiCalculator $calculator)
     {
         $tab = $request->input('tab', 'performa');
 
@@ -71,114 +67,95 @@ class TeamPerformanceController extends Controller
             ]);
         }
 
-        // Admin bukan bagian dari tim produksi (nggak megang konten, nggak
-        // wajib absensi) - dikecualikan dari Performa Tim.
+        $periodStart = $this->resolvePeriod($request->input('month'));
+        $calculator->ensureCalculated($periodStart);
+
+        // Admin bukan bagian dari tim produksi (view-only by design, tidak
+        // pernah muncul di assignment/brief/status log) - dikecualikan dari
+        // daftar supaya tidak menumpuk sebagai "Belum ada data" terus-menerus.
         $users = User::query()
             ->where('status', 'active')
             ->whereDoesntHave('roles', fn ($q) => $q->where('name', UserRole::Admin->value))
-            ->with(['roles', 'assignments.contentItem.workflow'])
+            ->with('roles')
+            ->orderBy('name')
             ->get();
 
-        // Content item per anggota, dikelompokkan dari assignments yang
-        // sudah di-eager-load - keyed by user_id biar bisa diambil per
-        // anggota (Collection::get()) di map() di bawah.
-        $contentItemsByMember = $users->mapWithKeys(
-            fn (User $user) => [$user->id => $user->assignments->pluck('contentItem')->filter()->unique('id')->values()]
-        );
+        $results = UserMonthlyKpiResult::where('period_start', $periodStart->toDateString())
+            ->get()
+            ->keyBy('user_id');
 
-        // Kumpulkan seluruh content_item_id lintas User dulu, biar revision
-        // count dan delay risk score bisa diambil lewat 2 query agregat
-        // total (bukan per-anggota) - flat terhadap jumlah User.
-        $allContentItemIds = $contentItemsByMember
-            ->flatten(1)
-            ->filter(fn ($item) => $item->workflow)
-            ->pluck('id')
-            ->unique()
+        $members = $users->map(fn (User $user) => [
+            'user' => $user,
+            'result' => $results->get($user->id),
+        ]);
+
+        // Perbandingan Nilai KPI antar anggota - diurutkan dari skor
+        // tertinggi (beda dari Daftar Anggota di bawah yang tetap alfabetis)
+        // supaya chart perbandingan enak dibaca. Anggota tanpa hasil bulan
+        // ini dilewati (bukan digambar sebagai 0) - konsisten dengan
+        // x-trend-chart yang membedakan "tidak ada data" dari nilai nol asli.
+        $comparisonChart = $members
+            ->filter(fn ($m) => $m['result'] !== null)
+            ->sortByDesc(fn ($m) => $m['result']->final_score)
+            ->map(fn ($m) => [
+                'label' => $m['user']->name,
+                'value' => round($m['result']->final_score),
+            ])
             ->values();
 
-        $revisionCountByItem = ContentRevision::whereIn('content_item_id', $allContentItemIds)
-            ->selectRaw('content_item_id, count(*) as cnt')
-            ->groupBy('content_item_id')
-            ->pluck('cnt', 'content_item_id');
-
-        $riskScoreByItem = DelayRiskScore::whereIn('content_item_id', $allContentItemIds)
-            ->whereIn('id', function ($query) use ($allContentItemIds) {
-                // ambil skor TERBARU per content item (bukan semua histori)
-                $query->selectRaw('MAX(id)')
-                    ->from('delay_risk_scores')
-                    ->whereIn('content_item_id', $allContentItemIds)
-                    ->groupBy('content_item_id');
-            })
-            ->pluck('risk_score', 'content_item_id');
-
-        $members = $users->map(function (User $user) use ($contentItemsByMember, $revisionCountByItem, $riskScoreByItem) {
-            $allItems = $contentItemsByMember->get($user->id) ?? collect();
-            $items = $allItems->filter(fn ($item) => $item->workflow);
-
-            $activeCount = $items->filter(
-                fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses)
-            )->count();
-
-            $overdueCount = $items->filter(
-                fn ($item) => $item->workflow->is_overdue
-            )->count();
-
-            $doneCount = $items->filter(
-                fn ($item) => $item->workflow->current_status === 'uploaded'
-            )->count();
-
-            $revisionCount = $items
-                ->pluck('id')
-                ->sum(fn ($id) => $revisionCountByItem[$id] ?? 0);
-
-            $activeContentItemIds = $items
-                ->filter(fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses))
-                ->pluck('id');
-
-            $activeRiskScores = $activeContentItemIds
-                ->map(fn ($id) => $riskScoreByItem[$id] ?? null)
-                ->filter(fn ($score) => $score !== null);
-
-            $avgRiskScore = $activeRiskScores->isNotEmpty() ? $activeRiskScores->avg() : null;
-
-            return [
-                'user' => $user,
-                'content_count' => $allItems->count(),
-                'active_count' => $activeCount,
-                'overdue_count' => $overdueCount,
-                'done_count' => $doneCount,
-                'revision_count' => $revisionCount,
-                'is_overloaded' => $activeCount > $this->overloadThreshold,
-                'avg_risk_score' => $avgRiskScore ? round($avgRiskScore) : null,
-            ];
-        });
-
-        // Ringkasan atas
-        $summary = [
-            'personnel_active' => $members->count(),
-            'total_active_items' => $members->sum('active_count'),
-            'avg_revision' => $members->count() > 0
-                ? round($members->sum('revision_count') / $members->count(), 1)
-                : 0,
-        ];
+        $teamTrend = $this->teamTrend($periodStart);
 
         $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
 
         return view('team-performance.index', [
             'tab' => $tab,
+            'periodStart' => $periodStart,
             'members' => $members,
-            'summary' => $summary,
+            'comparisonChart' => $comparisonChart,
+            'teamTrend' => $teamTrend,
             'riskAccuracy' => $riskAccuracy,
         ]);
     }
 
-    public function show(User $user)
+    private function resolvePeriod(?string $month): Carbon
     {
-        $assignments = ContentItemAssignment::where('user_id', $user->id)
-            ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType'])
-            ->get()
-            ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
+        return $month
+            ? Carbon::parse($month.'-01')->startOfMonth()
+            : Carbon::now()->startOfMonth();
+    }
 
-        return view('team-performance.show', compact('user', 'assignments'));
+    /**
+     * Tren rata-rata tim 6 bulan terakhir (termasuk bulan berjalan) untuk
+     * tiga metrik - dipakai Ringkasan Tim sebagai line/bar chart, bukan
+     * kartu besar. Bulan tanpa satupun hasil (belum dihitung/tidak ada
+     * content) direpresentasikan sebagai null (gap), bukan 0.
+     */
+    private function teamTrend(Carbon $periodStart): array
+    {
+        $months = collect(range(self::TREND_MONTHS - 1, 0))
+            ->map(fn ($i) => $periodStart->copy()->subMonths($i));
+
+        $resultsByMonth = UserMonthlyKpiResult::whereIn(
+            'period_start',
+            $months->map(fn (Carbon $m) => $m->toDateString())
+        )->get()->groupBy(fn (UserMonthlyKpiResult $r) => $r->period_start->toDateString());
+
+        $kpi = [];
+        $timeliness = [];
+        $quality = [];
+
+        foreach ($months as $month) {
+            $label = $month->translatedFormat('M y');
+            $rows = $resultsByMonth->get($month->toDateString(), collect());
+
+            $kpi[] = ['label' => $label, 'value' => $rows->isNotEmpty() ? round($rows->avg('final_score')) : null];
+
+            $timelinessRows = $rows->filter(fn ($r) => $r->timeliness_score !== null);
+            $timeliness[] = ['label' => $label, 'value' => $timelinessRows->isNotEmpty() ? round($timelinessRows->avg('timeliness_score')) : null];
+
+            $quality[] = ['label' => $label, 'value' => $rows->isNotEmpty() ? round($rows->avg('quality_score')) : null];
+        }
+
+        return ['kpi' => $kpi, 'timeliness' => $timeliness, 'quality' => $quality];
     }
 }

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentBriefDraft extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'created_by',
         'hook_title', 'start_date', 'post_date', 'platform', 'reference_link',
