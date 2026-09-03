@@ -24,7 +24,6 @@ use App\Models\Platform;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserClientAssignment;
-use App\Services\AiStrategyService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -723,12 +722,6 @@ class DemoSeeder extends Seeder
                         'platform' => $ideaPlatforms->random()->name,
                     ]);
                 })->values()->all();
-
-                // Skor beneran (KF-A908) lewat AiStrategyService::scoreContentIdeas()
-                // yang sungguhan dipakai controller - bukan placeholder null - biar
-                // predicted_score/predicted_label langsung kelihatan begitu seeder
-                // jalan, nggak perlu klik "Generate" ulang dulu buat lihat fiturnya.
-                $contentIdeas = app(AiStrategyService::class)->scoreContentIdeas($contentIdeas, $performanceData);
 
                 $isApplied = $clientIndex === 0;
 

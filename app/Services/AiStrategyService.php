@@ -474,63 +474,6 @@ class AiStrategyService
     }
 
     /**
-     * Skor prediksi performa TIAP content idea - statistik murni (rasio vs
-     * rata-rata pillar/platform client itu sendiri dari performance_data
-     * yang SUDAH ada), BUKAN model ML terpisah, konsisten sama pendekatan
-     * DetectPerformanceAnomalies. Tujuannya: kalau ide yang di-generate
-     * lebih banyak dari kapasitas produksi bulan ini, tim bisa prioritaskan
-     * yang skornya paling tinggi duluan - bukan asal urutan AI nulis.
-     *
-     * Skor 50 = setara rata-rata historis client, >50 = di atas rata-rata,
-     * <50 = di bawah. null kalau pillar & platform-nya sama-sama belum
-     * punya data historis (idenya untuk kategori yang benar-benar baru).
-     */
-    public function scoreContentIdeas(array $ideas, array $performanceData): array
-    {
-        $pillarStats = collect($performanceData['performance_by_pillar'] ?? []);
-        $platformStats = collect($performanceData['performance_by_platform'] ?? []);
-
-        $avgPillarEngagement = $pillarStats->avg('avg_engagement') ?: 0;
-        $avgPlatformViews = $platformStats->avg('total_views') ?: 0;
-
-        return collect($ideas)
-            ->map(fn ($idea) => array_merge(
-                $idea,
-                $this->scoreIdea($idea, $pillarStats, $platformStats, $avgPillarEngagement, $avgPlatformViews)
-            ))
-            ->all();
-    }
-
-    private function scoreIdea(array $idea, $pillarStats, $platformStats, float $avgPillarEngagement, float $avgPlatformViews): array
-    {
-        $pillarData = $pillarStats->get($idea['pillar'] ?? null);
-        $platformData = $platformStats->get($idea['platform'] ?? null);
-
-        $ratios = [];
-        if ($pillarData && $avgPillarEngagement > 0) {
-            $ratios[] = ($pillarData['avg_engagement'] ?? 0) / $avgPillarEngagement;
-        }
-        if ($platformData && $avgPlatformViews > 0) {
-            $ratios[] = ($platformData['total_views'] ?? 0) / $avgPlatformViews;
-        }
-
-        if (empty($ratios)) {
-            return ['predicted_score' => null, 'predicted_label' => null];
-        }
-
-        $avgRatio = array_sum($ratios) / count($ratios);
-        $score = (int) round(min(100, max(5, $avgRatio * 50)));
-
-        $label = match (true) {
-            $score >= 65 => 'high',
-            $score >= 40 => 'medium',
-            default => 'low',
-        };
-
-        return ['predicted_score' => $score, 'predicted_label' => $label];
-    }
-
-    /**
      * @return array{summary: string, action_items: array, suggested_split: array}
      * @throws \RuntimeException kalau API call gagal
      */

@@ -628,11 +628,6 @@
                                             class="text-left border border-[var(--border)] rounded-lg p-3.5 hover:border-[#044b46]/20 hover:bg-[var(--surface-subtle-2)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
                                         <div class="flex items-center justify-between gap-2 mb-1.5">
                                             <span class="badge badge-success inline-block" x-text="idea.pillar ?? '-'"></span>
-                                            <span x-show="idea.predicted_score !== null && idea.predicted_score !== undefined"
-                                                  class="badge shrink-0"
-                                                  :class="scoreBadgeClass(idea.predicted_label)"
-                                                  :title="scoreLabelText(idea.predicted_label) + ' — berdasarkan performa historis pillar & platform ini'"
-                                                  x-text="idea.predicted_score + '%'"></span>
                                         </div>
                                         <p class="text-sm font-semibold text-[var(--text-primary)]" x-text="idea.title ?? '-'"></p>
                                         <p class="text-xs text-[var(--text-secondary)] mt-1 leading-relaxed" x-text="idea.brief ?? '-'"></p>
@@ -736,10 +731,6 @@
                                         <div class="flex items-start justify-between gap-3 mb-4">
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <span class="badge badge-success" x-text="selectedIdea.pillar ?? '-'"></span>
-                                                <span x-show="selectedIdea.predicted_score !== null && selectedIdea.predicted_score !== undefined"
-                                                      class="badge"
-                                                      :class="scoreBadgeClass(selectedIdea.predicted_label)"
-                                                      x-text="scoreLabelText(selectedIdea.predicted_label) + ' (' + selectedIdea.predicted_score + '%)'"></span>
                                             </div>
                                             <button type="button" x-on:click="closeIdea()"
                                                     class="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">
@@ -1153,16 +1144,6 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
                 this.applyError = err.message;
             })
             .finally(() => this.applying = false);
-        },
-        scoreBadgeClass(label) {
-            return {
-                high: 'badge-success',
-                medium: 'badge-warning',
-                low: 'badge-neutral',
-            }[label] ?? 'badge-neutral';
-        },
-        scoreLabelText(label) {
-            return { high: 'Potensi Tinggi', medium: 'Potensi Sedang', low: 'Potensi Rendah' }[label] ?? '';
         },
         openIdea(index) {
             this.selectedIndex = index;

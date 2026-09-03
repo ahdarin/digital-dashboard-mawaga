@@ -31,7 +31,6 @@ use App\Models\Platform;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserClientAssignment;
-use App\Services\AiStrategyService;
 use App\Services\AttendanceService;
 use App\Support\WorkflowTransitions;
 use Illuminate\Database\Seeder;
@@ -1413,12 +1412,6 @@ class DocumentationSeeder extends Seeder
             ])->all();
 
             $ideas = $this->buildContentIdeas($def['client'], $def['split'], $performanceData['target_content_count']);
-
-            // scoreContentIdeas() murni perhitungan lokal terhadap
-            // performance_data (tidak memanggil API manapun) - dipakai supaya
-            // skor prediksi tiap ide sama persis dengan yang dihasilkan
-            // aplikasi kalau tombol Generate benar-benar ditekan.
-            $ideas = app(AiStrategyService::class)->scoreContentIdeas($ideas, $performanceData);
 
             $insight = AiStrategyInsight::create([
                 'client_id' => $client->id,
