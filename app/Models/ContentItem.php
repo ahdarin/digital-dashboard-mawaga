@@ -18,6 +18,7 @@ class ContentItem extends Model
         'content_pillar_id',
         'content_type_id',
         'content_format',
+        'content_format_id',
         'platform_id',
         'title',
         'brief',
@@ -55,6 +56,16 @@ class ContentItem extends Model
     public function contentType()
     {
         return $this->belongsTo(ContentType::class);
+    }
+    /**
+     * "Dalam format apa konten dipublikasikan?" - master baru, TERPISAH
+     * dari contentType() ("bagaimana konten dikerjakan?" - lihat
+     * App\Services\ContentFormatResolver buat prioritas sumber kebenaran).
+     * Nullable - item lama/belum diklasifikasi TETAP valid.
+     */
+    public function contentFormat()
+    {
+        return $this->belongsTo(ContentFormat::class);
     }
     public function contentPillar()
     {

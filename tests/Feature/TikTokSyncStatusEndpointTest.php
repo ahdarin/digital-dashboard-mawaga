@@ -196,7 +196,17 @@ class TikTokSyncStatusEndpointTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_show_page_renders_with_tiktok_polling_script_when_connected(): void
+    /**
+     * SYSTEM CONSISTENCY PASS (Part AH-AM) - polling custom lama (endpoint
+     * client-management.tiktok.sync-status ini SENDIRI, dipoll manual dari
+     * script inline di halaman) DIGANTI shared engine+presenter yang SAMA
+     * dipakai Analytics & Settings (AnalyticsSyncOrchestrator +
+     * public/js/analytics-sync-panel.js, poll ke analytics.sync-status).
+     * Endpoint client-management.tiktok.sync-status di atas TETAP ada
+     * (tidak dihapus, legacy/tidak dipakai UI lagi) - test lain di file
+     * ini yang langsung memanggilnya TETAP valid.
+     */
+    public function test_show_page_renders_with_shared_sync_panel_when_connected(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -205,11 +215,14 @@ class TikTokSyncStatusEndpointTest extends TestCase
         $response = $this->actingAs($manager)->get(route('client-management.show', $client));
 
         $response->assertOk();
-        $response->assertSee('tiktok-sync-badge', false);
-        // @json() di script escape "/" jadi "\/" (JSON standar) - cek
-        // fragmen tanpa slash biar tidak tergantung cara escape.
-        $response->assertSee('tiktok', false);
-        $response->assertSee('sync-status', false);
+        $response->assertSee('id="tt-sync-button"', false);
+        $response->assertSee('id="tt-sync-panel"', false);
+        $response->assertSee(asset('js/analytics-sync-panel.js'), false);
+        // URL diteruskan lewat @json() Blade (json_encode escape "/" jadi
+        // "\/") - bandingkan terhadap bentuk yang sama, bukan URL polos.
+        $response->assertSee(trim(json_encode(route('analytics.sync-status')), '"'), false);
+        // Polling custom lama TIDAK BOLEH ada lagi.
+        $response->assertDontSee('tiktok-sync-badge', false);
     }
 
     // ===== Client Detail: data tambahan (follower/scope/video result) =====

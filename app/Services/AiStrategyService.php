@@ -64,6 +64,7 @@ class AiStrategyService
     public function __construct(
         private readonly PeriodPerformanceService $periodPerformanceService,
         private readonly AnalyticsPeriodResolver $periodResolver,
+        private readonly ContentFormatResolver $contentFormatResolver,
     ) {
     }
 
@@ -140,17 +141,33 @@ class AiStrategyService
         $byPlatform = $usableRows->groupBy(fn ($row) => $row['content_metric']->platform->name ?? '-')
             ->map(fn ($rows) => ['total_views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0)]);
 
+        // SYSTEM CONSISTENCY PASS (Part J/K) - AI HARUS menerima klasifikasi
+        // kanonis, dua dimensi TERPISAH (production_type/content_format),
+        // BUKAN raw provider enum ATAU satu field yang mencampur keduanya.
+        // production_type null (bukan ditebak) kalau content belum ke-link
+        // - "unknown remains unknown". content_format lewat
+        // ContentFormatResolver yang sama dipakai Analytics/Report, supaya
+        // AI, dashboard, dan export semuanya "satu semantik".
         $topContent = $usableRows
             ->sortByDesc(fn ($row) => $row['result']->views() ?? 0)
             ->take(5)
-            ->map(fn ($row) => [
-                'title' => $row['content_metric']->contentItem?->title ?? '-',
-                'pillar' => $row['content_metric']->contentItem?->contentPillar?->name ?? '-',
-                'type' => $row['content_metric']->contentItem?->contentType?->name ?? '-',
-                'platform' => $row['content_metric']->platform->name ?? '-',
-                'views' => $row['result']->views() ?? 0,
-                'engagement_rate' => $row['result']->engagementRate ?? 0,
-            ])
+            ->map(function ($row) {
+                $item = $row['content_metric']->contentItem;
+                $igSnapshot = $row['content_metric']->instagramMediaSnapshot;
+                $ttSnapshot = $row['content_metric']->tiktokVideoSnapshot;
+
+                return [
+                    'title' => $item?->title ?? '-',
+                    'pillar' => $item?->contentPillar?->name ?? '-',
+                    'production_type' => $item?->contentType?->name,
+                    'content_format' => $item
+                        ? $this->contentFormatResolver->labelForContentItem($item, $igSnapshot, $ttSnapshot)
+                        : $this->contentFormatResolver->labelForSnapshot($igSnapshot, $ttSnapshot),
+                    'platform' => $row['content_metric']->platform->name ?? '-',
+                    'views' => $row['result']->views() ?? 0,
+                    'engagement_rate' => $row['result']->engagementRate ?? 0,
+                ];
+            })
             ->values();
 
         // Data audience (demografi, top lokasi, jam aktif, tren follower) -

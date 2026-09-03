@@ -24,6 +24,7 @@ class ContentItemController extends Controller
         $contentItem->load([
             'client',
             'contentType',
+            'contentFormat',
             'platform',
             'platforms',
             'workflow.currentPic',

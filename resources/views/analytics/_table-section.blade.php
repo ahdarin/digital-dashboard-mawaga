@@ -34,9 +34,15 @@
                    class="bg-[var(--surface-card)] w-full pl-9 pr-3 py-2 text-sm border border-[var(--border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
         </div>
 
-        <select name="content_type_id" onchange="this.form.submit()"
+        {{-- SYSTEM CONSISTENCY PASS (Part H) - filter ini SUDAH benar
+             filter Jenis Produksi (ContentType: Desain/Video) sejak awal,
+             CUMA labelnya "Semua Tipe" netral/ambigu (bisa disalahartikan
+             filter Format Konten). Query param TIDAK berubah
+             (content_type_id) - murni label diperjelas, semantiknya sudah
+             benar. --}}
+        <select name="content_type_id" onchange="this.form.submit()" aria-label="Jenis Produksi"
                 class="text-sm border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow">
-            <option value="">Semua Tipe</option>
+            <option value="">Semua Jenis Produksi</option>
             @foreach ($contentTypeOptions as $ct)
                 <option value="{{ $ct->id }}" {{ (string) request('content_type_id') === (string) $ct->id ? 'selected' : '' }}>{{ $ct->name }}</option>
             @endforeach
@@ -81,14 +87,17 @@
                             </a>
                         </th>
                         <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                        {{-- "Tipe / Format" (bukan cuma "Type") - kolom ini
-                             bisa isi ContentType internal (taksonomi produksi,
-                             mis. Video/Desain) ATAU format Instagram
-                             (Reels/Carousel/Image, mis. post yang belum
-                             terhubung ke konten internal) - dua domain beda,
-                             judul kolom sengaja dibuat netral biar nggak
-                             menyiratkan itu selalu taksonomi internal. --}}
-                        <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Tipe/Format</th>
+                        {{-- SYSTEM CONSISTENCY PASS (Part H/I) - "Jenis /
+                             Format" SEKARANG menampilkan DUA DIMENSI
+                             kanonis sekaligus, konsisten di kedua kondisi
+                             link (bukan lagi "atau" yang bergantian isi
+                             ContentType ATAU raw format provider
+                             tergantung status link, lihat riwayat commit):
+                             Jenis Produksi (Desain/Video, HANYA kalau
+                             sudah ke-link) & Format Konten (Single Post/
+                             Carousel/Video, master kalau ada, fallback
+                             normalisasi provider kalau belum). --}}
+                        <th class="w-[11%] px-4 py-3 font-medium whitespace-nowrap">Jenis/Format</th>
                         <th class="w-[9%] px-4 py-3 font-medium text-right whitespace-nowrap">
                             <a href="{{ $sortLink('total_views') }}" class="flex items-center justify-end gap-1 hover:text-[var(--brand)] transition-colors">
                                 Views <span class="material-symbols-outlined text-[13px]">{{ $sortIcon('total_views') }}</span>
@@ -113,10 +122,36 @@
                         <tr class="border-t border-[var(--surface-muted)] hover:bg-[var(--surface-page)] transition-colors">
                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)] truncate" title="{{ $item->title }}">{{ $item->title }}</td>
                             <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform }}</td>
-                            <td class="px-4 py-3.5 truncate {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">{{ $item->type ?? '-' }}</td>
-                            <td class="px-4 py-3.5 text-right font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
-                                @if ($item->total_views !== null)
-                                    {{ number_format($item->total_views) }}
+                            <td class="px-4 py-3.5 {{ $item->linked ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)] italic' }}">
+                                @if ($item->production_type || $item->content_format)
+                                    @if ($item->production_type)
+                                        <span class="block truncate">{{ $item->production_type }}</span>
+                                    @endif
+                                    @if ($item->content_format)
+                                        <span class="block truncate text-[11px] {{ $item->linked ? 'text-[var(--text-muted)]' : '' }}">{{ $item->content_format }}</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            {{-- SYSTEM CONSISTENCY PASS (Part AA-AC) - BUG NYATA
+                                 (bukan cuma label): kolom ini dulu HANYA
+                                 menampilkan gain periode terpilih dilabeli
+                                 polos "Views" - user membacanya sebagai total
+                                 saat ini, padahal total genuine (content_metrics.
+                                 views mentah, sudah benar tersimpan tiap sync)
+                                 tidak pernah ditampilkan sama sekali. Sekarang
+                                 total SAAT INI jadi angka utama (bold), gain
+                                 periode jadi caption kecil "+N periode ini" -
+                                 dua nilai berbeda, dua-duanya genuine. --}}
+                            <td class="px-4 py-3.5 text-right [font-variant-numeric:tabular-nums]">
+                                @if ($item->current_views !== null)
+                                    <div class="font-medium text-[var(--text-primary)]">{{ number_format($item->current_views) }}</div>
+                                    @if ($item->total_views !== null)
+                                        <div class="text-[11px] text-[var(--text-muted)]">{{ $item->total_views >= 0 ? '+' : '' }}{{ number_format($item->total_views) }} periode ini</div>
+                                    @endif
+                                @elseif ($item->total_views !== null)
+                                    <div class="font-medium text-[var(--text-primary)]">{{ number_format($item->total_views) }}</div>
                                 @else
                                     <span class="text-[var(--text-muted)] font-normal" title="{{ \App\Services\AvailabilityPresenter::label($item->availability_category) ?? 'Belum tersedia' }}">-</span>
                                 @endif
@@ -149,10 +184,10 @@
                                              action eksternal (Langkah 11). --}}
                                         <a href="{{ route('analytics.show', $item->id) }}" class="text-xs font-medium text-[var(--brand)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded whitespace-nowrap">Detail</a>
                                         @if ($item->permalink)
-                                            <span x-data="tooltipHover('Lihat di Instagram')" class="contents">
+                                            <span x-data="tooltipHover('Lihat di {{ $item->platform }}')" class="contents">
                                                 <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
                                                    @mouseenter="onEnter($event)" @mouseleave="onLeave()"
-                                                   aria-label="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                   aria-label="Lihat di {{ $item->platform }}" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
                                                     <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                                                 </a>
                                                 @include('components.action-tooltip')
@@ -160,7 +195,12 @@
                                         @endif
                                     @else
                                         @if ($item->api_integration_id)
-                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
+                                            {{-- SYSTEM CONSISTENCY PASS (Part L) - BUG: route ini
+                                                 dulu hardcode publishing-tracker.instagram.unmatched
+                                                 buat SEMUA baris, jadi baris TikTok 404 (integration
+                                                 TikTok ditolak controller Instagram-only). Platform
+                                                 SEKARANG dari $item->platform (baris ini sendiri). --}}
+                                            <a href="{{ route(\App\Models\Platform::unmatchedTrackerRouteName($item->platform), $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                         @endif
                                         @if ($item->permalink)
@@ -202,7 +242,7 @@
                             <p class="font-medium text-[var(--text-primary)] text-sm truncate">{{ $item->title }}</p>
                             <div class="flex items-center gap-1.5 flex-wrap mt-1.5">
                                 <span class="badge {{ $rowStatus['class'] }}">{{ $rowStatus['label'] }}</span>
-                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }} &middot; {{ $item->type ?? '-' }}</span>
+                                <span class="text-xs text-[var(--text-secondary)] whitespace-nowrap">{{ $item->platform }} &middot; {{ $item->production_type ?? $item->content_format ?? '-' }}</span>
                             </div>
                         </div>
                         <div class="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)]">
@@ -211,9 +251,30 @@
                     </button>
 
                     <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
+                        @if ($item->production_type)
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[var(--text-muted)]">Jenis Produksi</span>
+                                <span class="text-[var(--text-primary)] font-medium">{{ $item->production_type }}</span>
+                            </div>
+                        @endif
+                        @if ($item->content_format)
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[var(--text-muted)]">Format Konten</span>
+                                <span class="text-[var(--text-primary)] font-medium">{{ $item->content_format }}</span>
+                            </div>
+                        @endif
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-[var(--text-muted)]">Views</span>
-                            <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</span>
+                            <span class="text-right">
+                                @if ($item->current_views !== null)
+                                    <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($item->current_views) }}</span>
+                                    @if ($item->total_views !== null)
+                                        <span class="block text-[10px] text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">{{ $item->total_views >= 0 ? '+' : '' }}{{ number_format($item->total_views) }} periode ini</span>
+                                    @endif
+                                @else
+                                    <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</span>
+                                @endif
+                            </span>
                         </div>
                         <div class="flex items-center justify-between text-xs">
                             <span class="text-[var(--text-muted)]">Engagement</span>
@@ -235,12 +296,15 @@
                             @if ($item->permalink)
                                 <a href="{{ $item->permalink }}" target="_blank" rel="noopener noreferrer"
                                     class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
-                                    Lihat di Instagram <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                    Lihat di {{ $item->platform }} <span class="material-symbols-outlined text-[13px]">open_in_new</span>
                                 </a>
                             @endif
                         @else
                             @if ($item->api_integration_id)
-                                <a href="{{ route('publishing-tracker.instagram.unmatched', $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
+                                {{-- SYSTEM CONSISTENCY PASS (Part L) - platform dari
+                                     $item->platform (baris ini sendiri), BUKAN hardcode
+                                     Instagram - lihat catatan yang sama di tabel desktop. --}}
+                                <a href="{{ route(\App\Models\Platform::unmatchedTrackerRouteName($item->platform), $item->api_integration_id) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $item->external_post_id }}"
                                     class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
                                     Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
                                 </a>

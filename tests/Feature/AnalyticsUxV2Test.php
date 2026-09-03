@@ -576,19 +576,17 @@ class AnalyticsUxV2Test extends TestCase
     }
 
     // =====================================================================
-    // UX POLISH - "UNIFIED PERIOD FILTER" (item 12 test list). PHPUnit
-    // hanya bisa menguji HTML server-rendered & data attribute yang
-    // dihasilkan Blade - interaksi panel (buka/tutup, Batal membatalkan
-    // draft, Terapkan submit) adalah perilaku Alpine.js MURNI client-side,
-    // TIDAK bisa dieksekusi/diverifikasi lewat PHPUnit (sama batasan
-    // dengan seluruh sync panel JS Pass 3/4 sebelumnya) - test di sini
-    // membuktikan KONTRAK/DATA yang mendasari perilaku itu benar (SATU
-    // kontrol, label benar, hidden input berisi nilai query yang benar,
-    // tombol Terapkan ter-disable secara structural saat custom invalid),
-    // bukan mengklaim menjalankan JS-nya.
+    // ANALYTICS PERIOD FILTER - FINAL UX CORRECTION (item 12 test list).
+    // Popover (Pilih Periode / Bulan+Rentang di dalam dropdown / Batal+
+    // Terapkan) DIHAPUS TOTAL - filter periode sekarang APPLY DIRECTLY,
+    // sama seperti Client/Platform. PHPUnit hanya bisa menguji HTML
+    // server-rendered & kontrak data yang mendasari interaksi JS (Alpine
+    // toggle/x-show, flatpickr onChange guard) - TIDAK bisa benar-benar
+    // menjalankan klik/pilih tanggal di browser (batasan yang sama dengan
+    // seluruh sync panel JS sebelumnya).
     // =====================================================================
 
-    public function test_only_one_visible_period_control_exists(): void
+    public function test_period_mode_toggle_visible_directly_in_filter_bar(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -596,10 +594,17 @@ class AnalyticsUxV2Test extends TestCase
         $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
 
         $response->assertOk();
-        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-control"'), 'HARUS cuma 1 kontrol Periode yang visible di filter bar (Langkah 1, bukan 2 dropdown/input terpisah tampil bersamaan).');
+        // Toggle Bulan/Rentang - SATU kali, TIDAK di dalam apapun yang
+        // butuh diklik dulu buat terlihat (Langkah 1).
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-mode-toggle"'));
+        $response->assertSee('Bulan');
+        $response->assertSee('Rentang');
+        // Label lama "Rentang Tanggal" (versi panjang) TIDAK dipakai lagi
+        // di toggle kompak (Langkah 1, "prefer Rentang if space limited").
+        $response->assertDontSee('Rentang Tanggal');
     }
 
-    public function test_period_panel_toggle_labels_exist(): void
+    public function test_period_toggle_is_not_hidden_inside_a_popover(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -607,20 +612,36 @@ class AnalyticsUxV2Test extends TestCase
         $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
 
         $response->assertOk();
-        $response->assertSee('Pilih Periode');
-        $response->assertSee('>Bulan<', false);
-        $response->assertSee('Rentang Tanggal');
-        $response->assertSee('Batal');
-        $response->assertSee('Terapkan');
-        // Wording teknis TIDAK BOLEH bocor ke user SEBAGAI LABEL (Langkah
-        // 2) - "period_mode=" tetap wajar muncul di querystring href (tab
-        // link/export), jadi TIDAK dicek absennya di sini, cukup pastikan
-        // istilah internal tidak dipakai sebagai teks visible.
-        $response->assertDontSee('month mode');
-        $response->assertDontSee('custom mode');
+        // Seluruh interaction model popover lama (state panelOpen, tombol
+        // pemicu aria-haspopup, judul "Pilih Periode") TIDAK BOLEH ada
+        // sama sekali lagi - toggle & kontrol nilai SEKARANG unconditional
+        // di filter bar, bukan di balik satu klik pemicu.
+        $response->assertDontSee('panelOpen');
+        $response->assertDontSee('Pilih Periode');
+        $response->assertDontSee('aria-haspopup');
     }
 
-    public function test_month_mode_renders_existing_value_and_label_correctly(): void
+    public function test_no_terapkan_or_batal_filter_button_remains(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // String literal PERSIS milik tombol popover lama (bukan
+        // "Terapkan Semua Ide Ini ke Content Plan" milik AI Strategy, atau
+        // tombol "Batal" modal konfirmasi global di layouts/app.blade.php
+        // yang selalu ada di semua halaman - keduanya fitur LAIN, di luar
+        // scope task ini, sengaja tidak disentuh).
+        $response->assertDontSee('>Terapkan<', false);
+        $response->assertDontSee('>Batal</button>', false);
+        $response->assertDontSee('@click="apply()"', false);
+        $response->assertDontSee(':disabled="! customValid"', false);
+        $response->assertDontSee('get customValid()', false);
+    }
+
+    public function test_month_selection_uses_direct_submit_no_separate_apply(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -630,12 +651,22 @@ class AnalyticsUxV2Test extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('Mei 2025'); // tombol Periode label, dari AnalyticsPeriod::label()
-        $response->assertSee('value="2025-05"', false); // hidden input month, sumber submit Terapkan
-        $response->assertDontSee('date_from=2025', false);
+        $response->assertSee('data-testid="period-month-input"', false);
+        // Input BULAN itu sendiri yang jadi field submit ("month") - bukan
+        // hidden mirror yang menunggu tombol Terapkan (Langkah 2/5, "no
+        // Apply button - change -> submit"). data-autosubmit="true" +
+        // flatpickr month-select (window.initFlatpickrs) submit LANGSUNG
+        // begitu bulan berubah, tanpa tombol apapun.
+        $response->assertSee('name="month" x-show="mode === \'month\'"', false);
+        $response->assertSee('data-flatpickr="month-combined" data-autosubmit="true"', false);
+        // Nilai bulan yang di-resolve server ("2025-05") benar-benar
+        // dirender ke field ini (raw, sebelum flatpickr mempercantik
+        // tampilannya jadi "Mei 2025" di browser - itu murni JS, tidak
+        // bisa dites lewat PHPUnit, lihat komentar section di atas).
+        $response->assertSee('value="2025-05"', false);
     }
 
-    public function test_custom_mode_renders_existing_value_and_label_correctly(): void
+    public function test_range_represented_by_one_visible_control_not_two_fields(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -645,7 +676,85 @@ class AnalyticsUxV2Test extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('10-20 Agt 2025'); // tombol Periode label, bulan+tahun sama - tanggal tidak diulang
+        // SATU kontrol rentang (Langkah 3) - flatpickr mode 'range' pada
+        // SATU <input>, bukan 2 field Dari/Sampai terpisah yang tampil
+        // bersamaan seperti popover lama.
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-range-control"'));
+        // 2, BUKAN 1 - satu di attribute <input> asli, satu lagi di JS
+        // selector window.initFlatpickrs ('[data-flatpickr="range"]')
+        // yang termuat di SETIAP halaman (layouts/app.blade.php) - jumlah
+        // kontrol visual yang genuinely dirender tetap SATU, dibuktikan
+        // lewat data-testid="period-range-control" (count 1) di atas.
+        $this->assertSame(2, substr_count($response->getContent(), 'data-flatpickr="range"'));
+        $response->assertDontSee('>Dari</label>', false);
+        $response->assertDontSee('>Sampai</label>', false);
+        $response->assertDontSee('type="date" x-model="dateFromValue"', false);
+        $response->assertDontSee('type="date" x-model="dateToValue"', false);
+    }
+
+    public function test_range_start_only_does_not_submit_completed_range_does(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
+
+        $response->assertOk();
+        // Kontrak JS (window.initFlatpickrs, data-flatpickr="range" di
+        // layouts/app.blade.php, ikut termuat di halaman ini lewat
+        // @extends) - guard "baru start dipilih, JANGAN submit" (Langkah
+        // 4) HARUS ada persis begini, karena inilah satu-satunya jalur
+        // kode yang menentukan kapan rentang benar-benar submit.
+        $response->assertSee('if (selectedDates.length < 2) return;', false);
+        // Rentang LENGKAP (2 tanggal) -> submit otomatis, ditandai
+        // data-autosubmit="true" pada kontrolnya + wiring form.submit()
+        // pada jalur yang sama di JS.
+        $response->assertSee('data-autosubmit="true"', false);
+        $response->assertSee('(el.form || el.closest(\'form\'))?.submit();', false);
+    }
+
+    public function test_month_query_contains_clean_params_only(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'month', 'month' => '2025-05',
+        ]));
+
+        $response->assertOk();
+        // AnalyticsPeriod::label() TETAP dipakai buat teks lain di halaman
+        // ini (mis. "Data melalui..."), tapi label bulan "Mei 2025" itu
+        // sendiri sekarang murni tampilan flatpickr (JS, tidak bisa dites
+        // PHPUnit) - yang genuinely server-rendered & dites di sini adalah
+        // NILAI MENTAH ("2025-05") yang jadi sumber kebenaran field submit.
+        $response->assertSee('value="2025-05"', false);
+        // mode initial = 'month' - hidden date_from/date_to :disabled
+        // reaktif terhadap mode ini (Langkah 10, "query cleanliness":
+        // browser TIDAK menyertakan input disabled saat submit).
+        $response->assertSee("mode: 'month'", false);
+        $response->assertSee('id="analytics-period-date-from" name="date_from"', false);
+        $response->assertSee(':disabled="mode !== \'custom\'"', false);
+        $response->assertSee(':disabled="mode !== \'month\'"', false);
+    }
+
+    public function test_custom_query_contains_clean_params_only(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-08-10', 'date_to' => '2025-08-20',
+        ]));
+
+        $response->assertOk();
+        // Nilai mentah date_from/date_to yang genuinely server-rendered
+        // (label human "10-20 Agt 2025" murni tampilan flatpickr altInput,
+        // JS-only - tidak bisa dites PHPUnit, lihat komentar section di
+        // atas). AnalyticsPeriod::label() SENDIRI sudah dites langsung
+        // di AnalyticsPeriodEngineV2Test - di sini fokusnya kontrak markup.
+        $response->assertSee("mode: 'custom'", false);
+        $response->assertSee('id="analytics-period-date-from" name="date_from"', false);
         $response->assertSee('value="2025-08-10"', false);
         $response->assertSee('value="2025-08-20"', false);
     }
@@ -660,122 +769,58 @@ class AnalyticsUxV2Test extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('28 Agt-03 Sep 2025'); // Langkah 7 - tahun SATU kali, bukan diulang 2 sisi
+        // Query contract lintas bulan/tahun (Langkah 11, "keep existing
+        // period correctness") - date_from/date_to mentah tetap benar,
+        // tidak terpengaruh sama sekali oleh perubahan presentasi filter.
+        $response->assertSee('value="2025-08-28"', false);
+        $response->assertSee('value="2025-09-03"', false);
+
+        // AnalyticsPeriod::label() SENDIRI (Langkah 11, "do not change
+        // label()/period correctness") - dites LANGSUNG lewat service,
+        // bukan lewat teks halaman (label human sekarang murni tampilan
+        // flatpickr altInput, JS-only, tidak reachable oleh PHPUnit).
+        $period = new \App\Services\AnalyticsPeriod(
+            \Illuminate\Support\Carbon::parse('2025-08-28'),
+            \Illuminate\Support\Carbon::parse('2025-09-03'),
+            \Illuminate\Support\Carbon::parse('2025-09-03'),
+            \App\Services\AnalyticsPeriod::MODE_CUSTOM,
+        );
+        $this->assertSame('28 Agt-03 Sep 2025', $period->label());
     }
 
-    public function test_period_apply_hidden_inputs_reflect_resolved_period_not_stale_select_inputs(): void
+    public function test_period_form_preserves_client_platform_and_tab(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->tiktokIntegration($client);
+
+        $response = $this->actingAs($manager)->get(route('analytics', [
+            'tab' => 'table', 'client_id' => $client->id, 'platform_id' => $integration->platform_id,
+            'period_mode' => 'custom', 'date_from' => '2025-08-10', 'date_to' => '2025-08-20',
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('<input type="hidden" name="tab" value="table">', false);
+        $response->assertSee('value="'.$client->id.'" selected', false);
+        $response->assertSee('value="'.$integration->platform_id.'" selected', false);
+    }
+
+    public function test_period_toggle_and_controls_render_isolated_on_table_tab(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
 
         $response = $this->actingAs($manager)->get(route('analytics', [
-            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-08-10', 'date_to' => '2025-08-20',
+            'tab' => 'table', 'client_id' => $client->id,
         ]));
 
         $response->assertOk();
-        // Kontrak query TIDAK BERUBAH (Langkah 6) - period_mode/month/
-        // date_from/date_to TETAP nama field yang sama, SEKARANG sebagai
-        // hidden input (satu-satunya sumber submit Terapkan), BUKAN lagi
-        // select/date input yang auto-submit on change.
-        $response->assertSee('name="period_mode"', false);
-        $response->assertSee('name="date_from"', false);
-        $response->assertSee('name="date_to"', false);
-        $response->assertDontSee('onchange="this.form.submit()"'.PHP_EOL, false); // longgar, dicek eksplisit di bawah
-        // Select client_id/platform_id TETAP auto-submit (tidak diubah) -
-        // HANYA kontrol Periode yang pindah ke Terapkan/Batal.
-        $response->assertSee('name="client_id" onchange="this.form.submit()"', false);
-    }
-
-    public function test_terapkan_button_is_structurally_disabled_when_custom_range_invalid(): void
-    {
-        $client = $this->client();
-        $manager = $this->managerFor($client);
-
-        $response = $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]));
-
-        $response->assertOk();
-        // Langkah 12, "invalid custom range cannot be applied silently" -
-        // binding :disabled Alpine terhadap customValid HARUS ada di markup
-        // (JS-nya sendiri tidak bisa dieksekusi PHPUnit, tapi wiring-nya
-        // harus terbukti ada).
-        $response->assertSee(':disabled="! customValid"', false);
-        $response->assertSee('get customValid()', false);
-    }
-
-    /**
-     * FINAL CORRECTNESS GATE item 1 - "Verify the actual Alpine condition"
-     * buat KEEMPAT skenario eksplisit yang diminta. Karena JS tidak bisa
-     * dieksekusi PHPUnit, keempatnya diverifikasi lewat SATU sumber
-     * kebenaran yang sama: expression persis customValid yang di-ship ke
-     * browser - kalau expression ITU benar secara aljabar (dibuktikan
-     * sekali di bawah), keempat skenario OTOMATIS benar, karena tidak ada
-     * jalur kode lain yang menentukan disabled-nya Terapkan selain
-     * expression ini.
-     */
-    private function assertCustomValidExpressionCoversAllFourCases(\Illuminate\Testing\TestResponse $response): void
-    {
-        $response->assertOk();
-        // dateFromValue HARUS truthy - "Dari: empty, Sampai: terisi" =>
-        // customValid false.
-        $response->assertSee('!!this.dateFromValue', false);
-        // dateToValue HARUS truthy - "Dari: terisi, Sampai: empty" =>
-        // customValid false.
-        $response->assertSee('!!this.dateToValue', false);
-        // dateFromValue <= dateToValue - "Dari: 20 Sep, Sampai: 10 Sep"
-        // (reversed) => customValid false.
-        $response->assertSee('this.dateFromValue <= this.dateToValue', false);
-        // Ketiga klausa DIGABUNG dengan && (bukan ||/terpisah) - SEMUA
-        // syarat harus TERPENUHI bersamaan, persis urutan yang di-ship.
-        $response->assertSee('!!this.dateFromValue && !!this.dateToValue && this.dateFromValue <= this.dateToValue', false);
-    }
-
-    public function test_custom_range_validation_rejects_missing_date_from(): void
-    {
-        $client = $this->client();
-        $manager = $this->managerFor($client);
-        // Dari: empty, Sampai: 20 Sep 2026 => Terapkan disabled.
-        $this->assertCustomValidExpressionCoversAllFourCases(
-            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
-        );
-    }
-
-    public function test_custom_range_validation_rejects_missing_date_to(): void
-    {
-        $client = $this->client();
-        $manager = $this->managerFor($client);
-        // Dari: 10 Sep 2026, Sampai: empty => Terapkan disabled.
-        $this->assertCustomValidExpressionCoversAllFourCases(
-            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
-        );
-    }
-
-    public function test_custom_range_validation_rejects_reversed_dates(): void
-    {
-        $client = $this->client();
-        $manager = $this->managerFor($client);
-        // Dari: 20 Sep, Sampai: 10 Sep => Terapkan disabled.
-        $this->assertCustomValidExpressionCoversAllFourCases(
-            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
-        );
-    }
-
-    public function test_custom_range_validation_accepts_valid_forward_range(): void
-    {
-        $client = $this->client();
-        $manager = $this->managerFor($client);
-        // Dari: 10 Sep, Sampai: 20 Sep => Terapkan enabled (customValid
-        // true - SEMUA 3 klausa terpenuhi: keduanya truthy DAN from<=to).
-        $this->assertCustomValidExpressionCoversAllFourCases(
-            $this->actingAs($manager)->get(route('analytics', ['client_id' => $client->id]))
-        );
-        // Bukti tambahan spesifik kasus valid: initial state form (custom
-        // mode dengan tanggal valid) benar-benar menghasilkan customValid
-        // true, bukan cuma expression-nya ada.
-        $response = $this->actingAs($manager)->get(route('analytics', [
-            'client_id' => $client->id, 'period_mode' => 'custom', 'date_from' => '2025-09-10', 'date_to' => '2025-09-20',
-        ]));
-        $response->assertSee("dateFromValue: '2025-09-10'", false);
-        $response->assertSee("dateToValue: '2025-09-20'", false);
+        // Toggle & kontrol periode tetap 1 instance masing-masing di tab
+        // Table - x-data filter bar tidak bentrok dengan state Alpine
+        // lain di halaman (mis. panel AI Strategy/tabel).
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-mode-toggle"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-month-input"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'data-testid="period-range-control"'));
     }
 
     public function test_current_month_effective_date_context_still_renders(): void

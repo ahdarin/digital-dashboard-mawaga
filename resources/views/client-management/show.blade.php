@@ -283,91 +283,63 @@
                 </div>
 
                 @if ($igConnected)
-                    <p class="text-xs text-[var(--text-muted)] mb-3">&commat;{{ $instagramIntegration->external_username }}</p>
-
-                    {{-- Analitik Konten --}}
-                    <div class="border-t border-[var(--surface-muted)] pt-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
-                            <span class="badge {{ $instagramSyncing ? 'badge-warning' : ($instagramLastSyncLog?->status === 'failed' ? 'badge-danger' : 'badge-success') }}">
-                                {{ $instagramSyncing ? 'Menyinkronkan' : ($instagramLastSyncLog?->status === 'failed' ? 'Gagal' : 'Tersinkron') }}
-                            </span>
-                        </div>
-                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Sinkronisasi terakhir: {{ $instagramIntegration->last_synced_at ? $instagramIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
-                        </p>
-                        @if (! $instagramSyncing && $instagramLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $instagramLastSyncLog->error_message }}</p>
+                    @php
+                        // FINAL API COVERAGE GATE - label SAMA persis dengan
+                        // Settings (satu kosakata, lihat catatan di sana).
+                        $accountTypeLabel = match ($instagramIntegration->external_account_type) {
+                            'BUSINESS' => 'Business',
+                            'MEDIA_CREATOR', 'CREATOR' => 'Creator',
+                            default => null,
+                        };
+                    @endphp
+                    <p class="text-xs text-[var(--text-muted)] mb-3">
+                        &commat;{{ $instagramIntegration->external_username }}
+                        @if ($accountTypeLabel)
+                            &middot; Akun {{ $accountTypeLabel }}
                         @endif
+                    </p>
 
-                        <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <form action="{{ route('settings.sync-instagram') }}" method="POST">
+                    {{-- SYSTEM CONSISTENCY PASS (Part AH-AM) - Client Detail
+                         dulu punya implementasi sync SENDIRI (form POST
+                         langsung ke SettingsController::syncInstagram()/
+                         ClientManagementController::syncInstagramAudience(),
+                         BYPASS AnalyticsSyncOrchestrator total, 2 tombol
+                         primer terpisah Instagram+Audience, TikTok pakai
+                         polling custom sendiri ke endpoint client-management-
+                         only) - SEKARANG satu "Perbarui Data" per platform,
+                         SAMA PERSIS engine+presenter yang dipakai Analytics
+                         & Settings (AnalyticsSyncOrchestrator + shared
+                         public/js/analytics-sync-panel.js) - run yang mulai
+                         dari sini kelihatan di Analytics/Settings juga,
+                         begitu juga sebaliknya. --}}
+                    <p id="ig-freshness" class="text-[11px] text-[var(--text-muted)] mb-2">Memuat status data...</p>
+                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                        <button type="button" id="ig-sync-button"
+                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[14px]" id="ig-sync-icon">sync</span>
+                            <span id="ig-sync-label">Perbarui Data</span>
+                        </button>
+                        <a href="{{ route('publishing-tracker.instagram.unmatched', $instagramIntegration) }}?return_to={{ urlencode(url()->full()) }}"
+                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
+                    </div>
+                    <div id="ig-sync-panel" class="mb-2" hidden></div>
+
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
+                        <div class="mt-2 space-y-1.5">
+                            <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
+                            <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
                                 <input type="hidden" name="client_id" value="{{ $client->id }}">
-                                <button type="submit" {{ $instagramSyncing ? 'disabled' : '' }}
-                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span class="material-symbols-outlined text-[14px]">sync</span>
-                                    {{ $instagramSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}
+                                <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
+                                       class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                <button type="submit"
+                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Sinkronkan Bulan Terpilih
                                 </button>
                             </form>
-                            <a href="{{ route('publishing-tracker.instagram.unmatched', $instagramIntegration) }}?return_to={{ urlencode(url()->full()) }}"
-                               class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Media belum ter-link</a>
                         </div>
-                        @if ($instagramSyncing)
-                            <p class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten Instagram.</p>
-                        @endif
-                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
-
-                        <details class="text-xs">
-                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Historis (bulan lama)</summary>
-                            <div class="mt-2 space-y-1.5">
-                                <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
-                                <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
-                                    @csrf
-                                    <input type="hidden" name="client_id" value="{{ $client->id }}">
-                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $instagramSyncing ? 'disabled' : '' }}
-                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                    <button type="submit" {{ $instagramSyncing ? 'disabled' : '' }}
-                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Sinkronkan Bulan Terpilih
-                                    </button>
-                                </form>
-                            </div>
-                        </details>
-                    </div>
-
-                    {{-- Insight Audiens - card & lock TERPISAH dari Analitik
-                         Konten di atas (job beda: SyncInstagramAudienceJob). --}}
-                    <div class="border-t border-[var(--surface-muted)] pt-3 mt-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Insight Audiens</p>
-                            <span class="badge {{ $instagramAudienceSyncing ? 'badge-warning' : ($instagramAudienceLastSyncLog?->status === 'failed' ? 'badge-danger' : ($instagramAudienceLastSuccessAt ? 'badge-success' : 'badge-neutral')) }}">
-                                {{ $instagramAudienceSyncing ? 'Menyinkronkan' : ($instagramAudienceLastSyncLog?->status === 'failed' ? 'Gagal' : ($instagramAudienceLastSuccessAt ? 'Tersinkron' : '-')) }}
-                            </span>
-                        </div>
-                        <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Sinkronisasi audiens terakhir: {{ $instagramAudienceLastSuccessAt ? \Illuminate\Support\Carbon::parse($instagramAudienceLastSuccessAt)->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
-                        </p>
-                        {{-- Raw exception Meta TIDAK PERNAH ditampilkan - cuma
-                             pesan aman generik (beda dari Analitik Konten di
-                             atas yang sudah lama nampilin error_message apa
-                             adanya - itu behavior existing, sengaja nggak diubah). --}}
-                        @if (! $instagramAudienceSyncing && $instagramAudienceLastSyncLog?->status === 'failed')
-                            <p class="text-[11px] text-[var(--danger-text)] mb-2">Sinkronisasi audiens terakhir gagal.</p>
-                        @endif
-
-                        <form action="{{ route('client-management.instagram.sync-audience', $client) }}" method="POST" class="mb-1">
-                            @csrf
-                            <button type="submit" {{ $instagramAudienceSyncing ? 'disabled' : '' }}
-                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span class="material-symbols-outlined text-[14px]">groups</span>
-                                {{ $instagramAudienceSyncing ? 'Menyinkronkan...' : 'Sinkronkan Insight Audiens' }}
-                            </button>
-                        </form>
-                        @if ($instagramAudienceSyncing)
-                            <p class="text-[11px] text-[var(--brand)]">Sedang menyinkronkan data audience Instagram.</p>
-                        @endif
-                    </div>
+                    </details>
                 @elseif ($instagramOauthConfigured)
                     @if ($instagramIntegration && $instagramIntegration->last_error)
                         <p class="text-xs font-medium text-[var(--danger-text)] mb-1">Koneksi Instagram perlu perhatian</p>
@@ -409,74 +381,47 @@
                         @endif
                     </p>
 
-                    <div class="border-t border-[var(--surface-muted)] pt-3">
-                        <div class="flex items-center justify-between mb-1">
-                            <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
-                            @php
-                                $ttSyncBadgeClass = $tiktokSyncing ? 'badge-warning' : ($tiktokLastSyncLog?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
-                                $ttSyncBadgeLabel = $tiktokSyncing ? 'Menyinkronkan' : ($tiktokLastSyncLog?->status === 'failed' ? 'Gagal' : ($tiktokIntegration->last_synced_at ? 'Tersinkron' : 'Belum Tersinkron'));
-                            @endphp
-                            <span id="tiktok-sync-badge" class="badge {{ $ttSyncBadgeClass }}">{{ $ttSyncBadgeLabel }}</span>
-                        </div>
-                        <p id="tiktok-last-synced" class="text-[11px] text-[var(--text-muted)] mb-2">
-                            Sinkronisasi terakhir: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
-                        </p>
-                        @if (! $tiktokSyncing && $tiktokLastSyncLog?->status === 'failed')
-                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--danger-text)] mb-2">Gagal - {{ $tiktokLastSyncLog->error_message }}</p>
-                        @elseif ($tiktokSyncing)
-                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--brand)] mb-2">Sedang menyinkronkan data Analitik Konten TikTok.</p>
-                        @else
-                            <p id="tiktok-sync-message" class="text-[11px] text-[var(--brand)] mb-2" hidden></p>
-                        @endif
+                    {{-- SYSTEM CONSISTENCY PASS (Part AH-AM) - lihat catatan
+                         sama di blok Instagram di atas. Polling custom lama
+                         (client-management.tiktok.sync-status, endpoint
+                         TERPISAH dari analytics.sync-status) DIHAPUS - satu
+                         engine, satu presenter. --}}
+                    <p id="tt-freshness" class="text-[11px] text-[var(--text-muted)] mb-2">Memuat status data...</p>
+                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                        <button type="button" id="tt-sync-button"
+                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[14px]" id="tt-sync-icon">sync</span>
+                            <span id="tt-sync-label">Perbarui Data</span>
+                        </button>
+                        <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}?return_to={{ urlencode(url()->full()) }}"
+                           class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
+                    </div>
+                    <div id="tt-sync-panel" class="mb-2" hidden></div>
 
-                        @if (! $tiktokVideoListScopeGranted)
-                            <p class="text-[11px] text-[var(--text-muted)] mb-2">Daftar video tidak tersedia dari scope TikTok yang diberikan.</p>
-                        @elseif ($tiktokIntegration->last_synced_at && $tiktokVideoCount === 0)
-                            <p class="text-[11px] text-[var(--text-muted)] mb-2">Tidak ada video yang dikembalikan TikTok untuk akun ini.</p>
-                        @elseif ($tiktokVideoCount > 0)
-                            <p class="text-[11px] text-[var(--text-muted)] mb-2">
-                                {{ $tiktokVideoCount }} video tersinkron
-                                @if ($tiktokLastSyncLog && $tiktokLastSyncLog->status === 'success')
-                                    &middot; {{ $tiktokLastSyncLog->synced_count }} metrik tersimpan dari sync terakhir
-                                    @if ($tiktokLastSyncLog->skipped_count > 0)
-                                        &middot; {{ $tiktokLastSyncLog->skipped_count }} belum ter-link/gagal
-                                    @endif
-                                @endif
-                            </p>
-                        @endif
+                    @if (! $tiktokVideoListScopeGranted)
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Daftar video tidak tersedia dari scope TikTok yang diberikan.</p>
+                    @elseif ($tiktokIntegration->last_synced_at && $tiktokVideoCount === 0)
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Tidak ada video yang dikembalikan TikTok untuk akun ini.</p>
+                    @elseif ($tiktokVideoCount > 0)
+                        <p class="text-[11px] text-[var(--text-muted)] mb-2">{{ $tiktokVideoCount }} video tersinkron</p>
+                    @endif
 
-                        <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <form id="tiktok-sync-form" action="{{ route('settings.sync-tiktok') }}" method="POST">
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
+                        <div class="mt-2 space-y-1.5">
+                            <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
+                            <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
                                 <input type="hidden" name="client_id" value="{{ $client->id }}">
-                                <button id="tiktok-sync-button" type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
-                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span class="material-symbols-outlined text-[14px]">sync</span>
-                                    <span id="tiktok-sync-button-label">{{ $tiktokSyncing ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten' }}</span>
+                                <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
+                                       class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                <button type="submit"
+                                        class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Sinkronkan Bulan Terpilih
                                 </button>
                             </form>
-                            <a href="{{ route('publishing-tracker.tiktok.unmatched', $tiktokIntegration) }}?return_to={{ urlencode(url()->full()) }}"
-                               class="text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]">Video belum ter-link</a>
                         </div>
-                        <p class="text-[11px] text-[var(--text-muted)] mb-2">Sync rutin hanya mengambil 2 bulan terakhir agar proses lebih cepat.</p>
-
-                        <details class="text-xs">
-                            <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Historis (bulan lama)</summary>
-                            <div class="mt-2 space-y-1.5">
-                                <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
-                                <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
-                                    @csrf
-                                    <input type="hidden" name="client_id" value="{{ $client->id }}">
-                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" {{ $tiktokSyncing ? 'disabled' : '' }}
-                                           class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                    <button type="submit" {{ $tiktokSyncing ? 'disabled' : '' }}
-                                            class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
-                                        Sinkronkan Bulan Terpilih
-                                    </button>
-                                </form>
-                            </div>
-                        </details>
-                    </div>
+                    </details>
                 @elseif ($tiktokOauthConfigured)
                     @if ($tiktokIntegration && $tiktokIntegration->last_error)
                         <p class="text-xs font-medium text-[var(--danger-text)] mb-1">Koneksi TikTok perlu perhatian</p>
@@ -767,106 +712,58 @@
     @endforeach
 </div>
 
-@if ($tiktokIntegration)
+@if ($instagramIntegration || $tiktokIntegration)
+    {{-- SYSTEM CONSISTENCY PASS (Part AH-AM) - SATU engine (AnalyticsSyncOrchestrator)
+         + SATU presenter (public/js/analytics-sync-panel.js), SAMA PERSIS
+         dipakai Analytics & Settings - run yang mulai dari sini terlihat
+         dari kedua halaman itu juga, dan sebaliknya (Part AJ, "shared
+         active run across all pages"). --}}
+    <script src="{{ asset('js/analytics-sync-panel.js') }}"></script>
     <script>
-        // Polling ringan/read-only status sync TikTok - job-nya async
-        // (SyncTikTokAnalyticsJob), jadi tanpa ini halaman nggak pernah tahu
-        // kapan job selesai selain user refresh manual. Endpoint di-scope ke
-        // client ini lewat auth+client.scope route middleware yang sama
-        // dengan halaman ini sendiri (lihat ClientManagementController::
-        // tiktokSyncStatus()).
         (function () {
-            var statusUrl = @json(route('client-management.tiktok.sync-status', $client));
-            var pollTimer = null;
-
-            var badgeClass = {
-                queued: 'badge-warning', pending: 'badge-warning', running: 'badge-warning',
-                success: 'badge-success', failed: 'badge-danger', idle: 'badge-neutral',
+            if (! window.AnalyticsSyncPanel) return;
+            var clientId = {{ (int) $client->id }};
+            var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            var urls = {
+                dispatch: @json(route('analytics.sync')),
+                status: @json(route('analytics.sync-status')),
+                retryTask: @json(route('analytics.sync.retry-task')),
+                retryFailedItems: @json(route('analytics.sync.retry-failed-items')),
             };
-            var badgeLabel = {
-                queued: 'Antre', pending: 'Antre', running: 'Menyinkronkan',
-                success: 'Tersinkron', failed: 'Gagal', idle: 'Belum Tersinkron',
-            };
-
-            function applyStatus(data) {
-                var badge = document.getElementById('tiktok-sync-badge');
-                var message = document.getElementById('tiktok-sync-message');
-                var button = document.getElementById('tiktok-sync-button');
-                var buttonLabel = document.getElementById('tiktok-sync-button-label');
-                var lastSynced = document.getElementById('tiktok-last-synced');
-                if (! badge) { stopPolling(); return; }
-
-                var busy = data.status === 'queued' || data.status === 'pending' || data.status === 'running';
-
-                badge.className = 'badge ' + (badgeClass[data.status] || 'badge-neutral');
-                badge.textContent = badgeLabel[data.status] || data.status;
-
-                if (message) {
-                    var text = data.status === 'failed' && data.result && data.result.error_message
-                        ? ('Gagal - ' + data.result.error_message)
-                        : (data.message || '');
-                    message.textContent = text;
-                    message.hidden = ! text;
-                    message.className = 'text-[11px] mb-2 ' + (data.status === 'failed' ? 'text-[var(--danger-text)]' : 'text-[var(--brand)]');
-                }
-
-                if (button) button.disabled = busy;
-                if (buttonLabel) buttonLabel.textContent = busy ? 'Menyinkronkan...' : 'Sinkronkan Analitik Konten';
-
-                if (lastSynced && data.last_synced_at) {
-                    lastSynced.textContent = 'Sinkronisasi terakhir: ' + new Date(data.last_synced_at).toLocaleString('id-ID');
-                }
-
-                if (! busy) {
-                    stopPolling();
-                    // Reload SEKALI di status akhir - bagian lain halaman
-                    // (link "Video belum ter-link", dst) baca data server-
-                    // rendered yang cuma akurat lewat reload, bukan sekadar
-                    // badge ini. Jeda singkat biar pesan status sempat
-                    // kebaca dulu.
-                    if (data.status === 'success' || data.status === 'failed') {
-                        setTimeout(function () { window.location.reload(); }, 900);
-                    }
-                }
-            }
-
-            function poll() {
-                fetch(statusUrl, { headers: { Accept: 'application/json' } })
-                    .then(function (res) { return res.json(); })
-                    .then(applyStatus)
-                    .catch(function () { /* diamkan, coba lagi di poll berikutnya */ });
-            }
-
-            function startPolling() {
-                if (pollTimer) return;
-                poll();
-                pollTimer = setInterval(poll, 3000);
-            }
-
-            function stopPolling() {
-                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-            }
-
-            if ({{ $tiktokSyncing ? 'true' : 'false' }}) {
-                startPolling();
-            }
-
-            var form = document.getElementById('tiktok-sync-form');
-            if (form) {
-                form.addEventListener('submit', function () {
-                    var button = document.getElementById('tiktok-sync-button');
-                    var buttonLabel = document.getElementById('tiktok-sync-button-label');
-                    if (button) button.disabled = true;
-                    if (buttonLabel) buttonLabel.textContent = 'Mengantre...';
-                    // Mulai poll SEKARANG (bukan nunggu redirect-back render
-                    // ulang) - form ini navigasi biasa (bukan AJAX), jadi
-                    // polling yang benar-benar jalan dimulai lagi otomatis
-                    // di page load berikutnya lewat $tiktokSyncing di atas;
-                    // baris ini cuma jaga-jaga kalau browser sempat render
-                    // sebentar sebelum redirect selesai.
-                    startPolling();
+            @if ($instagramIntegration)
+                window.AnalyticsSyncPanel.createSyncController({
+                    clientId: clientId,
+                    platformId: {{ (int) $instagramIntegration->platform_id }},
+                    groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[0]],
+                    urls: urls,
+                    reconnectUrl: @json(route('client-management.instagram.connect', $client)),
+                    csrfToken: csrfToken,
+                    elements: {
+                        button: document.getElementById('ig-sync-button'),
+                        icon: document.getElementById('ig-sync-icon'),
+                        label: document.getElementById('ig-sync-label'),
+                        freshness: document.getElementById('ig-freshness'),
+                        panel: document.getElementById('ig-sync-panel'),
+                    },
                 });
-            }
+            @endif
+            @if ($tiktokIntegration)
+                window.AnalyticsSyncPanel.createSyncController({
+                    clientId: clientId,
+                    platformId: {{ (int) $tiktokIntegration->platform_id }},
+                    groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[1]],
+                    urls: urls,
+                    reconnectUrl: @json(route('client-management.tiktok.connect', $client)),
+                    csrfToken: csrfToken,
+                    elements: {
+                        button: document.getElementById('tt-sync-button'),
+                        icon: document.getElementById('tt-sync-icon'),
+                        label: document.getElementById('tt-sync-label'),
+                        freshness: document.getElementById('tt-freshness'),
+                        panel: document.getElementById('tt-sync-panel'),
+                    },
+                });
+            @endif
         })();
     </script>
 @endif

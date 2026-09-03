@@ -185,7 +185,7 @@ class ContentPlanController extends Controller
         $contentPlan->load(['client', 'clientPackage', 'creator', 'approver', 'statusLogs.changedByUser']);
 
         $items = $contentPlan->contentItems()
-            ->with(['contentType', 'platform', 'workflow.currentPic', 'assignments.user', 'client', 'contentBriefDraft'])
+            ->with(['contentType', 'contentFormat', 'platform', 'workflow.currentPic', 'assignments.user', 'client', 'contentBriefDraft'])
             ->orderBy('deadline_at')
             ->get();
 

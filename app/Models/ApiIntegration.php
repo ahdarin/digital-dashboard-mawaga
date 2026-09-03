@@ -14,6 +14,7 @@ class ApiIntegration extends Model
         'reach_history_backfilled_at',
         'external_display_name', 'external_avatar_url', 'external_bio',
         'external_verified', 'external_profile_url',
+        'external_account_type', 'external_media_count',
     ];
 
     protected $hidden = ['access_token', 'refresh_token'];

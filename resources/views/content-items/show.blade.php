@@ -100,13 +100,18 @@
                                 <p class="text-[var(--text-secondary)]">{{ $contentItem->deadline_at->format('d M Y, H:i') }}</p>
                             </div>
                             <div>
-                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Tipe</p>
+                                <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Jenis Produksi</p>
                                 <p class="text-[var(--text-secondary)]">{{ $contentItem->contentType->name ?? '-' }}</p>
                             </div>
-                            @if ($contentItem->content_format)
+                            {{-- SYSTEM CONSISTENCY PASS (Part C/F) - master
+                                 contentFormat (relasi baru) diprioritaskan;
+                                 fallback ke content_format string lama HANYA
+                                 kalau master belum diisi (item lama/import
+                                 Excel) - tidak pernah ditebak/ditimpa. --}}
+                            @if ($contentItem->contentFormat || $contentItem->content_format)
                                 <div>
-                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Format</p>
-                                    <p class="text-[var(--text-secondary)]">{{ $contentItem->content_format }}</p>
+                                    <p class="text-[var(--text-muted)] uppercase font-medium mb-1">Format Konten</p>
+                                    <p class="text-[var(--text-secondary)]">{{ $contentItem->contentFormat->name ?? $contentItem->content_format }}</p>
                                 </div>
                             @endif
                         </div>

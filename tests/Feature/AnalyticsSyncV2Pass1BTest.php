@@ -419,6 +419,7 @@ class AnalyticsSyncV2Pass1BTest extends TestCase
             'api.instagram.com/oauth/access_token' => Http::response(['access_token' => 'short-lived', 'user_id' => 123, 'permissions' => ['instagram_business_basic']], 200),
             'graph.instagram.com/access_token*' => Http::response(['access_token' => 'long-lived', 'expires_in' => 5184000], 200),
             'graph.instagram.com/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
+            'graph.instagram.com/v*/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
         ]);
 
         $this->actingAs($manager)->get(route('client-management.instagram.callback', ['code' => 'auth-code', 'state' => 'good-state']));
@@ -445,6 +446,7 @@ class AnalyticsSyncV2Pass1BTest extends TestCase
             'api.instagram.com/oauth/access_token' => Http::response(['access_token' => 'short-lived', 'user_id' => 123], 200),
             'graph.instagram.com/access_token*' => Http::response(['access_token' => 'long-lived', 'expires_in' => 5184000], 200),
             'graph.instagram.com/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
+            'graph.instagram.com/v*/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
         ]);
 
         $this->actingAs($manager)->get(route('client-management.instagram.callback', ['code' => 'auth-code', 'state' => 'good-state']));
@@ -751,6 +753,7 @@ class AnalyticsSyncV2Pass1BTest extends TestCase
             'api.instagram.com/oauth/access_token' => Http::response(['access_token' => 'short-lived', 'user_id' => 123, 'permissions' => ['instagram_business_basic', 'instagram_business_manage_insights']], 200),
             'graph.instagram.com/access_token*' => Http::response(['access_token' => 'long-lived', 'expires_in' => 5184000], 200),
             'graph.instagram.com/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
+            'graph.instagram.com/v*/me*' => Http::response(['id' => '123', 'username' => 'test_ig_account'], 200),
             'graph.instagram.com/*/insights*' => Http::response(['data' => [['values' => [
                 ['end_time' => now()->subDays(1)->toIso8601String(), 'value' => 10],
                 ['end_time' => now()->toIso8601String(), 'value' => 20],

@@ -32,9 +32,9 @@ class PerformanceReportExport implements FromArray, WithHeadings, WithStyles
         $rows[] = ['', '', '', '']; // spacer
 
         $rows[] = ['TOP PERFORMING CONTENT'];
-        $rows[] = ['Judul', 'Platform', 'Tipe Konten', 'Views', 'Engagement Rate'];
+        $rows[] = ['Judul', 'Platform', 'Jenis Produksi', 'Format Konten', 'Views', 'Engagement Rate'];
         foreach ($this->reportData['top_content'] as $c) {
-            $rows[] = [$c['title'], $c['platform'], $c['type'], $c['views'], $c['engagement_rate'].'%'];
+            $rows[] = [$c['title'], $c['platform'], $c['production_type'], $c['content_format'], $c['views'], $c['engagement_rate'].'%'];
         }
 
         $rows[] = ['', '', '', '']; // spacer
