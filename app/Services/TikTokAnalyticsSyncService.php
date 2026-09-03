@@ -6,6 +6,7 @@ use App\Exceptions\TikTokApiException;
 use App\Models\AnalyticsSyncFailure;
 use App\Models\AnalyticsSyncLog;
 use App\Models\AnalyticsSyncTask;
+use App\Models\AnalyticsSyncTaskItem;
 use App\Models\ApiIntegration;
 use App\Models\ContentMetric;
 use App\Models\ContentMetricSnapshot;
@@ -493,6 +494,346 @@ class TikTokAnalyticsSyncService
     private function markNeedsReconnect(ApiIntegration $integration, string $message): void
     {
         $integration->update(['status' => 'inactive', 'last_error' => $message]);
+    }
+
+    // =====================================================================
+    // PROGRESSIVE 90-DAY SYNC ENGINE - RESILIENCE PASS. MIRROR
+    // InstagramAnalyticsSyncService's plan/processChunk/finalize methods,
+    // TAPI TikTok-SPECIFIC di dua tempat penting (Langkah 27, "preserve
+    // TikTok-specific semantics"):
+    //
+    // 1. Discovery (video/list/) SUDAH mengembalikan metrik LENGKAP per
+    //    video (VIDEO_FIELDS dipakai IDENTIK oleh video/list/ DAN
+    //    video/query/ - lihat TikTokAnalyticsService::getVideoList()) -
+    //    BEDA dari Instagram yang butuh 1 getMediaInsights() terpisah per
+    //    media. Makanya processDiscoveryTaskItem() TikTok di bawah TIDAK
+    //    PERNAH memanggil provider API sama sekali (murni matching+DB
+    //    upsert dari payload yang sudah lengkap) - chunking discovery di
+    //    sini semata demi UX progresif/durability yang konsisten dengan
+    //    Instagram, BUKAN karena ada risiko network N+1 yang sama.
+    // 2. Known-refresh (source=known_refresh) TETAP pakai video/query/
+    //    BATCHED (queryVideosWithBoundedRetry(), <=20 ID/panggilan, batas
+    //    resmi TikTok) - SATU panggilan API per CHUNK (bukan per item),
+    //    karena sync_chunk_size default (20) SENGAJA sama persis dengan
+    //    batas batch resmi TikTok itu.
+    // =====================================================================
+
+    /**
+     * @return array{total_chunks: int, discovery_count: int, known_refresh_count: int, username: ?string}
+     */
+    public function planProgressiveRun(ApiIntegration $integration, AnalyticsSyncTask $task, Carbon $cutoff): array
+    {
+        $task->markRunning('discovering_videos');
+
+        $providerService = new TikTokAnalyticsService($integration);
+        $result = $providerService->sync($cutoff);
+        $videos = $this->deduplicateById($result['videos']);
+        $profile = $result['profile'];
+
+        $integration->update([
+            'status' => 'active',
+            'external_account_id' => $profile['open_id'] ?? null,
+            'external_username' => $profile['username'] ?? $profile['display_name'] ?? null,
+            'last_synced_at' => now(),
+            'last_error' => null,
+            ...array_filter([
+                'external_display_name' => $profile['display_name'] ?? null,
+                'external_avatar_url' => $profile['avatar_large_url'] ?? $profile['avatar_url'] ?? null,
+                'external_bio' => $profile['bio_description'] ?? null,
+                'external_verified' => array_key_exists('is_verified', $profile) ? (bool) $profile['is_verified'] : null,
+                'external_profile_url' => $profile['profile_deep_link'] ?? null,
+            ], fn ($v) => $v !== null),
+        ]);
+        $this->saveProfileSnapshot($integration, $profile);
+
+        $now = now();
+        $chunkSize = max(1, (int) config('analytics.sync_chunk_size'));
+
+        $buckets = [SyncStageBoundary::STAGE_RECENT => [], SyncStageBoundary::STAGE_MID => [], SyncStageBoundary::STAGE_OLDER => []];
+        foreach ($videos as $item) {
+            $publishedAt = isset($item['create_time']) ? Carbon::createFromTimestamp($item['create_time']) : $now;
+            $buckets[SyncStageBoundary::stageFor($publishedAt, $now)][] = $item;
+        }
+
+        $chunkIndex = 0;
+        $rows = [];
+        foreach ([SyncStageBoundary::STAGE_RECENT, SyncStageBoundary::STAGE_MID, SyncStageBoundary::STAGE_OLDER] as $stage) {
+            foreach (array_chunk($buckets[$stage], $chunkSize) as $chunk) {
+                $chunkIndex++;
+                foreach ($chunk as $item) {
+                    $rows[] = [
+                        'analytics_sync_task_id' => $task->id,
+                        'external_item_id' => $item['id'],
+                        'media_type' => null,
+                        'published_at' => isset($item['create_time']) ? Carbon::createFromTimestamp($item['create_time']) : null,
+                        'stage' => $stage,
+                        'source' => AnalyticsSyncTaskItem::SOURCE_DISCOVERY,
+                        'chunk_index' => $chunkIndex,
+                        'status' => AnalyticsSyncTaskItem::STATUS_PENDING,
+                        // Video/list SUDAH mengandung metrik lengkap - payload
+                        // menyimpan item MENTAH apa adanya, processDiscoveryTaskItem()
+                        // TIDAK PERNAH perlu query ulang.
+                        'payload' => json_encode($item),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+        }
+
+        $discoveredExternalIds = array_column($videos, 'id');
+        $budget = max(0, (int) config('analytics.tiktok_known_refresh_budget'));
+        $knownCandidates = $budget > 0
+            ? TikTokVideoSnapshot::where('api_integration_id', $integration->id)
+                ->where('published_at', '>=', now()->subDays((int) config('analytics.tiktok_default_sync_days'))->startOfDay())
+                ->when(! empty($discoveredExternalIds), fn ($q) => $q->whereNotIn('external_post_id', $discoveredExternalIds))
+                ->orderByRaw('last_fetched_at IS NOT NULL')
+                ->orderBy('last_fetched_at', 'asc')
+                ->limit($budget)
+                ->get(['external_post_id'])
+            : collect();
+
+        foreach (array_chunk($knownCandidates->all(), $chunkSize) as $chunk) {
+            $chunkIndex++;
+            foreach ($chunk as $snapshot) {
+                $rows[] = [
+                    'analytics_sync_task_id' => $task->id,
+                    'external_item_id' => $snapshot->external_post_id,
+                    'media_type' => null,
+                    'published_at' => null,
+                    'stage' => 0,
+                    'source' => AnalyticsSyncTaskItem::SOURCE_KNOWN_REFRESH,
+                    'chunk_index' => $chunkIndex,
+                    'status' => AnalyticsSyncTaskItem::STATUS_PENDING,
+                    'payload' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($rows, 500) as $insertBatch) {
+            AnalyticsSyncTaskItem::insert($insertBatch);
+        }
+
+        $task->recordDiscovered(count($rows), 'processing_recent');
+
+        return [
+            'total_chunks' => $chunkIndex,
+            'discovery_count' => count($videos),
+            'known_refresh_count' => $knownCandidates->count(),
+            'username' => $profile['username'] ?? $profile['display_name'] ?? null,
+        ];
+    }
+
+    /**
+     * @return array{processed: int, auth_failed: bool}
+     */
+    /**
+     * @return array{processed: int, auth_failed: bool, deadline_reached: bool}
+     */
+    public function processChunk(AnalyticsSyncTask $task, int $chunkIndex, AnalyticsSyncLog $syncLog, int $userId): array
+    {
+        $integration = $task->integration;
+        $items = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
+            ->where('chunk_index', $chunkIndex)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_PENDING)
+            ->get();
+
+        if ($items->isEmpty()) {
+            return ['processed' => 0, 'auth_failed' => false, 'deadline_reached' => false];
+        }
+
+        $platform = Platform::find($integration->platform_id);
+        $source = $items->first()->source;
+        $authFailed = false;
+
+        if ($source === AnalyticsSyncTaskItem::SOURCE_DISCOVERY) {
+            // MIRROR InstagramAnalyticsSyncService::processChunk() - discovery
+            // TikTok TIDAK PERNAH panggil provider API di sini sama sekali
+            // (video/list SUDAH bawa metrik lengkap, lihat docblock plan/
+            // processDiscoveryTaskItem() di atas), jadi deadline dicek murni
+            // sebagai jaring pengaman DB-lambat, bukan risiko utama platform ini.
+            $deadline = now()->addSeconds((int) config('analytics.sync_chunk_soft_deadline_seconds'));
+            $processed = 0;
+            $deadlineReached = false;
+
+            foreach ($items as $taskItem) {
+                if (now()->greaterThan($deadline)) {
+                    $deadlineReached = true;
+                    break;
+                }
+                $this->processDiscoveryTaskItem($taskItem, $platform, $integration, $userId, $syncLog, $task);
+                $processed++;
+            }
+
+            return ['processed' => $processed, 'auth_failed' => false, 'deadline_reached' => $deadlineReached];
+        }
+
+        // Known-refresh - SATU panggilan queryVideos() batched buat SELURUH
+        // chunk (<=20 ID, batas resmi TikTok - lihat processKnownRefreshChunk()),
+        // TIDAK bisa/perlu dipecah pakai deadline soft: queryVideosWithBoundedRetry()
+        // sendiri SUDAH bounded (1x retry maks, ~2x20 detik timeout = ~40
+        // detik worst case buat SATU chunk) - jauh di bawah $timeout job
+        // (300 detik) tanpa perlu logic tambahan.
+        $authFailed = $this->processKnownRefreshChunk($items, $platform, $integration, $userId, $syncLog, $task);
+
+        return ['processed' => $items->count(), 'auth_failed' => $authFailed, 'deadline_reached' => false];
+    }
+
+    private function processDiscoveryTaskItem(AnalyticsSyncTaskItem $taskItem, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, AnalyticsSyncTask $task): void
+    {
+        $item = $taskItem->payload;
+        $media = [
+            'id' => $item['id'],
+            'permalink' => $item['share_url'] ?? null,
+            'timestamp' => isset($item['create_time']) ? Carbon::createFromTimestamp($item['create_time'])->toIso8601String() : null,
+            'caption' => $item['video_description'] ?? $item['title'] ?? null,
+        ];
+
+        $matcher = new ContentPublicationMatcher();
+        $result = $matcher->match($integration, $media);
+        $contentItemId = null;
+
+        if ($result->status === 'unmatched') {
+            $snapshot = $this->saveSnapshot($integration, $item, 'unmatched');
+        } elseif ($result->status === 'ambiguous') {
+            $snapshot = $this->saveSnapshot($integration, $item, 'ambiguous');
+        } else {
+            try {
+                $publication = $this->getOrCreatePublication($result, $media, $platform, $integration, $userId);
+                $snapshot = $this->saveSnapshot($integration, $item, 'matched', $publication->id);
+                $contentItemId = $publication->content_item_id;
+            } catch (\Throwable $e) {
+                $this->saveSnapshot($integration, $item, 'unmatched');
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => \Illuminate\Support\Str::limit($e->getMessage(), 500), 'core_completed_at' => now()]);
+                $task->incrementFailed();
+                AnalyticsSyncFailure::record($task, 'fetch_video_batch', AnalyticsFailureCategory::UNKNOWN, "gagal simpan publication - {$e->getMessage()}", $item['id'] ?? $taskItem->external_item_id, null);
+
+                return;
+            }
+        }
+
+        try {
+            $this->saveMetric($item, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+        } catch (\Throwable $e) {
+            $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $e->getMessage(), 'core_completed_at' => now()]);
+            $task->incrementFailed();
+            AnalyticsSyncFailure::record($task, 'fetch_video_batch', AnalyticsFailureCategory::UNKNOWN, $e->getMessage(), $item['id'] ?? $taskItem->external_item_id, $contentItemId);
+
+            return;
+        }
+
+        $optionalStatus = 'not_applicable'; // Langkah 27 - TikTok tidak punya stage optional-insight seperti Instagram Reels/Feed.
+        try {
+            $this->recordSnapshot($snapshot, $item, $integration, $platform, $contentItemId);
+        } catch (\Throwable $e) {
+            $optionalStatus = 'failed';
+            Log::warning('ContentMetricSnapshot write failed after ContentMetric succeeded (TikTok, progressive)', [
+                'client_id' => $integration->client_id,
+                'tiktok_video_snapshot_id' => $snapshot->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_SUCCESS, 'core_completed_at' => now(), 'optional_status' => $optionalStatus]);
+        $task->incrementSuccess();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, AnalyticsSyncTaskItem>  $taskItems
+     * @return bool true kalau auth failed (caller HARUS stop, TIDAK dispatch chunk berikutnya).
+     */
+    private function processKnownRefreshChunk($taskItems, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, AnalyticsSyncTask $task): bool
+    {
+        $service = new TikTokAnalyticsService($integration);
+        $ids = $taskItems->pluck('external_item_id')->all();
+
+        try {
+            $videoResults = $this->queryVideosWithBoundedRetry($service, $ids);
+        } catch (TikTokApiException $e) {
+            $authFailed = $e->category === TikTokApiException::AUTHENTICATION;
+            if ($authFailed) {
+                $this->markNeedsReconnect($integration, $e->getMessage());
+            }
+
+            foreach ($taskItems as $taskItem) {
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $e->getMessage(), 'core_completed_at' => now()]);
+                $task->incrementFailed();
+                AnalyticsSyncFailure::record($task, 'fetch_video_batch', $authFailed ? AnalyticsFailureCategory::AUTHENTICATION : AnalyticsFailureCategory::fromApiExceptionCategory($e->category), $e->getMessage(), $taskItem->external_item_id, null);
+            }
+
+            return $authFailed;
+        }
+
+        $byId = collect($videoResults)->keyBy('id');
+
+        foreach ($taskItems as $taskItem) {
+            $video = $byId->get($taskItem->external_item_id);
+            $snapshot = TikTokVideoSnapshot::where('api_integration_id', $integration->id)
+                ->where('external_post_id', $taskItem->external_item_id)
+                ->first();
+
+            if (! $video || ! $snapshot) {
+                // TikTok query sukses TAPI video ini tidak dibalikin (sudah
+                // dihapus user) ATAU snapshot-nya sudah hilang - jawaban
+                // DEFINITIF, bukan kegagalan (Langkah 21 prinsip yang sama).
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_SKIPPED, 'core_completed_at' => now()]);
+                $task->incrementSkipped();
+                $snapshot?->update(['last_fetched_at' => now()]);
+
+                continue;
+            }
+
+            $contentItemId = $snapshot->content_publication_id
+                ? ContentPublication::whereKey($snapshot->content_publication_id)->value('content_item_id')
+                : null;
+
+            try {
+                $this->saveMetric($video, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+                $this->recordSnapshot($snapshot, $video, $integration, $platform, $contentItemId);
+                $snapshot->update([...$this->videoMetadataFields($video), 'last_fetched_at' => now()]);
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_SUCCESS, 'core_completed_at' => now()]);
+                $task->incrementSuccess();
+            } catch (\Throwable $e) {
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $e->getMessage(), 'core_completed_at' => now()]);
+                $task->incrementFailed();
+                AnalyticsSyncFailure::record($task, 'fetch_video_batch', AnalyticsFailureCategory::UNKNOWN, $e->getMessage(), $taskItem->external_item_id, $contentItemId);
+            }
+        }
+
+        return false;
+    }
+
+    public function finalizeProgressiveRun(AnalyticsSyncTask $task, AnalyticsSyncLog $syncLog): void
+    {
+        $task->refresh();
+
+        $metricsSaved = $task->success_count;
+        $unresolvedCount = $task->failed_count + $task->unavailable_count + $task->skipped_count;
+        $status = $metricsSaved > 0 || $task->discovered_count === 0 ? 'success' : 'failed';
+
+        $syncLog->update([
+            'status' => $status,
+            'synced_count' => $metricsSaved,
+            'skipped_count' => $unresolvedCount,
+        ]);
+
+        $finalStatus = $task->failed_count > 0
+            ? ($metricsSaved > 0 ? 'partial' : 'failed')
+            : $status;
+
+        // FINAL CLOSURE GATE (Langkah 1) - MIRROR InstagramAnalyticsSyncService::
+        // finalizeProgressiveRun() (lihat docblock di sana buat penjelasan
+        // lengkap kenapa ini perlu).
+        $integrationInactive = \App\Models\ApiIntegration::whereKey($task->api_integration_id)->value('status') !== 'active';
+        if ($integrationInactive && $task->failed_count > 0) {
+            $finalStatus = 'needs_reconnect';
+        }
+
+        $this->recordRefreshFailureMarker($syncLog, $task->failed_count, $task->discovered_count);
+
+        $task->finish($finalStatus);
     }
 
     /**

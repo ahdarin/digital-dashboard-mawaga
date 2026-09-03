@@ -146,4 +146,70 @@ return [
     */
     'auto_sync_time' => env('ANALYTICS_AUTO_SYNC_TIME', '03:15'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Progressive Sync Engine - Resilience Pass
+    |--------------------------------------------------------------------------
+    |
+    | Satu "Perbarui Data" run TIDAK LAGI diproses sebagai satu job monolitik
+    | yang loop lewat SELURUH workload 90 hari sebelum job itu selesai
+    | (lihat SyncStageBoundary::forInstagram()/forTikTok() dan
+    | ProcessInstagramSyncChunkJob/ProcessTikTokSyncChunkJob) - workload
+    | dipartisi jadi chunk sebesar sync_chunk_size, tiap chunk 1 job
+    | eksekusi terpisah yang bounded durasinya, chunk berikutnya di-dispatch
+    | begitu chunk ini selesai. discovered_count/processed_count/dst tetap
+    | SATU AnalyticsSyncTask yang sama - chunking murni implementation
+    | detail, TIDAK PERNAH terekspos ke user sebagai "sync" terpisah
+    | (Langkah 2/6).
+    |
+    | sync_chunk_size dipakai KEDUA provider (Instagram per-media, TikTok
+    | per-video) - SATU angka, direferensikan dari config di setiap
+    | job/service yang butuh (Langkah 5, "do not hardcode the same literal
+    | in several jobs/services").
+    |
+    | Age bucket (STAGE 1/2/3) dihitung dari published_at vs now(), BUKAN
+    | dari boundary kalender bulan - lihat SyncStageBoundary::stageFor().
+    |
+    */
+    'sync_chunk_size' => (int) env('ANALYTICS_SYNC_CHUNK_SIZE', 20),
+    'sync_stage_1_max_age_days' => 30, // 0-29 hari = STAGE 1 (recent)
+    'sync_stage_2_max_age_days' => 60, // 30-59 hari = STAGE 2 (mid)
+    // STAGE 3 = sisanya sampai instagram_default_sync_days/tiktok_default_sync_days (60-89 hari).
+
+    /*
+    |--------------------------------------------------------------------------
+    | Progressive Sync Engine - Chunk Soft Deadline (FINAL CLOSURE GATE)
+    |--------------------------------------------------------------------------
+    |
+    | 20 media/chunk (default sync_chunk_size) x maks 2 request/media (1
+    | core + 1 optional batched, Instagram) = SAMPAI 40 request per chunk.
+    | Tiap request punya timeout 20 detik (InstagramAnalyticsService::TIMEOUT/
+    | TikTokAnalyticsService::TIMEOUT) - kalau BANYAK request di 1 chunk
+    | genuinely hit full timeout (provider degraded, bukan skenario normal -
+    | data real: 24 request/29 detik = ~1.2 detik/request rata-rata), 40 x
+    | 20 detik = 800 detik BISA melebihi ProcessInstagramSyncChunkJob::
+    | $timeout (300 detik).
+    |
+    | Perbaikan: processChunk() (InstagramAnalyticsSyncService/
+    | TikTokAnalyticsSyncService) berhenti mengambil item BARU begitu waktu
+    | eksekusi chunk ini sudah melewati angka di bawah, MENYISAKAN sisa
+    | item chunk itu tetap 'pending' (BUKAN hilang) - ProcessInstagramSyncChunkJob/
+    | ProcessTikTokSyncChunkJob lalu dispatch ulang chunk_index YANG SAMA
+    | (bukan lanjut ke chunk berikutnya) buat menghabiskan sisanya di
+    | eksekusi job baru. Item yang SEDANG diproses saat deadline terlewati
+    | tetap dibiarkan selesai dulu (deadline dicek SEBELUM item berikutnya,
+    | bukan menginterupsi request yang sedang berjalan) - worst case 1 item
+    | terakhir (maks 2 request x 20 detik = 40 detik) bisa mendorong durasi
+    | aktual sampai ~200+40=240 detik, MASIH di bawah $timeout (300 detik,
+    | margin 60 detik) dan DB_QUEUE_RETRY_AFTER (360 detik, margin 120
+    | detik) - lihat final report Section 3 buat perhitungan lengkap.
+    |
+    | Ini SATU-SATUNYA angka (dipakai kedua provider), preferensi eksplisit
+    | dari arahan "avoid unnecessary complexity" - BUKAN budget waktu
+    | per-item terpisah, BUKAN penurunan sync_chunk_size default (yang
+    | akan memperlambat kasus normal demi skenario degradasi yang jarang).
+    |
+    */
+    'sync_chunk_soft_deadline_seconds' => (int) env('ANALYTICS_SYNC_CHUNK_SOFT_DEADLINE_SECONDS', 200),
+
 ];

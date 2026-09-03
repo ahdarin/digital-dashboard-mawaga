@@ -75,6 +75,23 @@
         processing_videos: 'Memproses insight video',
         refreshing_known_videos: 'Memperbarui video yang sudah tercatat',
         fetching_audience_metrics: 'Mengambil data audiens',
+        // PROGRESSIVE 90-DAY SYNC ENGINE (Langkah 13/15) - stage progresif
+        // Instagram/TikTok, dipetakan dari AnalyticsSyncTask.stage yang
+        // di-set tiap chunk job jalan (ProcessInstagramSyncChunkJob::
+        // stageLabelFor()/ProcessTikTokSyncChunkJob::stageLabelFor()).
+        // Backend TIDAK PERNAH mengirim istilah "chunk"/"queue"/"job"/
+        // "worker" ke sini - label ini SATU-SATUNYA yang user lihat.
+        processing_recent: 'Memperbarui data 30 hari terbaru',
+        processing_previous: 'Memperbarui data sebelumnya',
+        processing_older: 'Memperbarui data hingga 90 hari terakhir',
+        // FINAL CLOSURE GATE (Langkah 1) - AnalyticsSyncTask::finish() SELALU
+        // menyetel stage ke 'completed' begitu task terminal (lihat model).
+        // Panel TIDAK PERNAH benar-benar merender ini (isBusy() sudah false
+        // duluan begitu status terminal, lihat cabang "task.finished_at" di
+        // bawah yang pakai reconciliationLines()/LAST_RESULT_MESSAGES,
+        // BUKAN STAGE_LABELS) - entry ini murni jaring pengaman defensif
+        // buat konsumen lain yang mungkin baca task.stage mentah.
+        completed: 'Selesai',
     };
     var SECONDARY_LABELS = { instagram_audience: 'Audiens' };
     var LAST_RESULT_MESSAGES = {

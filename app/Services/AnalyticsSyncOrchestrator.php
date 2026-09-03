@@ -113,8 +113,7 @@ class AnalyticsSyncOrchestrator
                 continue;
             }
 
-            $jobClass = $this->jobClassFor($subjob);
-            if ($this->isLockHeld($jobClass, $integration->id) || $this->hasQueuedJob($jobClass, $integration->id)) {
+            if ($this->hasActiveTask($integration, $subjob)) {
                 // Sudah in-flight - anggap "dispatched" dari POV user (sync
                 // memang sedang berjalan buat subjob ini), TAPI JANGAN
                 // dispatch job kedua, dan JANGAN bikin Run/Task baru buat
@@ -190,18 +189,20 @@ class AnalyticsSyncOrchestrator
      */
     public function retryTask(AnalyticsSyncTask $task, int $userId): array
     {
-        if (in_array($task->status, ['queued', 'running'], true)) {
-            return ['retried' => false, 'reason' => 'already_in_flight', 'task_id' => null];
-        }
-
         $integration = $task->integration;
 
         if (! $integration || $integration->status !== 'active') {
             return ['retried' => false, 'reason' => 'needs_reconnect', 'task_id' => null];
         }
 
-        $jobClass = $this->jobClassFor($task->subjob);
-        if ($this->isLockHeld($jobClass, $integration->id) || $this->hasQueuedJob($jobClass, $integration->id)) {
+        // FINAL CLOSURE GATE (Langkah 2) - SATU keputusan "in-flight" yang
+        // sama persis dengan dispatch(), lihat docblock hasActiveTask().
+        // $task sendiri ($task->status queued/running) SUDAH tercakup di
+        // sini (task ini genuinely salah satu task milik integration+
+        // subjob ini), jadi pengecekan terpisah ke $task->status yang
+        // dulu ada di awal method TIDAK lagi diperlukan - dihapus, bukan
+        // dibiarkan dobel dengan makna yang bisa drift.
+        if ($this->hasActiveTask($integration, $task->subjob)) {
             return ['retried' => false, 'reason' => 'already_in_flight', 'task_id' => null];
         }
 
@@ -434,7 +435,28 @@ class AnalyticsSyncOrchestrator
         } elseif ($queued) {
             $status = 'queued';
         } else {
-            $status = $this->mapLogStatus($subjob, $lastLog);
+            // PROGRESSIVE 90-DAY SYNC ENGINE (Langkah 6/13/17) - a
+            // progressive run passes through MANY short-lived chunk jobs;
+            // between chunk N finishing and chunk N+1 being picked up,
+            // neither isLockHeld() nor hasQueuedJob() above is true (no
+            // lock held, no row in `jobs` yet), so mapLogStatus() would
+            // otherwise judge staleness PURELY from the syncLog's static
+            // updated_at (which never changes mid-run - the log stays
+            // 'pending' until the run's very last chunk). A genuinely
+            // active AnalyticsSyncTask's last_progress_at DOES advance on
+            // every chunk (every increment*() call touches it), so it is
+            // used here as the freshness anchor whenever a non-terminal
+            // task exists for this subjob - this is what keeps a
+            // multi-chunk run correctly reported 'running' regardless of
+            // how many chunks/how long the FULL 90-day workload takes,
+            // instead of only within a single fixed grace window.
+            $activeTaskProgressAt = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+                ->where('subjob', $subjob)
+                ->whereIn('status', ['queued', 'running'])
+                ->latest('id')
+                ->value('last_progress_at');
+
+            $status = $this->mapLogStatus($subjob, $lastLog, $activeTaskProgressAt);
             if ($lastLog?->status === 'pending' && $status === 'failed') {
                 $stale = true; // dipetakan failed KARENA stale, bukan kegagalan asli - lihat mapLogStatus()
             }
@@ -481,7 +503,7 @@ class AnalyticsSyncOrchestrator
      * akhir - dikembalikan sebagai 'failed' (pesan aman, BUKAN endless
      * 'running', BUKAN 'success' palsu, TIDAK expose exception/token).
      */
-    private function mapLogStatus(string $subjob, ?AnalyticsSyncLog $lastLog): string
+    private function mapLogStatus(string $subjob, ?AnalyticsSyncLog $lastLog, ?\Illuminate\Support\Carbon $activeTaskProgressAt = null): string
     {
         if ($lastLog?->status !== 'pending') {
             return match ($lastLog?->status) {
@@ -491,7 +513,13 @@ class AnalyticsSyncOrchestrator
             };
         }
 
-        $ageSeconds = $lastLog->updated_at?->diffInSeconds(now()) ?? PHP_FLOAT_MAX;
+        // PROGRESSIVE 90-DAY SYNC ENGINE - kalau ada AnalyticsSyncTask
+        // aktif (queued/running) buat subjob ini, freshness-nya dihitung
+        // dari last_progress_at task itu (SELALU >= updated_at syncLog,
+        // dan ikut maju tiap chunk selesai), BUKAN dari syncLog->updated_at
+        // yang statis sepanjang run progresif - lihat pemanggil.
+        $referenceTime = $activeTaskProgressAt ?? $lastLog->updated_at;
+        $ageSeconds = $referenceTime?->diffInSeconds(now()) ?? PHP_FLOAT_MAX;
 
         return $ageSeconds > $this->staleThresholdSecondsFor($subjob) ? 'failed' : 'running';
     }
@@ -634,6 +662,40 @@ class AnalyticsSyncOrchestrator
             ->max('updated_at');
 
         return $latest ? Carbon::parse($latest) : null;
+    }
+
+    /**
+     * PROGRESSIVE SYNC ENGINE - FINAL CLOSURE GATE (Langkah 2): satu-
+     * satunya keputusan "apakah subjob ini sudah in-flight" - dipakai
+     * IDENTIK oleh dispatch() (tombol "Perbarui Data" biasa) DAN
+     * retryTask() (tombol "Coba lagi"), menghapus split semantik yang
+     * sebelumnya ada (dispatch() sudah task-status-based, retryTask()
+     * masih murni lock/jobs-table peek yang basi lintas jeda antar-chunk
+     * progresif - lihat catatan lama di dispatch() yang sekarang pindah
+     * ke sini).
+     *
+     * Task-status (queued/running) adalah SINYAL UTAMA - durable
+     * sepanjang masa hidup SELURUH chunk chain progresif, TIDAK PERNAH
+     * "kosong" di jeda antar-chunk seperti lock cache/baris `jobs`.
+     * Lock/queued-job peek TETAP dipertahankan sebagai defense-in-depth
+     * buat race sempit SEBELUM Task pertama sempat dibuat (celah singkat
+     * antara dispatch() lolos pengecekan lock lama dan baris Task baru
+     * benar2 ter-commit).
+     */
+    private function hasActiveTask(ApiIntegration $integration, string $subjob): bool
+    {
+        $hasActiveTaskRow = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+            ->where('subjob', $subjob)
+            ->whereIn('status', ['queued', 'running'])
+            ->exists();
+
+        if ($hasActiveTaskRow) {
+            return true;
+        }
+
+        $jobClass = $this->jobClassFor($subjob);
+
+        return $this->isLockHeld($jobClass, $integration->id) || $this->hasQueuedJob($jobClass, $integration->id);
     }
 
     /**

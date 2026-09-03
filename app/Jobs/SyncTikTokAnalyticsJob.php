@@ -32,6 +32,11 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
 
     public $tries = 3;
 
+    // PROGRESSIVE 90-DAY SYNC ENGINE - this job's OWN execution is now
+    // discovery-only (getUserInfo + getVideoList, 1 provider pagination
+    // pass) for the progressive path. See final report Section 18.
+    public $timeout = 120;
+
     // TikTok video/list dibatasi MAX_PAGES=10 x 20/halaman = 200 video per
     // sync, jauh lebih kecil dari kasus Instagram terukur (27 media/window)
     // - 600 detik tetap dipertahankan sebagai lock ceiling yang sama biar
@@ -111,6 +116,19 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
         $cutoff = Carbon::parse($this->rangeFrom)->startOfDay();
 
         $task = $this->syncTaskId ? AnalyticsSyncTask::find($this->syncTaskId) : null;
+
+        // PROGRESSIVE 90-DAY SYNC ENGINE (Langkah 27) - MIRROR
+        // SyncInstagramAnalyticsJob::handle() - only the orchestrator-driven
+        // entry point (task present, default mode) uses the new chunked
+        // engine. Historical/legacy direct-dispatch paths (SettingsController,
+        // deprecated SyncAllTikTokIntegrations CLI) keep the old monolithic
+        // sync() unchanged below.
+        if ($task && $this->syncMode === 'default') {
+            $this->handleProgressive($service, $integration, $syncLog, $cutoff, $task);
+
+            return;
+        }
+
         $syncResult = null;
 
         try {
@@ -145,6 +163,36 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
                 $task?->finish('partial');
             }
         }
+    }
+
+    /**
+     * PROGRESSIVE 90-DAY SYNC ENGINE - MIRROR SyncInstagramAnalyticsJob::
+     * handleProgressive(). This job's own execution stays a single
+     * discovery pass (1 provider request set) regardless of workload size.
+     */
+    private function handleProgressive(TikTokAnalyticsSyncService $service, ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $cutoff, AnalyticsSyncTask $task): void
+    {
+        try {
+            $plan = $service->planProgressiveRun($integration, $task, $cutoff);
+        } catch (TikTokApiException $e) {
+            if (! $e->isRetryable()) {
+                $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);
+                $task->finish($e->category === TikTokApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
+                $this->fail($e);
+
+                return;
+            }
+
+            throw $e;
+        }
+
+        if ($plan['total_chunks'] === 0) {
+            $service->finalizeProgressiveRun($task, $syncLog);
+
+            return;
+        }
+
+        ProcessTikTokSyncChunkJob::dispatch($integration->id, $task->id, $syncLog->id, $this->userId, 1);
     }
 
     public function failed(\Throwable $e): void

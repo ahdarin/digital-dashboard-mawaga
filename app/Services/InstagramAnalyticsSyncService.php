@@ -6,6 +6,7 @@ use App\Exceptions\InstagramApiException;
 use App\Models\AnalyticsSyncFailure;
 use App\Models\AnalyticsSyncLog;
 use App\Models\AnalyticsSyncTask;
+use App\Models\AnalyticsSyncTaskItem;
 use App\Models\ApiIntegration;
 use App\Models\ContentMetric;
 use App\Models\ContentMetricSnapshot;
@@ -375,6 +376,407 @@ class InstagramAnalyticsSyncService
     private function markNeedsReconnect(ApiIntegration $integration, string $message): void
     {
         $integration->update(['status' => 'inactive', 'last_error' => $message]);
+    }
+
+    // =====================================================================
+    // PROGRESSIVE 90-DAY SYNC ENGINE - RESILIENCE PASS
+    //
+    // Replaces the ONE-JOB-DOES-EVERYTHING default-mode path (old sync() +
+    // refreshKnownMedia() called back-to-back inside SyncInstagramAnalyticsJob
+    // ::handle()) with a plan-once/process-in-bounded-chunks pipeline. The
+    // OLD sync()/refreshKnownMedia()/persistMedia() methods above are LEFT
+    // UNTOUCHED - they still serve the CLI --month historical path
+    // (analytics:sync-instagram, synchronous, no queue timeout exposure,
+    // naturally bounded to ~1 calendar month) and the CLI's own default-mode
+    // debugging use, exactly as before. ONLY the queued "Perbarui Data"
+    // entry point (AnalyticsSyncOrchestrator::dispatchInstagramContent(),
+    // which ALWAYS calls resolveSyncWindow(null)) is rewired to these new
+    // methods - see ProcessInstagramSyncChunkJob.
+    //
+    // planProgressiveRun() does discovery ONCE (getProfile+getMedia, exactly
+    // like the old sync() did) and IMMEDIATELY persists every unique
+    // discovered item plus every known-refresh rotation candidate into
+    // analytics_sync_task_items - NO insight/metric API call happens here.
+    // processChunk() is the only place that ever calls getMediaInsights(),
+    // and it only ever touches the <= sync_chunk_size rows belonging to ONE
+    // chunk_index, which is what keeps a single job execution's duration
+    // bounded regardless of how large the 90-day workload is.
+    // =====================================================================
+
+    /**
+     * @return array{total_chunks: int, discovery_count: int, known_refresh_count: int, username: ?string}
+     */
+    public function planProgressiveRun(ApiIntegration $integration, AnalyticsSyncTask $task, Carbon $since, Carbon $until): array
+    {
+        $task->markRunning('discovering_media');
+
+        $providerService = new InstagramAnalyticsService($integration);
+        $profile = $providerService->getProfile();
+        $media = $this->deduplicateById($providerService->getMedia($since, $until));
+
+        // MIRROR InstagramAnalyticsService::sync()'s per-item normalisasi
+        // (thumbnail_url IMAGE media kosong di getMedia() mentah - fallback
+        // ke media_url, video pakai thumbnail_url asli) - getMedia() mentah
+        // TIDAK melakukan fallback ini sendiri, jadi HARUS diterapkan di
+        // sini SEBELUM disimpan ke payload, supaya jalur progresif TIDAK
+        // regresi kehilangan thumbnail media IMAGE dibanding jalur lama.
+        $media = array_map(fn ($item) => [
+            ...$item,
+            'thumbnail_url' => $item['thumbnail_url'] ?? $item['media_url'] ?? null,
+        ], $media);
+
+        $integration->update([
+            'status' => 'active',
+            'external_account_id' => $profile['id'] ?? null,
+            'external_username' => $profile['username'] ?? null,
+            'last_error' => null,
+            ...array_filter([
+                'external_display_name' => $profile['name'] ?? null,
+                'external_avatar_url' => $profile['profile_picture_url'] ?? null,
+                'external_account_type' => $profile['account_type'] ?? null,
+                'external_media_count' => $profile['media_count'] ?? null,
+            ], fn ($v) => $v !== null),
+        ]);
+
+        $now = now();
+        $chunkSize = max(1, (int) config('analytics.sync_chunk_size'));
+
+        // Newest-first per stage (Langkah 4, "newest content must be
+        // processed first") - getMedia() already returns newest-first from
+        // Instagram's own pagination order, array_chunk() preserves that
+        // order within each stage bucket.
+        $buckets = [SyncStageBoundary::STAGE_RECENT => [], SyncStageBoundary::STAGE_MID => [], SyncStageBoundary::STAGE_OLDER => []];
+        foreach ($media as $item) {
+            $publishedAt = $item['timestamp'] ? Carbon::parse($item['timestamp']) : $now;
+            $buckets[SyncStageBoundary::stageFor($publishedAt, $now)][] = $item;
+        }
+
+        $chunkIndex = 0;
+        $rows = [];
+        foreach ([SyncStageBoundary::STAGE_RECENT, SyncStageBoundary::STAGE_MID, SyncStageBoundary::STAGE_OLDER] as $stage) {
+            foreach (array_chunk($buckets[$stage], $chunkSize) as $chunk) {
+                $chunkIndex++;
+                foreach ($chunk as $item) {
+                    $rows[] = [
+                        'analytics_sync_task_id' => $task->id,
+                        'external_item_id' => $item['id'],
+                        'media_type' => $item['media_product_type'] ?? null,
+                        'published_at' => $item['timestamp'] ? Carbon::parse($item['timestamp']) : null,
+                        'stage' => $stage,
+                        'source' => AnalyticsSyncTaskItem::SOURCE_DISCOVERY,
+                        'chunk_index' => $chunkIndex,
+                        'status' => AnalyticsSyncTaskItem::STATUS_PENDING,
+                        'payload' => json_encode($item),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+        }
+
+        $discoveredExternalIds = array_column($media, 'id');
+
+        // Known-refresh candidates - IDENTICAL eligibility/ordering contract
+        // as refreshKnownMedia() (rolling 90-day published_at bound, budget-
+        // capped rotation by last_fetched_at ASC), PLUS an explicit
+        // whereNotIn() against the discovery set just planned above - a
+        // STRONGER, deterministic disjointness guarantee than the old
+        // timestamp-watermark ($excludeFetchedSince) approach (Langkah 23),
+        // since we now have the exact discovered-ID list in hand rather
+        // than inferring "touched this run" from a time boundary.
+        $budget = max(0, (int) config('analytics.instagram_known_refresh_budget'));
+        $knownCandidates = $budget > 0
+            ? InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+                ->where('published_at', '>=', now()->subDays((int) config('analytics.instagram_default_sync_days'))->startOfDay())
+                ->when(! empty($discoveredExternalIds), fn ($q) => $q->whereNotIn('external_post_id', $discoveredExternalIds))
+                ->orderByRaw('last_fetched_at IS NOT NULL')
+                ->orderBy('last_fetched_at', 'asc')
+                ->limit($budget)
+                ->get(['external_post_id', 'media_product_type', 'published_at'])
+            : collect();
+
+        foreach (array_chunk($knownCandidates->all(), $chunkSize) as $chunk) {
+            $chunkIndex++;
+            foreach ($chunk as $snapshot) {
+                $rows[] = [
+                    'analytics_sync_task_id' => $task->id,
+                    'external_item_id' => $snapshot->external_post_id,
+                    'media_type' => $snapshot->media_product_type,
+                    'published_at' => $snapshot->published_at,
+                    'stage' => 0,
+                    'source' => AnalyticsSyncTaskItem::SOURCE_KNOWN_REFRESH,
+                    'chunk_index' => $chunkIndex,
+                    'status' => AnalyticsSyncTaskItem::STATUS_PENDING,
+                    'payload' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        foreach (array_chunk($rows, 500) as $insertBatch) {
+            AnalyticsSyncTaskItem::insert($insertBatch);
+        }
+
+        $task->recordDiscovered(count($rows), count($rows) > 0 ? 'processing_recent' : 'processing_recent');
+
+        return [
+            'total_chunks' => $chunkIndex,
+            'discovery_count' => count($media),
+            'known_refresh_count' => $knownCandidates->count(),
+            'username' => $profile['username'] ?? null,
+        ];
+    }
+
+    /**
+     * Proses SATU chunk (<= sync_chunk_size item, sudah dipartisi
+     * planProgressiveRun()) - satu-satunya tempat getMediaInsights() dipanggil
+     * di jalur progresif. Idempotent by construction: cuma mengambil baris
+     * berstatus 'pending' milik chunk_index ini, jadi retry job yang sama
+     * (worker mati/timeout di tengah chunk) TIDAK memproses ulang item yang
+     * sudah terminal di percobaan sebelumnya (Langkah 9/10).
+     *
+     * @return array{processed: int, auth_failed: bool}
+     */
+    /**
+     * @return array{processed: int, auth_failed: bool, deadline_reached: bool}
+     */
+    public function processChunk(AnalyticsSyncTask $task, int $chunkIndex, AnalyticsSyncLog $syncLog, int $userId): array
+    {
+        $integration = $task->integration;
+        $items = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
+            ->where('chunk_index', $chunkIndex)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_PENDING)
+            ->get();
+
+        if ($items->isEmpty()) {
+            return ['processed' => 0, 'auth_failed' => false, 'deadline_reached' => false];
+        }
+
+        $platform = Platform::find($integration->platform_id);
+        $providerService = new InstagramAnalyticsService($integration);
+        $authFailed = false;
+        $deadlineReached = false;
+        $processed = 0;
+
+        // FINAL CLOSURE GATE (Langkah 3) - lihat config('analytics.
+        // sync_chunk_soft_deadline_seconds') buat perhitungan lengkap kenapa
+        // angka ini aman (margin di bawah $timeout job DAN retry_after).
+        // Dicek SEBELUM tiap item (BUKAN menginterupsi request yang sedang
+        // berjalan) - item yang belum sempat diambil TETAP 'pending', TIDAK
+        // hilang, tinggal diproses chunk_index YANG SAMA di eksekusi job
+        // berikutnya (lihat ProcessInstagramSyncChunkJob::handle()).
+        $deadline = now()->addSeconds((int) config('analytics.sync_chunk_soft_deadline_seconds'));
+
+        foreach ($items as $taskItem) {
+            // Langkah 20 - token sudah diketahui invalid di item SEBELUMNYA
+            // dalam chunk ini - STOP, jangan hammering API dengan token yang
+            // sama-sama akan gagal identik buat sisa chunk (sisanya tetap
+            // 'pending', otomatis diproses ulang begitu user reconnect &
+            // retry - TIDAK hilang).
+            if ($authFailed) {
+                break;
+            }
+
+            if (now()->greaterThan($deadline)) {
+                $deadlineReached = true;
+                break;
+            }
+
+            $processed++;
+            $authFailed = $taskItem->source === AnalyticsSyncTaskItem::SOURCE_DISCOVERY
+                ? $this->processDiscoveryTaskItem($taskItem, $platform, $integration, $userId, $syncLog, $task, $providerService)
+                : $this->processKnownRefreshTaskItem($taskItem, $platform, $integration, $userId, $syncLog, $task, $providerService);
+        }
+
+        return ['processed' => $processed, 'auth_failed' => $authFailed, 'deadline_reached' => $deadlineReached];
+    }
+
+    /**
+     * @return bool true kalau auth failed (caller HARUS stop chunk ini).
+     */
+    private function processDiscoveryTaskItem(AnalyticsSyncTaskItem $taskItem, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, AnalyticsSyncTask $task, InstagramAnalyticsService $providerService): bool
+    {
+        $item = $taskItem->payload;
+        $matcher = new ContentPublicationMatcher();
+        $result = $matcher->match($integration, $item);
+        $contentItemId = null;
+
+        if ($result->status === 'unmatched') {
+            $snapshot = $this->saveSnapshot($integration, $item, 'unmatched');
+        } elseif ($result->status === 'ambiguous') {
+            $snapshot = $this->saveSnapshot($integration, $item, 'ambiguous');
+        } else {
+            try {
+                $publication = $this->getOrCreatePublication($result, $item, $platform, $integration, $userId);
+                $snapshot = $this->saveSnapshot($integration, $item, 'matched', $publication->id);
+                $contentItemId = $publication->content_item_id;
+            } catch (\Throwable $e) {
+                $this->saveSnapshot($integration, $item, 'unmatched');
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => \Illuminate\Support\Str::limit($e->getMessage(), 500), 'core_completed_at' => now()]);
+                $task->incrementFailed();
+                AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::UNKNOWN, "gagal simpan publication - {$e->getMessage()}", $item['id'] ?? $taskItem->external_item_id, null);
+
+                return false;
+            }
+        }
+
+        $insight = $providerService->getMediaInsights($snapshot->external_post_id, $snapshot->media_product_type);
+
+        return $this->finalizeInsightForTaskItem($taskItem, $item, $insight, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId, $task);
+    }
+
+    /**
+     * @return bool true kalau auth failed (caller HARUS stop chunk ini).
+     */
+    private function processKnownRefreshTaskItem(AnalyticsSyncTaskItem $taskItem, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, AnalyticsSyncTask $task, InstagramAnalyticsService $providerService): bool
+    {
+        $snapshot = InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+            ->where('external_post_id', $taskItem->external_item_id)
+            ->first();
+
+        if (! $snapshot) {
+            // Snapshot-nya sudah hilang (edge case, mis. dihapus manual di
+            // antara planning & processing) - tidak ada yang bisa direfresh,
+            // TIDAK dihitung sebagai kegagalan genuine (bukan error API).
+            $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_SKIPPED, 'core_completed_at' => now()]);
+            $task->incrementSkipped();
+
+            return false;
+        }
+
+        $item = [
+            'id' => $snapshot->external_post_id,
+            'timestamp' => $snapshot->published_at?->toIso8601String(),
+        ];
+
+        $insight = $providerService->getMediaInsights($snapshot->external_post_id, $snapshot->media_product_type);
+        $authFailed = $this->finalizeInsightForTaskItem($taskItem, $item, $insight, $snapshot, $platform, $integration, $userId, $syncLog, $snapshot->content_publication_id ? ContentPublication::whereKey($snapshot->content_publication_id)->value('content_item_id') : null, $task);
+
+        if (! $authFailed && $taskItem->fresh()->status === AnalyticsSyncTaskItem::STATUS_SUCCESS) {
+            $snapshot->update(['last_fetched_at' => now()]);
+        }
+
+        return $authFailed;
+    }
+
+    /**
+     * Shared terminal-classification + persistence, dipakai KEDUA source
+     * (discovery/known_refresh) - MIRROR klasifikasi error refreshKnownMedia()
+     * yang sudah ada (authentication -> stop+reconnect, content_unavailable/
+     * unsupported_metric -> definitif/unavailable, sisanya -> retryable
+     * failure), TAPI SEKARANG per-TaskItem (bukan cuma $summary array) biar
+     * genuinely resumable/retryable per baris (Langkah 8/21 - core SUCCESS
+     * tetap tercatat independen dari optional yang gagal, saveMetric()/
+     * recordSnapshot() dipisah try/catch persis sama seperti sebelumnya).
+     *
+     * @return bool true kalau auth failed (caller HARUS stop chunk ini).
+     */
+    private function finalizeInsightForTaskItem(AnalyticsSyncTaskItem $taskItem, array $item, array $insight, InstagramMediaSnapshot $snapshot, Platform $platform, ApiIntegration $integration, int $userId, AnalyticsSyncLog $syncLog, ?int $contentItemId, AnalyticsSyncTask $task): bool
+    {
+        if ($insight['category'] === InstagramApiException::AUTHENTICATION) {
+            $this->markNeedsReconnect($integration, $insight['error']);
+            $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $insight['error'], 'core_completed_at' => now()]);
+            $task->incrementFailed();
+            AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::AUTHENTICATION, $insight['error'], $item['id'] ?? $taskItem->external_item_id, $contentItemId);
+
+            return true;
+        }
+
+        if ($insight['error']) {
+            $isDefinitive = in_array($insight['category'], ['content_unavailable', 'unsupported_metric'], true);
+
+            if ($isDefinitive) {
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_UNAVAILABLE, 'last_error' => $insight['error'], 'core_completed_at' => now()]);
+                $task->incrementUnavailable();
+            } else {
+                $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $insight['error'], 'core_completed_at' => now()]);
+                $task->incrementFailed();
+                $category = $insight['category'] === 'unsupported_metric'
+                    ? \App\Services\AnalyticsFailureCategory::UNSUPPORTED
+                    : \App\Services\AnalyticsFailureCategory::TRANSIENT;
+                AnalyticsSyncFailure::record($task, 'fetch_insights', $category, $insight['error'], $item['id'] ?? $taskItem->external_item_id, $contentItemId);
+            }
+
+            return false;
+        }
+
+        try {
+            $itemWithMetrics = [...$item, 'metrics' => $insight['metrics']];
+            $this->saveMetric($itemWithMetrics, $snapshot, $platform, $integration, $userId, $syncLog, $contentItemId);
+        } catch (\Throwable $e) {
+            $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_FAILED, 'last_error' => $e->getMessage(), 'core_completed_at' => now()]);
+            $task->incrementFailed();
+            AnalyticsSyncFailure::record($task, 'fetch_insights', \App\Services\AnalyticsFailureCategory::UNKNOWN, $e->getMessage(), $item['id'] ?? $taskItem->external_item_id, $contentItemId);
+
+            return false;
+        }
+
+        // CORE sudah tersimpan (Langkah 8: "core completion must remain
+        // independently successful") - kegagalan recordSnapshot() di bawah
+        // ini TIDAK PERNAH menurunkan TaskItem yang sudah SUCCESS jadi
+        // failed, cuma dicatat ke log operasional (MIRROR saveMetricSafely()).
+        $optionalStatus = 'success';
+        try {
+            $this->recordSnapshot($snapshot, $insight['metrics'], $integration, $platform, $contentItemId);
+        } catch (\Throwable $e) {
+            $optionalStatus = 'failed';
+            Log::warning('ContentMetricSnapshot write failed after ContentMetric succeeded (Instagram, progressive)', [
+                'client_id' => $integration->client_id,
+                'instagram_media_snapshot_id' => $snapshot->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $taskItem->update(['status' => AnalyticsSyncTaskItem::STATUS_SUCCESS, 'core_completed_at' => now(), 'optional_status' => $optionalStatus]);
+        $task->incrementSuccess();
+
+        return false;
+    }
+
+    /**
+     * Finalisasi task setelah chunk TERAKHIR (discovery + known_refresh)
+     * selesai - dipanggil ProcessInstagramSyncChunkJob. syncLog + task
+     * finish() SAMA PERSIS semantiknya dengan jalur lama (status
+     * ditentukan reconciliation counts, BUKAN cuma "loop selesai tanpa
+     * exception").
+     */
+    public function finalizeProgressiveRun(AnalyticsSyncTask $task, AnalyticsSyncLog $syncLog): void
+    {
+        $task->refresh();
+
+        $metricsSaved = $task->success_count;
+        $unresolvedCount = $task->failed_count + $task->unavailable_count + $task->skipped_count;
+
+        $status = $metricsSaved > 0 || $task->discovered_count === 0 ? 'success' : 'failed';
+
+        $syncLog->update([
+            'status' => $status,
+            'synced_count' => $metricsSaved,
+            'skipped_count' => $unresolvedCount,
+        ]);
+
+        $finalStatus = $task->failed_count > 0
+            ? ($metricsSaved > 0 ? 'partial' : 'failed')
+            : $status;
+
+        // FINAL CLOSURE GATE (Langkah 1, ditemukan lewat penulisan test
+        // reconnect-required) - finalizeInsightForTaskItem() SUDAH menandai
+        // integration.status='inactive' lewat markNeedsReconnect() begitu
+        // token invalid (lihat method itu), TAPI status TERSEBUT sebelumnya
+        // TIDAK PERNAH tercermin ke task->status di sini - auth failure
+        // cuma jatuh ke 'failed' generik, kehilangan sinyal actionable
+        // "needs_reconnect" yang jalur lama (monolithic sync()) SELALU
+        // berikan. Integration status='inactive' SEKARANG diperiksa
+        // eksplisit di sini supaya KEDUA jalur (progresif & lama) identik.
+        $integrationInactive = \App\Models\ApiIntegration::whereKey($task->api_integration_id)->value('status') !== 'active';
+        if ($integrationInactive && $task->failed_count > 0) {
+            $finalStatus = 'needs_reconnect';
+        }
+
+        $this->recordRefreshFailureMarker($syncLog, $task->failed_count, $task->discovered_count);
+
+        $task->finish($finalStatus);
     }
 
     /**

@@ -138,11 +138,32 @@ class AnalyticsSyncTask extends Model
     private const STATUS_SEVERITY = ['success' => 0, 'partial' => 1, 'failed' => 2, 'needs_reconnect' => 3];
 
     /**
+     * PROGRESSIVE SYNC ENGINE - FINAL CLOSURE GATE (Langkah 1): satu-
+     * satunya string 'stage' yang boleh terpasang begitu task mencapai
+     * status terminal manapun (success/partial/failed/needs_reconnect) -
+     * 'processing_recent'/'processing_previous'/'processing_older'/
+     * 'discovering_media'/dst adalah stage IN-PROGRESS, TIDAK PERNAH
+     * bermakna begitu finished_at terisi. STAGE_LABELS (JS) HARUS punya
+     * entry 'completed' yang match persis string ini.
+     */
+    public const STAGE_COMPLETED = 'completed';
+
+    /**
      * Finalisasi task - status ditentukan CALLER (sync service yang tahu
      * konteks penuh: auth failure -> needs_reconnect, dst). Dipanggil >1
      * kali dalam 1 run (multi-fase) AMAN - status akhir SELALU yang PALING
      * BURUK di antara seluruh pemanggilan, never accidentally downgraded
      * ke "success" oleh fase berikutnya yang trivial.
+     *
+     * FINAL CLOSURE GATE (Langkah 1) - stage SELALU disetel ke
+     * STAGE_COMPLETED di sini, TERLEPAS dari status akhirnya
+     * (success/partial/failed/needs_reconnect SEMUA "selesai mencoba",
+     * bukan lagi "processing_older" dkk yang cuma valid selagi task masih
+     * berjalan). Ini titik SATU-SATUNYA tempat finish() pernah dipanggil
+     * (progressive maupun legacy monolithic path, lihat
+     * InstagramAnalyticsSyncService::finalizeProgressiveRun()/sync()/
+     * refreshKnownMedia() - SEMUA lewat sini), jadi fix ini otomatis
+     * berlaku ke KEDUA jalur tanpa perlu diubah satu-satu di caller.
      */
     public function finish(string $status): void
     {
@@ -153,6 +174,7 @@ class AnalyticsSyncTask extends Model
 
         $this->update([
             'status' => $worse,
+            'stage' => self::STAGE_COMPLETED,
             'reconciled' => $this->isReconciled(),
             'finished_at' => now(),
         ]);

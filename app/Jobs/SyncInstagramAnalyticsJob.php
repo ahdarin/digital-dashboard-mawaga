@@ -46,6 +46,14 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
     // invalid, dst) langsung fail() di handle(), nggak nyampe sini.
     public $tries = 3;
 
+    // PROGRESSIVE 90-DAY SYNC ENGINE - this job's OWN execution is now
+    // discovery-only (getProfile + getMedia, 1-2 provider requests) for
+    // the progressive path - 120s is generous headroom for that alone.
+    // The legacy non-task path (historical/CLI) still runs the full old
+    // monolithic loop here, so this ALSO covers that slower case (see
+    // final report Section 18 for the exact before/after worker config).
+    public $timeout = 120;
+
     // Lock nggak boleh nyangkut selamanya kalau worker crash di tengah
     // sync. 600 detik (10 menit) dipilih dari durasi NYATA yang sudah
     // diukur (akun besar Top Scorer Arena: 27 media/window 2 bulan = 31
@@ -144,6 +152,24 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
         $until = Carbon::parse($this->rangeTo)->endOfDay();
 
         $task = $this->syncTaskId ? AnalyticsSyncTask::find($this->syncTaskId) : null;
+
+        // PROGRESSIVE 90-DAY SYNC ENGINE - RESILIENCE PASS: ONLY the
+        // AnalyticsSyncOrchestrator-driven entry point (task present) uses
+        // the new plan-once/process-in-chunks pipeline. The legacy direct-
+        // dispatch paths (SettingsController "Sinkronisasi Konten Historis"
+        // form, deprecated SyncAllInstagramIntegrations CLI command - both
+        // dispatch WITHOUT a $syncTaskId) keep the OLD monolithic sync()
+        // behavior UNCHANGED below - they are naturally bounded (1 calendar
+        // month, or explicitly deprecated/manual-only) and out of this
+        // pass's scope (Langkah 24, "do not fix runtime by shrinking
+        // scope" cuts both ways - it also means don't touch what isn't
+        // the rolling-90-day default contract).
+        if ($task && $this->syncMode === 'default') {
+            $this->handleProgressive($service, $integration, $syncLog, $since, $until, $task);
+
+            return;
+        }
+
         $syncResult = null;
 
         try {
@@ -183,6 +209,44 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
                 $task?->finish('partial');
             }
         }
+    }
+
+    /**
+     * PROGRESSIVE 90-DAY SYNC ENGINE - discovery-only phase. Plans the
+     * ENTIRE run's workload into analytics_sync_task_items (one paginated
+     * discovery pass, exactly like the old path), then hands off to
+     * ProcessInstagramSyncChunkJob for bounded per-chunk execution - THIS
+     * job's own execution stays short (1-2 provider requests) regardless
+     * of how large the 90-day workload turns out to be, which is the
+     * actual fix for the traced root cause (oversized single-job duration
+     * vs. worker/queue timeout, see final report Section 1).
+     */
+    private function handleProgressive(InstagramAnalyticsSyncService $service, ApiIntegration $integration, AnalyticsSyncLog $syncLog, Carbon $since, Carbon $until, AnalyticsSyncTask $task): void
+    {
+        try {
+            $plan = $service->planProgressiveRun($integration, $task, $since, $until);
+        } catch (InstagramApiException $e) {
+            if (! $e->isRetryable()) {
+                $service->markFailed($integration, $syncLog, $e->getMessage(), $e->category);
+                $task->finish($e->category === InstagramApiException::AUTHENTICATION ? 'needs_reconnect' : 'failed');
+                $this->fail($e);
+
+                return;
+            }
+
+            throw $e;
+        }
+
+        if ($plan['total_chunks'] === 0) {
+            // Tidak ada workload sama sekali (akun baru/belum ada konten
+            // dalam window, DAN tidak ada known-refresh candidate) -
+            // finalisasi LANGSUNG, tidak ada chunk buat di-dispatch.
+            $service->finalizeProgressiveRun($task, $syncLog);
+
+            return;
+        }
+
+        ProcessInstagramSyncChunkJob::dispatch($integration->id, $task->id, $syncLog->id, $this->userId, 1);
     }
 
     /**
