@@ -1558,4 +1558,206 @@ class ProgressiveSyncEngineTest extends TestCase
         $this->assertSame(80, (int) round(($task->processed_count / $task->discovered_count) * 100));
         $this->assertNull($task->finished_at, 'Task belum finish() - masih ada chunk 3 (item 21-25) tersisa, TIDAK BOLEH dianggap selesai cuma karena sebagian besar sudah 80%.');
     }
+
+    // =====================================================================
+    // PRODUCTION-LIKE STUCK DISCOVERY / ORPHAN TASK DIAGNOSTIC. Reproduced
+    // LIVE (real DB + real queue:work against integration id=12) before
+    // these tests were written: a worker that dies (Railway redeploy) right
+    // after planProgressiveRun()'s AnalyticsSyncTaskItem::insert() succeeds
+    // but before SyncInstagramAnalyticsJob::handle() returns leaves a
+    // reserved-but-abandoned `jobs` row. Laravel correctly re-picks it once
+    // retry_after elapses and re-invokes handle() -> planProgressiveRun()
+    // from scratch, which used to (a) regress stage back to
+    // discovering_media and (b) crash on a GUARANTEED
+    // UniqueConstraintViolationException (sync_task_items_task_external_
+    // unique) on every subsequent retry. Root cause 2: AnalyticsSyncOrchestrator
+    // ::statusFromTask() had zero staleness detection (unlike the legacy
+    // mapLogStatus() fallback), so a task that never reaches a terminal
+    // status this way is reported "running" by the UI forever.
+    // =====================================================================
+
+    public function test_resume_after_worker_death_reuses_existing_items_without_duplicating_or_regressing_stage(): void
+    {
+        config(['analytics.sync_chunk_size' => 20, 'analytics.instagram_known_refresh_budget' => 0]);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+
+        $items = collect(range(1, 5))->map(fn ($i) => [
+            'id' => 'ig-resume-'.$i, 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE',
+            'timestamp' => now()->subDays(1)->toIso8601String(), 'permalink' => 'p/'.$i,
+        ])->all();
+        Http::fake($this->igMediaResponse($items));
+
+        $service = app(InstagramAnalyticsSyncService::class);
+
+        // ATTEMPT 1 - simulates the worker that got far enough to finish
+        // discovery+insert before dying (Railway redeploy) right after.
+        $plan1 = $service->planProgressiveRun($integration, $task, now()->subDays(90), now());
+        $task->refresh();
+        $this->assertSame(5, $plan1['discovery_count']);
+        $this->assertSame('processing_recent', $task->stage);
+        $idsAfterAttempt1 = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->pluck('id')->sort()->values();
+        $this->assertCount(5, $idsAfterAttempt1);
+
+        // ATTEMPT 2 - Laravel re-invoking handle() -> planProgressiveRun()
+        // from scratch on the SAME task, exactly what a retry_after-expired
+        // reservation triggers. MUST NOT throw, MUST NOT duplicate rows,
+        // MUST NOT regress stage back to "Mencari konten...".
+        $plan2 = $service->planProgressiveRun($integration, $task, now()->subDays(90), now());
+        $task->refresh();
+
+        $this->assertSame(5, AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->count(), 'TaskItems TIDAK BOLEH dobel - resume HARUS mengenali item yang sudah ada, bukan insert ulang.');
+        $idsAfterAttempt2 = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->pluck('id')->sort()->values();
+        $this->assertSame($idsAfterAttempt1->all(), $idsAfterAttempt2->all(), 'Baris yang SAMA PERSIS (bukan dihapus+dibuat ulang) yang harus bertahan.');
+        $this->assertSame('processing_recent', $task->stage, 'Stage TIDAK BOLEH regresi balik ke discovering_media cuma karena planProgressiveRun() dipanggil ulang pada task yang sudah pernah selesai discovery.');
+        $this->assertSame(5, $plan2['discovery_count'], 'Resume HARUS melaporkan total yang SAMA dari data yang sudah ada, bukan 0 atau dobel.');
+    }
+
+    public function test_resume_preserves_items_already_marked_success_by_a_prior_chunk(): void
+    {
+        config(['analytics.sync_chunk_size' => 10, 'analytics.instagram_known_refresh_budget' => 0]);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $userId = $this->userId();
+
+        $items = collect(range(1, 15))->map(fn ($i) => [
+            'id' => 'ig-preserve-'.$i, 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE',
+            'timestamp' => now()->subDays(1)->toIso8601String(), 'permalink' => 'p/'.$i,
+        ])->all();
+        Http::fake($this->igMediaResponse($items));
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $service->planProgressiveRun($integration, $task, now()->subDays(90), now());
+
+        $syncLog = AnalyticsSyncLog::create([
+            'client_id' => $integration->client_id, 'platform_id' => $integration->platform_id,
+            'api_integration_id' => $integration->id, 'imported_by' => $userId,
+            'source_type' => 'api_sync', 'status' => 'pending', 'sync_mode' => 'default',
+        ]);
+        // Chunk 1 (item 1-10) genuinely diproses & sukses SEBELUM worker mati.
+        $service->processChunk($task, 1, $syncLog, $userId);
+        $successIdsBefore = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_SUCCESS)->pluck('external_item_id')->sort()->values();
+        $this->assertCount(10, $successIdsBefore);
+
+        // Worker mati, retry_after lewat, job di-replay dari awal ->
+        // planProgressiveRun() dipanggil ulang pada task yang SAMA.
+        $service->planProgressiveRun($integration, $task, now()->subDays(90), now());
+
+        $successIdsAfter = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_SUCCESS)->pluck('external_item_id')->sort()->values();
+        $this->assertSame($successIdsBefore->all(), $successIdsAfter->all(), '10 item yang SUDAH sukses diproses sebelum worker mati HARUS TETAP success - resume TIDAK BOLEH mereset pekerjaan yang sudah selesai kembali ke pending.');
+        $this->assertSame(15, AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->count(), 'Total tetap 15, tidak dobel.');
+    }
+
+    public function test_stale_running_task_with_no_live_queue_signal_reports_as_failed_not_running_forever(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $task->update([
+            'status' => 'running',
+            'stage' => 'discovering_media',
+            'started_at' => now()->subMinutes(20),
+            'last_progress_at' => now()->subMinutes(15), // > 660s threshold, no queued job below
+        ]);
+
+        $orchestrator = app(AnalyticsSyncOrchestrator::class);
+        $status = $orchestrator->statusForClient($client, null);
+        $subjob = $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT];
+
+        $this->assertSame('failed', $subjob['status'], 'Task yang benar2 orphan (tidak ada lock/queued job DAN last_progress_at sudah lama) HARUS dilaporkan gagal ke UI, BUKAN "running" selamanya.');
+
+        $progress = $orchestrator->latestRunProgress($client, null);
+        $progressTask = $progress['tasks'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT];
+        $this->assertSame('failed', $progressTask['status'], 'subjobs[...].status dan progress.tasks[...].status HARUS SETUJU (satu sumber kebenaran) - inilah yang membuat JS terminal branch + retry button sama-sama aktif dengan benar.');
+        $this->assertNotNull($progressTask['finished_at'], 'finished_at HARUS terisi (sintetis) supaya JS terminal-rendering branch (dikunci ke task.finished_at) benar2 aktif, bukan salah jatuh ke cabang busy.');
+
+        $task->refresh();
+        $this->assertSame('running', $task->status, 'PENTING - ini murni proyeksi tampilan, kolom DB task.status TIDAK BOLEH ikut diubah di sini (side-effect-free read).');
+    }
+
+    public function test_fresh_running_task_within_threshold_is_never_falsely_reported_failed(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $task->update([
+            'status' => 'running',
+            'stage' => 'processing_recent',
+            'started_at' => now()->subSeconds(30),
+            'last_progress_at' => now()->subSeconds(20),
+        ]);
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+        $subjob = $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT];
+
+        $this->assertSame('running', $subjob['status'], 'Task yang genuinely aktif baru saja (last_progress_at 20 detik lalu) TIDAK BOLEH salah dilaporkan gagal - staleness TIDAK PERNAH murni dari elapsed time pendek.');
+    }
+
+    public function test_running_task_with_a_live_queued_chunk_job_is_never_falsely_reported_stale_even_with_old_last_progress_at(): void
+    {
+        config(['queue.default' => 'database']);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $task->update([
+            'status' => 'running',
+            'stage' => 'processing_recent',
+            'started_at' => now()->subMinutes(20),
+            'last_progress_at' => now()->subMinutes(15), // old enough to look stale on time alone
+        ]);
+
+        // Chunk job GENUINELY masih ada di antrian (mis. menunggu backoff
+        // sebelum retry berikutnya) - real dispatch, bukan simulasi.
+        ProcessInstagramSyncChunkJob::dispatch($integration->id, $task->id, 1, $this->userId(), 1);
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+        $subjob = $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT];
+
+        $this->assertSame('running', $subjob['status'], 'Do NOT use elapsed time alone - ada baris `jobs` genuine buat chunk job task ini, jadi TIDAK BOLEH dianggap stale walau last_progress_at sudah lama.');
+
+        config(['queue.default' => 'sync']);
+    }
+
+    public function test_dispatch_is_not_blocked_by_a_genuinely_orphaned_stale_task(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $staleTask = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $staleTask->update([
+            'status' => 'running',
+            'stage' => 'discovering_media',
+            'started_at' => now()->subMinutes(20),
+            'last_progress_at' => now()->subMinutes(15),
+        ]);
+
+        $result = app(AnalyticsSyncOrchestrator::class)->dispatch($client, null, $this->userId());
+
+        $this->assertContains(AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $result['dispatched']);
+        $newTask = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+            ->where('subjob', AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT)
+            ->latest('id')->first();
+        $this->assertNotSame($staleTask->id, $newTask->id, 'Task orphan HARUS TIDAK memblokir dispatch baru - user klik "Perbarui Data" lagi HARUS benar2 memicu Task baru, bukan diam2 dianggap "sudah in-flight" selamanya.');
+    }
+
+    public function test_retry_task_succeeds_for_a_genuinely_orphaned_stale_task(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $staleTask = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $staleTask->update([
+            'status' => 'running',
+            'stage' => 'discovering_media',
+            'started_at' => now()->subMinutes(20),
+            'last_progress_at' => now()->subMinutes(15),
+        ]);
+
+        $result = app(AnalyticsSyncOrchestrator::class)->retryTask($staleTask, $this->userId());
+
+        $this->assertTrue($result['retried'], 'Tombol "Coba lagi" HARUS berfungsi buat task yang genuinely orphan, BUKAN ditolak dengan alasan "already_in_flight" selamanya.');
+        $this->assertNotNull($result['task_id']);
+    }
 }

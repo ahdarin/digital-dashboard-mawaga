@@ -333,6 +333,18 @@ class AnalyticsSyncOrchestrator
                 continue;
             }
 
+            // ORPHAN TASK DIAGNOSTIC - SAME effectiveTaskStatus() computation
+            // statusFromTask() uses below, so this payload's status/
+            // finished_at can NEVER disagree with subjobs[$subjob] the way
+            // the pre-fix two-signal design once could (Langkah "SYNC UI
+            // STALE TERMINAL STATE BUG FIX" applied structurally again
+            // here) - a stale task reports 'failed' + a synthetic
+            // finished_at (never written back to the DB row itself) in
+            // BOTH places, which is what lets the JS terminal-rendering
+            // branch (keyed off task.finished_at) AND the retry button
+            // (keyed off task.status==='failed') both engage correctly.
+            $effective = $this->effectiveTaskStatus($task);
+
             $tasks[$subjob] = [
                 // PASS 3 (Langkah H, "TARGETED RETRY UX") - 'id' TAMBAHAN
                 // (additive, key baru) - JS butuh task_id ini buat manggil
@@ -353,7 +365,7 @@ class AnalyticsSyncOrchestrator
                 // terkoordinasi, run_id BEDA = task lain, TIDAK terkait
                 // dengan operasi yang sedang/baru selesai ditampilkan.
                 'run_id' => $task->analytics_sync_run_id,
-                'status' => $task->status,
+                'status' => $effective['status'],
                 'stage' => $task->stage,
                 'discovered_count' => $task->discovered_count,
                 'processed_count' => $task->processed_count,
@@ -364,7 +376,7 @@ class AnalyticsSyncOrchestrator
                 'reconciled' => $task->reconciled,
                 'started_at' => $task->started_at?->toIso8601String(),
                 'last_progress_at' => $task->last_progress_at?->toIso8601String(),
-                'finished_at' => $task->finished_at?->toIso8601String(),
+                'finished_at' => $effective['finished_at']?->toIso8601String(),
                 'attempt' => $task->attempt,
             ];
 
@@ -534,8 +546,17 @@ class AnalyticsSyncOrchestrator
             ->latest()
             ->first();
 
-        if (in_array($task->status, ['queued', 'running'], true)) {
-            return $this->statusPayload($task->status, $this->messageFor($subjob, $task->status), $lastLog);
+        $effective = $this->effectiveTaskStatus($task);
+
+        if (in_array($effective['status'], ['queued', 'running'], true)) {
+            return $this->statusPayload($effective['status'], $this->messageFor($subjob, $effective['status']), $lastLog);
+        }
+
+        if ($effective['status'] === 'failed' && $task->status !== 'failed') {
+            // ORPHAN TASK DIAGNOSTIC - task terdeteksi STALE (lihat
+            // isTaskStale()), bukan genuinely failed di DB - pesan KHUSUS
+            // "terhenti", bukan seolah-olah ada error API asli.
+            return $this->statusPayload('failed', $this->staleMessage($subjob), $lastLog);
         }
 
         $status = $task->status; // success/partial/failed/needs_reconnect
@@ -623,6 +644,79 @@ class AnalyticsSyncOrchestrator
     /**
      * @return array{status: string, message: string, synced_count: ?int, skipped_count: ?int, error_message: ?string, finished_at: ?string}
      */
+    /**
+     * ORPHAN TASK DIAGNOSTIC - single authoritative computation of "what
+     * should a queued/running task ACTUALLY report", shared by
+     * statusFromTask() (display) AND latestRunProgress() (progress
+     * payload) AND hasActiveTask() (dispatch/retry duplicate-protection)
+     * so all three can never independently drift, exactly the same
+     * discipline as the earlier SYNC UI STALE TERMINAL STATE BUG FIX.
+     *
+     * REPRODUCED LIVE (real DB + real queue:work): a task can legitimately
+     * remain status=running/stage=discovering_media in the DB forever if
+     * the job that owns it dies (worker crash, Railway redeploy) and
+     * nothing ever calls finish() on it again - Laravel's own retry
+     * mechanism usually DOES eventually reach failed() and finish(), but
+     * only after a multi-minute window (or never, if no worker returns to
+     * consume the retry at all). This method gives the UI an independent
+     * safety net that does not depend on that retry ever actually firing.
+     *
+     * @return array{status: string, finished_at: ?Carbon}
+     */
+    private function effectiveTaskStatus(AnalyticsSyncTask $task): array
+    {
+        if (in_array($task->status, ['queued', 'running'], true) && $this->isTaskStale($task)) {
+            return ['status' => 'failed', 'finished_at' => $task->last_progress_at ?? $task->started_at ?? $task->created_at];
+        }
+
+        return ['status' => $task->status, 'finished_at' => $task->finished_at];
+    }
+
+    /**
+     * A queued/running task is STALE only when BOTH signals agree there is
+     * no executable work left capable of progressing it: (1) no live lock
+     * AND no queued row for the job class that owns this subjob (checking
+     * BOTH the top-level sync job AND, for the 2 progressive-engine
+     * subjobs, the per-chunk job - a healthy task deep in chunk processing
+     * legitimately has zero queued SyncInstagramAnalyticsJob/
+     * SyncTikTokAnalyticsJob rows, only ProcessXSyncChunkJob ones), AND
+     * (2) last_progress_at (which now advances on every discovery page AND
+     * every chunk item, see AnalyticsSyncTask::touchDiscoveryProgress()/
+     * incrementX()) has not moved in longer than staleThresholdSecondsFor()
+     * - the SAME threshold + SAME "elapsed time is only trusted once no
+     * live job signal exists" reasoning the legacy mapLogStatus() fallback
+     * path already uses (Langkah "Do NOT use elapsed time alone if a real
+     * job can legitimately still be active").
+     */
+    private function isTaskStale(AnalyticsSyncTask $task): bool
+    {
+        $integrationId = $task->api_integration_id;
+        $jobClass = $this->jobClassFor($task->subjob);
+
+        if ($this->isLockHeld($jobClass, $integrationId) || $this->hasQueuedJob($jobClass, $integrationId)) {
+            return false;
+        }
+
+        $chunkJobClass = $this->chunkJobClassFor($task->subjob);
+        if ($chunkJobClass && $this->hasQueuedJob($chunkJobClass, $integrationId)) {
+            return false;
+        }
+
+        $referenceTime = $task->last_progress_at ?? $task->started_at ?? $task->created_at;
+        $ageSeconds = $referenceTime ? $referenceTime->diffInSeconds(now()) : PHP_FLOAT_MAX;
+
+        return $ageSeconds > $this->staleThresholdSecondsFor($task->subjob);
+    }
+
+    private function chunkJobClassFor(string $subjob): ?string
+    {
+        return match ($subjob) {
+            self::SUBJOB_INSTAGRAM_CONTENT => \App\Jobs\ProcessInstagramSyncChunkJob::class,
+            self::SUBJOB_TIKTOK_CONTENT => \App\Jobs\ProcessTikTokSyncChunkJob::class,
+            default => null,
+        };
+    }
+
     private function statusPayload(string $status, string $message, ?AnalyticsSyncLog $lastLog): array
     {
         $hasResult = $lastLog && in_array($status, ['success', 'partial', 'failed'], true);
@@ -759,12 +853,19 @@ class AnalyticsSyncOrchestrator
      */
     private function hasActiveTask(ApiIntegration $integration, string $subjob): bool
     {
-        $hasActiveTaskRow = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+        // ORPHAN TASK DIAGNOSTIC - a queued/running task row alone is no
+        // longer sufficient (see isTaskStale()/effectiveTaskStatus()) -
+        // without this, a genuinely orphaned task (worker gone, no live
+        // job left) would permanently block the user's own "Coba lagi"
+        // from ever dispatching a fresh attempt, even after the UI
+        // correctly starts showing it as failed.
+        $activeTask = AnalyticsSyncTask::where('api_integration_id', $integration->id)
             ->where('subjob', $subjob)
             ->whereIn('status', ['queued', 'running'])
-            ->exists();
+            ->latest('id')
+            ->first();
 
-        if ($hasActiveTaskRow) {
+        if ($activeTask && ! $this->isTaskStale($activeTask)) {
             return true;
         }
 

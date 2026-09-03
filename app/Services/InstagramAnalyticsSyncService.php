@@ -404,10 +404,45 @@ class InstagramAnalyticsSyncService
     // =====================================================================
 
     /**
-     * @return array{total_chunks: int, discovery_count: int, known_refresh_count: int, username: ?string}
+     * PRODUCTION-LIKE STUCK DISCOVERY / ORPHAN TASK DIAGNOSTIC - REPRODUCED
+     * LIVE: a worker that dies (Railway redeploy, OOM, etc.) after this
+     * method's AnalyticsSyncTaskItem::insert() already succeeded but BEFORE
+     * SyncInstagramAnalyticsJob::handle() returns leaves the underlying
+     * `jobs` row reserved-but-abandoned. Laravel's own database queue
+     * driver correctly re-picks that row once retry_after elapses and
+     * re-invokes handle() -> planProgressiveRun() from scratch - which
+     * used to (a) call markRunning('discovering_media') unconditionally,
+     * visibly REGRESSING an already-processing task's stage back to
+     * "Mencari konten..." in the UI, then (b) crash with a GUARANTEED
+     * UniqueConstraintViolationException on the SAME external_item_id
+     * rows re-inserted for the SAME task (unique key
+     * sync_task_items_task_external_unique) - deterministic on every
+     * subsequent retry, burning all $tries before finally reaching
+     * 'failed' and discarding an already-complete discovery for nothing.
+     *
+     * FIX: if TaskItems already exist for this task, discovery already
+     * completed in a prior (interrupted) attempt - skip re-discovery
+     * entirely (never re-touches the provider, never re-inserts, stage is
+     * never regressed) and resume straight into chunk processing from the
+     * existing rows. A prior attempt that died BEFORE any insert() ever
+     * ran (no TaskItems yet) still falls through to the normal fresh path
+     * below - re-fetching pages in that case is safe and expected
+     * (Langkah 7, "acceptable to rediscover pages if necessary").
      */
     public function planProgressiveRun(ApiIntegration $integration, AnalyticsSyncTask $task, Carbon $since, Carbon $until): array
     {
+        $existingItemCount = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->count();
+        if ($existingItemCount > 0) {
+            $task->touchDiscoveryProgress($existingItemCount, 'processing_recent');
+
+            return [
+                'total_chunks' => (int) AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->max('chunk_index'),
+                'discovery_count' => AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->where('source', AnalyticsSyncTaskItem::SOURCE_DISCOVERY)->count(),
+                'known_refresh_count' => AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->where('source', AnalyticsSyncTaskItem::SOURCE_KNOWN_REFRESH)->count(),
+                'username' => $integration->external_username,
+            ];
+        }
+
         $task->markRunning('discovering_media');
 
         $providerService = new InstagramAnalyticsService($integration);

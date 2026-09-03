@@ -519,10 +519,28 @@ class TikTokAnalyticsSyncService
     // =====================================================================
 
     /**
-     * @return array{total_chunks: int, discovery_count: int, known_refresh_count: int, username: ?string}
+     * PRODUCTION-LIKE STUCK DISCOVERY / ORPHAN TASK DIAGNOSTIC - MIRROR of
+     * the fix in InstagramAnalyticsSyncService::planProgressiveRun() (see
+     * its docblock for the full reproduction). Same guard: if TaskItems
+     * already exist for this task (a prior attempt's discovery+insert
+     * already completed before the worker died), skip re-discovery and
+     * resume from the existing rows instead of re-inserting the same
+     * external_item_id values into the same unique-constrained task.
      */
     public function planProgressiveRun(ApiIntegration $integration, AnalyticsSyncTask $task, Carbon $cutoff): array
     {
+        $existingItemCount = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->count();
+        if ($existingItemCount > 0) {
+            $task->touchDiscoveryProgress($existingItemCount, 'processing_recent');
+
+            return [
+                'total_chunks' => (int) AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->max('chunk_index'),
+                'discovery_count' => AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->where('source', AnalyticsSyncTaskItem::SOURCE_DISCOVERY)->count(),
+                'known_refresh_count' => AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->where('source', AnalyticsSyncTaskItem::SOURCE_KNOWN_REFRESH)->count(),
+                'username' => $integration->external_username,
+            ];
+        }
+
         $task->markRunning('discovering_videos');
 
         $providerService = new TikTokAnalyticsService($integration);

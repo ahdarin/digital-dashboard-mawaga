@@ -248,9 +248,19 @@
     // level kalau seluruh subjob gagal) - TIDAK PERNAH dispatch sync
     // lengkap kalau backend sudah tahu persis apa yang perlu dicoba ulang.
     function retryButtonHtml(subjobKey, task, groupLabel, unit) {
-        if (!task || !task.id || task.status !== 'failed' || !task.failed_count) return '';
+        if (!task || !task.id || task.status !== 'failed') return '';
 
-        var canItemRetry = subjobKey === 'instagram_content' || subjobKey === 'tiktok_content';
+        // ORPHAN TASK DIAGNOSTIC - task.status==='failed' with failed_count
+        // ===0 is a REAL, reachable case now (a task-level failure before
+        // any item was individually processed - orphan/stale detection,
+        // an auth failure during discovery, or any future task-level-only
+        // failure): the OLD gate here (!task.failed_count) hid the retry
+        // action entirely for exactly that case, leaving the user with a
+        // "gagal" message and no way to act on it. Item-level retry only
+        // applies when there ARE item-level failures to target; otherwise
+        // this always falls back to task-level retry-task, which needs no
+        // failed_count at all.
+        var canItemRetry = (subjobKey === 'instagram_content' || subjobKey === 'tiktok_content') && task.failed_count > 0;
         var text = canItemRetry
             ? 'Coba lagi ' + task.failed_count + ' ' + unit
             : (subjobKey === 'instagram_audience' ? 'Coba lagi data Audiens' : 'Coba lagi ' + groupLabel);
