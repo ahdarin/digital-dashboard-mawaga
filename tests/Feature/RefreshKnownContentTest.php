@@ -120,11 +120,17 @@ class RefreshKnownContentTest extends TestCase
 
     private function igMedia(ApiIntegration $integration, array $overrides = []): InstagramMediaSnapshot
     {
+        // ROLLING 90-DAY SYNC COVERAGE - default published_at DIUBAH dari
+        // subDays(100) ke subDays(30): refreshKnownMedia() SEKARANG scoped
+        // ke rolling 90-day window (lihat Scenario A/Q di bawah), jadi
+        // fixture default HARUS di dalam window supaya test lain (scoping,
+        // budget, auth, failure handling) yang TIDAK terkait age tetap
+        // exercise refreshKnownMedia() seperti semula.
         return InstagramMediaSnapshot::create(array_merge([
             'api_integration_id' => $integration->id,
             'external_post_id' => 'ig-'.uniqid(),
             'media_product_type' => 'IMAGE',
-            'published_at' => now()->subDays(100),
+            'published_at' => now()->subDays(30),
             'match_status' => 'unmatched',
             'last_fetched_at' => now()->subDays(50),
         ], $overrides));
@@ -135,7 +141,7 @@ class RefreshKnownContentTest extends TestCase
         return TikTokVideoSnapshot::create(array_merge([
             'api_integration_id' => $integration->id,
             'external_post_id' => 'tt-'.uniqid(),
-            'published_at' => now()->subDays(100),
+            'published_at' => now()->subDays(30),
             'match_status' => 'unmatched',
             'last_fetched_at' => now()->subDays(50),
         ], $overrides));
@@ -156,14 +162,18 @@ class RefreshKnownContentTest extends TestCase
         };
     }
 
-    // ===== Scenario A: old content still eligible for rotating refresh (Instagram) =====
+    // ===== Scenario A: content older than rolling 90-day coverage is EXCLUDED
+    // from normal refresh (ROLLING 90-DAY SYNC COVERAGE - FINAL CORRECTION
+    // PASS, Part 8/9 - this REVERSES the previous "age never matters"
+    // product decision documented in config('analytics.*_known_refresh_budget')
+    // history; see updated comment block there) =====
 
-    public function test_instagram_content_older_than_120_days_still_eligible_for_refresh(): void
+    public function test_instagram_content_older_than_90_days_excluded_from_normal_refresh(): void
     {
         $client = $this->client();
         $integration = $this->instagramIntegration($client);
         $media = $this->igMedia($integration, [
-            'published_at' => now()->subDays(400), // jauh di luar discovery (90) DAN retention (120)
+            'published_at' => now()->subDays(400), // jauh di luar rolling 90-day coverage
             'last_fetched_at' => now()->subDays(300),
         ]);
 
@@ -172,8 +182,12 @@ class RefreshKnownContentTest extends TestCase
         $syncLog = $this->syncLog($integration, 'api_sync');
         $result = app(InstagramAnalyticsSyncService::class)->refreshKnownMedia($integration, $syncLog, $this->userId());
 
-        $this->assertSame(1, $result['refreshed_count'], 'Content age TIDAK BOLEH membatasi eligibility observasi - rotating refresh SELURUH known content.');
-        $this->assertDatabaseHas('content_metric_snapshots', [
+        $this->assertSame(0, $result['total_count'], 'Content di luar rolling 90-day coverage TIDAK BOLEH ikut eligible refresh normal.');
+        $this->assertSame(0, $result['refreshed_count']);
+        Http::assertNothingSent();
+        // Non-deletion (Part 9): baris TETAP ada, TIDAK dihapus/didetach.
+        $this->assertDatabaseHas('instagram_media_snapshots', ['id' => $media->id]);
+        $this->assertDatabaseMissing('content_metric_snapshots', [
             'instagram_media_snapshot_id' => $media->id,
             'snapshot_date' => now()->toDateString(),
         ]);
@@ -181,7 +195,7 @@ class RefreshKnownContentTest extends TestCase
 
     // ===== Scenario A (TikTok mirror) =====
 
-    public function test_tiktok_content_older_than_120_days_still_eligible_for_refresh(): void
+    public function test_tiktok_content_older_than_90_days_excluded_from_normal_refresh(): void
     {
         $client = $this->client();
         $integration = $this->tiktokIntegration($client);
@@ -190,26 +204,64 @@ class RefreshKnownContentTest extends TestCase
             'last_fetched_at' => now()->subDays(300),
         ]);
 
-        Http::fake(function ($request) use ($video) {
-            if (str_contains($request->url(), 'video/query/')) {
-                return Http::response(['data' => ['videos' => [[
-                    'id' => $video->external_post_id,
-                    'create_time' => now()->subDays(400)->timestamp,
-                    'view_count' => 3000, 'like_count' => 300, 'comment_count' => 20, 'share_count' => 5,
-                ]]]], 200);
-            }
-
+        Http::fake(function ($request) {
             return Http::response(['error' => 'unexpected URL: '.$request->url()], 404);
         });
 
         $syncLog = $this->syncLog($integration, 'api_sync');
         $result = app(TikTokAnalyticsSyncService::class)->refreshKnownVideos($integration, $syncLog, $this->userId());
 
-        $this->assertSame(1, $result['refreshed_count']);
+        $this->assertSame(0, $result['total_count']);
+        $this->assertSame(0, $result['refreshed_count']);
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('tiktok_video_snapshots', ['id' => $video->id]);
+    }
+
+    // ===== Scenario A - cutoff boundary inclusion/exclusion (Part 21) =====
+
+    public function test_instagram_media_published_exactly_at_cutoff_boundary_is_included(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $days = (int) config('analytics.instagram_default_sync_days');
+        // Persis di lower bound (>=, inklusif) - HARUS masih eligible.
+        $media = $this->igMedia($integration, [
+            'published_at' => now()->subDays($days)->startOfDay(),
+            'last_fetched_at' => now()->subDays(50),
+        ]);
+
+        Http::fake($this->igInsightsSuccessResponse());
+
+        $syncLog = $this->syncLog($integration, 'api_sync');
+        $result = app(InstagramAnalyticsSyncService::class)->refreshKnownMedia($integration, $syncLog, $this->userId());
+
+        $this->assertSame(1, $result['refreshed_count'], 'Media persis di lower bound (>=) HARUS masih eligible - boundary inklusif.');
         $this->assertDatabaseHas('content_metric_snapshots', [
-            'tiktok_video_snapshot_id' => $video->id,
+            'instagram_media_snapshot_id' => $media->id,
             'snapshot_date' => now()->toDateString(),
         ]);
+    }
+
+    public function test_instagram_media_published_one_day_before_cutoff_boundary_is_excluded(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $days = (int) config('analytics.instagram_default_sync_days');
+        // Satu hari SEBELUM lower bound - HARUS TIDAK eligible.
+        $this->igMedia($integration, [
+            'published_at' => now()->subDays($days)->startOfDay()->subDay(),
+            'last_fetched_at' => now()->subDays(50),
+        ]);
+
+        Http::fake(function ($request) {
+            return Http::response(['error' => 'unexpected URL: '.$request->url()], 404);
+        });
+
+        $syncLog = $this->syncLog($integration, 'api_sync');
+        $result = app(InstagramAnalyticsSyncService::class)->refreshKnownMedia($integration, $syncLog, $this->userId());
+
+        $this->assertSame(0, $result['total_count'], 'Media 1 hari sebelum lower bound HARUS TIDAK eligible.');
+        Http::assertNothingSent();
     }
 
     // ===== Final pre-commit verification (Section 3): rotation query scoping =====
@@ -606,17 +658,22 @@ class RefreshKnownContentTest extends TestCase
         $periodStart = now()->subDays(29)->startOfDay(); // periode 30 hari
         $periodEnd = now()->startOfDay();
 
-        // Content lama (published 8 bulan lalu), baseline PERSIS 1 hari
-        // sebelum period_start (boundary ideal).
+        // ROLLING 90-DAY SYNC COVERAGE - published_at diubah dari subMonths(8)
+        // ke subDays(80): tetap "lama" relatif ke periode 30-hari yang diuji
+        // (membuktikan baseline+delta lintas periode tetap benar), TAPI
+        // masih di DALAM rolling 90-day coverage jadi genuinely eligible
+        // buat refreshKnownMedia() SEKARANG (di luar 90 hari SEKARANG
+        // dikecualikan - lihat Scenario A). Media 8-bulan yang TIDAK lagi
+        // eligible normal refresh dites terpisah di Scenario A.
         $media = $this->igMedia($integration, [
-            'published_at' => now()->subMonths(8),
+            'published_at' => now()->subDays(80),
             'last_fetched_at' => now()->subDays(40),
         ]);
         \App\Models\ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $integration->platform_id,
             'instagram_media_snapshot_id' => $media->id,
             'imported_by' => $this->userId(),
-            'metric_date' => now()->subMonths(8),
+            'metric_date' => now()->subDays(80),
             'views' => 1000,
         ]);
         \App\Models\ContentMetricSnapshot::create([

@@ -100,13 +100,18 @@ return [
     | InstagramAnalyticsSyncService::refreshKnownMedia()/
     | TikTokAnalyticsSyncService::refreshKnownVideos() - refresh metrik buat
     | content yang SUDAH DIKENAL sistem (InstagramMediaSnapshot/
-    | TikTokVideoSnapshot manapun milik integration ini), TERLEPAS dari
-    | published_at/discovery window (*_default_sync_days)/retention window -
-    | content age TIDAK BOLEH menentukan apakah observasi hari ini masih
-    | dibutuhkan (post lama tetap bisa dapat views/interaction baru).
-    | Selection: SELURUH known content, urut last_fetched_at ASC (paling
-    | lama tidak di-refresh duluan) dibatasi budget di bawah - rotating,
-    | bukan window tanggal.
+    | TikTokVideoSnapshot manapun milik integration ini).
+    |
+    | ROLLING 90-DAY SYNC COVERAGE - FINAL CORRECTION PASS (keputusan produk
+    | direvisi, MEMBALIK catatan lama di bawah): eligible HANYA kalau
+    | published_at/create_time masih di dalam rolling coverage window yang
+    | SAMA dengan discovery (*_default_sync_days) - content age SEKARANG
+    | MENENTUKAN eligibility. Content di luar window TETAP TERSIMPAN (tidak
+    | dihapus/didetach, snapshot/report/AI history utuh), cuma tidak lagi
+    | ikut rotasi refresh normal. Selection dari kandidat yang eligible:
+    | urut last_fetched_at ASC (paling lama tidak di-refresh duluan)
+    | dibatasi budget di bawah - rotating di dalam window, bukan lagi
+    | rotating tanpa batas usia.
     |
     | Budget DIPISAH per platform karena biaya API-nya TIDAK SIMETRIS:
     | Instagram getMediaInsights() murni per-media (Graph API tidak punya

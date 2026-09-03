@@ -197,7 +197,17 @@ class TikTokAnalyticsSyncService
     {
         $budget = max(0, (int) config('analytics.tiktok_known_refresh_budget'));
 
+        // ROLLING 90-DAY SYNC COVERAGE - FINAL CORRECTION PASS: MIRROR
+        // InstagramAnalyticsSyncService::refreshKnownMedia() (lihat
+        // docblock di sana) - known video eligible buat refresh normal
+        // HANYA kalau published_at (create_time TikTok) masih di dalam
+        // rolling coverage window yang sama dengan discovery
+        // (tiktok_default_sync_days). Video di luar window TETAP TERSIMPAN,
+        // cuma tidak lagi ikut rotasi refresh normal.
+        $coverageLowerBound = now()->subDays((int) config('analytics.tiktok_default_sync_days'))->startOfDay();
+
         $staleKnownVideos = TikTokVideoSnapshot::where('api_integration_id', $integration->id)
+            ->where('published_at', '>=', $coverageLowerBound)
             ->when($excludeFetchedSince, fn ($q) => $q->where(fn ($q2) => $q2
                 ->whereNull('last_fetched_at')
                 ->orWhere('last_fetched_at', '<', $excludeFetchedSince)))

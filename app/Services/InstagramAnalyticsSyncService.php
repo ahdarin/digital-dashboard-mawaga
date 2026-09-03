@@ -228,7 +228,20 @@ class InstagramAnalyticsSyncService
     {
         $budget = max(0, (int) config('analytics.instagram_known_refresh_budget'));
 
+        // ROLLING 90-DAY SYNC COVERAGE - FINAL CORRECTION PASS: known media
+        // TIDAK LAGI direfresh tanpa batas usia (keputusan produk lama,
+        // lihat komentar analytics.instagram_known_refresh_budget di
+        // config). Sekarang eligible HANYA kalau published_at masih di
+        // dalam rolling coverage window yang SAMA dengan discovery
+        // (instagram_default_sync_days) - media di luar window tetap
+        // TERSIMPAN (tidak dihapus/didetach), cuma tidak lagi ikut rotasi
+        // refresh normal. Pakai config key yang sama persis dengan
+        // resolveSyncWindow() supaya window discovery & window eligibility
+        // known-refresh TIDAK PERNAH bisa drift satu sama lain.
+        $coverageLowerBound = now()->subDays((int) config('analytics.instagram_default_sync_days'))->startOfDay();
+
         $staleKnownMedia = InstagramMediaSnapshot::where('api_integration_id', $integration->id)
+            ->where('published_at', '>=', $coverageLowerBound)
             ->when($excludeFetchedSince, fn ($q) => $q->where(fn ($q2) => $q2
                 ->whereNull('last_fetched_at')
                 ->orWhere('last_fetched_at', '<', $excludeFetchedSince)))
