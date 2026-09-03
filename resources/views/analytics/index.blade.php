@@ -368,9 +368,12 @@
                                     <input type="hidden" name="platform_id" value="{{ $selectedPlatformId }}">
                                 @endif
                                 <label for="ai-analysis-month" class="sr-only">Bulan Analisis</label>
-                                <input type="month" id="ai-analysis-month" name="analysis_month" value="{{ $analysisMonth }}"
-                                       max="{{ now()->format('Y-m') }}" onchange="this.form.submit()"
-                                       class="text-xs border border-[var(--border)] rounded-lg px-2.5 py-2 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
+                                <div class="relative">
+                                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-[17px] pointer-events-none">calendar_month</span>
+                                    <input type="text" id="ai-analysis-month" name="analysis_month" value="{{ $analysisMonth }}"
+                                           data-flatpickr="month-combined" data-autosubmit="true" data-max="{{ now()->format('Y-m') }}" readonly
+                                           class="text-sm border border-[var(--border)] rounded-lg pl-9 pr-3 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40 h-[40px] w-[150px]">
+                                </div>
                             </form>
                             @if ($latestAiInsight)
                                 <a href="{{ route('analytics.ai-strategy.history', ['client_id' => $selectedClientId]) }}"

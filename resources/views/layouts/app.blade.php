@@ -448,6 +448,11 @@
                 flatpickr(el, {
                     locale: 'id',
                     defaultDate: el.value || undefined,
+                    // data-max opsional (format "Y-m") - dipakai filter yang
+                    // tidak boleh memilih bulan depan (mis. AI Strategy Analysis,
+                    // retrospective saja). Tidak diset = tidak ada batas atas,
+                    // sama seperti sebelumnya.
+                    maxDate: el.dataset.max ? (el.dataset.max + '-01') : undefined,
                     plugins: [new monthSelectPlugin({ shorthand: false, dateFormat: 'Y-m', altFormat: 'F Y' })],
                     onChange: function () {
                         // el.form (bukan cuma closest('form')) - elemen ini
