@@ -17,6 +17,7 @@ use App\Services\AnalyticsPeriod;
 use App\Services\AnalyticsPeriodResolver;
 use App\Services\AnalyticsSummaryService;
 use App\Services\AnalyticsSyncOrchestrator;
+use App\Services\ContentCohortService;
 use App\Services\PeriodPerformanceService;
 use App\Services\PicAssignmentService;
 use Illuminate\Http\Request;
@@ -158,6 +159,7 @@ class AnalyticsController extends Controller
             'topContent' => $topContent,
             'coverageStatus' => $coverageStatus,
             'coverageMessage' => $coverageMessage,
+            'cohortContextMessage' => $cohortContextMessage,
         ] = $analyticsSummaryService->buildOverviewData($selectedClientId, $period, $selectedPlatformId);
 
         // Phase 4.1 (v2, "AI Strategy Month Selection") - insight yang
@@ -220,6 +222,7 @@ class AnalyticsController extends Controller
             'analysisMonth',
             'coverageStatus',
             'coverageMessage',
+            'cohortContextMessage',
             'emptySlots'
         )));
     }
@@ -271,11 +274,19 @@ class AnalyticsController extends Controller
         $peerStart = Carbon::now()->subDays(29)->startOfDay();
         $peerEnd = Carbon::now()->endOfDay();
 
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 5/18) -
+        // canonical PUBLISH date genuine dari provider (InstagramMediaSnapshot/
+        // TikTokVideoSnapshot.published_at) - TIDAK PERNAH ContentMetric.
+        // created_at/metric_date/last_fetched_at. null buat CSV/manual
+        // (tidak ada timestamp publish provider genuine buat baris manual).
+        $publishedAt = $apiMetric
+            ? ($apiMetric->instagramMediaSnapshot?->published_at ?? $apiMetric->tiktokVideoSnapshot?->published_at)
+            : null;
+
         if ($apiMetric) {
             $identityColumn = $apiMetric->instagram_media_snapshot_id ? 'instagram_media_snapshot_id' : 'tiktok_video_snapshot_id';
             $identityId = $apiMetric->instagram_media_snapshot_id ?? $apiMetric->tiktok_video_snapshot_id;
             $platformType = $apiMetric->instagram_media_snapshot_id ? 'instagram' : 'tiktok';
-            $publishedAt = $apiMetric->instagramMediaSnapshot?->published_at ?? $apiMetric->tiktokVideoSnapshot?->published_at;
 
             // Trend chart harian (90 hari) - GAIN harian genuine dari
             // content_metric_snapshots, BUKAN lifetime cumulative
@@ -397,7 +408,8 @@ class AnalyticsController extends Controller
             'peerAvgEngagement',
             'periodDelta',
             'periodDeltaAvailable',
-            'currentObservedAt'
+            'currentObservedAt',
+            'publishedAt'
         ));
     }
 
@@ -461,24 +473,27 @@ class AnalyticsController extends Controller
         // sini).
         $platformId = $this->resolvePlatformId($request);
 
-        $aggregate = app(PeriodPerformanceService::class)->computeClientPeriod($client->id, $start, $end, $platformId);
-
-        // Content tanpa angka yang bisa dipertanggungjawabkan (unavailable)
-        // TIDAK diexport sebagai baris "0 views" - itu menyesatkan (lihat
-        // catatan yang sama di buildTableTabData()).
-        $rows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 16) -
+        // roster = cohort publikasi (published_at), metrics utama = performa
+        // TERKINI genuine (content_metrics apa adanya). Kolom period_gain_*
+        // TETAP ada (opsional/sekunder, dari period_result yang di-attach
+        // ContentCohortService) TAPI TIDAK PERNAH lagi jadi alasan 1 baris
+        // dikecualikan dari export.
+        $aggregate = app(ContentCohortService::class)->computeClientCohort($client->id, $start, $end, $platformId);
+        $rows = collect($aggregate['rows']);
 
         $filename = 'performance-' . str($client->name)->slug() . '-' . now()->format('Ymd-His') . '.csv';
 
-        $callback = function () use ($rows, $period) {
+        $callback = function () use ($rows) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['content_title', 'platform', 'period_start', 'period_end', 'coverage_status', 'views', 'engagement_rate']);
+            fputcsv($handle, ['content_title', 'platform', 'published_at', 'current_views', 'current_likes', 'current_comments', 'current_shares', 'current_engagement_rate', 'period_views_gain', 'period_coverage_status']);
 
             foreach ($rows as $row) {
                 $metric = $row['content_metric'];
-                $result = $row['result'];
+                $periodResult = $row['period_result'];
+                $isCsv = $row['source'] === 'csv';
 
-                $snapshot = $metric->instagramMediaSnapshot ?? $metric->tiktokVideoSnapshot ?? null;
+                $snapshot = ! $isCsv ? ($metric->instagramMediaSnapshot ?? $metric->tiktokVideoSnapshot) : null;
                 $title = $metric->contentItem?->title
                     ?? ($snapshot?->caption ? \Illuminate\Support\Str::limit($snapshot->caption, 60) : null)
                     ?? ($snapshot?->video_description ? \Illuminate\Support\Str::limit($snapshot->video_description, 60) : null)
@@ -487,11 +502,18 @@ class AnalyticsController extends Controller
                 fputcsv($handle, [
                     $title,
                     $metric->platform->name ?? '-',
-                    $result->coverageFrom?->toDateString(),
-                    $result->coverageTo?->toDateString(),
-                    $result->coverageStatus,
-                    $result->views() ?? 0,
-                    $result->engagementRate,
+                    $row['published_at']?->toDateString(),
+                    $isCsv ? '' : $metric->views,
+                    $isCsv ? '' : $metric->likes,
+                    $isCsv ? '' : $metric->comments,
+                    $isCsv ? '' : $metric->shares,
+                    $metric->engagement_rate,
+                    // CSV/manual tidak punya konsep "current total" terpisah
+                    // dari periode - nilainya sendiri (genuine, apa adanya
+                    // dari input user) ditaruh di sini (bukan hilang tanpa
+                    // muncul di kolom manapun).
+                    $isCsv ? $metric->views : $periodResult?->views(),
+                    $isCsv ? \App\Services\ContentPeriodResult::PARTIAL : ($periodResult?->coverageStatus ?? \App\Services\ContentPeriodResult::UNAVAILABLE),
                 ]);
             }
 
@@ -759,26 +781,27 @@ class AnalyticsController extends Controller
         // berjalan TIDAK dievaluasi sampai tanggal yang belum terjadi.
         $start = $period->dateFrom;
         $end = $period->effectiveDateTo;
-        $periodPerformanceService = app(PeriodPerformanceService::class);
-        $aggregate = $periodPerformanceService->computeClientPeriod($client->id, $start, $end, $platformId);
-        $coverageMessage = $periodPerformanceService->coverageMessage($aggregate['coverage'], $period->label());
 
-        // Content tanpa data yang bisa dipertanggungjawabkan (unavailable -
-        // belum ada observasi/terdeteksi metric reset) TIDAK ditampilkan
-        // seolah performanya 0 - itu menyesatkan ("0 views" berarti
-        // "diketahui nol", bukan "tidak diketahui"). Full & partial
-        // dua-duanya TETAP masuk (Langkah 12, "solusi minimal yang jujur")
-        // dengan coverage_status diikutkan biar UI kasih badge partial.
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi (ContentCohortService, published_at), BUKAN lagi
+        // isUsable()-filtered computeClientPeriod() rows. Konten yang
+        // dipublikasikan periode ini TETAP tampil walau riwayat observasi
+        // period-gain-nya belum cukup (mis. sync baru mulai setelah periode
+        // itu berlalu) - lihat docblock ContentCohortService buat root
+        // cause lengkap ("empty August" bug).
+        $cohortContextMessage = 'Menampilkan performa terkini konten yang dipublikasikan pada '.$period->label().'.';
+        $aggregate = app(ContentCohortService::class)->computeClientCohort($client->id, $start, $end, $platformId);
+
         $formatResolver = app(\App\Services\ContentFormatResolver::class);
 
         $rows = collect($aggregate['rows'])
-            ->filter(fn ($row) => $row['result']->isUsable())
             ->map(function ($row) use ($formatResolver) {
                 $metric = $row['content_metric'];
-                $result = $row['result'];
+                $periodResult = $row['period_result']; // null utk CSV - lihat ContentCohortService
+                $isCsv = $row['source'] === 'csv';
                 $item = $metric->contentItem;
-                $igSnapshot = $metric->instagramMediaSnapshot;
-                $ttSnapshot = $metric->tiktokVideoSnapshot;
+                $igSnapshot = ! $isCsv ? $metric->instagramMediaSnapshot : null;
+                $ttSnapshot = ! $isCsv ? $metric->tiktokVideoSnapshot : null;
                 $snapshot = $igSnapshot ?? $ttSnapshot;
 
                 return (object) [
@@ -814,27 +837,28 @@ class AnalyticsController extends Controller
                     // SUDAH benar cek `!== null`, cuma nilainya sudah keburu
                     // ditimpa di sini. Null TETAP null sekarang.
                     //
-                    // SYSTEM CONSISTENCY PASS (Part AA/AB) - BUG NYATA
-                    // ditemukan & diperbaiki lewat trace end-to-end data
-                    // real (client Metro Software, media Reels id=3):
-                    // content_metrics.views SUDAH BENAR menyimpan total
-                    // provider TERKINI di setiap sync (18.573 pada kasus
-                    // nyata di atas) - masalahnya SEMATA presentasi (root
-                    // cause kategori G): tabel ini HANYA PERNAH menampilkan
-                    // $result->views() (GAIN periode terpilih, sengaja kecil
-                    // kalau riwayat snapshot baru mulai belakangan), dilabeli
-                    // polos "Views" - user membacanya sebagai total saat
-                    // ini. 'current_views' SEKARANG eksplisit total provider
-                    // TERKINI (content_metrics.views mentah) - HANYA diisi
-                    // buat konten yang genuinely API-linked ($snapshot ada),
-                    // TIDAK PERNAH difabrikasi buat CSV/manual (tidak ada
-                    // konsep "current total" terpisah dari periode di sana).
-                    'current_views' => $snapshot ? $metric->views : null,
+                    // SYSTEM CONSISTENCY PASS (Part AA/AB) / FINAL ANALYTICS
+                    // PRODUCT SEMANTICS CORRECTION - 'current_views' = total
+                    // provider TERKINI (content_metrics.views apa adanya,
+                    // concept B, PRIMARY) - HANYA diisi buat konten yang
+                    // genuinely API-linked ($snapshot ada), TIDAK PERNAH
+                    // difabrikasi buat CSV/manual (tidak ada konsep "current
+                    // total" terpisah dari periode di sana). 'total_views'
+                    // SEKARANG murni gain periode SEKUNDER (concept C, dari
+                    // period_result yang di-attach ContentCohortService) -
+                    // nullable kalau riwayat observasi belum cukup (mis.
+                    // sync baru mulai setelah periode ini berlalu) - TIDAK
+                    // PERNAH lagi menentukan apakah baris ini muncul sama
+                    // sekali (itu sudah diputuskan roster cohort di atas,
+                    // murni published_at).
+                    'current_views' => $isCsv ? null : ($snapshot ? $metric->views : null),
                     'current_observed_at' => $snapshot?->last_fetched_at,
-                    'total_views' => $result->views(),
-                    'avg_engagement' => $result->engagementRate,
-                    'coverage_status' => $result->coverageStatus,
-                    'availability_category' => $result->availabilityCategory(),
+                    'total_views' => $isCsv ? (int) $metric->views : $periodResult?->views(),
+                    'avg_engagement' => $isCsv
+                        ? ($metric->engagement_rate !== null ? (float) $metric->engagement_rate : null)
+                        : ($metric->engagement_rate !== null ? (float) $metric->engagement_rate : null),
+                    'coverage_status' => $isCsv ? \App\Services\ContentPeriodResult::PARTIAL : ($periodResult?->coverageStatus ?? \App\Services\ContentPeriodResult::UNAVAILABLE),
+                    'availability_category' => $isCsv ? 'available' : ($periodResult?->availabilityCategory() ?? 'insufficient_history'),
                     // Deadline HANYA dari workflow internal - null kalau
                     // unmatched, TIDAK PERNAH diisi dari published_at/
                     // snapshot_date/created_at (itu bukan deadline).
@@ -863,9 +887,19 @@ class AnalyticsController extends Controller
             $rows = $rows->filter(fn ($r) => str_contains(strtolower($r->title), $needle));
         }
 
-        $rows = in_array($sort, ['total_views', 'avg_engagement'])
-            ? $rows->sortBy(fn ($r) => $r->{$sort} ?? -INF, SORT_REGULAR, $dir === 'desc')
-            : $rows->sortBy($sort, SORT_REGULAR, $dir === 'desc');
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 7, 13) -
+        // sort key/URL param "total_views" DIPERTAHANKAN (backward
+        // compatible link/bookmark), TAPI nilai yang dibandingkan SEKARANG
+        // current_views dulu (performa TERKINI, primary) dengan total_views
+        // (gain periode, secondary) sebagai fallback - "top-performing
+        // content dalam cohort" berarti diranking dari performa sekarang,
+        // bukan gain periode yang bisa jadi kosong semata karena riwayat
+        // observasi baru mulai.
+        $rows = match ($sort) {
+            'total_views' => $rows->sortBy(fn ($r) => $r->current_views ?? $r->total_views ?? -INF, SORT_REGULAR, $dir === 'desc'),
+            'avg_engagement' => $rows->sortBy(fn ($r) => $r->{$sort} ?? -INF, SORT_REGULAR, $dir === 'desc'),
+            default => $rows->sortBy($sort, SORT_REGULAR, $dir === 'desc'),
+        };
         $rows = $rows->values();
 
         $page = (int) $request->input('page', 1);
@@ -884,7 +918,7 @@ class AnalyticsController extends Controller
         // global saat di-array_merge() controller.
         $contentTypeOptions = \App\Models\ContentType::whereHas('contentItems', fn($q) => $q->where('client_id', $client->id))->get();
 
-        return compact('client', 'items', 'contentTypeOptions', 'sort', 'dir', 'coverageMessage');
+        return compact('client', 'items', 'contentTypeOptions', 'sort', 'dir', 'cohortContextMessage');
     }
 
     /**

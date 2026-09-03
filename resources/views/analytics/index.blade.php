@@ -290,8 +290,21 @@
             $chartColors = ['#044b46', '#3452a8', '#b8873a', '#b3427e', '#7c5cbf'];
         @endphp
 
-        {{-- Phase 3 (Langkah 11) - coverage historis harus jelas, JANGAN
-        tampilkan angka periode tanpa qualifier kalau datanya belum full. --}}
+        {{-- FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 26, "UX
+        ACCEPTANCE") - context line SELALU tampil (bukan conditional warning
+        lagi) menjelaskan angka di bawah ini adalah performa TERKINI konten
+        yang DIPUBLIKASIKAN pada periode terpilih, bukan gain metrik selama
+        periode. --}}
+        @if (! empty($cohortContextMessage))
+            <div class="card p-4 mb-6 flex items-start gap-3" style="background: var(--surface-muted);">
+                <span class="material-symbols-outlined text-[var(--text-muted)] text-[20px]">info</span>
+                <p class="text-[13px] text-[var(--text-secondary)]">{{ $cohortContextMessage }}</p>
+            </div>
+        @endif
+
+        {{-- Ini SEKARANG murni soal data pertumbuhan/gain PERIODE (concept
+        C, sekunder) yang belum lengkap - TIDAK PERNAH lagi berarti angka
+        performa terkini di atas (Total Views dkk) belum lengkap. --}}
         @if (! empty($coverageMessage))
             <div class="card p-4 mb-6 flex items-start gap-3" style="background: var(--warning-tint); border-color: var(--warning-text);">
                 <span class="material-symbols-outlined text-[var(--warning-text)] text-[20px]">info</span>
@@ -453,11 +466,13 @@
                         {{-- ===== TAB: RINGKASAN ===== --}}
                         <div x-show="tab === 'ringkasan'" x-cloak>
                             @php
-                                // Phase 4.1 (Langkah 12) - coverage_status dibawa
-                                // di performance_data (disimpan APA ADANYA dari
-                                // PeriodPerformanceService saat insight ini
-                                // digenerate) - insight lama (pre-Phase-4.1) tidak
-                                // punya field ini sama sekali, @php ?? null aman.
+                                // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION
+                                // (Langkah 10) - coverage_status di performance_data
+                                // SEKARANG murni soal riwayat PERTUMBUHAN metrik
+                                // (concept C, sekunder) - TIDAK PERNAH lagi berarti
+                                // analisis performa terkini di bawah ini kosong/umum.
+                                // Insight lama (pre-correction) tidak punya field
+                                // ini, @php ?? null aman.
                                 $aiCoverageStatus = $latestAiInsight->performance_data['coverage_status'] ?? null;
                                 $aiCoverageFrom = $latestAiInsight->performance_data['coverage_from'] ?? null;
                             @endphp
@@ -466,9 +481,9 @@
                                     <span class="material-symbols-outlined text-[var(--warning-text)] text-[17px] shrink-0">info</span>
                                     <p class="text-xs text-[var(--warning-text)] leading-relaxed">
                                         @if ($aiCoverageStatus === 'unavailable')
-                                            Belum ada data performa yang teramati untuk periode ini - analisis di bawah bersifat umum, belum berdasarkan angka performa spesifik.
+                                            Riwayat pertumbuhan metrik selama periode ini belum tersedia - analisis di bawah tetap berdasarkan performa terkini konten yang genuinely dipublikasikan periode ini, hanya klaim "naik/turun selama periode ini" yang belum bisa dibuktikan.
                                         @else
-                                            Data historis untuk periode ini belum lengkap{{ $aiCoverageFrom ? ' - baru teramati sejak '.\Illuminate\Support\Carbon::parse($aiCoverageFrom)->translatedFormat('d M Y') : '' }}. Analisis di bawah didasarkan pada data yang benar-benar teramati, bukan periode penuh.
+                                            Riwayat pertumbuhan metrik untuk periode ini belum lengkap{{ $aiCoverageFrom ? ' - baru teramati sejak '.\Illuminate\Support\Carbon::parse($aiCoverageFrom)->translatedFormat('d M Y') : '' }}. Analisis performa terkini di bawah tetap lengkap; klaim pertumbuhan hanya berlaku untuk konten yang benar-benar punya riwayat itu.
                                         @endif
                                     </p>
                                 </div>
@@ -937,7 +952,14 @@
                                             <td class="px-4 py-3.5 text-right [font-variant-numeric:tabular-nums]">
                                                 @if (($content['current_views'] ?? null) !== null)
                                                     <div class="font-medium text-[var(--text-primary)]">{{ number_format($content['current_views']) }}</div>
-                                                    <div class="text-[11px] text-[var(--text-muted)]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</div>
+                                                    {{-- FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - period gain
+                                                         (concept C, SECONDARY) TIDAK PERNAH dipaksa jadi "+0" kalau
+                                                         genuinely belum diketahui (riwayat belum cukup) - null != 0. --}}
+                                                    @if (($content['views'] ?? null) !== null)
+                                                        <div class="text-[11px] text-[var(--text-muted)]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</div>
+                                                    @else
+                                                        <div class="text-[11px] text-[var(--text-muted)]">Pertumbuhan periode: Riwayat belum cukup</div>
+                                                    @endif
                                                 @else
                                                     <div class="font-medium text-[var(--text-primary)]">{{ number_format($content['views']) }}</div>
                                                 @endif
@@ -1021,7 +1043,11 @@
                                             <span class="text-right">
                                                 @if (($content['current_views'] ?? null) !== null)
                                                     <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['current_views']) }}</span>
-                                                    <span class="block text-[10px] text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</span>
+                                                    @if (($content['views'] ?? null) !== null)
+                                                        <span class="block text-[10px] text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</span>
+                                                    @else
+                                                        <span class="block text-[10px] text-[var(--text-muted)]">Riwayat belum cukup</span>
+                                                    @endif
                                                 @else
                                                     <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</span>
                                                 @endif

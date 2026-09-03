@@ -9,7 +9,9 @@ use App\Models\ContentMetric;
 use App\Models\Platform;
 use App\Rules\AssignedClient;
 use App\Services\AnalyticsPeriodResolver;
+use App\Services\ContentCohortService;
 use App\Services\ContentFormatResolver;
+use App\Services\ContentPeriodResult;
 use App\Services\PeriodPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -182,11 +184,13 @@ class ReportController extends Controller
     }
 
     /**
-     * Phase 3 (Langkah 9F): views/engagement_rate SEKARANG delta periode
-     * genuine (PeriodPerformanceService), BUKAN lagi sum(views) whereBetween
-     * (metric_date) - metric_date API dikunci ke tanggal publish. Roster
-     * TETAP whereHas('contentItem', ...) (cuma content yang SUDAH ke-link -
-     * preserved dari behavior lama Report, bukan scope Phase 3).
+     * FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 17) - roster
+     * SEKARANG cohort publikasi (published_at), views/engagement_rate =
+     * performa TERKINI genuine (ContentMetric apa adanya), BUKAN lagi delta
+     * periode - laporan bulanan HARUS primarily menganalisis cohort
+     * publikasi, bukan gain metrik. Roster TETAP whereHas('contentItem', ...)
+     * (cuma content yang SUDAH ke-link - preserved dari behavior lama
+     * Report, bukan bagian scope koreksi ini).
      */
     private function buildPerformanceData(array $filters): array
     {
@@ -198,6 +202,8 @@ class ReportController extends Controller
         $apiMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'contentItem.contentFormat', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
             ->whereHas('contentItem', fn ($q) => $q->where('client_id', $filters['client_id']))
             ->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
+            ->where(fn ($q) => $q->whereHas('instagramMediaSnapshot', fn ($q2) => $q2->whereBetween('published_at', [$periodStart, $periodEnd]))
+                ->orWhereHas('tiktokVideoSnapshot', fn ($q2) => $q2->whereBetween('published_at', [$periodStart, $periodEnd])))
             ->get();
 
         $csvMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'contentItem.contentFormat', 'platform'])
@@ -207,13 +213,12 @@ class ReportController extends Controller
             ->whereBetween('metric_date', [$periodStart, $periodEnd])
             ->get();
 
-        $periodPerformanceService = app(PeriodPerformanceService::class);
-        $aggregate = $periodPerformanceService->computeAggregate($apiMetrics, $csvMetrics, $periodStart, $periodEnd);
-        $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
+        $aggregate = app(ContentCohortService::class)->buildCohortRows($apiMetrics, $csvMetrics, $periodStart, $periodEnd);
+        $cohortRows = collect($aggregate['rows']);
 
         $formatResolver = app(ContentFormatResolver::class);
 
-        $topContent = $usableRows
+        $topContent = $cohortRows
             ->map(function ($row) use ($formatResolver) {
                 $item = $row['content_metric']->contentItem;
                 if (! $item) {
@@ -233,8 +238,8 @@ class ReportController extends Controller
                         $row['content_metric']->instagramMediaSnapshot,
                         $row['content_metric']->tiktokVideoSnapshot,
                     ) ?? '-',
-                    'views' => $row['result']->views() ?? 0,
-                    'engagement_rate' => $row['result']->engagementRate ?? 0,
+                    'views' => (int) ($row['content_metric']->views ?? 0),
+                    'engagement_rate' => $row['content_metric']->engagement_rate !== null ? (float) $row['content_metric']->engagement_rate : 0,
                 ];
             })
             ->filter()
@@ -248,6 +253,18 @@ class ReportController extends Controller
         // bukan lagi angka mentah "N hari").
         $periodLabel = app(AnalyticsPeriodResolver::class)->buildCustom($periodStart, $periodEnd)->label();
 
+        // SECONDARY ONLY (concept C) - lihat catatan yang sama di
+        // AnalyticsSummaryService/AiStrategyService. "full" HARUS berarti
+        // SEMUA baris punya period-gain PENUH (bukan cuma "usable").
+        $rowsWithFullPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result']?->coverageStatus === ContentPeriodResult::FULL);
+        $rowsWithAnyPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result'] && $row['period_result']->isUsable());
+        $coverageStatus = match (true) {
+            $cohortRows->isEmpty() => ContentPeriodResult::UNAVAILABLE,
+            $rowsWithFullPeriodMovement->count() === $cohortRows->count() => ContentPeriodResult::FULL,
+            $rowsWithAnyPeriodMovement->isEmpty() => ContentPeriodResult::UNAVAILABLE,
+            default => ContentPeriodResult::PARTIAL,
+        };
+
         return [
             'total_views' => $aggregate['totals']['views'],
             'avg_engagement' => $aggregate['totals']['engagement_rate'] ?? 0,
@@ -258,8 +275,11 @@ class ReportController extends Controller
             'client_name' => $client->name ?? '-',
             'period_start' => $periodStart->format('d M Y'),
             'period_end' => $periodEnd->format('d M Y'),
-            'coverage_status' => $aggregate['coverage']['status'],
-            'coverage_message' => $periodPerformanceService->coverageMessage($aggregate['coverage'], $periodLabel),
+            'cohort_context_message' => "Performa terkini konten yang dipublikasikan pada {$periodLabel}.",
+            'coverage_status' => $coverageStatus,
+            'coverage_message' => $coverageStatus !== ContentPeriodResult::FULL
+                ? 'Riwayat pertumbuhan metrik selama periode ini belum tersedia untuk sebagian konten - angka performa terkini di atas tetap genuine dan lengkap.'
+                : null,
         ];
     }
 

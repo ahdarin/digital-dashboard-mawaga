@@ -99,23 +99,21 @@ class GlobalCrossPageConsistencyTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+            // DALAM cohort periode (roster published_at-gated).
             $media = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => 'ig-'.uniqid(),
                 'match_status' => 'unmatched', 'media_type' => 'VIDEO', 'media_product_type' => 'REELS',
-                'published_at' => now()->subDays(60), 'last_fetched_at' => now(),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
             ]);
             ContentMetric::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-                'metric_date' => now()->subDays(60), 'views' => 18573, 'engagement_rate' => 4.2,
+                'metric_date' => now(), 'views' => 18573, 'engagement_rate' => 4.2,
             ]);
             ContentMetricSnapshot::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => 18000,
-            ]);
-            ContentMetricSnapshot::create([
-                'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 18573,
+                'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 18573,
             ]);
 
             $tableResponse = $this->actingAs($manager)->get(route('analytics', ['tab' => 'table', 'client_id' => $client->id]));
@@ -156,32 +154,27 @@ class GlobalCrossPageConsistencyTest extends TestCase
             'content_format_id' => $carousel->id,
             'title' => 'Konten Lintas Halaman '.uniqid(), 'deadline_at' => now()->subDay(),
         ]);
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+        // DALAM cohort periode (bulan berjalan, roster published_at-gated) -
+        // startOfMonth()+1day dipakai (bukan subDays(10)) supaya AMAN dari
+        // batas bulan terlepas tanggal real test dijalankan.
+        $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
         $media = InstagramMediaSnapshot::create([
             'api_integration_id' => $integration->id, 'external_post_id' => 'ig-'.uniqid(),
             // Snapshot mentah bilang IMAGE - master item bilang Carousel.
             // Master HARUS menang di SEMUA konsumen, konsisten.
             'match_status' => 'matched', 'media_type' => 'IMAGE',
-            'published_at' => now()->subDays(10), 'last_fetched_at' => now(),
+            'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
         ]);
         ContentMetric::create([
             'content_item_id' => $item->id, 'client_id' => $client->id, 'platform_id' => $platform->id,
             'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-            'metric_date' => now()->subDays(10), 'views' => 400, 'engagement_rate' => 2.0,
-        ]);
-        // Pairing snapshot (baseline+current) - TANPA ini baris masuk
-        // 'unavailable' (missing_current) dan ke-exclude total dari
-        // isUsable() di semua konsumen (pola sama dipakai tes lain di
-        // file ini/ContentClassificationTest).
-        $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $platform->id, 'content_item_id' => $item->id,
-            'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => 350,
+            'metric_date' => now(), 'views' => 400, 'engagement_rate' => 2.0,
         ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $platform->id, 'content_item_id' => $item->id,
             'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 400,
+            'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 400,
         ]);
 
         // Consumer 1: Analytics table.
@@ -216,22 +209,23 @@ class GlobalCrossPageConsistencyTest extends TestCase
         $platform = Platform::firstOrCreate(['name' => 'TikTok']);
         $integration = $this->tiktokIntegration($client);
 
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+        // DALAM cohort periode (bulan berjalan, roster published_at-gated) -
+        // startOfMonth()+1day dipakai (bukan subDays(3)) supaya AMAN dari
+        // batas bulan terlepas tanggal real test dijalankan.
+        $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
         $video = TikTokVideoSnapshot::create([
             'api_integration_id' => $integration->id, 'external_post_id' => 'tt-'.uniqid(),
-            'match_status' => 'unmatched', 'published_at' => now()->subDays(3), 'last_fetched_at' => now(),
+            'match_status' => 'unmatched', 'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
         ]);
         ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $platform->id,
             'tiktok_video_snapshot_id' => $video->id, 'imported_by' => $manager->id,
-            'metric_date' => now(), 'views' => 0, 'engagement_rate' => 0,
+            'metric_date' => now(), 'views' => 20, 'engagement_rate' => 0,
         ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $platform->id, 'tiktok_video_snapshot_id' => $video->id,
-            'snapshot_date' => now()->subDay()->toDateString(), 'views' => 10,
-        ]);
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $platform->id, 'tiktok_video_snapshot_id' => $video->id,
-            'snapshot_date' => now()->toDateString(), 'views' => 20,
+            'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 20,
         ]);
 
         $analyticsResponse = $this->actingAs($manager)->get(route('analytics', ['tab' => 'table', 'client_id' => $client->id]));
@@ -396,23 +390,21 @@ class GlobalCrossPageConsistencyTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+            // DALAM cohort periode (roster published_at-gated).
             $media = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => 'ig-'.uniqid(),
                 'match_status' => 'unmatched', 'media_type' => 'IMAGE',
-                'published_at' => now()->subDays(15), 'last_fetched_at' => now(),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
             ]);
             ContentMetric::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-                'metric_date' => now()->subDays(15), 'views' => 900, 'engagement_rate' => 3.0,
+                'metric_date' => now(), 'views' => 900, 'engagement_rate' => 3.0,
             ]);
             ContentMetricSnapshot::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => 100,
-            ]);
-            ContentMetricSnapshot::create([
-                'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 900,
+                'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 800,
             ]);
 
             $overview = $this->actingAs($manager)->get(route('analytics', ['tab' => 'overview', 'client_id' => $client->id]));
@@ -423,8 +415,9 @@ class GlobalCrossPageConsistencyTest extends TestCase
             $table->assertOk();
             $export->assertOk();
 
-            // Delta genuine = 900 - 100 = 800, SAMA di ketiganya (semua
-            // resolve lewat PeriodPerformanceService::computeClientPeriod
+            // Period-gain genuine (baseline=0 karena publish di dalam
+            // periode) = 800 (dari satu-satunya snapshot harian yang ada),
+            // SAMA di ketiganya (semua resolve lewat ContentCohortService
             // yang identik, bukan kalkulasi lokal masing-masing).
             $overview->assertSee('+800 periode ini');
             $table->assertSee('+800 periode ini');

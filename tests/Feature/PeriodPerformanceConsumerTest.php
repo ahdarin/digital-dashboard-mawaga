@@ -93,9 +93,16 @@ class PeriodPerformanceConsumerTest extends TestCase
         int $baselineViews,
         int $currentViews,
         bool $linkToContentItem = false,
+        ?Carbon $publishedAt = null,
     ): array {
         $platform = Platform::find($integration->platform_id);
-        $publishedAt = now()->subDays(150); // jauh di luar SEMUA window periode yang dites di file ini
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi (published_at), BUKAN lagi coverage/observasi.
+        // Default DI DALAM periode yang diuji (bukan lagi 150 hari lalu di
+        // luar semua window) supaya konten ini genuinely muncul di roster
+        // consumer yang diuji - caller yang butuh publish DI LUAR periode
+        // (utk membuktikan exclusion) mengirim $publishedAt eksplisit.
+        $publishedAt = $publishedAt ?? $periodStart->copy()->addDay();
 
         $media = InstagramMediaSnapshot::create([
             'api_integration_id' => $integration->id,
@@ -159,7 +166,7 @@ class PeriodPerformanceConsumerTest extends TestCase
 
     // ===== 14: Overview uses period engine =====
 
-    public function test_overview_shows_period_delta_not_lifetime_cumulative_locked_to_publish_date(): void
+    public function test_overview_shows_current_performance_for_content_published_in_period(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -167,6 +174,12 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $periodStart = now()->subDays(6)->startOfDay();
         $periodEnd = now()->startOfDay();
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi. Content published DI DALAM periode ini
+        // (publishedAt default = periodStart+1day) - baseline SELALU 0
+        // legitimate (belum ada sebelum publish), jadi period-gain SECARA
+        // MATEMATIS = current views persis (tidak ada histori sebelum
+        // publish yang bisa dikurangi) - dua angka SAMA, keduanya genuine.
         $this->apiContentWithDelta($client, $integration, $periodStart, $periodEnd, baselineViews: 2000, currentViews: 5000);
 
         $response = $this->actingAs($manager)->get(route('analytics', [
@@ -174,25 +187,19 @@ class PeriodPerformanceConsumerTest extends TestCase
         ]));
 
         $response->assertOk();
-        // Delta genuine (5000-2000=3000) HARUS tampil, dilabeli qualifier
-        // "periode ini" - dengan bug lama (whereBetween metric_date,
-        // publish date 150 hari lalu, DI LUAR window 7 hari), angka ini
-        // akan 0/hilang sama sekali.
-        //
-        // SYSTEM CONSISTENCY PASS (Part AA-AB) - "5,000" (total provider
-        // SAAT INI, content_metrics.views) SEKARANG SENGAJA tampil
-        // berdampingan (BUKAN lagi disembunyikan) - versi lama assertion
-        // ini (assertDontSee('5,000')) membuktikan hal yang salah: dulu
-        // 5,000 memang tidak pernah tampil sama sekali di UI manapun -
-        // itu SENDIRI bug root cause yang diperbaiki pass ini, bukan
-        // perilaku yang benar untuk dipertahankan.
-        $response->assertSee('+3,000 periode ini');
+        // "5,000" (current, PRIMARY) HARUS tampil - dengan bug lama roster
+        // digerbang oleh isUsable()/coverage bukan published_at, konten
+        // yang publish date-nya baru di dalam periode TAPI observasi
+        // pertamanya bertepatan dgn publish (baseline=0) bisa saja tetap
+        // ke-exclude tergantung boundary observasi - sekarang HARUS selalu
+        // tampil murni karena published_at di dalam periode.
         $response->assertSee('5,000');
+        $response->assertSee('+5,000 periode ini');
     }
 
     // ===== 15: Performance Table uses period engine =====
 
-    public function test_table_shows_period_delta_not_lifetime_cumulative(): void
+    public function test_table_shows_current_performance_for_content_published_in_period(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -200,6 +207,10 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $periodStart = now()->subDays(6)->startOfDay();
         $periodEnd = now()->startOfDay();
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi (published_at) - lihat catatan sama di test
+        // overview di atas soal kenapa gain = current buat konten yang
+        // publish DI DALAM periode yang diquery.
         $this->apiContentWithDelta($client, $integration, $periodStart, $periodEnd, baselineViews: 1000, currentViews: 4500);
 
         $response = $this->actingAs($manager)->get(route('analytics', [
@@ -207,18 +218,15 @@ class PeriodPerformanceConsumerTest extends TestCase
         ]));
 
         $response->assertOk();
-        // SYSTEM CONSISTENCY PASS (Part AA-AC) - kolom Views SEKARANG total
-        // SAAT INI (4,500, bold/primer) + gain periode (delta genuine,
-        // 3,500) dilabeli eksplisit "periode ini" (BUKAN lagi bare
-        // ">3,500<" berdiri sendiri seolah itu total) - keduanya HARUS
-        // tampil, dua nilai BERBEDA yang genuine.
+        // Kolom Views: total SAAT INI (4,500, bold/primer, PRIMARY) + gain
+        // periode (SECONDARY, "periode ini") - keduanya HARUS tampil.
         $response->assertSee('4,500');
-        $response->assertSee('+3,500 periode ini');
+        $response->assertSee('+4,500 periode ini');
     }
 
     // ===== 16: Export uses period engine / honest labeling =====
 
-    public function test_export_uses_period_delta_and_honest_columns(): void
+    public function test_export_uses_current_performance_as_primary_with_published_at_roster(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -226,6 +234,8 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $periodStart = now()->subDays(6)->startOfDay();
         $periodEnd = now()->startOfDay();
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 16) - roster
+        // export SEKARANG cohort publikasi, kolom utama performa TERKINI.
         $this->apiContentWithDelta($client, $integration, $periodStart, $periodEnd, baselineViews: 500, currentViews: 2000);
 
         $response = $this->actingAs($manager)->get(route('analytics.export', [
@@ -235,9 +245,8 @@ class PeriodPerformanceConsumerTest extends TestCase
         $response->assertOk();
         $csv = $response->streamedContent();
 
-        $this->assertStringContainsString('content_title,platform,period_start,period_end,coverage_status,views,engagement_rate', $csv);
-        $this->assertStringContainsString(',1500,', $csv, 'Views di CSV harus delta periode (2000-500=1500), bukan lifetime cumulative.');
-        $this->assertStringContainsString('full', $csv, 'coverage_status harus diikutkan di export.');
+        $this->assertStringContainsString('content_title,platform,published_at,current_views,current_likes,current_comments,current_shares,current_engagement_rate,period_views_gain,period_coverage_status', $csv);
+        $this->assertStringContainsString(',2000,', $csv, 'current_views di CSV harus total provider TERKINI genuine (2000), bukan gain periode.');
     }
 
     // ===== 17: Content Detail uses snapshot history =====
@@ -272,7 +281,7 @@ class PeriodPerformanceConsumerTest extends TestCase
 
     // ===== 18: Executive Dashboard no longer uses publish-date semantics =====
 
-    public function test_dashboard_total_views_uses_period_delta_for_linked_api_content(): void
+    public function test_dashboard_total_views_uses_current_performance_for_content_published_this_month(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client, 'dashboard');
@@ -280,25 +289,30 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $startOfMonth = now()->startOfMonth();
         $endOfMonth = now();
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - "Total Views Bulan
+        // Ini" = performa TERKINI konten yang published bulan ini (default
+        // publishedAt = startOfMonth+1day, di dalam bulan berjalan).
         $this->apiContentWithDelta($client, $integration, $startOfMonth, $endOfMonth, baselineViews: 3000, currentViews: 9500, linkToContentItem: true);
 
         $response = $this->actingAs($manager)->get(route('dashboard'));
 
         $response->assertOk();
-        // 9500-3000 = 6500 - JAUH beda dari lifetime cumulative (9500) atau
-        // 0 (kalau masih whereBetween metric_date publish 150 hari lalu).
-        $response->assertSee('6,500');
+        // 9,500 - JAUH beda dari 0 (kalau masih whereBetween metric_date
+        // publish 150 hari lalu, di luar bulan berjalan).
+        $response->assertSee('9,500');
     }
 
     // ===== 19: Reports use period engine =====
 
-    public function test_report_performance_data_uses_period_delta(): void
+    public function test_report_performance_data_uses_current_performance_for_published_in_period_cohort(): void
     {
         $client = $this->client();
         $integration = $this->instagramIntegration($client);
 
         $periodStart = now()->subDays(6)->startOfDay();
         $periodEnd = now()->startOfDay();
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 17) - roster
+        // laporan SEKARANG cohort publikasi, total_views = performa TERKINI.
         $result = $this->apiContentWithDelta($client, $integration, $periodStart, $periodEnd, baselineViews: 800, currentViews: 3300, linkToContentItem: true);
 
         $controller = new \App\Http\Controllers\ReportController();
@@ -311,13 +325,13 @@ class PeriodPerformanceConsumerTest extends TestCase
             'period_end' => $periodEnd->toDateString(),
         ]);
 
-        $this->assertSame(2500, $data['total_views'], '3300-800=2500, bukan lifetime cumulative (3300) atau 0.');
+        $this->assertSame(3300, $data['total_views'], 'total_views HARUS performa TERKINI genuine (3300), bukan gain periode (2500) atau 0.');
         $this->assertSame('full', $data['coverage_status']);
     }
 
     // ===== 20: AI Strategy input uses corrected period performance =====
 
-    public function test_ai_strategy_performance_summary_uses_period_delta(): void
+    public function test_ai_strategy_performance_summary_uses_current_performance_for_published_in_month_cohort(): void
     {
         $client = $this->client();
         $integration = $this->instagramIntegration($client);
@@ -330,14 +344,15 @@ class PeriodPerformanceConsumerTest extends TestCase
         $window = app(AiStrategyService::class)->resolveMonthWindow($month);
         $analysisStart = $window['start'];
         $analysisEnd = $window['end'];
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 10) - roster
+        // AI SEKARANG cohort publikasi (published_at default = analysisStart
+        // +1day, di dalam bulan yang dianalisis) - total_views = performa
+        // TERKINI genuine, bukan delta periode.
         $result = $this->apiContentWithDelta($client, $integration, $analysisStart, $analysisEnd, baselineViews: 1200, currentViews: 4700, linkToContentItem: true);
 
-        // apiContentWithDelta() menaruh baseline 1 hari SEBELUM periodStart
-        // (by design, itu boundary ideal) - artinya baseline itu di LUAR
-        // window [analysisStart, analysisEnd], cuma snapshot "current"
-        // (tanggal analysisEnd) yang genuinely di dalam window. Tambah 1
-        // snapshot lagi DI DALAM window biar tracked_days bisa dibuktikan
-        // >= 2 (bukan cuma 1, yang akan sama persis dgn semantik lama).
+        // Tambah 1 snapshot lagi DI DALAM window biar tracked_days bisa
+        // dibuktikan >= 2 (bukan cuma 1, yang akan sama persis dgn
+        // semantik lama distinct metric_date).
         ContentMetricSnapshot::create([
             'client_id' => $client->id,
             'platform_id' => Platform::find($integration->platform_id)->id,
@@ -349,7 +364,8 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $summary = app(AiStrategyService::class)->buildPerformanceSummary($client, $month, null);
 
-        $this->assertSame(4700 - 1200, $summary['total_views']);
+        $this->assertSame(4700, $summary['total_views'], 'total_views HARUS performa TERKINI genuine (4700), bukan gain periode (3500) atau 0.');
+        $this->assertSame('content_published_in_period', $summary['cohort']);
         $this->assertGreaterThanOrEqual(2, $summary['tracked_days'], 'tracked_days harus dari snapshot_date genuine (2 baris dibuat), bukan distinct metric_date (selalu 1).');
     }
 
@@ -409,7 +425,7 @@ class PeriodPerformanceConsumerTest extends TestCase
 
     // ===== 22: Platform filtering continues working =====
 
-    public function test_overview_platform_filter_isolates_period_engine_results_per_platform(): void
+    public function test_overview_platform_filter_isolates_cohort_results_per_platform(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
@@ -422,39 +438,38 @@ class PeriodPerformanceConsumerTest extends TestCase
 
         $periodStart = now()->subDays(6)->startOfDay();
         $periodEnd = now()->startOfDay();
-        $this->apiContentWithDelta($client, $igIntegration, $periodStart, $periodEnd, baselineViews: 1000, currentViews: 6000); // IG delta 5000
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi - IG published DI DALAM periode (default
+        // publishedAt=periodStart+1day) -> current_views=6000 primary.
+        $this->apiContentWithDelta($client, $igIntegration, $periodStart, $periodEnd, baselineViews: 1000, currentViews: 6000);
 
         $ttVideo = \App\Models\TikTokVideoSnapshot::create([
             'api_integration_id' => $ttIntegration->id, 'external_post_id' => 'tt-1',
-            'match_status' => 'unmatched', 'published_at' => now()->subDays(150), 'last_fetched_at' => now(),
+            'match_status' => 'unmatched', 'published_at' => $periodStart->copy()->addDay(), 'last_fetched_at' => now(),
         ]);
         ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $ttPlatform->id,
             'imported_by' => User::factory()->create()->id, 'tiktok_video_snapshot_id' => $ttVideo->id,
-            'metric_date' => now()->subDays(150), 'views' => 8000, 'engagement_rate' => 5.0,
-        ]);
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $ttPlatform->id, 'tiktok_video_snapshot_id' => $ttVideo->id,
-            'snapshot_date' => $periodStart->copy()->subDay()->toDateString(), 'views' => 500,
+            'metric_date' => $periodStart->copy()->addDay(), 'views' => 8000, 'engagement_rate' => 5.0,
         ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $ttPlatform->id, 'tiktok_video_snapshot_id' => $ttVideo->id,
             'snapshot_date' => $periodEnd->toDateString(), 'views' => 8000,
-        ]); // TT delta 7500
+        ]);
 
         $igOnly = $this->actingAs($manager)->get(route('analytics', [
             'tab' => 'overview', 'client_id' => $client->id, 'period' => 7, 'platform_id' => $igIntegration->platform_id,
         ]));
         $igOnly->assertOk();
-        $igOnly->assertSee('5,000');
-        $igOnly->assertDontSee('7,500');
+        $igOnly->assertSee('6,000');
+        $igOnly->assertDontSee('8,000');
 
         $ttOnly = $this->actingAs($manager)->get(route('analytics', [
             'tab' => 'overview', 'client_id' => $client->id, 'period' => 7, 'platform_id' => $ttPlatform->id,
         ]));
         $ttOnly->assertOk();
-        $ttOnly->assertSee('7,500');
-        $ttOnly->assertDontSee('5,000');
+        $ttOnly->assertSee('8,000');
+        $ttOnly->assertDontSee('6,000');
     }
 
     // ===== 23: CSV/manual semantics remain compatible =====
@@ -494,32 +509,31 @@ class PeriodPerformanceConsumerTest extends TestCase
 
     // ===== 24: Partial coverage is surfaced in UI, not hidden =====
 
-    public function test_partial_coverage_message_shown_on_overview(): void
+    public function test_partial_period_movement_does_not_hide_current_performance_on_overview(): void
     {
         $client = $this->client();
         $manager = $this->managerFor($client);
         $integration = $this->instagramIntegration($client);
         $platform = Platform::find($integration->platform_id);
 
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI DALAM
+        // periode 30 hari yang diquery (roster cohort), TAPI observasi
+        // terakhir belum mencapai period_end (reason='current_before_period_end')
+        // - period-gain (SECONDARY) jadi partial, current performance
+        // (PRIMARY, 900) TETAP genuine & lengkap, TIDAK PERNAH disembunyikan.
+        $publishedAt = now()->subDays(20);
         $media = InstagramMediaSnapshot::create([
             'api_integration_id' => $integration->id, 'external_post_id' => 'ig-partial',
-            'match_status' => 'unmatched', 'published_at' => now()->subDays(150), 'last_fetched_at' => now(),
+            'match_status' => 'unmatched', 'published_at' => $publishedAt, 'last_fetched_at' => now(),
         ]);
         ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $platform->id,
             'imported_by' => User::factory()->create()->id, 'instagram_media_snapshot_id' => $media->id,
-            'metric_date' => now()->subDays(150), 'views' => 900, 'engagement_rate' => 5.0,
-        ]);
-
-        // Riwayat snapshot baru mulai DI TENGAH periode 30 hari (CASE C) -
-        // tidak ada baseline sebelum period_start sama sekali.
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => now()->subDays(10)->toDateString(), 'views' => 400,
+            'metric_date' => $publishedAt, 'views' => 900, 'engagement_rate' => 5.0,
         ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => now()->startOfDay()->toDateString(), 'views' => 900,
+            'snapshot_date' => now()->subDays(10)->toDateString(), 'views' => 900,
         ]);
 
         $response = $this->actingAs($manager)->get(route('analytics', [
@@ -527,7 +541,11 @@ class PeriodPerformanceConsumerTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('belum tersedia penuh');
+        // Current performance (PRIMARY) HARUS tetap tampil genuine.
+        $response->assertSee('900');
+        // Secondary caveat SEKARANG murni soal riwayat pertumbuhan, BUKAN
+        // lagi klaim data performa belum tersedia penuh.
+        $response->assertSee('belum tersedia untuk sebagian konten');
     }
 
     // ===== 25: Content published before window with only 1 current snapshot never shows as exact N-day gain =====

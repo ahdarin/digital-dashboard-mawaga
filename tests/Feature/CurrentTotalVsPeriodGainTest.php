@@ -101,34 +101,35 @@ class CurrentTotalVsPeriodGainTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+            // DALAM cohort periode (bulan berjalan) - roster SEKARANG
+            // published_at-gated, bukan lagi coverage/observasi.
             $media = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id,
                 'external_post_id' => 'ig-reel-'.uniqid(),
                 'match_status' => 'unmatched',
                 'media_type' => 'VIDEO', 'media_product_type' => 'REELS',
-                'published_at' => now()->subDays(60),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(),
                 'last_fetched_at' => now(),
             ]);
 
             // content_metrics.views = total provider TERKINI (raw, sama
-            // seperti saveMetric() di InstagramAnalyticsSyncService).
+            // seperti saveMetric() di InstagramAnalyticsSyncService) - dari
+            // sync LEBIH BARU dari snapshot harian terakhir yang tercatat.
             ContentMetric::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-                'metric_date' => now()->subDays(60), 'views' => 18573, 'engagement_rate' => 4.2,
+                'metric_date' => now(), 'views' => 18573, 'engagement_rate' => 4.2,
                 'likes' => 900, 'comments' => 40, 'shares' => 12, 'saves' => 30,
             ]);
-            // Riwayat snapshot baru mulai 2 hari terakhir - delta genuinely
-            // kecil (gain yang BENAR2 teramati, bukan gain periode penuh).
+            // Riwayat snapshot harian baru mulai 1 hari setelah publish -
+            // delta genuinely kecil (gain yang BENAR2 teramati sejak
+            // publish, bukan angka provider terkini yang sync terbarunya
+            // belum sempat ditulis ulang ke snapshot harian).
             ContentMetricSnapshot::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->effectiveDateTo->copy()->subDay()->toDateString(), 'views' => 18573,
-            ]);
-            ContentMetricSnapshot::create([
-                'client_id' => $client->id, 'platform_id' => $platform->id,
-                'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 18573,
+                'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 50,
             ]);
 
             $response = $this->actingAs($manager)->get(route('analytics', [
@@ -137,13 +138,13 @@ class CurrentTotalVsPeriodGainTest extends TestCase
 
             $response->assertOk();
             // Total SAAT INI (18.573) HARUS tampil - BUKAN diganti diam-diam
-            // oleh gain periode (0).
+            // oleh gain periode (50).
             $response->assertSee('18,573');
-            $response->assertSee('+0 periode ini');
+            $response->assertSee('+50 periode ini');
             // Dua nilai ini TIDAK BOLEH sama - kalau kebetulan sama di test
             // lain, itu bukan bukti fix bekerja, makanya skenario ini SENGAJA
             // dibuat beda jauh.
-            $this->assertNotEquals('18,573', '0');
+            $this->assertNotEquals('18,573', '50');
         } finally {
             Carbon::setTestNow();
         }
@@ -208,23 +209,21 @@ class CurrentTotalVsPeriodGainTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+            // DALAM cohort periode (roster published_at-gated).
             $media = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => 'ig-'.uniqid(),
                 'match_status' => 'unmatched', 'media_type' => 'CAROUSEL_ALBUM',
-                'published_at' => now()->subDays(10), 'last_fetched_at' => now(),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
             ]);
             ContentMetric::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-                'metric_date' => now()->subDays(10), 'views' => 300, 'engagement_rate' => 3.0,
+                'metric_date' => now(), 'views' => 300, 'engagement_rate' => 3.0,
             ]);
             ContentMetricSnapshot::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => 100,
-            ]);
-            ContentMetricSnapshot::create([
-                'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 300,
+                'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 100,
             ]);
 
             $response = $this->actingAs($manager)->get(route('analytics', [
@@ -236,7 +235,7 @@ class CurrentTotalVsPeriodGainTest extends TestCase
             // satu-satunya sinyal - qualifier "periode ini" HARUS ada
             // mendampingi gain.
             $response->assertSee('periode ini');
-            $response->assertSee('+200 periode ini'); // 300 - 100
+            $response->assertSee('+100 periode ini'); // gain sejak publish, dari snapshot harian yang ada
         } finally {
             Carbon::setTestNow();
         }
@@ -307,32 +306,30 @@ class CurrentTotalVsPeriodGainTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
-            // Dua media BERBEDA (external_post_id beda) - buktikan total
-            // saat ini masing-masing baris TIDAK tertukar (Part AF).
+            // Dua media BERBEDA (external_post_id beda), keduanya published
+            // DI DALAM cohort periode (roster published_at-gated) -
+            // buktikan total saat ini masing-masing baris TIDAK tertukar
+            // (Part AF).
             $mediaA = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => 'ig-a-'.uniqid(),
                 'match_status' => 'unmatched', 'media_type' => 'IMAGE',
-                'published_at' => now()->subDays(20), 'last_fetched_at' => now(),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
             ]);
             $mediaB = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => 'ig-b-'.uniqid(),
                 'match_status' => 'unmatched', 'media_type' => 'IMAGE',
-                'published_at' => now()->subDays(20), 'last_fetched_at' => now(),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
             ]);
 
             foreach ([['media' => $mediaA, 'views' => 111], ['media' => $mediaB, 'views' => 222]] as $entry) {
                 ContentMetric::create([
                     'client_id' => $client->id, 'platform_id' => $platform->id,
                     'instagram_media_snapshot_id' => $entry['media']->id, 'imported_by' => $manager->id,
-                    'metric_date' => now()->subDays(20), 'views' => $entry['views'], 'engagement_rate' => 1.0,
+                    'metric_date' => now(), 'views' => $entry['views'], 'engagement_rate' => 1.0,
                 ]);
                 ContentMetricSnapshot::create([
                     'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $entry['media']->id,
-                    'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => $entry['views'],
-                ]);
-                ContentMetricSnapshot::create([
-                    'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $entry['media']->id,
-                    'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => $entry['views'],
+                    'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => $entry['views'],
                 ]);
             }
 

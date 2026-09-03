@@ -174,7 +174,7 @@ class ContentClassificationTest extends TestCase
                 'match_status' => 'unmatched',
                 'media_type' => 'IMAGE',
                 'media_product_type' => 'FEED',
-                'published_at' => now()->subDays(5),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(),
                 'last_fetched_at' => now(),
             ]);
 
@@ -217,7 +217,7 @@ class ContentClassificationTest extends TestCase
                 'match_status' => 'unmatched',
                 'media_type' => 'CAROUSEL_ALBUM',
                 'media_product_type' => 'CAROUSEL_ALBUM',
-                'published_at' => now()->subDays(5),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(),
                 'last_fetched_at' => now(),
             ]);
 
@@ -256,7 +256,7 @@ class ContentClassificationTest extends TestCase
                 'api_integration_id' => $integration->id,
                 'external_post_id' => 'tt-'.uniqid(),
                 'match_status' => 'unmatched',
-                'published_at' => now()->subDays(5),
+                'published_at' => $currentMonth->dateFrom->copy()->addDay(),
                 'last_fetched_at' => now(),
             ]);
 

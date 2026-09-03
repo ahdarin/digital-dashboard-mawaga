@@ -3,12 +3,14 @@
      lagi). Client dipilih dari filter bar bersama di atas; filter di
      bawah ini (search/platform/tipe/sort) khusus tab ini aja. --}}
 
-{{-- Phase 3 (Langkah 11) - coverage historis harus jelas, JANGAN tampilkan
-     "total_views periode X" tanpa qualifier kalau datanya belum full. --}}
-@if (! empty($coverageMessage))
-    <div class="card p-4 mb-5 flex items-start gap-3" style="background: var(--warning-tint); border-color: var(--warning-text);">
-        <span class="material-symbols-outlined text-[var(--warning-text)] text-[20px]">info</span>
-        <p class="text-[13px] text-[var(--warning-text)]">{{ $coverageMessage }}</p>
+{{-- FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 26) - roster
+     tabel ini SEKARANG cohort publikasi (published_at) - context line ini
+     menjelaskan angka utama (current_views) adalah performa TERKINI konten
+     yang dipublikasikan periode ini, bukan gain metrik selama periode. --}}
+@if (! empty($cohortContextMessage))
+    <div class="card p-4 mb-5 flex items-start gap-3" style="background: var(--surface-muted);">
+        <span class="material-symbols-outlined text-[var(--text-muted)] text-[20px]">info</span>
+        <p class="text-[13px] text-[var(--text-secondary)]">{{ $cohortContextMessage }}</p>
     </div>
 @endif
 
@@ -149,6 +151,13 @@
                                     <div class="font-medium text-[var(--text-primary)]">{{ number_format($item->current_views) }}</div>
                                     @if ($item->total_views !== null)
                                         <div class="text-[11px] text-[var(--text-muted)]">{{ $item->total_views >= 0 ? '+' : '' }}{{ number_format($item->total_views) }} periode ini</div>
+                                    @else
+                                        {{-- FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION
+                                             (Langkah 7) - period gain (concept C, SECONDARY)
+                                             genuinely tidak tersedia TIDAK PERNAH membuat
+                                             current_views (PRIMARY) di atas hilang/disembunyikan -
+                                             cukup caption kecil ini yang jujur soal batasannya. --}}
+                                        <div class="text-[11px] text-[var(--text-muted)]" title="{{ \App\Services\AvailabilityPresenter::label($item->availability_category) ?? '' }}">Riwayat data belum cukup</div>
                                     @endif
                                 @elseif ($item->total_views !== null)
                                     <div class="font-medium text-[var(--text-primary)]">{{ number_format($item->total_views) }}</div>
@@ -270,6 +279,8 @@
                                     <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($item->current_views) }}</span>
                                     @if ($item->total_views !== null)
                                         <span class="block text-[10px] text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">{{ $item->total_views >= 0 ? '+' : '' }}{{ number_format($item->total_views) }} periode ini</span>
+                                    @else
+                                        <span class="block text-[10px] text-[var(--text-muted)]">Riwayat data belum cukup</span>
                                     @endif
                                 @else
                                     <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ $item->total_views !== null ? number_format($item->total_views) : '-' }}</span>

@@ -10,6 +10,7 @@ use App\Models\ContentWorkflow;
 use App\Models\User;
 use App\Services\AnalyticsPeriodResolver;
 use App\Services\AnalyticsSummaryService;
+use App\Services\ContentCohortService;
 use App\Services\DelayRiskAccuracyService;
 use App\Services\PeriodPerformanceService;
 use App\Services\PicResolver;
@@ -21,7 +22,7 @@ class DashboardController extends Controller
 {
     private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
 
-    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PeriodPerformanceService $periodPerformanceService, PicResolver $picResolver, AnalyticsPeriodResolver $periodResolver)
+    public function index(Request $request, AnalyticsSummaryService $analyticsSummaryService, PeriodPerformanceService $periodPerformanceService, ContentCohortService $contentCohortService, PicResolver $picResolver, AnalyticsPeriodResolver $periodResolver)
     {
         $now = Carbon::now();
         $startOfThisMonth = $now->copy()->startOfMonth();
@@ -41,16 +42,22 @@ class DashboardController extends Controller
         );
         $scopeViaContentItem = fn ($q) => $q->whereHas('contentItem', fn ($qq) => $scopeClient($qq));
 
-        // Phase 3 - roster performa API/CSV di-scope SAMA PERSIS dengan
-        // konvensi Dashboard yang sudah ada di atas (whereHas('contentItem',
-        // ...) - HANYA content yang SUDAH ke-link ke ContentItem internal,
-        // BEDA dari Overview/Table yang ikut post API belum ke-link -
-        // preserved apa adanya, bukan scope Phase 3). Delta/coverage/
-        // engagement MATH-nya tetap PeriodPerformanceService yang sama
-        // (Langkah 9 - "jangan bikin 8 formula terpisah").
-        $buildScopedAggregate = function (Carbon $start, Carbon $end) use ($scopeViaContentItem, $periodPerformanceService) {
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - "Total Views Bulan
+        // Ini" represents content PUBLISHED this month (cohort, concept A),
+        // not metric movement during the month (Langkah 15, "if a widget
+        // represents content published during the selected/current month,
+        // use cohort semantics"). Roster masih SAMA PERSIS konvensi
+        // Dashboard yang sudah ada (whereHas('contentItem', ...) - HANYA
+        // content yang SUDAH ke-link ke ContentItem internal, BEDA dari
+        // Overview/Table yang ikut post API belum ke-link - preserved apa
+        // adanya, bukan bagian scope koreksi ini), HANYA gate roster-nya
+        // yang berubah dari coverage/isUsable() jadi published_at.
+        $buildScopedCohort = function (Carbon $start, Carbon $end) use ($scopeViaContentItem, $contentCohortService) {
             $apiMetrics = $scopeViaContentItem(
-                ContentMetric::query()->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
+                ContentMetric::query()
+                    ->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
+                    ->where(fn ($q) => $q->whereHas('instagramMediaSnapshot', fn ($q2) => $q2->whereBetween('published_at', [$start, $end]))
+                        ->orWhereHas('tiktokVideoSnapshot', fn ($q2) => $q2->whereBetween('published_at', [$start, $end])))
             )->with(['contentItem.client', 'contentItem.platform', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])->get();
 
             $csvMetrics = $scopeViaContentItem(
@@ -58,7 +65,7 @@ class DashboardController extends Controller
                     ->whereBetween('metric_date', [$start, $end])
             )->with(['contentItem.client', 'contentItem.platform', 'platform'])->get();
 
-            return $periodPerformanceService->computeAggregate($apiMetrics, $csvMetrics, $start, $end);
+            return $contentCohortService->buildCohortRows($apiMetrics, $csvMetrics, $start, $end);
         };
 
         $contentThisMonth = $scopeClient(ContentItem::whereBetween('deadline_at', [$startOfThisMonth, $endOfThisMonth]))->count();
@@ -83,8 +90,8 @@ class DashboardController extends Controller
         // Phase 3: pakai PeriodPerformanceService (delta cumulative genuine),
         // BUKAN lagi sum(views) whereBetween(metric_date) - metric_date API
         // dikunci ke tanggal publish, bukan tanggal sync.
-        $thisMonthAgg = $buildScopedAggregate($startOfThisMonth, $endOfThisMonth);
-        $lastMonthAgg = $buildScopedAggregate($startOfLastMonth, $endOfLastMonth);
+        $thisMonthAgg = $buildScopedCohort($startOfThisMonth, $endOfThisMonth);
+        $lastMonthAgg = $buildScopedCohort($startOfLastMonth, $endOfLastMonth);
 
         $viewsThisMonth = $thisMonthAgg['totals']['views'];
         $viewsLastMonth = $lastMonthAgg['totals']['views'];
@@ -166,6 +173,14 @@ class DashboardController extends Controller
         // scope month/custom pass ini, lihat Langkah 16), TAPI date math-nya
         // sekarang lewat AnalyticsPeriodResolver (SATU-SATUNYA jalur resmi),
         // bukan subDays() lokal lagi.
+        //
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 15) - widget
+        // ini SENGAJA TETAP PeriodPerformanceService (computeDailyGainSeriesFromSnapshots,
+        // GAIN harian genuine dari content_metric_snapshots) - ini genuinely
+        // "metric movement selama N hari terakhir" (trend chart), BUKAN
+        // roster cohort publikasi seperti "Total Views Bulan Ini" di atas.
+        // Do not silently mix the two - label "Tren Views" TIDAK diklaim
+        // sebagai cohort bulan manapun.
         $period = (int) $request->input('period', 30);
         $period = in_array($period, [7, 30, 90]) ? $period : 30;
 
@@ -225,12 +240,11 @@ class DashboardController extends Controller
             });
 
         // --- Tambahan: teaser Analytics (bulan berjalan, ikut scope client) ---
-        // Phase 3: pakai $thisMonthAgg['rows'] (hasil PeriodPerformanceService,
-        // sudah dihitung di atas buat KPI Total Views) - 1 row = 1 delta
-        // periode per content, BUKAN lagi sum(views) mentah per metric_date.
-        $usableMonthRows = collect($thisMonthAgg['rows'])->filter(fn ($row) => $row['result']->isUsable());
-
-        $topContent = $usableMonthRows
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - $thisMonthAgg['rows']
+        // SEKARANG cohort publikasi (dihitung di atas buat KPI Total Views
+        // juga) - 1 row = 1 content published bulan ini, performa TERKINI
+        // (ContentMetric apa adanya), BUKAN delta periode.
+        $topContent = collect($thisMonthAgg['rows'])
             ->map(function ($row) {
                 $item = $row['content_metric']->contentItem;
                 if (! $item) {
@@ -242,8 +256,8 @@ class DashboardController extends Controller
                     'title' => $item->title,
                     'client' => $item->client->name ?? '-',
                     'platform' => $item->platform->name ?? '-',
-                    'views' => $row['result']->views() ?? 0,
-                    'engagement_rate' => $row['result']->engagementRate ?? 0,
+                    'views' => (int) ($row['content_metric']->views ?? 0),
+                    'engagement_rate' => $row['content_metric']->engagement_rate !== null ? (float) $row['content_metric']->engagement_rate : 0,
                 ];
             })
             ->filter()
@@ -252,7 +266,7 @@ class DashboardController extends Controller
             ->values();
 
         // --- Tambahan: Top Client ranking (PRD 7.3.3 Executive Dashboard) ---
-        $topClients = $usableMonthRows
+        $topClients = collect($thisMonthAgg['rows'])
             ->groupBy(fn ($row) => $row['content_metric']->contentItem->client_id ?? 0)
             ->map(function ($rows) {
                 $client = $rows->first()['content_metric']->contentItem->client ?? null;
@@ -260,12 +274,12 @@ class DashboardController extends Controller
                     return null;
                 }
 
-                $engagementValues = $rows->pluck('result.engagementRate')->filter(fn ($v) => $v !== null);
+                $engagementValues = $rows->map(fn ($row) => $row['content_metric']->engagement_rate)->filter(fn ($v) => $v !== null);
 
                 return [
                     'id' => $client->id,
                     'name' => $client->name,
-                    'views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0),
+                    'views' => (int) $rows->sum(fn ($row) => $row['content_metric']->views ?? 0),
                     'engagement_rate' => $engagementValues->isNotEmpty() ? round($engagementValues->avg(), 2) : 0,
                     'content_count' => $rows->count(),
                 ];

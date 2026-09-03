@@ -63,6 +63,7 @@ class AiStrategyService
 
     public function __construct(
         private readonly PeriodPerformanceService $periodPerformanceService,
+        private readonly ContentCohortService $contentCohortService,
         private readonly AnalyticsPeriodResolver $periodResolver,
         private readonly ContentFormatResolver $contentFormatResolver,
     ) {
@@ -115,31 +116,33 @@ class AiStrategyService
         $end = $window['end'];
         $days = $start->diffInDays($end) + 1;
 
-        // Phase 3 (Langkah 9G): views/engagement_rate delta periode genuine
-        // (PeriodPerformanceService), BUKAN lagi sum(views)
-        // whereBetween(metric_date) - AI tidak boleh dikasih angka "bulan
-        // X" yang sebenarnya cuma "content yang PUBLISH bulan itu".
-        // Roster TETAP client_id langsung (bukan whereHas('contentItem',
-        // ...)) - biar post API yang belum ke-link ikut dianalisis AI
-        // juga. $platformId diteruskan apa adanya - AI Strategy TIDAK
-        // BOLEH diam-diam menggabungkan semua platform kalau user memilih
-        // platform spesifik. TIDAK ADA previous-period aggregate lagi -
-        // previous_month bukan requirement (lihat docblock kelas).
-        $aggregate = $this->periodPerformanceService->computeClientPeriod($client->id, $start, $end, $platformId);
-
-        $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 10/11) -
+        // roster SEKARANG cohort publikasi (ContentCohortService,
+        // published_at), angka analisis (total_views/performance_by_pillar/
+        // performance_by_platform/top_5_content) SEKARANG performa TERKINI
+        // genuine (ContentMetric apa adanya), BUKAN delta periode. AI HARUS
+        // bisa menganalisis top-performing content/format/production-type
+        // dalam cohort ini WALAU riwayat period-gain belum cukup (mis. sync
+        // baru mulai setelah bulan itu berlalu) - period_views_gain/
+        // coverage_status TETAP di-attach per-content sebagai info
+        // SEKUNDER (concept C), TIDAK PERNAH lagi jadi alasan content
+        // dikecualikan dari roster/ranking. $platformId diteruskan apa
+        // adanya - AI Strategy TIDAK BOLEH diam-diam menggabungkan semua
+        // platform kalau user memilih platform spesifik.
+        $aggregate = $this->contentCohortService->computeClientCohort($client->id, $start, $end, $platformId);
+        $cohortRows = collect($aggregate['rows']);
 
         $totalViews = $aggregate['totals']['views'];
 
-        $byPillar = $usableRows->groupBy(fn ($row) => $row['content_metric']->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
+        $byPillar = $cohortRows->groupBy(fn ($row) => $row['content_metric']->contentItem?->contentPillar?->name ?? 'Tanpa Pilar')
             ->map(fn ($rows) => [
-                'total_views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0),
-                'avg_engagement' => $this->avgEngagementFromRows($rows),
+                'total_views' => (int) $rows->sum(fn ($row) => $row['content_metric']->views ?? 0),
+                'avg_engagement' => $this->avgCurrentEngagementFromRows($rows),
                 'content_count' => $rows->count(),
             ]);
 
-        $byPlatform = $usableRows->groupBy(fn ($row) => $row['content_metric']->platform->name ?? '-')
-            ->map(fn ($rows) => ['total_views' => (int) $rows->sum(fn ($row) => $row['result']->views() ?? 0)]);
+        $byPlatform = $cohortRows->groupBy(fn ($row) => $row['content_metric']->platform->name ?? '-')
+            ->map(fn ($rows) => ['total_views' => (int) $rows->sum(fn ($row) => $row['content_metric']->views ?? 0)]);
 
         // SYSTEM CONSISTENCY PASS (Part J/K) - AI HARUS menerima klasifikasi
         // kanonis, dua dimensi TERPISAH (production_type/content_format),
@@ -147,14 +150,17 @@ class AiStrategyService
         // production_type null (bukan ditebak) kalau content belum ke-link
         // - "unknown remains unknown". content_format lewat
         // ContentFormatResolver yang sama dipakai Analytics/Report, supaya
-        // AI, dashboard, dan export semuanya "satu semantik".
-        $topContent = $usableRows
-            ->sortByDesc(fn ($row) => $row['result']->views() ?? 0)
+        // AI, dashboard, dan export semuanya "satu semantik". Ranking
+        // SEKARANG by CURRENT views (performa terkini dalam cohort), BUKAN
+        // gain periode - lihat docblock class ini/ContentCohortService.
+        $topContent = $cohortRows
+            ->sortByDesc(fn ($row) => $row['content_metric']->views ?? 0)
             ->take(5)
             ->map(function ($row) {
                 $item = $row['content_metric']->contentItem;
                 $igSnapshot = $row['content_metric']->instagramMediaSnapshot;
                 $ttSnapshot = $row['content_metric']->tiktokVideoSnapshot;
+                $periodResult = $row['period_result'];
 
                 return [
                     'title' => $item?->title ?? '-',
@@ -164,8 +170,14 @@ class AiStrategyService
                         ? $this->contentFormatResolver->labelForContentItem($item, $igSnapshot, $ttSnapshot)
                         : $this->contentFormatResolver->labelForSnapshot($igSnapshot, $ttSnapshot),
                     'platform' => $row['content_metric']->platform->name ?? '-',
-                    'views' => $row['result']->views() ?? 0,
-                    'engagement_rate' => $row['result']->engagementRate ?? 0,
+                    'published_at' => $row['published_at']?->toDateString(),
+                    // PRIMARY (concept B) - performa TERKINI genuine.
+                    'current_views' => (int) ($row['content_metric']->views ?? 0),
+                    'engagement_rate' => $row['content_metric']->engagement_rate !== null ? (float) $row['content_metric']->engagement_rate : 0,
+                    // SECONDARY ONLY (concept C) - null/insufficient_history
+                    // TIDAK PERNAH berarti "current_views di atas salah/nol".
+                    'period_views_gain' => $periodResult?->views(),
+                    'period_coverage' => $periodResult?->availabilityCategory() ?? 'insufficient_history',
                 ];
             })
             ->values();
@@ -275,19 +287,47 @@ class AiStrategyService
             ])
             ->values();
 
-        // Phase 4.1 (Langkah 12, "coverage-aware AI") - coverage_status/
-        // from/to APA ADANYA dari PeriodPerformanceService, dibawa ke
-        // performance_data (disimpan) DAN ke buildPrompt() (dipakai bikin
-        // instruksi eksplisit ke Gemini) - AI TIDAK BOLEH menulis seolah
-        // observed partial gain = full period performance kalau history
-        // snapshot belum selengkap periode yang diminta.
-        $coverage = $aggregate['coverage'];
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 10) -
+        // coverage_status SEKARANG murni tentang concept C (SECONDARY
+        // period-movement completeness across the cohort) - TIDAK PERNAH
+        // lagi berarti "tidak ada data performa sama sekali" (roster/total_
+        // views/top_5_content di atas SUDAH genuine & lengkap, terlepas
+        // dari status ini). coverage_from/to = rentang observasi period-gain
+        // yang genuinely ada di antara baris cohort (bisa kosong kalau
+        // TIDAK SATUPUN baris punya period-gain genuine).
+        // "full" HARUS berarti SEMUA baris punya period-gain PENUH (bukan
+        // cuma "usable" - partial JUGA usable tapi bukan lengkap).
+        $rowsWithFullPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result']?->coverageStatus === ContentPeriodResult::FULL);
+        $rowsWithAnyPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result'] && $row['period_result']->isUsable());
+        $coverageStatus = match (true) {
+            $cohortRows->isEmpty() => ContentPeriodResult::UNAVAILABLE,
+            $rowsWithFullPeriodMovement->count() === $cohortRows->count() => ContentPeriodResult::FULL,
+            $rowsWithAnyPeriodMovement->isEmpty() => ContentPeriodResult::UNAVAILABLE,
+            default => ContentPeriodResult::PARTIAL,
+        };
+        $coverageFrom = $rowsWithAnyPeriodMovement->map(fn ($row) => $row['period_result']->coverageFrom)->filter()->max();
+        $coverageTo = $rowsWithAnyPeriodMovement->map(fn ($row) => $row['period_result']->coverageTo)->filter()->min();
+
+        // "as_of" (Langkah 10) - observasi/sync TERAKHIR genuine yang
+        // menyusun angka current_views di atas, biar AI (dan user yang baca
+        // JSON mentah kalau perlu) tahu persis "performa terkini" ini
+        // per-kapan, bukan klaim real-time yang tidak genuine.
+        $asOf = $cohortRows
+            ->map(fn ($row) => $row['content_metric']->instagramMediaSnapshot?->last_fetched_at ?? $row['content_metric']->tiktokVideoSnapshot?->last_fetched_at)
+            ->filter()
+            ->max();
+
         // Bulan BERJALAN (belum selesai) - dipakai buat label UI/AI yang
         // jujur ("hingga 2 September 2026", bukan klaim performa bulan
         // penuh) - Langkah 5/8.
         $isCurrentMonthInProgress = Carbon::now()->format('Y-m') === $month;
 
         return [
+            // Langkah 10 - "AI input should mean: analysis_scope: content_
+            // published_in_selected_period" - field eksplisit biar kontrak
+            // ini terlihat langsung di JSON, bukan cuma tersirat.
+            'cohort' => 'content_published_in_period',
+            'as_of' => ($asOf ?? Carbon::now())->toIso8601String(),
             'client_name' => $client->name,
             'selected_month' => $month,
             'period' => "{$start->format('d M Y')} - {$end->format('d M Y')}",
@@ -296,12 +336,13 @@ class AiStrategyService
             'period_end' => $end->toDateString(),
             'platform_id' => $platformId,
             'platform_label' => $platformId ? (Platform::find($platformId)?->name ?? '-') : 'Semua Platform',
-            'coverage_status' => $coverage['status'],
-            'coverage_from' => $coverage['from']?->toDateString(),
-            'coverage_to' => $coverage['to']?->toDateString(),
+            // SECONDARY ONLY (concept C) - lihat catatan di atas.
+            'coverage_status' => $coverageStatus,
+            'coverage_from' => $coverageFrom?->toDateString(),
+            'coverage_to' => $coverageTo?->toDateString(),
             'total_views' => $totalViews,
-            'avg_engagement_rate' => $this->avgEngagementFromRows($usableRows),
-            'content_published_count' => $usableRows->count(),
+            'avg_engagement_rate' => $this->avgCurrentEngagementFromRows($cohortRows),
+            'content_published_count' => $cohortRows->count(),
             'tracked_days' => $this->countTrackedDays($client, $start, $end),
             'period_days' => $days,
             'performance_by_pillar' => $byPillar,
@@ -313,9 +354,14 @@ class AiStrategyService
         ];
     }
 
-    private function avgEngagementFromRows(Collection $rows): float
+    /**
+     * Engagement TERKINI (concept B) - rata-rata ContentMetric.engagement_rate
+     * apa adanya (sudah cumulative/current sejak ditulis saat sync), BUKAN
+     * lagi rata-rata delta periode ($result->engagementRate).
+     */
+    private function avgCurrentEngagementFromRows(Collection $rows): float
     {
-        $values = $rows->map(fn ($row) => $row['result']->engagementRate)->filter(fn ($v) => $v !== null);
+        $values = $rows->map(fn ($row) => $row['content_metric']->engagement_rate)->filter(fn ($v) => $v !== null);
 
         return $values->isNotEmpty() ? round($values->avg(), 2) : 0.0;
     }
@@ -813,25 +859,45 @@ PROMPT;
      * cuma badge di UI), supaya dia TIDAK menulis observed partial gain
      * seolah itu angka full-period yang lengkap.
      */
+    /**
+     * FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 10/11/12) -
+     * coverage_status di sini SEKARANG murni tentang concept C (SECONDARY,
+     * "how much did metrics move during the period" - period-gain history
+     * completeness), TIDAK PERNAH lagi berarti "tidak ada data performa
+     * sama sekali". content_published_count/total_views/top_5_content
+     * SUDAH genuine & lengkap regardless of this status (roster-nya cohort
+     * publikasi, dihitung ContentCohortService SEBELUM method ini bahkan
+     * dipanggil) - jadi instruksi di sini HARUS eksplisit mengizinkan (WAJIB,
+     * bukan cuma boleh) analisis performa terkini/top-performing/format/
+     * production-type tetap jalan penuh, HANYA melarang KLAIM PERTUMBUHAN
+     * ("naik/turun selama bulan X") yang genuinely tidak bisa dibuktikan.
+     */
     private function coverageNoticeFor(array $data): string
     {
         $status = $data['coverage_status'] ?? null;
+        $monthLabel = $this->monthLabel($data);
 
         if ($status === ContentPeriodResult::FULL || $status === null) {
             return '';
         }
 
-        $monthLabel = $this->monthLabel($data);
-
         if ($status === ContentPeriodResult::UNAVAILABLE) {
             return <<<TEXT
 
-PENTING - COVERAGE DATA: Tidak ada data performa yang teramati sama sekali
-untuk {$monthLabel} (coverage_status="unavailable"). JANGAN membuat
-kesimpulan/angka performa apapun dari data yang tidak ada - sebutkan secara
-eksplisit di summary bahwa data performa belum tersedia untuk bulan ini,
-dan action_items/top_pillars HANYA boleh berisi rekomendasi umum yang TIDAK
-mengklaim didasarkan pada angka performa spesifik yang sebenarnya tidak ada.
+PENTING - COVERAGE DATA (HANYA soal PERTUMBUHAN, BUKAN soal ketersediaan data):
+Riwayat observasi pertumbuhan metrik SELAMA {$monthLabel} belum tersedia sama
+sekali (coverage_status="unavailable") - kemungkinan besar sinkronisasi baru
+mulai SETELAH bulan ini berlalu. INI TIDAK BERARTI data performa kosong -
+total_views/avg_engagement_rate/top_5_content/performance_by_pillar/
+performance_by_platform di atas SEMUA genuine dan LENGKAP (performa TERKINI
+konten yang dipublikasikan {$monthLabel}, current_views tiap content di
+top_5_content nyata, BUKAN nol/dikarang). WAJIB tetap analisis top-performing
+content, performa per pillar/platform/format/production-type, dan volume
+konten seperti biasa berdasarkan angka-angka itu. YANG TIDAK BOLEH: klaim
+pertumbuhan/perubahan SELAMA {$monthLabel} (contoh: "views naik X% selama
+bulan ini") - itu genuinely tidak bisa dibuktikan tanpa riwayat observasi,
+field period_views_gain per-content akan null/coverage "insufficient_history"
+kalau ini terjadi.
 TEXT;
         }
 
@@ -841,16 +907,15 @@ TEXT;
 
         return <<<TEXT
 
-PENTING - COVERAGE DATA: Bulan yang diminta adalah {$monthLabel}, TAPI
-histori observasi performa yang BENAR-BENAR ada (coverage_status="partial")
-baru mencakup {$range} - lihat coverage_from/coverage_to di JSON di atas.
-Angka total_views/avg_engagement_rate di atas HANYA mencerminkan periode
-observasi yang benar-benar ada itu, BUKAN performa {$monthLabel} secara
-penuh. WAJIB akui keterbatasan ini secara eksplisit di summary (contoh:
-"berdasarkan data yang teramati sejak {$from}..."), JANGAN menyebut angka
-ini sebagai performa "{$monthLabel}" penuh tanpa qualifier itu, dan JANGAN
-mengekstrapolasi atau mengarang hari-hari yang tidak punya data sebagai
-fakta.
+PENTING - COVERAGE DATA (HANYA soal PERTUMBUHAN, BUKAN soal ketersediaan data):
+total_views/top_5_content/performance_by_pillar/performance_by_platform di
+atas SUDAH genuine & lengkap (performa TERKINI konten yang dipublikasikan
+{$monthLabel}) - TIDAK PERLU qualifier apapun buat angka-angka itu. HANYA
+riwayat PERTUMBUHAN metrik (period_views_gain per-content, coverage_
+status="partial") yang baru mencakup {$range} sebagian konten - kalau mau
+klaim pertumbuhan/perubahan SELAMA {$monthLabel} secara umum, WAJIB akui
+keterbatasan itu eksplisit (contoh: "berdasarkan konten yang punya riwayat
+sejak {$from}..."), JANGAN generalisasi ke seluruh cohort tanpa qualifier.
 TEXT;
     }
 
@@ -868,8 +933,8 @@ TEXT;
         $monthLabel = $this->monthLabel($data);
 
         return match ($status) {
-            ContentPeriodResult::UNAVAILABLE => "\nINGAT SEKALI LAGI: coverage_status=\"unavailable\" - JANGAN tulis kalimat berbentuk \"Performa {$monthLabel} = ...\" atau semacamnya. Tidak ada data performa buat bulan ini.",
-            ContentPeriodResult::PARTIAL => "\nINGAT SEKALI LAGI: coverage_status=\"partial\" - angka di atas cuma observed subset (coverage_from s/d coverage_to), JANGAN tulis kalimat berbentuk \"Performa {$monthLabel} = ...\" tanpa qualifier observed subset itu.",
+            ContentPeriodResult::UNAVAILABLE => "\nINGAT SEKALI LAGI: coverage_status=\"unavailable\" HANYA berarti riwayat PERTUMBUHAN metrik selama {$monthLabel} tidak tersedia - JANGAN tulis kalimat berbentuk \"Views naik/bertambah selama {$monthLabel}...\". total_views/top_5_content/performance_by_pillar TETAP genuine, WAJIB tetap dianalisis penuh (top-performing content, format, production-type, volume).",
+            ContentPeriodResult::PARTIAL => "\nINGAT SEKALI LAGI: coverage_status=\"partial\" HANYA membatasi klaim PERTUMBUHAN metrik (coverage_from s/d coverage_to) - total_views/top_5_content/performance_by_pillar TETAP genuine & lengkap, JANGAN batasi analisis performa terkini karena ini.",
             default => '',
         };
     }
@@ -972,18 +1037,20 @@ markdown code block, dengan struktur persis seperti ini:
 }
 
 Aturan tambahan:
-- Kalau coverage_status di JSON di atas = "unavailable": top_pillars dan
-  suggested_split BOLEH kosong/tidak ada pillar yang di-rank sama sekali
-  (jangan dipaksakan) - TIDAK ADA angka performa asli buat dijadikan dasar
-  ranking. Rekomendasi di summary/action_items HARUS bersifat umum
-  (best-practice), BUKAN klaim berbasis data performa yang sebenarnya
-  tidak ada.
+- coverage_status di JSON di atas HANYA soal riwayat PERTUMBUHAN metrik
+  (period_views_gain), BUKAN soal ketersediaan performance_by_pillar/
+  total_views/top_5_content - field-field itu genuine & lengkap TERLEPAS
+  dari coverage_status. top_pillars dan suggested_split WAJIB tetap diisi
+  dari performance_by_pillar seperti biasa walau coverage_status=
+  "unavailable" - HANYA JANGAN klaim pertumbuhan/perubahan selama bulan
+  ini di reasoning-nya kalau coverage_status bukan "full" (pakai angka
+  performa TERKINI di data, bukan klaim naik/turun).
 - suggested_split harus total 100, isinya pillar YANG ADA di
   performance_by_pillar (jangan bikin pillar baru yang nggak ada di data)
 - top_pillars maksimal 3, diurutkan dari performa terbaik, WAJIB nyebut
-  angka asli (views/engagement) dari data di atas di bagian reasoning,
-  jangan cuma bilang "bagus" tanpa angka - KECUALI coverage_status
-  "unavailable" (lihat bullet pertama)
+  angka asli (views/engagement TERKINI) dari data di atas di bagian
+  reasoning, jangan cuma bilang "bagus" tanpa angka - ini SELALU berlaku,
+  TIDAK ADA pengecualian coverage_status (lihat bullet pertama)
 - Kalau performance_by_pillar di data cuma punya 1 atau 2 pillar,
   top_pillars ya isi sejumlah yang ada aja, jangan dipaksa jadi 3
 - content_ideas: WAJIB buatkan TEPAT {$targetCount} ide konten total (ini

@@ -300,7 +300,13 @@ class AiStrategyCorrectnessTest extends TestCase
         $prompt = $method->invoke($service, $data);
 
         $this->assertStringContainsString('INGAT SEKALI LAGI', $prompt);
-        $this->assertStringContainsString('TIDAK ADA angka performa asli', $prompt);
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - coverage_status=
+        // unavailable SEKARANG hanya berarti riwayat PERTUMBUHAN metrik
+        // tidak tersedia, BUKAN lagi "tidak ada angka performa asli sama
+        // sekali" (total_views/top_5_content genuine & lengkap terlepas
+        // dari status ini) - reminder HARUS eksplisit menegaskan itu.
+        $this->assertStringContainsString('TETAP genuine', $prompt);
+        $this->assertStringContainsString('WAJIB tetap dianalisis penuh', $prompt);
 
         $reminderPos = strpos($prompt, 'INGAT SEKALI LAGI');
         $formatInstructionPos = strpos($prompt, 'Balas HANYA dalam format JSON');

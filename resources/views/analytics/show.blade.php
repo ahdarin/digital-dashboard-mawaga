@@ -19,7 +19,15 @@
             </a>
             <div>
                 <h1 class="font-display text-[26px] font-semibold text-[var(--text-primary)] tracking-tight">{{ $contentItem->title }}</h1>
-                <p class="text-[var(--text-secondary)] mt-0.5 text-sm">{{ $contentItem->contentType->name ?? '-' }} &middot; {{ $contentItem->platform->name ?? '-' }}</p>
+                <p class="text-[var(--text-secondary)] mt-0.5 text-sm">
+                    {{ $contentItem->contentType->name ?? '-' }} &middot; {{ $contentItem->platform->name ?? '-' }}
+                    {{-- FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 18) -
+                         canonical provider publish date, genuine (published_at),
+                         ditampilkan jelas terpisah dari CURRENT PERFORMANCE di atas. --}}
+                    @if ($publishedAt ?? null)
+                        &middot; Dipublikasikan {{ $publishedAt->translatedFormat('d M Y') }}
+                    @endif
+                </p>
             </div>
         </div>
 

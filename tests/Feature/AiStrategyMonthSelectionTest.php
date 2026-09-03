@@ -254,26 +254,23 @@ class AiStrategyMonthSelectionTest extends TestCase
             'client_id' => $client->id, 'platform_id' => $instagram->id,
             'integration_name' => 'IG', 'status' => 'active', 'access_token' => 'fake',
         ]);
+        $month = now()->subMonthNoOverflow()->format('Y-m');
+        $window = app(AiStrategyService::class)->resolveMonthWindow($month);
+
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // cohort publikasi (published_at) - published DI DALAM bulan yang
+        // dianalisis (kalau masih di luar, konten ini SEKARANG genuinely
+        // TIDAK termasuk cohort bulan ini - itu bukan bug, itu koreksi
+        // "empty August" yang sedang dibuktikan file lain).
         $media = InstagramMediaSnapshot::create([
             'api_integration_id' => $integration->id,
             'external_post_id' => 'ig-'.uniqid(),
             'caption' => 'Test',
             'match_status' => 'unmatched',
-            // published_at JAUH di luar bulan yang dianalisis - kalau
-            // consumer masih pakai ContentMetric.metric_date=publish-date
-            // semantics lama, delta ini akan 0/hilang sama sekali.
-            'published_at' => now()->subMonths(6),
+            'published_at' => $window['start']->copy()->addDay(),
             'last_fetched_at' => now(),
         ]);
 
-        $month = now()->subMonthNoOverflow()->format('Y-m');
-        $window = app(AiStrategyService::class)->resolveMonthWindow($month);
-
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $instagram->id,
-            'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => $window['start']->copy()->subDay()->toDateString(), 'views' => 1000,
-        ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $instagram->id,
             'instagram_media_snapshot_id' => $media->id,
@@ -283,13 +280,13 @@ class AiStrategyMonthSelectionTest extends TestCase
             'client_id' => $client->id, 'platform_id' => $instagram->id,
             'instagram_media_snapshot_id' => $media->id,
             'imported_by' => User::factory()->create()->id,
-            'metric_date' => now()->subMonths(6),
+            'metric_date' => now(),
             'views' => 4500,
         ]);
 
         $summary = app(AiStrategyService::class)->buildPerformanceSummary($client, $month, null);
 
-        $this->assertSame(3500, $summary['total_views'], '4500-1000=3500 (delta genuine periode), bukan 0 (kalau masih publish-date semantics lama) atau 4500 (lifetime cumulative apa adanya).');
+        $this->assertSame(4500, $summary['total_views'], 'total_views HARUS performa TERKINI genuine (4500, ContentMetric.views apa adanya), bukan delta periode atau 0.');
         $this->assertSame('full', $summary['coverage_status']);
     }
 
@@ -433,7 +430,12 @@ class AiStrategyMonthSelectionTest extends TestCase
         $prompt = $method->invoke($service, $data);
 
         $this->assertStringContainsString('JANGAN', $prompt);
-        $this->assertStringContainsString('BUKAN performa Agustus 2026 secara', $prompt);
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - coverage_status=
+        // partial SEKARANG hanya membatasi klaim PERTUMBUHAN, total_views/
+        // top_5_content di atas SUDAH genuine & lengkap (TIDAK PERLU
+        // qualifier) - prompt HARUS eksplisit menegaskan itu.
+        $this->assertStringContainsString('SUDAH genuine & lengkap', $prompt);
+        $this->assertStringContainsString('Agustus 2026', $prompt);
     }
 
     public function test_unavailable_coverage_produces_honest_ai_context(): void
@@ -451,7 +453,11 @@ class AiStrategyMonthSelectionTest extends TestCase
 
         $prompt = $method->invoke($service, $data);
 
-        $this->assertStringContainsString('Tidak ada data performa yang teramati sama sekali', $prompt);
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - unavailable
+        // SEKARANG hanya berarti riwayat pertumbuhan tidak tersedia, BUKAN
+        // "tidak ada data performa sama sekali" (itu klaim yang SALAH di
+        // bawah semantik baru - current performance genuine & lengkap).
+        $this->assertStringContainsString('INI TIDAK BERARTI data performa kosong', $prompt);
         $this->assertStringContainsString('Agustus 2026', $prompt);
     }
 

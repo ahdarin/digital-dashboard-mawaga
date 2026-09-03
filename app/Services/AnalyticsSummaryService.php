@@ -9,24 +9,35 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
- * Agregasi "Overview" analytics (stats, trend, platform breakdown, top
- * content) untuk 1 client + periode - dipakai bareng oleh AnalyticsController
- * (internal, tab Overview) dan Client\AnalyticsController (client-side),
- * biar query-nya nggak dobel dan otomatis sinkron kalau logic-nya berubah.
+ * Agregasi "Overview"/Ringkasan analytics (stats, trend, platform breakdown,
+ * top content) untuk 1 client + periode - dipakai bareng oleh
+ * AnalyticsController (internal, tab Overview) dan Client\AnalyticsController
+ * (client-side), biar query-nya nggak dobel dan otomatis sinkron kalau
+ * logic-nya berubah.
  *
- * Phase 3: angka performa periode (views/engagement/content count) SEKARANG
- * datang dari PeriodPerformanceService (delta cumulative genuine dari
- * content_metric_snapshots buat content API, CSV/manual tetap semantik lama)
- * - BUKAN lagi whereBetween('metric_date', period) di atas ContentMetric
- * (bug lama: metric_date API dikunci ke tanggal PUBLISH, jadi query lama
- * sebenarnya memfilter "diterbitkan dalam periode" bukan "performa
- * diperoleh dalam periode"). Lihat docblock PeriodPerformanceService buat
- * penjelasan lengkap coverage/boundary semantics.
+ * FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - "PUBLISH-DATE COHORT IS
+ * PRIMARY". Angka HEADLINE (stats/topContent/content_count) SEKARANG datang
+ * dari ContentCohortService - roster = content yang genuinely DIPUBLIKASIKAN
+ * dalam periode terpilih (published_at, bukan lagi coverage/isUsable()),
+ * angkanya = performa TERKINI genuine (ContentMetric.views/engagement_rate
+ * dkk apa adanya, BUKAN delta). Root cause historis yang dikoreksi pass ini
+ * (Phase 3's sendiri fix tidak cukup jauh): PeriodPerformanceService::
+ * computeContentDelta() SENGAJA membatasi observasi "current"-nya ke
+ * snapshot_date <= periodEnd (benar buat menghitung delta genuine) - tapi
+ * consumer yang memakai isUsable() (coverageStatus !== 'unavailable') SEBAGAI
+ * ROSTER GATE ikut mewarisi batas itu jadi filter roster TIDAK SENGAJA:
+ * konten yang published DALAM periode tapi observasi pertamanya baru terjadi
+ * SETELAH periode itu (mis. aplikasi/sync belum ada saat periode itu
+ * berlangsung) hilang total dari halaman, padahal publish date & performa
+ * TERKININYA genuine & diketahui. computeDailyGainSeries()/trend chart TETAP
+ * PeriodPerformanceService apa adanya (Langkah 15 - itu genuinely "metric
+ * movement selama periode", bukan cohort roster).
  */
 class AnalyticsSummaryService
 {
     public function __construct(
         private readonly PeriodPerformanceService $periodPerformanceService,
+        private readonly ContentCohortService $contentCohortService,
         private readonly AnalyticsPeriodResolver $periodResolver,
         private readonly ContentFormatResolver $contentFormatResolver,
     ) {
@@ -47,8 +58,9 @@ class AnalyticsSummaryService
         $prevStart = $previousPeriod->dateFrom;
         $prevEnd = $previousPeriod->effectiveDateTo;
 
-        $current = $this->periodPerformanceService->computeClientPeriod($clientId, $start, $end, $platformId);
-        $previous = $this->periodPerformanceService->computeClientPeriod($clientId, $prevStart, $prevEnd, $platformId);
+        // PRIMARY (concept A+B) - roster + current performance, cohort-based.
+        $current = $this->contentCohortService->computeClientCohort($clientId, $start, $end, $platformId);
+        $previous = $this->contentCohortService->computeClientCohort($clientId, $prevStart, $prevEnd, $platformId);
 
         $totalViews = $current['totals']['views'];
         $avgEngagement = $current['totals']['engagement_rate'] ?? 0;
@@ -60,20 +72,39 @@ class AnalyticsSummaryService
         $prevContentPublished = $previous['totals']['content_count'];
         $prevPlatformsTracked = $previous['totals']['platforms_tracked'];
 
-        // Langkah 11 - coverage historis harus jelas ke user, JANGAN
-        // tampilkan "30 Hari: X views" tanpa qualifier kalau datanya belum
-        // penuh (Langkah 5). Audience coverage TETAP TERPISAH (Langkah 11 -
-        // ini cuma untuk performa konten, bukan buildAudienceTabData()).
-        $coverageStatus = $current['coverage']['status'];
-        $coverageMessage = $this->periodPerformanceService->coverageMessage($current['coverage'], $period->label());
+        // UX ACCEPTANCE (Langkah 26) - context line ALWAYS shown (bukan
+        // conditional warning) - cohort roster SELALU genuine/lengkap by
+        // construction (published_at bukan observasi), jadi tidak ada lagi
+        // "coverage belum penuh" buat angka HEADLINE ini.
+        $cohortContextMessage = 'Menampilkan performa terkini konten yang dipublikasikan pada '.$period->label().'.';
 
-        // PASS 2 (Langkah 6, "do not produce misleading percentage changes
-        // when prior period metric is unavailable") - previous coverage
-        // 'unavailable' berarti KITA TIDAK TAHU apa-apa soal periode
-        // sebelumnya (bukan genuinely nol) - percentChange() HARUS
-        // dibedakan dari kasus previous genuinely 0 (coverage full/partial
-        // tapi totalnya memang nol).
-        $previousAvailable = $previous['coverage']['status'] !== \App\Services\ContentPeriodResult::UNAVAILABLE;
+        // SECONDARY ONLY (concept C) - apakah cohort ini PUNYA data
+        // pertumbuhan/gain periode yang bisa dipercaya (period_result
+        // attached tiap row oleh ContentCohortService) - TIDAK PERNAH
+        // mempengaruhi $current/$totalViews/dst di atas, murni buat badge
+        // opsional "Pertumbuhan periode: Riwayat belum cukup" kalau tim
+        // butuh menampilkannya di level ringkasan juga.
+        $cohortRows = collect($current['rows']);
+        // "full" HARUS berarti SEMUA baris punya period-gain PENUH (bukan
+        // cuma "usable" - partial JUGA usable tapi bukan lengkap) - lihat
+        // PeriodPerformanceService::computeAggregate()'s own fullRows/
+        // allRows pattern, dicerminkan di sini.
+        $rowsWithFullPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result']?->coverageStatus === \App\Services\ContentPeriodResult::FULL);
+        $rowsWithAnyPeriodMovement = $cohortRows->filter(fn ($row) => $row['period_result'] && $row['period_result']->isUsable());
+        $coverageStatus = match (true) {
+            $cohortRows->isEmpty() => \App\Services\ContentPeriodResult::UNAVAILABLE,
+            $rowsWithFullPeriodMovement->count() === $cohortRows->count() => \App\Services\ContentPeriodResult::FULL,
+            $rowsWithAnyPeriodMovement->isEmpty() => \App\Services\ContentPeriodResult::UNAVAILABLE,
+            default => \App\Services\ContentPeriodResult::PARTIAL,
+        };
+        $coverageMessage = $coverageStatus !== \App\Services\ContentPeriodResult::FULL && $cohortRows->isNotEmpty()
+            ? 'Data pertumbuhan performa selama periode ini belum tersedia untuk sebagian konten (riwayat observasi belum cukup) - angka performa terkini di atas tetap genuine dan lengkap.'
+            : null;
+
+        // Cohort roster SELALU genuine (published_at, bukan observasi) -
+        // "previous" period selalu bisa dibandingkan, 0 konten published
+        // adalah nol yang genuine, BUKAN "tidak diketahui" seperti dulu.
+        $previousAvailable = true;
 
         $stats = [
             [
@@ -107,29 +138,37 @@ class AnalyticsSummaryService
 
         $platformBreakdown = collect($current['platform_breakdown']);
 
-        $topContent = collect($current['rows'])
-            ->filter(fn ($row) => $row['result']->isUsable())
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - roster SEKARANG
+        // seluruh cohort (published_at, tidak ada lagi isUsable() filter di
+        // sini), ranking by CURRENT performance (concept B) - "performa
+        // terkini tertinggi di antara konten yang dipublikasikan periode
+        // ini" (Langkah 12), BUKAN lagi diranking oleh gain periode yang
+        // bisa jadi kosong/kecil semata karena riwayat observasi baru mulai.
+        $topContent = $cohortRows
             ->map(fn ($row) => $this->presentTopContentRow($row))
             ->filter()
-            ->sortByDesc('views')
+            ->sortByDesc(fn ($row) => $row['current_views'] ?? $row['views'] ?? 0)
             ->take(5)
             ->values();
 
-        return compact('stats', 'trend', 'platformBreakdown', 'topContent', 'coverageStatus', 'coverageMessage');
+        return compact('stats', 'trend', 'platformBreakdown', 'topContent', 'coverageStatus', 'coverageMessage', 'cohortContextMessage');
     }
 
     /**
-     * Bangun 1 baris Top Content dari hasil PeriodPerformanceService - views/
-     * engagement_rate SEKARANG delta periode (Phase 3), BUKAN lagi sum
-     * mentah content_metrics.views. coverage_status diikutkan biar UI bisa
-     * kasih badge "partial"/qualifier kalau bukan gain periode penuh
-     * (Langkah 12 - jangan ranking lifetime metric sementara header bilang
-     * 7/30/90 hari tanpa qualifier apapun).
+     * Bangun 1 baris Top Content dari 1 baris cohort (ContentCohortService).
+     * 'current_views'/'engagement_rate' PRIMARY (concept B, performa
+     * genuine TERKINI, content_metrics apa adanya, TIDAK PERNAH null buat
+     * content API - selalu ada begitu ContentMetric row-nya ada). 'views'
+     * SEKARANG murni gain periode SEKUNDER (concept C, dari period_result
+     * yang di-attach ContentCohortService) - NULLABLE kalau riwayat
+     * observasi belum cukup, TIDAK PERNAH di-default 0 di sini (blade yang
+     * menampilkan "Riwayat belum cukup" kalau null, bukan angka dikarang).
      */
     private function presentTopContentRow(array $row): ?array
     {
         $metric = $row['content_metric'];
-        $result = $row['result'];
+        $periodResult = $row['period_result']; // null utk baris CSV/manual
+        $isCsv = $row['source'] === 'csv';
 
         if ($metric->content_item_id) {
             $item = ContentItem::with(['client', 'contentType', 'contentFormat', 'platform'])->find($metric->content_item_id);
@@ -137,9 +176,9 @@ class AnalyticsSummaryService
                 return null;
             }
 
-            $linkedIgSnapshot = $metric->instagram_media_snapshot_id
+            $linkedIgSnapshot = ! $isCsv && $metric->instagram_media_snapshot_id
                 ? InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id) : null;
-            $linkedTtSnapshot = ! $linkedIgSnapshot && $metric->tiktok_video_snapshot_id
+            $linkedTtSnapshot = ! $isCsv && ! $linkedIgSnapshot && $metric->tiktok_video_snapshot_id
                 ? \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id) : null;
             $linkedSnapshot = $linkedIgSnapshot ?? $linkedTtSnapshot;
 
@@ -155,17 +194,12 @@ class AnalyticsSummaryService
                 'production_type' => $item->contentType->name ?? '-',
                 'content_format' => $this->contentFormatResolver->labelForContentItem($item, $linkedIgSnapshot, $linkedTtSnapshot) ?? '-',
                 'platform' => $item->platform->name ?? '-',
-                // SYSTEM CONSISTENCY PASS (Part AA/AB) - 'views' TETAP gain
-                // periode terpilih (dipakai buat ranking Top Content by
-                // views, TIDAK diubah supaya urutan ranking tidak
-                // regresi) - 'current_views' BARU, total provider TERKINI
-                // (content_metrics.views mentah) buat ditampilkan
-                // BERDAMPINGAN, bukan menggantikan. Null (bukan
-                // difabrikasi) buat konten yang tidak API-linked.
-                'views' => $result->views() ?? 0,
-                'current_views' => $linkedSnapshot ? $metric->views : null,
-                'engagement_rate' => $result->engagementRate,
-                'coverage_status' => $result->coverageStatus,
+                'current_views' => $isCsv ? null : (int) $metric->views,
+                'views' => $isCsv ? (int) $metric->views : $periodResult?->views(),
+                'engagement_rate' => $isCsv
+                    ? ($metric->engagement_rate !== null ? (float) $metric->engagement_rate : null)
+                    : ($metric->engagement_rate !== null ? (float) $metric->engagement_rate : null),
+                'coverage_status' => $isCsv ? \App\Services\ContentPeriodResult::PARTIAL : ($periodResult?->coverageStatus ?? \App\Services\ContentPeriodResult::UNAVAILABLE),
                 'linked' => true,
                 'permalink' => $linkedSnapshot?->permalink,
             ];
@@ -195,10 +229,10 @@ class AnalyticsSummaryService
             'production_type' => '-',
             'content_format' => $format,
             'platform' => $metric->platform->name ?? Platform::find($metric->platform_id)?->name ?? '-',
-            'views' => $result->views() ?? 0,
-            'current_views' => $snapshot ? $metric->views : null,
-            'engagement_rate' => $result->engagementRate,
-            'coverage_status' => $result->coverageStatus,
+            'current_views' => (int) $metric->views,
+            'views' => $periodResult?->views(),
+            'engagement_rate' => $metric->engagement_rate !== null ? (float) $metric->engagement_rate : null,
+            'coverage_status' => $periodResult?->coverageStatus ?? \App\Services\ContentPeriodResult::UNAVAILABLE,
             'linked' => false,
             'permalink' => $snapshot->permalink ?? $snapshot->share_url ?? null,
             'api_integration_id' => $snapshot?->api_integration_id,

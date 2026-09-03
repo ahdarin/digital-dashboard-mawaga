@@ -342,10 +342,12 @@ class ApiCoverageGateTest extends TestCase
         $integration = $this->instagramIntegration($client);
         $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+        // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+        // DALAM cohort periode (roster published_at-gated).
         $media = InstagramMediaSnapshot::create([
             'api_integration_id' => $integration->id, 'external_post_id' => 'ig-'.uniqid(),
             'match_status' => 'unmatched', 'media_type' => 'VIDEO', 'media_product_type' => 'REELS',
-            'published_at' => now()->subDays(20), 'last_fetched_at' => now(),
+            'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
         ]);
         // watch_time_avg/skip_rate diisi TAPI TIDAK di-request eksplisit
         // oleh manapun - AI HARUS tetap jalan normal, tidak crash, tidak
@@ -353,16 +355,12 @@ class ApiCoverageGateTest extends TestCase
         ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $platform->id,
             'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-            'metric_date' => now()->subDays(20), 'views' => 500, 'engagement_rate' => 2.5,
+            'metric_date' => now(), 'views' => 500, 'engagement_rate' => 2.5,
             'watch_time_avg' => 15, 'watch_time_total' => 900, 'skip_rate' => 5.0,
         ]);
         ContentMetricSnapshot::create([
             'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => $currentMonth->dateFrom->copy()->subDay()->toDateString(), 'views' => 400,
-        ]);
-        ContentMetricSnapshot::create([
-            'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-            'snapshot_date' => $currentMonth->effectiveDateTo->toDateString(), 'views' => 500,
+            'snapshot_date' => $currentMonth->dateFrom->copy()->addDays(2)->toDateString(), 'views' => 100,
         ]);
 
         $summary = app(\App\Services\AiStrategyService::class)->buildPerformanceSummary($client, now()->format('Y-m'), $integration->platform_id);
@@ -428,23 +426,28 @@ class ApiCoverageGateTest extends TestCase
             $integration = $this->instagramIntegration($client);
             $currentMonth = app(AnalyticsPeriodResolver::class)->currentMonth();
 
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - published DI
+            // DALAM cohort periode (September, roster published_at-gated -
+            // publish 26 Juli TIDAK LAGI relevan buat cohort September, itu
+            // SEKARANG milik cohort Juli, bukan bug). Genuine-zero observasi
+            // AWAL (Case B, baseline dipaksa 0 karena publish di dalam
+          // periode) + sync TERBARU (ContentMetric.views) yang belum
+            // sempat ditulis ke snapshot harian - reproduksi PERSIS pola X
+            // (18573, current) != Y (0, gain) yang ditemukan lewat trace
+            // data real, TANPA melanggar roster cohort baru.
             $media = InstagramMediaSnapshot::create([
                 'api_integration_id' => $integration->id, 'external_post_id' => '18612460072009523',
                 'match_status' => 'unmatched', 'media_type' => 'VIDEO', 'media_product_type' => 'REELS',
-                'published_at' => Carbon::parse('2026-07-26'), 'last_fetched_at' => now(),
+                'published_at' => Carbon::parse('2026-09-01'), 'last_fetched_at' => now(),
             ]);
             ContentMetric::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id,
                 'instagram_media_snapshot_id' => $media->id, 'imported_by' => $manager->id,
-                'metric_date' => '2026-07-26', 'views' => 18573, 'engagement_rate' => 4.2,
+                'metric_date' => '2026-09-03', 'views' => 18573, 'engagement_rate' => 4.2,
             ]);
             ContentMetricSnapshot::create([
                 'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => '2026-09-02', 'views' => 18573,
-            ]);
-            ContentMetricSnapshot::create([
-                'client_id' => $client->id, 'platform_id' => $platform->id, 'instagram_media_snapshot_id' => $media->id,
-                'snapshot_date' => '2026-09-03', 'views' => 18573,
+                'snapshot_date' => '2026-09-02', 'views' => 0,
             ]);
 
             $agg = app(\App\Services\PeriodPerformanceService::class)->computeClientPeriod(

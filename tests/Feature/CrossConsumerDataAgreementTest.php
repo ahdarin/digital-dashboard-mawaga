@@ -138,21 +138,27 @@ class CrossConsumerDataAgreementTest extends TestCase
         $formatVideo = ContentFormat::where('slug', 'video')->firstOrFail();
 
         // 1) Instagram Single Post - UNMATCHED (no linked ContentItem),
-        // current total (18,573) DELIBERATELY far from small period gain
-        // (mirrors the real production_type=null/provider-fallback case AND
-        // the proven current-vs-period fixture from CurrentTotalVsPeriodGainTest).
+        // published WITHIN the cohort period (FINAL ANALYTICS PRODUCT
+        // SEMANTICS CORRECTION - roster is published_at-gated now, a
+        // content published 60 days before "now" would no longer belong to
+        // THIS month's cohort at all). current total (18,573, ContentMetric.
+        // views - the latest genuine sync) DELIBERATELY far from small
+        // period gain (22, from a single early ContentMetricSnapshot dated
+        // shortly after publish - the realistic case of a later sync
+        // updating ContentMetric.views without a matching same-day
+        // ContentMetricSnapshot row yet) - mirrors the proven current-vs-
+        // period fixture from CurrentTotalVsPeriodGainTest.
         $igSinglePost = InstagramMediaSnapshot::create([
             'api_integration_id' => $igIntegration->id, 'external_post_id' => 'ig-single-'.uniqid(),
             'match_status' => 'unmatched', 'media_type' => 'IMAGE', 'media_product_type' => 'FEED',
-            'published_at' => now()->subDays(60), 'last_fetched_at' => now(),
+            'published_at' => $currentMonth->dateFrom->copy()->addDay(), 'last_fetched_at' => now(),
         ]);
         ContentMetric::create([
             'client_id' => $client->id, 'platform_id' => $igPlatform->id,
             'instagram_media_snapshot_id' => $igSinglePost->id, 'imported_by' => $manager->id,
-            'metric_date' => now()->subDays(60), 'views' => 18573, 'engagement_rate' => 4.2,
+            'metric_date' => now(), 'views' => 18573, 'engagement_rate' => 4.2,
         ]);
-        $this->snapshot($client, $igPlatform, $igSinglePost->id, $currentMonth->dateFrom->copy()->subDay(), 18551);
-        $this->snapshot($client, $igPlatform, $igSinglePost->id, $currentMonth->effectiveDateTo, 18573);
+        $this->snapshot($client, $igPlatform, $igSinglePost->id, $currentMonth->dateFrom->copy()->addDays(2), 22);
 
         // 2) Instagram Carousel - LINKED (Desain / Carousel), genuine zero
         // views (real snapshot data present, definitively zero, not missing).
@@ -222,15 +228,19 @@ class CrossConsumerDataAgreementTest extends TestCase
 
     // ===== Cross-consumer agreement =====
 
-    public function test_analytics_export_and_ai_agree_on_the_same_canonical_period_views(): void
+    public function test_analytics_export_and_ai_agree_on_the_same_canonical_current_views(): void
     {
         try {
             ['client' => $client, 'manager' => $manager, 'month' => $month] = $this->buildCanonicalFixture();
             $periodResolver = app(AnalyticsPeriodResolver::class);
             $currentMonth = $periodResolver->currentMonth();
 
-            // Ground truth: the SAME service every consumer calls.
-            $groundTruth = app(PeriodPerformanceService::class)->computeClientPeriod(
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION - ground truth
+            // SEKARANG ContentCohortService (roster=published_at, current
+            // performance apa adanya), BUKAN lagi PeriodPerformanceService
+            // (gain periode) - itu SEKARANG secondary, bukan lagi sumber
+            // kanonis "total views" yang dibandingkan lintas consumer.
+            $groundTruth = app(\App\Services\ContentCohortService::class)->computeClientCohort(
                 $client->id, $currentMonth->dateFrom, $currentMonth->effectiveDateTo, null
             );
             $groundTruthViews = $groundTruth['totals']['views'];
@@ -248,13 +258,13 @@ class CrossConsumerDataAgreementTest extends TestCase
             $csvTotalViews = 0;
             foreach (array_slice($lines, 1) as $line) {
                 $cols = str_getcsv($line);
-                $csvTotalViews += (int) ($cols[5] ?? 0); // views column
+                $csvTotalViews += (int) ($cols[3] ?? 0); // current_views column
             }
-            $this->assertSame($groundTruthViews, $csvTotalViews, 'Total views CSV export HARUS SAMA PERSIS dengan PeriodPerformanceService (sumber kanonis yang sama dengan Analytics).');
+            $this->assertSame($groundTruthViews, $csvTotalViews, 'Total current_views CSV export HARUS SAMA PERSIS dengan ContentCohortService (sumber kanonis yang sama dengan Analytics).');
 
             // Consumer 3: AI Strategy performance summary.
             $aiSummary = app(AiStrategyService::class)->buildPerformanceSummary($client, $month, null);
-            $this->assertSame($groundTruthViews, $aiSummary['total_views'], 'total_views AI HARUS SAMA dengan Analytics/Export - konsep PERIOD VIEWS yang identik.');
+            $this->assertSame($groundTruthViews, $aiSummary['total_views'], 'total_views AI HARUS SAMA dengan Analytics/Export - konsep CURRENT VIEWS yang identik.');
         } finally {
             Carbon::setTestNow();
         }
@@ -303,7 +313,7 @@ class CrossConsumerDataAgreementTest extends TestCase
         }
     }
 
-    public function test_genuine_zero_stays_zero_and_insufficient_history_is_excluded_not_zeroed(): void
+    public function test_genuine_zero_stays_zero_and_insufficient_history_is_still_in_the_cohort_not_excluded(): void
     {
         try {
             ['client' => $client, 'manager' => $manager, 'month' => $month] = $this->buildCanonicalFixture();
@@ -314,21 +324,27 @@ class CrossConsumerDataAgreementTest extends TestCase
             // includes it) - zero is a real, included observation.
             $exportResponse = $this->actingAs($manager)->get(route('analytics.export', ['client_id' => $client->id]));
             $csv = $exportResponse->streamedContent();
-            $this->assertStringNotContainsString(',,', $csv, 'Sanity - CSV tidak boleh punya baris kosong aneh.');
+            // Genuine zero HARUS tampil sebagai "0" eksplisit (bukan baris
+            // hilang) - fixture ini TIDAK mengisi likes/comments/shares jadi
+            // kolom itu legitimately kosong (null), bukan tanda baris rusak.
+            $this->assertStringContainsString(',0,,,,0.00,0,full', $csv, 'Genuine zero (Carousel item) HARUS tampil sebagai 0 eksplisit di export, bukan hilang/dikira baris kosong.');
 
-            // Insufficient-history item (ig-sparse) must NOT silently appear
-            // as a genuine period observation with a fabricated delta -
-            // PeriodPerformanceService's own coverage/isUsable() semantics
-            // (unchanged, not touched this pass) already enforce this; this
-            // asserts the AI-facing aggregate reflects that exclusion too.
-            $groundTruth = app(PeriodPerformanceService::class)->computeClientPeriod(
+            // FINAL ANALYTICS PRODUCT SEMANTICS CORRECTION (Langkah 11/21,
+            // "AI must NOT exclude A") - insufficient-history item
+            // (ig-sparse, published DI DALAM periode) HARUS TETAP masuk
+            // cohort roster/content_published_count - period-gain (secondary)
+            // being unavailable for it must NEVER exclude it from the
+            // primary roster anymore (this is the exact behavior the OLD
+            // isUsable()-as-roster-gate version of this test was locking in
+            // as correct, and is now the bug this pass corrects).
+            $groundTruth = app(\App\Services\ContentCohortService::class)->computeClientCohort(
                 $client->id,
                 app(AnalyticsPeriodResolver::class)->currentMonth()->dateFrom,
                 app(AnalyticsPeriodResolver::class)->currentMonth()->effectiveDateTo,
                 null
             );
-            $usableCount = collect($groundTruth['rows'])->filter(fn ($r) => $r['result']->isUsable())->count();
-            $this->assertSame($usableCount, $aiSummary['content_published_count'], 'content_published_count AI HARUS SAMA PERSIS dengan jumlah baris usable PeriodPerformanceService - item insufficient-history TIDAK ikut terhitung sebagai observasi genuine.');
+            $this->assertSame($groundTruth['totals']['content_count'], $aiSummary['content_published_count'], 'content_published_count AI HARUS SAMA PERSIS dengan cohort roster (ContentCohortService) - item insufficient-history TETAP terhitung, HANYA period-gain-nya yang tidak tersedia.');
+            $this->assertSame(5, $aiSummary['content_published_count'], 'Seluruh 5 konten fixture (termasuk ig-sparse) HARUS masuk cohort - published_at semuanya di dalam bulan berjalan.');
         } finally {
             Carbon::setTestNow();
         }
