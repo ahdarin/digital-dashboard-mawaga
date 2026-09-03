@@ -566,10 +566,21 @@ class AnalyticsController extends Controller
         // pernah ada AnalyticsSyncRun buat client ini (integration belum
         // pernah sync lewat orchestrator, mis. instalasi baru) - itu state
         // VALID, bukan error.
+        //
+        // SYNC UI STALE TERMINAL STATE BUG FIX - No-Cache eksplisit. Poll()
+        // JS memanggil URL yang PERSIS SAMA (client_id/platform_id statis)
+        // berulang tiap 2.5 detik selama satu run - tanpa header ini,
+        // response GET ini genuinely rentan di-cache oleh browser ATAU
+        // reverse proxy/CDN di depan deployment production (heuristic
+        // freshness caching, RFC 7234) begitu server TIDAK secara eksplisit
+        // bilang "jangan di-cache", membuat client bisa menerima payload
+        // status BASI walau backend sudah genuinely maju - defense-in-depth
+        // di atas fix single-source-of-truth di AnalyticsSyncOrchestrator.
         return response()->json([
             ...$orchestrator->statusForClient($client, $platformId),
             'progress' => $orchestrator->latestRunProgress($client, $platformId),
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     /**

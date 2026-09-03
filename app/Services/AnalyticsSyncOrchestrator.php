@@ -418,6 +418,35 @@ class AnalyticsSyncOrchestrator
             return $this->statusPayload('needs_reconnect', $this->needsReconnectMessage($subjob), null);
         }
 
+        // SYNC UI STALE TERMINAL STATE BUG FIX - single source of truth.
+        // Previously this method decided busy/queued/running/failed from a
+        // SEPARATE signal (cache lock peek + `jobs` table scan + latest
+        // AnalyticsSyncLog heuristic below) than what latestRunProgress()
+        // presents (AnalyticsSyncTask.status, read directly) - two
+        // independently-computed signals with NO structural guarantee of
+        // agreeing. Reproduced concretely: seed an OLD terminal
+        // AnalyticsSyncTask (status=failed) then dispatch a NEW one - every
+        // poll during the real run showed both signals correctly agreeing
+        // in this environment, but the two-signal design itself is the
+        // real defect the video's symptom points to (a stale terminal
+        // result rendered concurrently with a newer active/completed run)
+        // - eliminating the second, independently-computed signal removes
+        // that entire class of bug structurally, rather than chasing the
+        // exact interleaving that triggers it. When an AnalyticsSyncTask
+        // exists, it is now ALWAYS authoritative here. Legacy fallback
+        // (below, unchanged) only applies when NO Task exists at all - a
+        // sync dispatched outside AnalyticsSyncOrchestrator (the
+        // historical --month CLI/Settings-form path), which never creates
+        // a Task row.
+        $latestTask = AnalyticsSyncTask::where('api_integration_id', $integration->id)
+            ->where('subjob', $subjob)
+            ->latest('id')
+            ->first();
+
+        if ($latestTask) {
+            return $this->statusFromTask($latestTask, $subjob, $integration);
+        }
+
         $jobClass = $this->jobClassFor($subjob);
         $sourceType = $this->sourceTypeFor($subjob);
 
@@ -481,6 +510,52 @@ class AnalyticsSyncOrchestrator
         }
 
         $message = $stale ? $this->staleMessage($subjob) : $this->messageFor($subjob, $status);
+
+        return $this->statusPayload($status, $message, $lastLog);
+    }
+
+    /**
+     * SYNC UI STALE TERMINAL STATE BUG FIX - status derived DIRECTLY from
+     * the given AnalyticsSyncTask (the exact same row latestRunProgress()
+     * shows), not from a separately-computed lock/jobs-table/log heuristic.
+     * A task's own status is always current (queued/running are durable
+     * for the task's WHOLE lifetime, see AnalyticsSyncTask::markRunning()/
+     * finish() - no staleness heuristic is needed here: an abandoned task
+     * eventually reaches a terminal status on its own via Laravel's normal
+     * job-retry exhaustion, see final report Section 5 of the prior
+     * closure-gate pass).
+     *
+     * @return array{status: string, message: string, synced_count: ?int, skipped_count: ?int, error_message: ?string, finished_at: ?string}
+     */
+    private function statusFromTask(AnalyticsSyncTask $task, string $subjob, ApiIntegration $integration): array
+    {
+        $lastLog = AnalyticsSyncLog::where('api_integration_id', $integration->id)
+            ->where('source_type', $this->sourceTypeFor($subjob))
+            ->latest()
+            ->first();
+
+        if (in_array($task->status, ['queued', 'running'], true)) {
+            return $this->statusPayload($task->status, $this->messageFor($subjob, $task->status), $lastLog);
+        }
+
+        $status = $task->status; // success/partial/failed/needs_reconnect
+
+        // MIRROR the legacy path's downgrade rules (Langkah 5/6/14) - a
+        // task reported as a clean 'success' by AnalyticsSyncTask::finish()
+        // can still have a partial-write marker recorded in the sync log
+        // (Phase 2 snapshot-history write failing after content_metrics
+        // itself succeeded) - that must still downgrade the presented
+        // status to 'partial', exactly as before.
+        if ($status === 'success' && SnapshotFailureMarker::detectedIn($lastLog?->error_message)) {
+            $status = 'partial';
+        }
+        if ($status === 'success' && KnownContentRefreshFailureMarker::detectedIn($lastLog?->error_message)) {
+            $status = 'partial';
+        }
+
+        $message = $status === 'needs_reconnect'
+            ? $this->needsReconnectMessage($subjob)
+            : $this->messageFor($subjob, $status);
 
         return $this->statusPayload($status, $message, $lastLog);
     }

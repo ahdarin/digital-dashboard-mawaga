@@ -80,6 +80,11 @@ class ContentItemController extends Controller
             'to_status' => 'required|string',
             'notes' => 'nullable|string',
             'scheduled_upload_at' => 'nullable|date',
+            // FINAL REMAINING-GAPS CLOSURE PASS - konsisten dengan
+            // ProductionWorkflowController::updateStatus() (lihat
+            // WorkflowStatusService::transition() buat penjelasan lengkap
+            // kenapa field ini sekarang benar-benar dipersist kalau ada).
+            'content_file_link' => 'nullable|url|max:2048',
         ]);
 
         $toStatus = $validated['to_status'];

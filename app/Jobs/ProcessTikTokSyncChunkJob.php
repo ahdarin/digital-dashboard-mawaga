@@ -70,8 +70,14 @@ class ProcessTikTokSyncChunkJob implements ShouldQueue
             return;
         }
 
+        // IMMEDIATE-FAILURE INCIDENT INVESTIGATION - MIRROR
+        // ProcessInstagramSyncChunkJob (lihat docblock di sana) - filtered
+        // by status=pending, bukan cuma existence, biar replay/retry
+        // sebuah chunk yang task-nya sudah lama selesai TIDAK cascade
+        // dispatch job kosong sampai chunk terakhir.
         $nextChunkIndex = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
             ->where('chunk_index', '>', $this->chunkIndex)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_PENDING)
             ->min('chunk_index');
 
         if ($nextChunkIndex) {

@@ -77,6 +77,28 @@ class AnalyticsSyncTask extends Model
         ]);
     }
 
+    /**
+     * SYNC PROGRESS UX pass - discovered_count ABSOLUTE (bukan akumulatif
+     * seperti recordDiscovered()), dipakai KHUSUS oleh jalur progresif
+     * (planProgressiveRun()) yang menelepon paginasi provider SATU kali per
+     * task: dipanggil berulang selagi $stage tetap 'discovering_media'/
+     * 'discovering_videos' (UI: "N konten ditemukan sejauh ini", TANPA
+     * persentase - total belum diketahui), lalu SATU KALI TERAKHIR dengan
+     * total definitif (discovery + known-refresh) begitu planning selesai,
+     * yang JUGA menggeser stage ke fase processing pertama. TIDAK PERNAH
+     * dipakai jalur monolitik lama (sync()/refreshKnownMedia()) - itu tetap
+     * pakai recordDiscovered() akumulatif dua-fase seperti sebelumnya, jadi
+     * method ini TIDAK BOLEH menggantikannya di sana.
+     */
+    public function touchDiscoveryProgress(int $discoveredSoFar, ?string $stage = null): void
+    {
+        $this->update([
+            'discovered_count' => $discoveredSoFar,
+            'stage' => $stage ?? $this->stage,
+            'last_progress_at' => now(),
+        ]);
+    }
+
     public function incrementSuccess(): void
     {
         $this->increment('success_count');

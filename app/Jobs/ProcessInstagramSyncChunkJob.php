@@ -104,8 +104,27 @@ class ProcessInstagramSyncChunkJob implements ShouldQueue
             return;
         }
 
+        // IMMEDIATE-FAILURE INCIDENT INVESTIGATION - filtered by status=
+        // pending (BUKAN cuma "chunk_index apapun yang lebih besar EXIST").
+        // Ditemukan lewat reproduksi nyata: kalau chunk job manapun sempat
+        // ke-replay (Laravel retry setelah worker hiccup, atau - seperti
+        // yang genuinely terjadi lewat leftover job dari sesi test manual
+        // sebelumnya - job lama yang belum sempat diproses) SETELAH task-nya
+        // sudah selesai duluan, versi lama query ini TETAP menemukan
+        // chunk_index berikutnya (SEKEDAR karena barisnya ada, TIDAK PEDULI
+        // isinya sudah 'success' semua) dan dispatch ulang - job baru itu
+        // lalu menemukan chunk-nya SENDIRI juga kosong, dan mengulang pola
+        // yang sama ke chunk SETELAHNYA lagi, dst - cascade job kosong
+        // sampai ke chunk terakhir. TIDAK merusak data (setiap chunk tetap
+        // idempotent, finalizeProgressiveRun() aman dipanggil ulang), TAPI
+        // membuang job/worker time percuma tanpa batas jelas. Filter status
+        // di sini membuat sisa chunk yang GENUINELY masih 'pending' saja
+        // yang di-dispatch ulang - begitu TIDAK ADA satupun status=pending
+        // tersisa di seluruh task (baik karena baru selesai ATAU karena
+        // sudah lama selesai), langsung finalize, tidak cascade sia-sia.
         $nextChunkIndex = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)
             ->where('chunk_index', '>', $this->chunkIndex)
+            ->where('status', AnalyticsSyncTaskItem::STATUS_PENDING)
             ->min('chunk_index');
 
         if ($nextChunkIndex) {
