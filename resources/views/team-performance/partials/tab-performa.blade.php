@@ -10,18 +10,18 @@
 
 {{-- Ringkasan Tim --}}
 <div class="mb-5">
-    <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Ringkasan Tim &middot; Tren 6 Bulan Terakhir</h2>
+    <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-3">Ringkasan Tim &middot; Tren 6 Bulan Terakhir</h2>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card p-5">
-            <p class="text-xs font-medium text-[var(--text-secondary)] mb-2">Rata-rata Nilai KPI</p>
+            <p class="font-display text-sm font-semibold text-[var(--text-primary)] mb-2">Rata-rata Nilai KPI</p>
             <x-kpi-trend-line :trend="$teamTrend['kpi']" />
         </div>
         <div class="card p-5">
-            <p class="text-xs font-medium text-[var(--text-secondary)] mb-2">Ketepatan Kerja Tim</p>
+            <p class="font-display text-sm font-semibold text-[var(--text-primary)] mb-2">Ketepatan Kerja Tim</p>
             <x-kpi-trend-line :trend="$teamTrend['timeliness']" />
         </div>
         <div class="card p-5">
-            <p class="text-xs font-medium text-[var(--text-secondary)] mb-2">Kualitas Kerja Tim</p>
+            <p class="font-display text-sm font-semibold text-[var(--text-primary)] mb-2">Kualitas Kerja Tim</p>
             <x-kpi-trend-line :trend="$teamTrend['quality']" />
         </div>
     </div>
@@ -29,19 +29,20 @@
 
 {{-- Perbandingan Nilai KPI Antar Anggota --}}
 <div class="card p-5 mb-5">
-    <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-1">Perbandingan Nilai KPI Anggota</h2>
+    <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-1">Perbandingan Nilai KPI Anggota</h2>
     <p class="text-xs text-[var(--text-muted)] mb-3">Periode {{ $periodStart->translatedFormat('F Y') }}, diurutkan dari nilai tertinggi.</p>
     <x-kpi-comparison-bar :trend="$comparisonChart" />
 </div>
 
-{{-- Ketepatan Prediksi Risiko Tinggi (AI Delay Risk) --}}
+{{-- Ketepatan Prediksi Risiko Tinggi (AI Delay Risk) - header konsisten
+     dengan kartu "Akurasi Prediksi AI" di Dashboard (teaser fitur yang sama). --}}
 <div class="card p-6 mb-5">
     <div class="flex items-center gap-3 mb-4">
         <div class="w-9 h-9 rounded-lg bg-[var(--info-tint)] flex items-center justify-center shrink-0">
             <span class="material-symbols-outlined text-[var(--info-text)] text-[18px]">verified</span>
         </div>
         <div>
-            <h2 class="text-sm font-semibold text-[var(--text-primary)]">Ketepatan Prediksi Risiko Tinggi</h2>
+            <h2 class="font-display text-base font-semibold text-[var(--text-primary)]">Ketepatan Prediksi Risiko Tinggi</h2>
             <p class="text-xs text-[var(--text-muted)]">Dari seluruh content yang diprediksi berisiko tinggi, persentase ini menunjukkan berapa banyak yang benar-benar terlambat. Angka ini mengevaluasi model AI, bukan KPI karyawan.</p>
         </div>
     </div>
@@ -75,7 +76,7 @@
 
 {{-- Daftar Anggota --}}
 <div>
-    <h2 class="text-sm font-semibold text-[var(--text-primary)] mb-3">Daftar Anggota</h2>
+    <h2 class="font-display text-base font-semibold text-[var(--text-primary)] mb-3">Daftar Anggota</h2>
     <div class="card overflow-hidden hidden sm:block">
       <div class="overflow-x-auto">
         <table class="w-full table-fixed text-sm text-left">
@@ -85,7 +86,7 @@
                     <th class="w-[14%] px-4 py-3 font-medium text-right whitespace-nowrap">Nilai KPI</th>
                     <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Ketepatan Kerja</th>
                     <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Kualitas Kerja</th>
-                    <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Bonus Analytics</th>
+                    <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Bonus Performa</th>
                     <th class="w-[13%] px-4 py-3 font-medium text-right whitespace-nowrap">Konten</th>
                 </tr>
             </thead>
@@ -168,5 +169,15 @@
         @empty
             <div class="card p-6 text-center text-sm text-[var(--text-muted)]">Belum ada anggota tim tercatat.</div>
         @endforelse
+    </div>
+
+    {{-- Keterangan kolom - lihat docs/KPI_TEAM_PERFORMANCE.md untuk formula lengkap. --}}
+    <div class="mt-4 px-1 text-xs text-[var(--text-muted)] space-y-1.5">
+        <p><strong class="text-[var(--text-secondary)]">Nilai KPI</strong> = (Ketepatan Kerja &times; 60%) + (Kualitas Kerja &times; 40%), ditambah Bonus Performa. Tidak pernah lebih dari 100.</p>
+        <p><strong class="text-[var(--text-secondary)]">Ketepatan Kerja</strong> = persentase konten yang tayang tepat waktu, dari konten yang datanya cukup untuk dinilai (dibandingkan dengan jadwal upload atau, kalau tidak ada, dengan deadline).</p>
+        <p><strong class="text-[var(--text-secondary)]">Kualitas Kerja</strong> = persentase konten tanpa revisi internal dari tim (revisi permintaan klien tidak mengurangi nilai ini).</p>
+        <p><strong class="text-[var(--text-secondary)]">Bonus Performa</strong> = tambahan nilai (maks. +10) dari performa reach/engagement konten dibanding rata-rata konten sejenis sebelumnya (klien, platform, dan format yang sama). Tidak pernah mengurangi nilai.</p>
+        <p><strong class="text-[var(--text-secondary)]">Konten</strong> = jumlah konten yang tayang bulan ini dan menjadi dasar perhitungan anggota tersebut.</p>
+        <p>Tanda &ldquo;-&rdquo; berarti belum ada cukup data untuk indikator itu (bukan nilai nol) - klik nama anggota untuk melihat rincian per konten.</p>
     </div>
 </div>

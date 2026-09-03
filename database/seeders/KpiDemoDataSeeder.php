@@ -74,7 +74,7 @@ class KpiDemoDataSeeder extends Seeder
         $pool = $workers->flatMap(fn (User $u) => array_fill(0, $leadershipIds->contains($u->id) ? 1 : 6, $u));
 
         // Spesialisasi tetap per user (deterministik dari id) - supaya baseline
-        // Bonus Analytics per format konsisten sepanjang 6 bulan (Video tidak
+        // Bonus Performa per format konsisten sepanjang 6 bulan (Video tidak
         // pernah "kebetulan" ketemu campuran desain).
         $specialtyFor = fn (User $u) => $u->id % 2 === 0 ? 'video' : 'desain';
 

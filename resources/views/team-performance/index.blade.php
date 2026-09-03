@@ -5,7 +5,7 @@
 
     <div class="mb-7">
         <h1 class="font-display text-[26px] sm:text-[32px] font-semibold text-[var(--text-primary)]">Performa Tim</h1>
-        <p class="text-[var(--text-secondary)] text-sm mt-1">Beban kerja dan produktivitas tim internal.</p>
+        <p class="text-[var(--text-secondary)] text-sm mt-1">Nilai KPI, ketepatan, dan kualitas kerja tim internal.</p>
     </div>
 
     <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-6 w-fit">

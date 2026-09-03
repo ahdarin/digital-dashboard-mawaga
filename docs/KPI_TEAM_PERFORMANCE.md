@@ -13,7 +13,7 @@ beberapa role tetap mendapat satu nilai KPI.
 
 ```
 Skor Dasar = (Ketepatan Kerja x 60%) + (Kualitas Kerja x 40%)
-Nilai KPI  = min(100, Skor Dasar + Bonus Analytics)
+Nilai KPI  = min(100, Skor Dasar + Bonus Performa)
 ```
 
 ### Ketepatan Kerja
@@ -44,7 +44,7 @@ internal; revisi dari `requested_by_client_id` (klien) tidak jadi penalti.
 Beberapa revisi pada content yang sama tetap dihitung sebagai satu content
 bermasalah.
 
-### Bonus Analytics (0-10, tambahan saja)
+### Bonus Performa (0-10, tambahan saja)
 
 Untuk tiap content, dibandingkan dengan baseline minimal 3 publication
 sebelumnya dari klien + platform + format yang sama (format = 
@@ -157,13 +157,32 @@ perhitungan per content, dipakai bagian KPI di halaman Profil),
 - Kalau Ketepatan Kerja tidak bisa dihitung sama sekali untuk seorang user
   (tidak ada satupun content dengan data waktu lengkap), Skor Dasar jatuh
   ke Kualitas Kerja saja (bobot 100%) alih-alih rata-rata tertimbang penuh.
-- Job KPI berjalan lewat queue (`QUEUE_CONNECTION=database`) - kalau tidak
-  ada `queue:work` yang aktif di server, hasil baru tidak akan pernah
-  muncul walau job berhasil di-dispatch terus-menerus. Ini bukan masalah
-  KPI secara spesifik (sync analytics lain juga bergantung queue yang
-  sama), tapi penting diketahui karena efeknya di halaman ini adalah Nilai
-  KPI yang terlihat "diam" walau datanya di baliknya sudah berubah.
-- Bonus Analytics butuh `content_metric_snapshots` terisi pada window
+- Job KPI berjalan lewat queue (`QUEUE_CONNECTION=database`). Sudah
+  dikonfirmasi (2026-09) deployment Railway default (`PROCESS_ROLE=all`)
+  menjalankan `queue:work` dan `schedule:work` sungguhan lewat supervisord
+  (lihat `docker/supervisord.conf`, `docker/entrypoint.sh`) - jadi di
+  production job ini akan diproses. Cuma di dev lokal tanpa worker/cron
+  aktif hasilnya akan "diam" (job menumpuk di tabel `jobs`, tidak pernah
+  jalan) - kalau butuh lihat hasilnya di lokal, jalankan `queue:work` manual
+  sekali.
+- Atribusi bergantung pada disiplin alur kerja existing, bukan cuma kode
+  KPI: `content_item_assignments` (PIC) SIFATNYA OPSIONAL di alur produksi
+  saat ini (`WorkflowStatusService::transition()` tidak mensyaratkan PIC
+  sebelum status bisa naik sampai `uploaded`, lihat `app/Http/Controllers/
+  ContentItemController.php`). Kalau staf terbiasa tidak mengisi PIC,
+  content itu tetap bisa dihitung KPI-nya (lewat brief/status log
+  scheduled-uploaded), tapi kalau ketiga sumber atribusi sama-sama kosong,
+  content itu tidak menyumbang ke siapa pun - bukan bug, tapi konsekuensi
+  dari data yang memang tidak mencatat siapa pengerjanya.
+- `content_publications.published_by` BISA terisi otomatis oleh sync
+  Instagram/TikTok harian (`SyncAllInstagramIntegrations`/
+  `SyncAllTikTokIntegrations`, fallback ke akun CEO/user pertama) saat
+  auto-matching post - kolom ini SENGAJA tidak dipakai untuk atribusi KPI
+  sama sekali (lihat "Sumber Data & Atribusi"), jadi tidak mencemari
+  Nilai KPI. `published_at` dari publication auto-match tetap dipakai
+  untuk Ketepatan Kerja, dan itu valid karena nilainya berasal dari
+  timestamp asli platform, bukan dari `published_by` yang keliru itu.
+- Bonus Performa butuh `content_metric_snapshots` terisi pada window
   D+7-D+10 dan minimal 3 publication pembanding sejenis; kalau data sync
   analytics belum lengkap untuk klien/format tertentu, bonus akan terus
   tampil "belum tersedia" untuk PIC yang menangani klien/format itu -
