@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentRevision;
 use App\Models\User;
@@ -70,8 +71,11 @@ class TeamPerformanceController extends Controller
             ]);
         }
 
+        // Admin bukan bagian dari tim produksi (nggak megang konten, nggak
+        // wajib absensi) - dikecualikan dari Performa Tim.
         $users = User::query()
             ->where('status', 'active')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', UserRole::Admin->value))
             ->with(['roles', 'assignments.contentItem.workflow'])
             ->get();
 

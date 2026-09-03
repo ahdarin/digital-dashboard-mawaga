@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Services\AttendanceService;
 use App\Services\NextStepsService;
 use App\Services\PinService;
@@ -31,6 +32,10 @@ class HomeController extends Controller
 
         $now = Carbon::now();
         $attendanceProps = [
+            // Admin nggak wajib absensi - widget check-in/out disembunyikan
+            // total buat role ini (lihat AttendanceService::trackedUsers()
+            // yang juga mengecualikan Admin dari laporan Kehadiran).
+            'showAttendance' => ! $user->hasAnyRole([UserRole::Admin]),
             'isWorkday' => $attendanceService->isWorkday($now),
             'attendance' => $attendance = $attendanceService->today($user),
             'lateMinutes' => $attendance ? $attendanceService->lateMinutes($attendance) : 0,

@@ -7,7 +7,7 @@
 
 <div class="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
 
-    <x-welcome-banner :is-workday="$isWorkday" :attendance="$attendance" :late-minutes="$lateMinutes" />
+    <x-welcome-banner :is-workday="$isWorkday" :attendance="$attendance" :late-minutes="$lateMinutes" :show-attendance="$showAttendance" />
 
     <div class="lg:grid lg:grid-cols-2 lg:gap-5 lg:items-start">
         <x-pinned-focus :pinned-items="$pinnedItems" />

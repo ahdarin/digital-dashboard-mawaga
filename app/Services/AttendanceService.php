@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Attendance;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -158,9 +159,22 @@ class AttendanceService
         };
     }
 
+    /**
+     * Admin dikecualikan dari absensi - tidak wajib check-in/check-out
+     * dan tidak muncul di laporan Kehadiran.
+     */
+    private function trackedUsers(): \Illuminate\Support\Collection
+    {
+        return User::query()
+            ->where('status', 'active')
+            ->whereDoesntHave('roles', fn ($q) => $q->where('name', UserRole::Admin->value))
+            ->orderBy('name')
+            ->get();
+    }
+
     public function dailyRecords(Carbon $date): \Illuminate\Support\Collection
     {
-        $users = User::query()->where('status', 'active')->orderBy('name')->get();
+        $users = $this->trackedUsers();
         $attendances = Attendance::where('date', $date->toDateString())->get()->keyBy('user_id');
 
         return $users->map(function ($user) use ($date, $attendances) {
@@ -176,7 +190,7 @@ class AttendanceService
 
     public function monthlySummary(Carbon $month): \Illuminate\Support\Collection
     {
-        $users = User::query()->where('status', 'active')->orderBy('name')->get();
+        $users = $this->trackedUsers();
         $start = $month->copy()->startOfMonth();
         $end = $month->copy()->endOfMonth();
 
