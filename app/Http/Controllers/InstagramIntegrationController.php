@@ -133,6 +133,11 @@ class InstagramIntegrationController extends Controller
                 'external_username' => $profile['username'] ?? null,
                 'external_display_name' => $profile['name'] ?? null,
                 'external_avatar_url' => $profile['profile_picture_url'] ?? null,
+                // FINAL API COVERAGE GATE - field yang SAMA persis sudah
+                // ada di response getProfile() ini (nol biaya API
+                // tambahan) - dulu dibuang di connect flow juga.
+                'external_account_type' => $profile['account_type'] ?? null,
+                'external_media_count' => $profile['media_count'] ?? null,
                 'last_error' => null,
             ];
 

@@ -35,14 +35,18 @@ class TikTokVideoSnapshot extends Model
     public function contentMetric() { return $this->hasOne(ContentMetric::class, 'tiktok_video_snapshot_id'); }
 
     /**
-     * Label format buat display SAJA (Performance Table/Top Content), BUKAN
-     * ContentType internal - mirror InstagramMediaSnapshot::display_format,
-     * tapi TikTok cuma py 1 bentuk video lewat API ini (tidak ada varian
-     * carousel/story), jadi selalu "Video" begitu ada data - null kalau
-     * baris ini entah kenapa tidak lengkap.
+     * Label format kanonis buat display SAJA (Performance Table/Top
+     * Content), BUKAN ContentType internal - mirror
+     * InstagramMediaSnapshot::display_format, SEKARANG lewat resolver
+     * terpusat yang sama (App\Services\ContentFormatResolver) biar TIDAK
+     * ADA mapping ganda - TikTok cuma punya 1 bentuk video lewat API ini
+     * (tidak ada varian carousel/story), jadi selalu "Video" begitu ada
+     * data - null kalau baris ini entah kenapa tidak lengkap.
      */
     public function getDisplayFormatAttribute(): ?string
     {
-        return $this->external_post_id ? 'Video' : null;
+        $resolver = app(\App\Services\ContentFormatResolver::class);
+
+        return $resolver->labelForSlug($resolver->slugForTikTok($this->external_post_id));
     }
 }

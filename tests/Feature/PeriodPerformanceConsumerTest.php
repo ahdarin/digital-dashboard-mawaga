@@ -174,11 +174,20 @@ class PeriodPerformanceConsumerTest extends TestCase
         ]));
 
         $response->assertOk();
-        // Delta genuine (5000-2000=3000) HARUS tampil - dengan bug lama
-        // (whereBetween metric_date, publish date 150 hari lalu, DI LUAR
-        // window 7 hari), angka ini akan 0/hilang sama sekali.
-        $response->assertSee('3,000');
-        $response->assertDontSee('5,000');
+        // Delta genuine (5000-2000=3000) HARUS tampil, dilabeli qualifier
+        // "periode ini" - dengan bug lama (whereBetween metric_date,
+        // publish date 150 hari lalu, DI LUAR window 7 hari), angka ini
+        // akan 0/hilang sama sekali.
+        //
+        // SYSTEM CONSISTENCY PASS (Part AA-AB) - "5,000" (total provider
+        // SAAT INI, content_metrics.views) SEKARANG SENGAJA tampil
+        // berdampingan (BUKAN lagi disembunyikan) - versi lama assertion
+        // ini (assertDontSee('5,000')) membuktikan hal yang salah: dulu
+        // 5,000 memang tidak pernah tampil sama sekali di UI manapun -
+        // itu SENDIRI bug root cause yang diperbaiki pass ini, bukan
+        // perilaku yang benar untuk dipertahankan.
+        $response->assertSee('+3,000 periode ini');
+        $response->assertSee('5,000');
     }
 
     // ===== 15: Performance Table uses period engine =====
@@ -198,7 +207,13 @@ class PeriodPerformanceConsumerTest extends TestCase
         ]));
 
         $response->assertOk();
-        $response->assertSee('>3,500<', false);
+        // SYSTEM CONSISTENCY PASS (Part AA-AC) - kolom Views SEKARANG total
+        // SAAT INI (4,500, bold/primer) + gain periode (delta genuine,
+        // 3,500) dilabeli eksplisit "periode ini" (BUKAN lagi bare
+        // ">3,500<" berdiri sendiri seolah itu total) - keduanya HARUS
+        // tampil, dua nilai BERBEDA yang genuine.
+        $response->assertSee('4,500');
+        $response->assertSee('+3,500 periode ini');
     }
 
     // ===== 16: Export uses period engine / honest labeling =====

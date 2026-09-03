@@ -76,77 +76,70 @@
             </div>
 
             @if ($instagramCard['connected'])
-                @php $integration = $instagramCard['integration']; @endphp
-                <p class="text-xs text-[var(--text-muted)] mb-4">&commat;{{ $integration->external_username }}</p>
+                @php
+                    $integration = $instagramCard['integration'];
+                    // FINAL API COVERAGE GATE - diagnostik saja (Part 4,
+                    // "INTERNAL_METADATA" - bukan metric analytics utama),
+                    // berguna karena sebagian insight metric Meta beda
+                    // ketersediaannya per tipe akun.
+                    $accountTypeLabel = match ($integration->external_account_type) {
+                        'BUSINESS' => 'Business',
+                        'MEDIA_CREATOR', 'CREATOR' => 'Creator',
+                        default => null,
+                    };
+                @endphp
+                <p class="text-xs text-[var(--text-muted)] mb-4">
+                    &commat;{{ $integration->external_username }}
+                    @if ($accountTypeLabel)
+                        &middot; Akun {{ $accountTypeLabel }}
+                    @endif
+                </p>
 
-                {{-- Content Analytics --}}
+                {{-- SETTINGS/ANALYTICS SYNC UX CONSISTENCY FIX - SATU aksi
+                     "Perbarui Data" per platform (Langkah 1), dispatch/poll
+                     lewat endpoint SAMA PERSIS dengan halaman Performa
+                     (analytics.sync / analytics.sync-status ->
+                     AnalyticsSyncOrchestrator, Langkah 2) - content+audiens
+                     TAMPIL SEBAGAI SATU pengalaman Instagram (Langkah 4),
+                     bukan 2 tombol/status terpisah lagi. Rendering-nya
+                     REUSE public/js/analytics-sync-panel.js (Langkah 11),
+                     BUKAN implementasi kedua yang independen. --}}
                 <div class="border-t border-[var(--surface-muted)] pt-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
-                        <span id="ig-content-badge" class="badge {{ $instagramCard['content_syncing'] ? 'badge-warning' : ($instagramCard['content_last_sync_log']?->status === 'failed' ? 'badge-danger' : 'badge-success') }}">
-                            {{ $instagramCard['content_syncing'] ? 'Menyinkronkan' : ($instagramCard['content_last_sync_log']?->status === 'failed' ? 'Gagal' : 'Tersinkron') }}
-                        </span>
-                    </div>
-                    <p id="ig-content-last-sync" class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Sinkronisasi terakhir: {{ $integration->last_synced_at ? $integration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
-                    </p>
-                    <p id="ig-content-error" class="text-[11px] text-[var(--danger-text)] mb-2" {{ (! $instagramCard['content_syncing'] && $instagramCard['content_last_sync_log']?->status === 'failed') ? '' : 'hidden' }}>
-                        Gagal - {{ $instagramCard['content_last_sync_log']?->error_message }}
-                    </p>
+                    <p id="ig-freshness" class="text-xs text-[var(--text-secondary)] mb-2">Memuat status data...</p>
 
                     @if ($canManageSettings)
-                        <form action="{{ route('settings.sync-instagram') }}" method="POST" class="inline-block mb-2">
-                            @csrf
-                            <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                            <button type="submit" id="ig-content-sync-button" data-subjob="instagram_content" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
-                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span class="material-symbols-outlined text-[14px]" data-sync-icon>sync</span>
-                                <span data-sync-label>{{ $instagramCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}</span>
-                            </button>
-                        </form>
+                        <button type="button" id="ig-sync-button"
+                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[14px]" id="ig-sync-icon">sync</span>
+                            <span id="ig-sync-label">Perbarui Data</span>
+                        </button>
+                    @endif
 
-                        <details class="text-xs mt-1">
+                    <div id="ig-sync-panel" class="mt-3" hidden></div>
+
+                    @if ($canManageSettings)
+                        {{-- Sinkronisasi bulan tertentu - fitur TERPISAH dari
+                             "Perbarui Data" (backfill 1 bulan spesifik, bukan
+                             "ambil data terbaru") - SENGAJA tetap jalur lama
+                             (settings.sync-instagram + $month), dikumpulkan
+                             di disclosure sekunder biar TIDAK bersaing
+                             sebagai aksi utama (Langkah 12, "avoid multiple
+                             sync buttons"). --}}
+                        <details class="text-xs mt-3">
                             <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                             <div class="mt-2 flex items-center gap-2">
                                 <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
                                     @csrf
                                     <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" data-subjob="instagram_content" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
                                            class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                    <button type="submit" data-subjob="instagram_content" {{ $instagramCard['content_syncing'] ? 'disabled' : '' }}
+                                    <button type="submit"
                                             class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                                         Sinkronkan Bulan Terpilih
                                     </button>
                                 </form>
                             </div>
                         </details>
-                    @endif
-                </div>
-
-                {{-- Insight Audiens --}}
-                <div class="border-t border-[var(--surface-muted)] pt-3 mt-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Insight Audiens</p>
-                        <span id="ig-audience-badge" class="badge {{ $instagramCard['audience_syncing'] ? 'badge-warning' : ($instagramCard['audience_last_sync_log']?->status === 'failed' ? 'badge-danger' : ($instagramCard['audience_last_success_at'] ? 'badge-success' : 'badge-neutral')) }}">
-                            {{ $instagramCard['audience_syncing'] ? 'Menyinkronkan' : ($instagramCard['audience_last_sync_log']?->status === 'failed' ? 'Gagal' : ($instagramCard['audience_last_success_at'] ? 'Tersinkron' : '-')) }}
-                        </span>
-                    </div>
-                    <p id="ig-audience-last-sync" class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Sinkronisasi audiens terakhir: {{ $instagramCard['audience_last_success_at'] ? \Illuminate\Support\Carbon::parse($instagramCard['audience_last_success_at'])->format('d M Y, H:i') : 'Belum pernah disinkronkan' }}
-                    </p>
-                    <p id="ig-audience-error" class="text-[11px] text-[var(--danger-text)] mb-2" {{ (! $instagramCard['audience_syncing'] && $instagramCard['audience_last_sync_log']?->status === 'failed') ? '' : 'hidden' }}>
-                        Sinkronisasi audiens terakhir gagal.
-                    </p>
-
-                    @if ($canManageClientIntegration)
-                        <form action="{{ route('client-management.instagram.sync-audience', $selectedClient) }}" method="POST">
-                            @csrf
-                            <button type="submit" id="ig-audience-sync-button" data-subjob="instagram_audience" {{ $instagramCard['audience_syncing'] ? 'disabled' : '' }}
-                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span class="material-symbols-outlined text-[14px]">groups</span>
-                                <span data-sync-label>{{ $instagramCard['audience_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Audiens' }}</span>
-                            </button>
-                        </form>
                     @endif
                 </div>
 
@@ -197,21 +190,6 @@
                 <p class="text-xs text-[var(--text-muted)] mb-4">&commat;{{ $tiktokIntegration->external_username }}</p>
 
                 <div class="border-t border-[var(--surface-muted)] pt-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <p class="text-xs font-semibold text-[var(--text-primary)]">Analitik Konten</p>
-                        @php
-                            $ttContentBadgeClass = $tiktokCard['content_syncing'] ? 'badge-warning' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'badge-danger' : ($tiktokIntegration->last_synced_at ? 'badge-success' : 'badge-neutral'));
-                            $ttContentBadgeLabel = $tiktokCard['content_syncing'] ? 'Menyinkronkan' : ($tiktokCard['content_last_sync_log']?->status === 'failed' ? 'Gagal' : ($tiktokIntegration->last_synced_at ? 'Tersinkron' : 'Belum Tersinkron'));
-                        @endphp
-                        <span id="tt-content-badge" class="badge {{ $ttContentBadgeClass }}">{{ $ttContentBadgeLabel }}</span>
-                    </div>
-                    <p id="tt-content-last-sync" class="text-[11px] text-[var(--text-muted)] mb-2">
-                        Sinkronisasi terakhir: {{ $tiktokIntegration->last_synced_at ? $tiktokIntegration->last_synced_at->format('d M Y, H:i') : 'Belum pernah sync' }}
-                    </p>
-                    <p id="tt-content-error" class="text-[11px] text-[var(--danger-text)] mb-2" {{ (! $tiktokCard['content_syncing'] && $tiktokCard['content_last_sync_log']?->status === 'failed') ? '' : 'hidden' }}>
-                        Gagal - {{ $tiktokCard['content_last_sync_log']?->error_message }}
-                    </p>
-
                     {{-- follower_count dkk - NULL != 0 (Langkah 9): kalau
                          scope user.info.stats belum granted, baris ini
                          disembunyikan sama sekali, BUKAN tampil "0". --}}
@@ -223,26 +201,31 @@
                         <p class="text-[11px] text-[var(--text-muted)] italic mb-2">Data followers tidak tersedia melalui TikTok API (scope belum disetujui).</p>
                     @endif
 
-                    @if ($canManageSettings)
-                        <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="inline-block mb-2">
-                            @csrf
-                            <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                            <button type="submit" id="tt-content-sync-button" data-subjob="tiktok_content" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
-                                    class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <span class="material-symbols-outlined text-[14px]" data-sync-icon>sync</span>
-                                <span data-sync-label>{{ $tiktokCard['content_syncing'] ? 'Menyinkronkan...' : 'Sinkronkan Konten' }}</span>
-                            </button>
-                        </form>
+                    {{-- SETTINGS/ANALYTICS SYNC UX CONSISTENCY FIX - SATU
+                         aksi "Perbarui Data" (Langkah 1), MIRROR kartu
+                         Instagram di atas (Langkah 11, shared JS module). --}}
+                    <p id="tt-freshness" class="text-xs text-[var(--text-secondary)] mb-2">Memuat status data...</p>
 
-                        <details class="text-xs mt-1">
+                    @if ($canManageSettings)
+                        <button type="button" id="tt-sync-button"
+                                class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span class="material-symbols-outlined text-[14px]" id="tt-sync-icon">sync</span>
+                            <span id="tt-sync-label">Perbarui Data</span>
+                        </button>
+                    @endif
+
+                    <div id="tt-sync-panel" class="mt-3" hidden></div>
+
+                    @if ($canManageSettings)
+                        <details class="text-xs mt-3">
                             <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                             <div class="mt-2 flex items-center gap-2">
                                 <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
                                     @csrf
                                     <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
-                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}" data-subjob="tiktok_content" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                    <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
                                            class="text-xs border border-[var(--border)] rounded-lg px-2 py-1.5 bg-[var(--surface-card)] focus:outline-none focus:border-[#044b46]/40">
-                                    <button type="submit" data-subjob="tiktok_content" {{ $tiktokCard['content_syncing'] ? 'disabled' : '' }}
+                                    <button type="submit"
                                             class="text-xs font-medium text-white bg-[var(--brand)] px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                                         Sinkronkan Bulan Terpilih
                                     </button>
@@ -428,140 +411,66 @@
     @endif
 </div>
 
-{{-- Live status polling - badge/tombol/timestamp per subjob (Analitik
-     Konten IG, Insight Audiens IG, Analitik Konten TikTok) di-refresh
-     TERUS lewat endpoint yang SAMA dengan tombol "Sinkronkan Data" di
-     halaman Performa (AnalyticsSyncOrchestrator::statusForClient()),
-     BUKAN mekanisme baru. Sebelum ini kartu integrasi murni server-
-     rendered (form POST -> redirect -> render ulang) - user yang klik
-     sinkron tidak melihat progress SAMA SEKALI sampai manual refresh
-     halaman, dan kalau job-nya cepat (audience/TikTok) badge "Menyinkronkan"
-     bahkan tidak pernah sempat kelihatan. TIDAK ada window.location.reload()
-     di sini sama sekali (beda dari poll() di analytics/index.blade.php) -
-     3 subjob di kartu ini independen (bisa dipicu di waktu berbeda-beda),
-     reload sekali akan memutus tracking subjob lain yang masih berjalan,
-     jadi DOM di-patch langsung per subjob, bukan reload halaman. --}}
+{{-- SETTINGS/ANALYTICS SYNC UX CONSISTENCY FIX - dispatch/poll/render/retry
+     SEKARANG lewat public/js/analytics-sync-panel.js (Langkah 11, "do not
+     maintain two independently-diverging implementations of sync status
+     UI") - SATU controller per KARTU PLATFORM (Langkah 1, "one update
+     action per platform" - beda dari Analytics yang 1 tombol bisa
+     men-scope ke 1+ platform tergantung filter global). Endpoint SAMA
+     PERSIS dengan halaman Performa (analytics.sync/analytics.sync-status,
+     Langkah 2/6 - "Settings and Analytics are two views of one shared
+     server-side sync state", jadi dispatch dari salah satu SELALU terlihat
+     di keduanya, TIDAK PERNAH duplikat run). --}}
 @if ($selectedClient && $canPollSyncStatus)
+<script src="{{ asset('js/analytics-sync-panel.js') }}"></script>
 <script>
     (function () {
+        if (! window.AnalyticsSyncPanel) return;
+
         var clientId = {{ (int) $selectedClient->id }};
-        var statusUrl = @json(route('analytics.sync-status'));
-
-        var registry = {
-            instagram_content: {
-                badge: document.getElementById('ig-content-badge'),
-                lastSync: document.getElementById('ig-content-last-sync'),
-                error: document.getElementById('ig-content-error'),
-                primaryButton: document.getElementById('ig-content-sync-button'),
-                lastSyncPrefix: 'Sinkronisasi terakhir: ',
-                idleLabel: 'Sinkronkan Konten',
-            },
-            instagram_audience: {
-                badge: document.getElementById('ig-audience-badge'),
-                lastSync: document.getElementById('ig-audience-last-sync'),
-                error: document.getElementById('ig-audience-error'),
-                primaryButton: document.getElementById('ig-audience-sync-button'),
-                lastSyncPrefix: 'Sinkronisasi audiens terakhir: ',
-                idleLabel: 'Sinkronkan Audiens',
-            },
-            tiktok_content: {
-                badge: document.getElementById('tt-content-badge'),
-                lastSync: document.getElementById('tt-content-last-sync'),
-                error: document.getElementById('tt-content-error'),
-                primaryButton: document.getElementById('tt-content-sync-button'),
-                lastSyncPrefix: 'Sinkronisasi terakhir: ',
-                idleLabel: 'Sinkronkan Konten',
-            },
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        var urls = {
+            dispatch: @json(route('analytics.sync')),
+            status: @json(route('analytics.sync-status')),
+            retryTask: @json(route('analytics.sync.retry-task')),
+            retryFailedItems: @json(route('analytics.sync.retry-failed-items')),
         };
 
-        // Tidak ada satupun kartu ke-render (client ini belum connect apa-
-        // apa) - tidak perlu polling sama sekali.
-        var anyPresent = Object.keys(registry).some(function (key) { return !! registry[key].badge; });
-        if (! anyPresent) return;
+        @if ($instagramCard['connected'])
+            window.AnalyticsSyncPanel.createSyncController({
+                clientId: clientId,
+                platformId: {{ (int) $instagramCard['integration']->platform_id }},
+                groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[0]],
+                urls: urls,
+                reconnectUrl: @json(route('client-management.instagram.connect', $selectedClient)),
+                csrfToken: csrfToken,
+                elements: {
+                    button: document.getElementById('ig-sync-button'),
+                    icon: document.getElementById('ig-sync-icon'),
+                    label: document.getElementById('ig-sync-label'),
+                    freshness: document.getElementById('ig-freshness'),
+                    panel: document.getElementById('ig-sync-panel'),
+                },
+            });
+        @endif
 
-        var badgeLabel = {
-            queued: 'Mengantre', running: 'Menyinkronkan', partial: 'Selesai Sebagian',
-            success: 'Tersinkron', failed: 'Gagal', needs_reconnect: 'Perlu Sambung Ulang',
-            not_connected: 'Belum Terhubung', manual_data: 'Data Manual', idle: '-',
-        };
-        var badgeClass = {
-            queued: 'badge-warning', running: 'badge-warning', partial: 'badge-warning',
-            success: 'badge-success', failed: 'badge-danger', needs_reconnect: 'badge-danger',
-            not_connected: 'badge-neutral', manual_data: 'badge-neutral', idle: 'badge-neutral',
-        };
-
-        function isBusy(status) { return status === 'queued' || status === 'running'; }
-
-        function applySubjob(key, data) {
-            var meta = registry[key];
-            if (! meta || ! meta.badge) return;
-            var busy = isBusy(data.status);
-
-            meta.badge.className = 'badge ' + (badgeClass[data.status] || 'badge-neutral');
-            meta.badge.textContent = badgeLabel[data.status] || data.status;
-
-            if (meta.lastSync && ! busy && data.finished_at) {
-                meta.lastSync.textContent = meta.lastSyncPrefix + new Date(data.finished_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-            }
-
-            if (meta.error) {
-                var showError = data.status === 'failed' && data.error_message;
-                meta.error.hidden = ! showError;
-                if (showError) meta.error.textContent = 'Gagal - ' + data.error_message;
-            }
-
-            document.querySelectorAll('[data-subjob="' + key + '"]').forEach(function (el) { el.disabled = busy; });
-
-            if (meta.primaryButton) {
-                var iconEl = meta.primaryButton.querySelector('[data-sync-icon]');
-                var labelEl = meta.primaryButton.querySelector('[data-sync-label]');
-                if (iconEl) iconEl.classList.toggle('animate-spin', data.status === 'running');
-                if (labelEl) labelEl.textContent = data.status === 'queued' ? 'Mengantre...' : (busy ? 'Menyinkronkan...' : meta.idleLabel);
-            }
-        }
-
-        var pollTimer = null;
-        var consecutiveFailures = 0;
-        var MAX_FAILURES = 3;
-
-        function schedule() {
-            if (pollTimer) return;
-            pollTimer = setTimeout(function () { pollTimer = null; poll(); }, 2500);
-        }
-
-        function stopPolling() {
-            if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-        }
-
-        function poll() {
-            fetch(statusUrl + '?client_id=' + clientId, { headers: { Accept: 'application/json' } })
-                .then(function (res) {
-                    if (res.status === 401 || res.status === 419) { throw { safeStop: true }; }
-                    if (! res.ok) { throw { safeStop: false }; }
-                    return res.json();
-                })
-                .then(function (data) {
-                    consecutiveFailures = 0;
-                    var busyFound = false;
-                    var subjobs = data.subjobs || {};
-                    Object.keys(subjobs).forEach(function (key) {
-                        applySubjob(key, subjobs[key]);
-                        if (isBusy(subjobs[key].status)) busyFound = true;
-                    });
-                    if (busyFound) { schedule(); }
-                })
-                .catch(function (err) {
-                    if (err && err.safeStop) { return; }
-                    consecutiveFailures++;
-                    if (consecutiveFailures < MAX_FAILURES) { schedule(); }
-                });
-        }
-
-        // Cek sekali begitu halaman dibuka (termasuk begitu di-redirect
-        // balik setelah klik tombol sinkron) - badge/tombol langsung akurat
-        // tanpa perlu refresh manual, lalu terus dipoll otomatis SELAMA ada
-        // subjob yang masih queued/running.
-        poll();
+        @if ($tiktokCard['connected'])
+            window.AnalyticsSyncPanel.createSyncController({
+                clientId: clientId,
+                platformId: {{ (int) $tiktokCard['integration']->platform_id }},
+                groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[1]],
+                urls: urls,
+                reconnectUrl: @json(route('client-management.tiktok.connect', $selectedClient)),
+                csrfToken: csrfToken,
+                elements: {
+                    button: document.getElementById('tt-sync-button'),
+                    icon: document.getElementById('tt-sync-icon'),
+                    label: document.getElementById('tt-sync-label'),
+                    freshness: document.getElementById('tt-freshness'),
+                    panel: document.getElementById('tt-sync-panel'),
+                },
+            });
+        @endif
     })();
 </script>
 @endif

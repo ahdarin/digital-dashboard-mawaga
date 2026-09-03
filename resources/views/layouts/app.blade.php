@@ -458,6 +458,44 @@
                     },
                 });
             });
+
+            // Rentang tanggal SATU kontrol visual (mode: 'range'), tapi
+            // backend tetap terima 2 field terpisah (date_from/date_to) -
+            // disinkronkan lewat data-from-input/data-to-input (selector
+            // CSS ke hidden input masing-masing), pola sama seperti "month"
+            // di atas. Auto-submit HANYA saat rentang genap 2 tanggal
+            // (start DAN end sudah dipilih, ANALYTICS PERIOD FILTER FINAL
+            // Langkah 4) - baru tanggal pertama dipilih SENGAJA belum
+            // submit, supaya user bisa lanjut pilih tanggal kedua tanpa
+            // form ke-reset di tengah jalan.
+            root.querySelectorAll('[data-flatpickr="range"]').forEach(function (el) {
+                if (el._flatpickr) return;
+                var fromInput = document.querySelector(el.dataset.fromInput);
+                var toInput = document.querySelector(el.dataset.toInput);
+                var autosubmit = el.dataset.autosubmit === 'true';
+                var initial = (fromInput && fromInput.value && toInput && toInput.value)
+                    ? [fromInput.value, toInput.value] : undefined;
+                var isoDate = function (d) {
+                    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                };
+
+                flatpickr(el, {
+                    mode: 'range', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd M Y',
+                    rangeSeparator: ' - ', locale: 'id', defaultDate: initial,
+                    maxDate: el.dataset.maxDate || undefined,
+                    onReady: function (selectedDates, dateStr, instance) {
+                        instance.altInput.placeholder = el.dataset.placeholder || 'Pilih rentang tanggal';
+                    },
+                    onChange: function (selectedDates) {
+                        // Rentang belum lengkap (baru start) - JANGAN
+                        // submit, tunggu tanggal kedua dipilih.
+                        if (selectedDates.length < 2) return;
+                        if (fromInput) { fromInput.value = isoDate(selectedDates[0]); notifyAlpine(fromInput); }
+                        if (toInput) { toInput.value = isoDate(selectedDates[1]); notifyAlpine(toInput); }
+                        if (autosubmit) (el.form || el.closest('form'))?.submit();
+                    },
+                });
+            });
         };
         document.addEventListener('DOMContentLoaded', function () { window.initFlatpickrs(); });
     </script>

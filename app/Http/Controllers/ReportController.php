@@ -9,6 +9,7 @@ use App\Models\ContentMetric;
 use App\Models\Platform;
 use App\Rules\AssignedClient;
 use App\Services\AnalyticsPeriodResolver;
+use App\Services\ContentFormatResolver;
 use App\Services\PeriodPerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -194,12 +195,12 @@ class ReportController extends Controller
         $periodStart = Carbon::parse($filters['period_start'])->startOfDay();
         $periodEnd = Carbon::parse($filters['period_end'])->endOfDay();
 
-        $apiMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
+        $apiMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'contentItem.contentFormat', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
             ->whereHas('contentItem', fn ($q) => $q->where('client_id', $filters['client_id']))
             ->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
             ->get();
 
-        $csvMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'platform'])
+        $csvMetrics = ContentMetric::with(['contentItem.client', 'contentItem.contentType', 'contentItem.contentFormat', 'platform'])
             ->whereHas('contentItem', fn ($q) => $q->where('client_id', $filters['client_id']))
             ->whereNull('instagram_media_snapshot_id')
             ->whereNull('tiktok_video_snapshot_id')
@@ -210,8 +211,10 @@ class ReportController extends Controller
         $aggregate = $periodPerformanceService->computeAggregate($apiMetrics, $csvMetrics, $periodStart, $periodEnd);
         $usableRows = collect($aggregate['rows'])->filter(fn ($row) => $row['result']->isUsable());
 
+        $formatResolver = app(ContentFormatResolver::class);
+
         $topContent = $usableRows
-            ->map(function ($row) {
+            ->map(function ($row) use ($formatResolver) {
                 $item = $row['content_metric']->contentItem;
                 if (! $item) {
                     return null;
@@ -220,7 +223,16 @@ class ReportController extends Controller
                 return [
                     'title' => $item->title ?? '-',
                     'platform' => $row['content_metric']->platform->name ?? '-',
-                    'type' => $item->contentType->name ?? '-',
+                    // SYSTEM CONSISTENCY PASS (Part I) - dua dimensi
+                    // terpisah (production_type/content_format), label
+                    // kanonis (Single Post/Carousel/Video), tidak pernah
+                    // raw provider enum di laporan/export.
+                    'production_type' => $item->contentType->name ?? '-',
+                    'content_format' => $formatResolver->labelForContentItem(
+                        $item,
+                        $row['content_metric']->instagramMediaSnapshot,
+                        $row['content_metric']->tiktokVideoSnapshot,
+                    ) ?? '-',
                     'views' => $row['result']->views() ?? 0,
                     'engagement_rate' => $row['result']->engagementRate ?? 0,
                 ];

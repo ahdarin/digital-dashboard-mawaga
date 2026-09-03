@@ -10,6 +10,7 @@ use App\Models\ContentMetricSnapshot;
 use App\Models\ContentPublication;
 use App\Models\InstagramMediaSnapshot;
 use App\Models\TikTokVideoSnapshot;
+use App\Services\ContentFormatResolver;
 use App\Services\HistoricalContentMatcher;
 use App\Services\WorkflowStatusService;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class ContentPublicationController extends Controller
      * API cuma kepakai lewat 3 jalur: sync (default/historical), tombol
      * Sync Now, dan connect/reconnect OAuth - bukan di sini.
      */
-    public function unmatchedInstagram(Request $request, ApiIntegration $apiIntegration, HistoricalContentMatcher $historicalMatcher)
+    public function unmatchedInstagram(Request $request, ApiIntegration $apiIntegration, HistoricalContentMatcher $historicalMatcher, ContentFormatResolver $formatResolver)
     {
         abort_unless($apiIntegration->platform->name === 'Instagram', 404);
 
@@ -85,12 +86,16 @@ class ContentPublicationController extends Controller
 
         $suggestions = $this->buildHistoricalSuggestions($apiIntegration, $snapshots, $historicalMatcher);
 
+        // SYSTEM CONSISTENCY PASS (Part Z) - 'format' SEKARANG label
+        // kanonis (Single Post/Carousel/Video) lewat ContentFormatResolver,
+        // BUKAN raw media_type provider (IMAGE/CAROUSEL_ALBUM/dst) yang
+        // dulu langsung dirender ke user di halaman ini.
         $unmatched = $snapshots->map(fn ($s) => [
             'id' => $s->external_post_id,
             'caption' => Str::limit($s->caption ?? '(tanpa caption)', 120),
             'timestamp' => $s->published_at,
             'permalink' => $s->permalink,
-            'media_type' => $s->media_type,
+            'format' => $formatResolver->labelForSlug($formatResolver->slugForInstagram($s->media_type, $s->media_product_type)) ?? '-',
             'thumbnail_url' => $s->thumbnail_url,
             'ambiguous_reason' => $s->match_status === 'ambiguous' ? "Ada beberapa kandidat content item, perlu dipilih manual." : null,
             'suggestion' => $suggestions[$s->id] ?? null,
@@ -314,7 +319,7 @@ class ContentPublicationController extends Controller
             'caption' => Str::limit($s->video_description ?? $s->title ?? '(tanpa deskripsi)', 120),
             'timestamp' => $s->published_at,
             'permalink' => $s->share_url,
-            'media_type' => 'Video',
+            'format' => 'Video',
             'thumbnail_url' => $s->cover_image_url,
             'ambiguous_reason' => $s->match_status === 'ambiguous' ? 'Ada beberapa kandidat content item, perlu dipilih manual.' : null,
         ])->all();

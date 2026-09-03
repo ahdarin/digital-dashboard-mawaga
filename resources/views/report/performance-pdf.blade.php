@@ -38,7 +38,8 @@
             <tr>
                 <th>Judul</th>
                 <th>Platform</th>
-                <th>Tipe Konten</th>
+                <th>Jenis Produksi</th>
+                <th>Format Konten</th>
                 <th>Views</th>
                 <th>Engagement Rate</th>
             </tr>
@@ -48,12 +49,13 @@
                 <tr>
                     <td>{{ $c['title'] }}</td>
                     <td>{{ $c['platform'] }}</td>
-                    <td>{{ $c['type'] }}</td>
+                    <td>{{ $c['production_type'] }}</td>
+                    <td>{{ $c['content_format'] }}</td>
                     <td>{{ number_format($c['views']) }}</td>
                     <td><span class="badge">{{ $c['engagement_rate'] }}%</span></td>
                 </tr>
             @empty
-                <tr><td colspan="5">Belum ada data performa pada periode ini.</td></tr>
+                <tr><td colspan="6">Belum ada data performa pada periode ini.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -182,7 +182,13 @@
                                         <th class="w-[34%] px-6 py-3 font-medium whitespace-nowrap">Judul</th>
                                         <th class="w-[20%] px-4 py-3 font-medium whitespace-nowrap">Klien</th>
                                         <th class="w-[16%] px-4 py-3 font-medium whitespace-nowrap">Platform</th>
-                                        <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Views</th>
+                                        {{-- CROSS-PAGE CONSISTENCY AUDIT (Part 9) - "Views" polos
+                                             ambigu (bisa dibaca total saat ini) - widget ini
+                                             genuinely period-scoped BY DESIGN (leaderboard bulan
+                                             berjalan, sengaja BUKAN lifetime, biar konten lama
+                                             tidak permanen menumpuk di atas) - label diperjelas
+                                             SUPAYA jelas ini gain periode, bukan total provider. --}}
+                                        <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Views Bulan Ini</th>
                                         <th class="w-[15%] px-4 py-3 font-medium text-right whitespace-nowrap">Engagement</th>
                                     </tr>
                                 </thead>
@@ -251,7 +257,7 @@
                                 <thead class="bg-[var(--surface-page)]">
                                     <tr class="text-[var(--text-muted)] text-[11px] uppercase tracking-wide">
                                         <th class="w-[40%] px-6 py-3 font-medium whitespace-nowrap">Klien</th>
-                                        <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Views</th>
+                                        <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Views Bulan Ini</th>
                                         <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Engagement</th>
                                         <th class="w-[20%] px-4 py-3 font-medium text-right whitespace-nowrap">Konten</th>
                                     </tr>

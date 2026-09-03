@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ClientCategory;
+use App\Models\ContentFormat;
 use App\Models\ContentPillar;
 use App\Models\ContentType;
 use App\Models\PackageTemplate;
@@ -35,6 +36,19 @@ class MasterDataSeeder extends Seeder
 
         collect(['Instagram', 'TikTok'])
             ->each(fn ($name) => Platform::firstOrCreate(['name' => $name]));
+
+        // SYSTEM CONSISTENCY PASS - Content Format kanonis ("dalam format
+        // apa konten dipublikasikan?"), TERPISAH dari ContentType di atas
+        // ("bagaimana konten dikerjakan?"). Sudah diseed langsung di
+        // migration 2026_09_03_000001 juga (insertOrIgnore) - duplikat di
+        // sini sengaja, biar `db:seed` biasa di dev/fresh install tetap
+        // konsisten dengan pola master data lain di file ini, firstOrCreate
+        // aman dijalankan ulang.
+        collect([
+            ['name' => 'Single Post', 'slug' => 'single-post'],
+            ['name' => 'Carousel', 'slug' => 'carousel'],
+            ['name' => 'Video', 'slug' => 'video'],
+        ])->each(fn ($format) => ContentFormat::firstOrCreate(['slug' => $format['slug']], ['name' => $format['name']]));
 
         // 'Institusi' ditambah Agustus 2026 - client institusi pendidikan
         // (FTI UNAND, Yasmin IBS) tidak pas dikategorikan UMKM/Korporat.

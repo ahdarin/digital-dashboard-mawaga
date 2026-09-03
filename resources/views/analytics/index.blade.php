@@ -67,50 +67,47 @@
         $controlClass = 'h-10 px-3.5 text-sm border border-[var(--border)] rounded-lg bg-[var(--surface-card)] focus:outline-none focus:ring-2 focus:ring-[#044b46]/15 focus:border-[#044b46]/40 transition-shadow';
         $isMonthMode = $period->mode === \App\Services\AnalyticsPeriod::MODE_MONTH;
     @endphp
+    {{-- ANALYTICS PERIOD FILTER - FINAL UX CORRECTION. Popover (Pilih
+         Periode / Bulan+Rentang di dalam dropdown / Batal+Terapkan) DIHAPUS
+         TOTAL - filter periode sekarang berperilaku SAMA PERSIS dengan
+         Client/Platform: setiap perubahan langsung navigasi (Langkah 5,
+         "FILTERS APPLY DIRECTLY"). Toggle Bulan/Rentang & kontrol nilainya
+         SEKARANG tampil LANGSUNG di filter bar (Langkah 1), bukan
+         disembunyikan di balik klik apapun. Query contract TIDAK berubah
+         (AnalyticsPeriod::toQueryParams()/label(), AnalyticsPeriodResolver
+         tetap sama persis) - ini murni perubahan presentasi/interaksi. --}}
     <form method="GET" class="card p-4 mb-6 flex items-center gap-3 flex-wrap"
           x-data="{
-              panelOpen: false,
               mode: '{{ $isMonthMode ? 'month' : 'custom' }}',
-              monthValue: '{{ $isMonthMode ? $period->month : now()->format('Y-m') }}',
-              dateFromValue: '{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}',
-              dateToValue: '{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}',
-              openPanel() {
-                  // UX POLISH item 5, 'Batal preserves the currently active
-                  // period exactly' - state panel di-reset ke periode AKTIF
-                  // (bukan draft yang mungkin ditinggal dari sesi buka-tutup
-                  // sebelumnya) SETIAP kali dibuka, jadi Batal (yang cuma
-                  // menutup panel tanpa submit) TIDAK PERNAH membocorkan
-                  // edit lama ke buka-panel berikutnya.
-                  this.mode = '{{ $isMonthMode ? 'month' : 'custom' }}';
-                  this.monthValue = '{{ $isMonthMode ? $period->month : now()->format('Y-m') }}';
-                  this.dateFromValue = '{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}';
-                  this.dateToValue = '{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}';
-                  this.panelOpen = true;
-              },
-              get customValid() {
-                  return this.mode !== 'custom' || (!!this.dateFromValue && !!this.dateToValue && this.dateFromValue <= this.dateToValue);
-              },
-              apply() {
-                  // UX POLISH item 5, 'Terapkan validates selection,
-                  // navigates using the existing AnalyticsPeriod query
-                  // contract' - isi hidden input SATU-SATUNYA yang benar-
-                  // benar submit (period_mode/month/date_from/date_to,
-                  // kontrak TIDAK berubah, Langkah 6), lalu submit form
-                  // asli - client_id/platform_id/tab ikut apa adanya.
-                  if (! this.customValid) return;
-                  this.$refs.periodModeInput.value = this.mode;
-                  this.$refs.monthInput.value = this.monthValue;
-                  this.$refs.dateFromInput.value = this.dateFromValue;
-                  this.$refs.dateToInput.value = this.dateToValue;
-                  this.panelOpen = false;
-                  this.$el.submit();
+              setMode(newMode) {
+                  // Langkah 6, 'MODE TOGGLE BEHAVIOR' - Bulan SELALU punya
+                  // nilai valid (server sudah merender bulan berjalan/
+                  // bulan aktif ke field 'month') jadi toggle ke Bulan
+                  // langsung berlaku. Toggle ke Rentang TIDAK PERNAH auto-
+                  // navigate di sini - cuma menampilkan picker kosong,
+                  // submit baru terjadi begitu user memilih rentang LENGKAP
+                  // (start+end), ditangani flatpickr onChange (lihat
+                  // window.initFlatpickrs di layouts/app.blade.php).
+                  if (this.mode === newMode) return;
+                  this.mode = newMode;
+                  if (newMode === 'month') this.$el.submit();
               },
           }">
         <input type="hidden" name="tab" value="{{ $activeTab }}">
-        <input type="hidden" name="period_mode" x-ref="periodModeInput" value="{{ $isMonthMode ? 'month' : 'custom' }}">
-        <input type="hidden" name="month" x-ref="monthInput" value="{{ $isMonthMode ? $period->month : now()->format('Y-m') }}">
-        <input type="hidden" name="date_from" x-ref="dateFromInput" value="{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}">
-        <input type="hidden" name="date_to" x-ref="dateToInput" value="{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}">
+        {{-- period_mode diikat langsung ke state `mode` (:value) - TIDAK
+             ADA lagi draft yang menunggu tombol Terapkan sebelum benar-
+             benar terkirim. --}}
+        <input type="hidden" name="period_mode" :value="mode">
+        {{-- date_from/date_to HANYA disertakan saat mode=custom (Langkah
+             10, "query cleanliness") - diisi LANGSUNG oleh kontrol rentang
+             di bawah, bukan lewat Alpine, karena kontrol visualnya SATU
+             (rentang) sementara backend tetap butuh 2 field terpisah -
+             pola sama seperti flatpickr month-select yang sudah ada (1
+             picker, 2 hidden field bulan/tahun). --}}
+        <input type="hidden" id="analytics-period-date-from" name="date_from"
+               value="{{ ! $isMonthMode ? $period->dateFrom->toDateString() : '' }}" :disabled="mode !== 'custom'">
+        <input type="hidden" id="analytics-period-date-to" name="date_to"
+               value="{{ ! $isMonthMode ? $period->dateTo->toDateString() : '' }}" :disabled="mode !== 'custom'">
 
         <select name="client_id" onchange="this.form.submit()" class="{{ $controlClass }}">
             <option value="">Pilih Klien...</option>
@@ -118,68 +115,6 @@
                 <option value="{{ $clientOption->id }}" {{ (string) $selectedClientId === (string) $clientOption->id ? 'selected' : '' }}>{{ $clientOption->name }}</option>
             @endforeach
         </select>
-
-        {{-- UX POLISH item 1/2 - SATU kontrol Periode (bukan lagi 2
-             dropdown/input terpisah tampil bersamaan) - label tombol
-             SELALU dari AnalyticsPeriod::label() (Langkah 7, satu sumber
-             format, tidak diduplikasi di JS). --}}
-        <div class="relative" data-testid="period-control">
-            <button type="button" @click="openPanel()"
-                    class="{{ $controlClass }} flex items-center gap-2 whitespace-nowrap"
-                    aria-haspopup="true" :aria-expanded="panelOpen">
-                <span class="material-symbols-outlined text-[17px] text-[var(--text-muted)]">calendar_month</span>
-                <span>{{ $period->label() }}</span>
-                <span class="material-symbols-outlined text-[17px] text-[var(--text-muted)] transition-transform" :class="panelOpen && 'rotate-180'">expand_more</span>
-            </button>
-
-            <div x-show="panelOpen" x-cloak x-transition.origin.top.left
-                 @click.outside="panelOpen = false" @keydown.escape.window="panelOpen = false"
-                 class="absolute z-20 mt-2 w-[300px] max-w-[calc(100vw-2rem)] card p-4 shadow-lg">
-                <p class="text-sm font-semibold text-[var(--text-primary)] mb-3">Pilih Periode</p>
-
-                <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 mb-4">
-                    <button type="button" @click="mode = 'month'"
-                            class="flex-1 text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
-                            :class="mode === 'month' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">Bulan</button>
-                    <button type="button" @click="mode = 'custom'"
-                            class="flex-1 text-sm font-medium px-3 py-1.5 rounded-md transition-colors"
-                            :class="mode === 'custom' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">Rentang Tanggal</button>
-                </div>
-
-                <div x-show="mode === 'month'">
-                    <input type="month" x-model="monthValue" max="{{ now()->format('Y-m') }}"
-                           class="w-full {{ $controlClass }}" aria-label="Pilih bulan">
-                </div>
-
-                <div x-show="mode === 'custom'" class="space-y-3">
-                    <div>
-                        <label class="block text-xs text-[var(--text-muted)] mb-1">Dari</label>
-                        <input type="date" x-model="dateFromValue" max="{{ now()->toDateString() }}" class="w-full {{ $controlClass }}">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-[var(--text-muted)] mb-1">Sampai</label>
-                        <input type="date" x-model="dateToValue" max="{{ now()->toDateString() }}" class="w-full {{ $controlClass }}">
-                    </div>
-                    {{-- UX POLISH item 12, "invalid custom range cannot be
-                         applied silently" - Terapkan ke-disable + pesan
-                         inline, BUKAN submit lalu server diam-diam fallback
-                         ke bulan berjalan tanpa user sadar kenapa. --}}
-                    {{-- UX POLISH FINAL GATE item 1 - copy lama menyalahkan
-                         "Sampai" seolah-olah satu-satunya kemungkinan
-                         (padahal "Dari" kosong juga membuat customValid
-                         false) - sekarang menyebutkan KEDUA field secara
-                         eksplisit, tetap 1 baris ringkas. --}}
-                    <p class="text-[11px] text-[var(--danger-text)]" x-show="! customValid">Isi tanggal "Dari" dan "Sampai" ("Sampai" harus sama atau setelah "Dari").</p>
-                </div>
-
-                <div class="flex items-center justify-end gap-2 mt-4 pt-3 border-t border-[var(--surface-muted)]">
-                    <button type="button" @click="panelOpen = false"
-                            class="text-sm font-medium text-[var(--text-secondary)] px-3.5 py-2 rounded-lg hover:bg-[var(--surface-muted)] transition-colors">Batal</button>
-                    <button type="button" @click="apply()" :disabled="! customValid"
-                            class="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed">Terapkan</button>
-                </div>
-            </div>
-        </div>
 
         {{-- Platform - SELALU tampil di ketiga tab biar layout nggak
              bergeser pindah tab, walau cuma 1/0 opsi (disabled kalau
@@ -191,6 +126,49 @@
                 <option value="{{ $p->id }}" {{ (string) ($selectedPlatformId ?? '') === (string) $p->id ? 'selected' : '' }}>{{ $p->name }}</option>
             @endforeach
         </select>
+
+        {{-- Langkah 1/7 - toggle Bulan/Rentang VISIBLE langsung di filter
+             bar, bukan lagi di dalam popover - user langsung tahu mode
+             mana yang aktif tanpa membuka apapun. --}}
+        <div class="flex items-center gap-1 bg-[var(--surface-muted)] rounded-lg p-1 h-10 shrink-0"
+             role="group" aria-label="Mode periode" data-testid="period-mode-toggle">
+            <button type="button" @click="setMode('month')" :aria-pressed="mode === 'month'"
+                    class="text-sm font-medium px-3.5 h-full rounded-md transition-colors"
+                    :class="mode === 'month' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">
+                Bulan
+            </button>
+            <button type="button" @click="setMode('custom')" :aria-pressed="mode === 'custom'"
+                    class="text-sm font-medium px-3.5 h-full rounded-md transition-colors"
+                    :class="mode === 'custom' ? 'bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'">
+                Rentang
+            </button>
+        </div>
+
+        {{-- Bulan - APPLY LANGSUNG saat berubah (Langkah 2/5), tidak ada
+             tombol Terapkan/Simpan/OK sama sekali. flatpickr month-select
+             (bukan native <input type="month">) SUPAYA konsisten secara
+             visual dengan kontrol Rentang di sebelahnya (Langkah 7) - baik
+             typography maupun tinggi/border ikut $controlClass yang sama,
+             bukan chrome native browser yang beda-beda tiap browser. --}}
+        <input type="text" name="month" x-show="mode === 'month'" x-cloak readonly
+               :disabled="mode !== 'month'" value="{{ $isMonthMode ? $period->month : now()->format('Y-m') }}"
+               data-flatpickr="month-combined" data-autosubmit="true"
+               class="{{ $controlClass }} cursor-pointer w-full sm:w-auto" aria-label="Pilih bulan" data-testid="period-month-input">
+
+        {{-- Rentang - SATU kontrol visual (Langkah 3, BUKAN 2 field Dari/
+             Sampai terpisah) - flatpickr mode 'range', auto-submit HANYA
+             begitu rentang genap 2 tanggal (Langkah 4) - baru tanggal
+             pertama dipilih SENGAJA belum submit. Ditangani generik lewat
+             window.initFlatpickrs (lihat layouts/app.blade.php, case
+             data-flatpickr bernilai "range"). --}}
+        <div x-show="mode === 'custom'" x-cloak class="relative" data-testid="period-range-control">
+            <span class="material-symbols-outlined text-[17px] text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">calendar_month</span>
+            <input type="text" readonly
+                   data-flatpickr="range" data-autosubmit="true"
+                   data-from-input="#analytics-period-date-from" data-to-input="#analytics-period-date-to"
+                   data-max-date="{{ now()->toDateString() }}" data-placeholder="Pilih rentang tanggal"
+                   class="{{ $controlClass }} pl-9 w-full sm:w-[230px] cursor-pointer" aria-label="Pilih rentang tanggal">
+        </div>
     </form>
 
     {{-- PASS 3 (Langkah A, "current period state visually clear without
@@ -935,19 +913,35 @@
                                             <td class="px-6 py-3.5 font-medium text-[var(--text-primary)]">
                                                 <p class="truncate" title="{{ $content['title'] }}">{{ $content['title'] }}</p>
                                                 @if ($content['linked'] ?? true)
-                                                    <p class="text-xs text-[var(--text-muted)] font-normal mt-0.5 truncate">{{ $content['type'] }}</p>
+                                                    {{-- SYSTEM CONSISTENCY PASS (Part H) - production_type
+                                                         (Desain/Video) & content_format (Single Post/Carousel/
+                                                         Video) sekarang 2 field terpisah, bukan 1 'type'
+                                                         campuran. --}}
+                                                    <p class="text-xs text-[var(--text-muted)] font-normal mt-0.5 truncate">
+                                                        {{ collect([$content['production_type'] ?? null, $content['content_format'] ?? null])->filter()->implode(' · ') ?: '-' }}
+                                                    </p>
                                                 @else
                                                     <div class="flex items-center gap-1.5 flex-wrap mt-1">
                                                         <span class="badge badge-neutral">Belum terhubung</span>
-                                                        @if (($content['type'] ?? '-') !== '-')
-                                                            <span class="text-xs text-[var(--text-muted)]">{{ $content['type'] }}</span>
+                                                        @if (($content['content_format'] ?? '-') !== '-')
+                                                            <span class="text-xs text-[var(--text-muted)]">{{ $content['content_format'] }}</span>
                                                         @endif
                                                     </div>
                                                 @endif
                                             </td>
                                             <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $content['client'] }}</td>
                                             <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $content['platform'] }}</td>
-                                            <td class="px-4 py-3.5 text-right font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</td>
+                                            {{-- SYSTEM CONSISTENCY PASS (Part AA-AC) - total provider
+                                                 TERKINI (bold) + gain periode terpilih (caption kecil),
+                                                 BUKAN lagi cuma gain periode dilabeli polos "Views". --}}
+                                            <td class="px-4 py-3.5 text-right [font-variant-numeric:tabular-nums]">
+                                                @if (($content['current_views'] ?? null) !== null)
+                                                    <div class="font-medium text-[var(--text-primary)]">{{ number_format($content['current_views']) }}</div>
+                                                    <div class="text-[11px] text-[var(--text-muted)]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</div>
+                                                @else
+                                                    <div class="font-medium text-[var(--text-primary)]">{{ number_format($content['views']) }}</div>
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-3.5 text-right">
                                                 <span class="badge badge-success [font-variant-numeric:tabular-nums]">{{ $content['engagement_rate'] }}%</span>
                                             </td>
@@ -956,10 +950,10 @@
                                                     @if ($content['linked'] ?? true)
                                                         <a href="{{ route('analytics.show', $content['id']) }}" class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)] rounded">Detail</a>
                                                         @if ($content['permalink'] ?? null)
-                                                            <span x-data="tooltipHover('Lihat di Instagram')" class="contents">
+                                                            <span x-data="tooltipHover('Lihat di {{ $content['platform'] }}')" class="contents">
                                                                 <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer"
                                                                    @mouseenter="onEnter($event)" @mouseleave="onLeave()"
-                                                                   aria-label="Lihat di Instagram" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
+                                                                   aria-label="Lihat di {{ $content['platform'] }}" class="text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
                                                                     <span class="material-symbols-outlined text-[16px]">open_in_new</span>
                                                                 </a>
                                                                 @include('components.action-tooltip')
@@ -967,7 +961,10 @@
                                                         @endif
                                                     @else
                                                         @if ($content['api_integration_id'] ?? null)
-                                                            <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
+                                                            {{-- SYSTEM CONSISTENCY PASS (Part L) - platform dari
+                                                                 $content['platform'] (baris ini sendiri), BUKAN
+                                                                 hardcode Instagram (dulu 404 buat baris TikTok). --}}
+                                                            <a href="{{ route(\App\Models\Platform::unmatchedTrackerRouteName($content['platform']), $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
                                                                class="text-xs font-medium text-[var(--brand)] hover:underline whitespace-nowrap">Hubungkan</a>
                                                         @endif
                                                         @if ($content['permalink'] ?? null)
@@ -1007,13 +1004,28 @@
                                     </button>
 
                                     <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
-                                        <div class="flex items-center justify-between text-xs">
-                                            <span class="text-[var(--text-muted)]">Tipe / Format</span>
-                                            <span class="text-[var(--text-primary)] font-medium">{{ $content['type'] ?? '-' }}</span>
-                                        </div>
+                                        @if ($content['production_type'] ?? null)
+                                            <div class="flex items-center justify-between text-xs">
+                                                <span class="text-[var(--text-muted)]">Jenis Produksi</span>
+                                                <span class="text-[var(--text-primary)] font-medium">{{ $content['production_type'] }}</span>
+                                            </div>
+                                        @endif
+                                        @if (($content['content_format'] ?? '-') !== '-')
+                                            <div class="flex items-center justify-between text-xs">
+                                                <span class="text-[var(--text-muted)]">Format Konten</span>
+                                                <span class="text-[var(--text-primary)] font-medium">{{ $content['content_format'] }}</span>
+                                            </div>
+                                        @endif
                                         <div class="flex items-center justify-between text-xs">
                                             <span class="text-[var(--text-muted)]">Views</span>
-                                            <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</span>
+                                            <span class="text-right">
+                                                @if (($content['current_views'] ?? null) !== null)
+                                                    <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['current_views']) }}</span>
+                                                    <span class="block text-[10px] text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</span>
+                                                @else
+                                                    <span class="text-[var(--text-primary)] font-medium [font-variant-numeric:tabular-nums]">{{ number_format($content['views']) }}</span>
+                                                @endif
+                                            </span>
                                         </div>
                                         @if ($content['linked'] ?? true)
                                             <a href="{{ route('analytics.show', $content['id']) }}"
@@ -1023,13 +1035,13 @@
                                             @if ($content['permalink'] ?? null)
                                                 <a href="{{ $content['permalink'] }}" target="_blank" rel="noopener noreferrer"
                                                     class="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors">
-                                                    Lihat di Instagram <span class="material-symbols-outlined text-[13px]">open_in_new</span>
+                                                    Lihat di {{ $content['platform'] }} <span class="material-symbols-outlined text-[13px]">open_in_new</span>
                                                 </a>
                                             @endif
                                         @else
                                             <span class="badge badge-neutral block text-center">Belum terhubung ke konten internal</span>
                                             @if ($content['api_integration_id'] ?? null)
-                                                <a href="{{ route('publishing-tracker.instagram.unmatched', $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
+                                                <a href="{{ route(\App\Models\Platform::unmatchedTrackerRouteName($content['platform']), $content['api_integration_id']) }}?return_to={{ urlencode(url()->full()) }}#post-{{ $content['external_post_id'] }}"
                                                     class="mt-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] bg-[var(--brand-tint)] hover:bg-[var(--brand-tint-hover)] rounded-lg py-2 transition-colors">
                                                     Hubungkan Konten <span class="material-symbols-outlined text-[15px]">link</span>
                                                 </a>
@@ -1204,616 +1216,48 @@ function aiChat(insightId, initialMessages, initialIdeas, pillarOptions, isAppli
 </script>
 @endif
 
-{{-- Phase 4.2 (Langkah 1) / PASS 3 - script cuma di-render buat user yang
-     MEMANG bisa dispatch sync (analytics-sync-button juga cuma di-render
-     kalau $canSync - lihat blok header di atas). Bukan cuma defense-in-
-     depth kosmetik: browser view-only user jadi tidak diam-diam nge-poll
-     endpoint yang tidak pernah relevan buat dia. --}}
+{{-- Phase 4.2 (Langkah 1) / PASS 3 / SETTINGS-ANALYTICS CONSISTENCY FIX -
+     script cuma di-render buat user yang MEMANG bisa dispatch sync
+     (analytics-sync-button juga cuma di-render kalau $canSync - lihat blok
+     header di atas). Bukan cuma defense-in-depth kosmetik: browser view-
+     only user jadi tidak diam-diam nge-poll endpoint yang tidak pernah
+     relevan buat dia.
+
+     Rendering/dispatch/poll/retry logic SEKARANG di public/js/analytics-
+     sync-panel.js (Langkah 11, "do not maintain two independently-
+     diverging implementations of sync status UI") - dipakai IDENTIK oleh
+     halaman ini DAN resources/views/settings/partials/integrations-panel.
+     blade.php, jadi kalau semantik progress berubah nanti, cukup ubah 1
+     file JS itu. --}}
 @if ($selectedClientId && $canSync)
+<script src="{{ asset('js/analytics-sync-panel.js') }}"></script>
 <script>
-    // Phase 4 - "Perbarui Data" global di halaman Performa. Arsitektur
-    // polling (fetch+setInterval, reload sekali di status akhir, rediscovery
-    // di page-load, server-side duplicate-protection) TIDAK berubah dari
-    // Phase 4/4.1 - itu yang bikin refresh browser/pindah tab TIDAK PERNAH
-    // membatalkan atau menduplikasi sync (PASS 3 Langkah E). Yang berubah
-    // PASS 3: rendering-nya SEKARANG pakai data.progress (Pass 1 structured
-    // progress - discovered/processed/stage/timestamps genuine per subjob,
-    // Langkah D) sebagai sumber utama tampilan, data.subjobs (legacy) tetap
-    // dipakai buat state machine (not_connected/needs_reconnect/manual_data/
-    // stale-detection yang sudah teruji), BUKAN diganti - dua-duanya
-    // dikombinasikan, bukan salah satu dibuang.
     (function () {
-        var clientId = {{ (int) $selectedClientId }};
-        var platformId = {{ $selectedPlatformId ? (int) $selectedPlatformId : 'null' }};
-        var dispatchUrl = @json(route('analytics.sync'));
-        var statusUrl = @json(route('analytics.sync-status'));
-        var retryTaskUrl = @json(route('analytics.sync.retry-task'));
-        var retryFailedItemsUrl = @json(route('analytics.sync.retry-failed-items'));
-        var reconnectUrl = @json(route('client-management.show', $selectedClientId));
-        var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        if (! window.AnalyticsSyncPanel) return;
 
-        var button = document.getElementById('analytics-sync-button');
-        var icon = document.getElementById('analytics-sync-icon');
-        var label = document.getElementById('analytics-sync-button-label');
-        var freshness = document.getElementById('analytics-freshness');
-        var panel = document.getElementById('analytics-sync-panel');
-        if (! button) return;
-
-        var pollTimer = null;
-        // Phase 4.1 (Langkah 3) - PERBAIKAN bug serius: dulu SETIAP poll
-        // (termasuk yang pasif saat halaman baru dibuka) yang menemukan
-        // status terminal (success/partial/failed) langsung reload halaman
-        // - kalau client itu PERNAH punya sync sukses/gagal kapan saja
-        // sebelumnya (kasus normal di production), buka halaman ini akan
-        // reload TERUS MENERUS selamanya. isTracking = true HANYA kalau
-        // kita BENAR-BENAR sedang melacak satu siklus operasi yang nyata
-        // (baru kita dispatch sendiri, ATAU ketemu SEDANG berjalan pas
-        // halaman dibuka/dari tab/scheduled sync lain - PASS 3 Langkah E,
-        // "jika ada scheduled sync aktif, tampilkan progress-nya, jangan
-        // bikin manual run baru yang bersaing") - status terminal yang
-        // ditemukan TANPA sedang tracking berarti itu cuma last_result
-        // HISTORIS, ditampilkan sebagai info APA ADANYA, TIDAK PERNAH
-        // memicu reload.
-        var isTracking = false;
-        var consecutivePollFailures = 0;
-        var MAX_POLL_FAILURES = 3;
-
-        function isBusy(status) {
-            return status === 'queued' || status === 'running';
-        }
-
-        // ===== PASS 3 (Langkah D) - kosakata tampilan, TIDAK ADA angka
-        // dikarang di sini - semua label murni MEMETAKAN stage/status
-        // BACKEND YANG SUDAH ADA (lihat InstagramAnalyticsSyncService::
-        // markRunning()/recordDiscovered() dkk) ke bahasa Indonesia, bukan
-        // logic baru. =====
-        var PLATFORM_GROUPS = [
-            { key: 'instagram', label: 'Instagram', primary: 'instagram_content', unit: 'konten', secondary: ['instagram_audience'] },
-            { key: 'tiktok', label: 'TikTok', primary: 'tiktok_content', unit: 'video', secondary: [] },
-        ];
-        var stageLabels = {
-            discovering_media: 'Mengambil daftar konten...',
-            fetching_insights: 'Memproses insight konten',
-            refreshing_known_media: 'Memperbarui konten yang sudah tercatat',
-            discovering_videos: 'Mengambil daftar video...',
-            processing_videos: 'Memproses insight video',
-            refreshing_known_videos: 'Memperbarui video yang sudah tercatat',
-            fetching_audience_metrics: 'Mengambil data audiens',
-        };
-        var secondaryLabels = { instagram_audience: 'Audiens' };
-        var lastResultMessages = {
-            success: 'Data berhasil diperbarui.',
-            partial: 'Pembaruan selesai sebagian.',
-            failed: 'Pembaruan gagal.',
-            needs_reconnect: 'Ada koneksi yang butuh dihubungkan ulang.',
-            not_connected: 'Belum ada platform yang terhubung untuk client ini.',
-            idle: '',
-        };
-
-        // PASS 3 (Langkah F) - ambang "terasa lebih lama dari biasanya"
-        // SENGAJA jauh lebih pendek dari ambang backend "job dianggap mati"
-        // (staleThresholdSecondsFor(), 360-660 detik) - ini cuma SOFT
-        // warning ("masih hidup, cuma lambat"), backend tetap satu-satunya
-        // yang berwenang bilang job benar-benar berhenti/gagal.
-        var SLOW_PROGRESS_SECONDS = 45;
-
-        function query(params) {
-            return Object.keys(params)
-                .filter(function (k) { return params[k] !== null && params[k] !== undefined; })
-                .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); })
-                .join('&');
-        }
-
-        function esc(text) {
-            var div = document.createElement('div');
-            div.textContent = text == null ? '' : String(text);
-            return div.innerHTML;
-        }
-
-        function formatElapsed(startIso) {
-            if (! startIso) return '';
-            var totalSeconds = Math.max(0, Math.floor((Date.now() - new Date(startIso).getTime()) / 1000));
-            var m = Math.floor(totalSeconds / 60);
-            var s = totalSeconds % 60;
-            return m > 0 ? (m + 'm ' + s + 'd') : (s + 'd');
-        }
-
-        function secondsSince(iso) {
-            if (! iso) return null;
-            return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-        }
-
-        // Langkah 4 - single platform + needs_reconnect: JANGAN tampilkan
-        // tombol sync normal yang lalu tidak melakukan apa-apa. Ganti jadi
-        // tombol "Hubungkan Ulang" yang mengarahkan ke Client Detail
-        // (tempat flow connect/reconnect yang SUDAH ADA), bukan dispatch.
-        function applyNeedsReconnectButtonState() {
-            button.onclick = function () { window.location.href = reconnectUrl; };
-            if (icon) { icon.classList.remove('animate-spin'); icon.textContent = 'link_off'; }
-            if (label) label.textContent = 'Hubungkan Ulang';
-            button.disabled = false;
-        }
-
-        // PASS 3 (Langkah C) - label tombol platform-aware SAAT busy:
-        // "Memperbarui Instagram" kalau cuma 1 platform relevan, generik
-        // "Memperbarui..." kalau All Platforms - user berpikir dalam
-        // konteks platform, bukan istilah job/subjob internal.
-        function busyButtonLabel(subjobs) {
-            var keys = Object.keys(subjobs || {});
-            if (keys.length === 1 && keys[0] === 'tiktok_content') return 'Memperbarui TikTok...';
-            if (keys.length >= 1 && keys.every(function (k) { return k.indexOf('instagram') === 0; })) return 'Memperbarui Instagram...';
-            return 'Memperbarui...';
-        }
-
-        function applyNormalButtonState(busy, subjobs) {
-            button.onclick = dispatchSync;
-            if (icon) { icon.classList.toggle('animate-spin', busy); icon.textContent = 'sync'; }
-            if (label) label.textContent = busy ? busyButtonLabel(subjobs) : 'Perbarui Data';
-            button.disabled = busy;
-        }
-
-        // ===== PASS 3 (Langkah G) - ringkasan hasil dari reconciliation
-        // counts genuine (Pass 1), BUKAN sekadar "sukses"/"gagal" biner. =====
-        function reconciliationLines(task, unit) {
-            if (! task || ! task.discovered_count) return [];
-            var lines = [];
-            lines.push({ tone: 'success', text: task.success_count + ' dari ' + task.discovered_count + ' ' + unit + ' diperbarui' });
-            if (task.unavailable_count > 0) {
-                lines.push({ tone: 'muted', text: task.unavailable_count + ' ' + unit + ' tidak tersedia dari provider' });
-            }
-            if (task.skipped_count > 0) {
-                lines.push({ tone: 'muted', text: task.skipped_count + ' ' + unit + ' dilewati' });
-            }
-            if (task.failed_count > 0) {
-                lines.push({ tone: 'danger', text: task.failed_count + ' ' + unit + ' belum berhasil diperbarui' });
-            }
-            if (task.discovered_count > 0 && task.reconciled === false) {
-                // Langkah G, "do not report clean success if reconciliation
-                // is not clean" - selisih genuinely tidak diketahui alasannya.
-                lines.push({ tone: 'muted', text: 'Sebagian hasil belum bisa dipastikan statusnya.' });
-            }
-            return lines;
-        }
-
-        function toneClass(tone) {
-            if (tone === 'danger') return 'text-[var(--danger-text)]';
-            if (tone === 'success') return 'text-[var(--success-text)]';
-            return 'text-[var(--text-muted)]';
-        }
-
-        // ===== PASS 3 (Langkah I) - "Lihat detail" progressive disclosure,
-        // checklist DIDERIVASI dari counts yang genuinely ada (bukan
-        // mengarang langkah seperti "Profil diperbarui" yang tidak ada
-        // sinyalnya di data) - kalau backend tidak punya sinyalnya, baris
-        // itu TIDAK ditampilkan sama sekali (jujur lebih penting dari
-        // lengkap). TIDAK PERNAH expose stack trace/token/header. =====
-        function detailChecklist(task, unit) {
-            if (! task) return [];
-            var items = [];
-            if (task.discovered_count > 0) {
-                items.push({ ok: true, text: task.discovered_count + ' ' + unit + ' ditemukan' });
-                items.push({ ok: task.processed_count >= task.discovered_count, text: task.processed_count + ' dari ' + task.discovered_count + ' ' + unit + ' diproses' });
-            }
-            if (task.finished_at && task.reconciled) {
-                items.push({ ok: true, text: 'Data ' + unit + ' tersimpan' });
-            }
-            if (task.unavailable_count > 0) {
-                items.push({ ok: null, text: task.unavailable_count + ' ' + unit + ' tidak tersedia dari provider (bukan kegagalan teknis)' });
-            }
-            if (task.failed_count > 0) {
-                items.push({ ok: false, text: task.failed_count + ' ' + unit + ' gagal diperbarui' });
-            }
-            return items;
-        }
-
-        function checklistIcon(ok) {
-            if (ok === true) return '<span class="material-symbols-outlined text-[15px] text-[var(--success-text)]">check_circle</span>';
-            if (ok === false) return '<span class="material-symbols-outlined text-[15px] text-[var(--danger-text)]">warning</span>';
-            return '<span class="material-symbols-outlined text-[15px] text-[var(--text-muted)]">info</span>';
-        }
-
-        // ===== UX POLISH item 13, "CONSISTENT INSTAGRAM/TIKTOK SYNC RESULT
-        // DETAIL" - status subjob SEKUNDER (mis. Instagram Audiens) SELALU
-        // masuk "Lihat detail" SAJA, TIDAK PERNAH bikin baris tambahan di
-        // area utama KECUALI genuinely gagal teknis/butuh reconnect - satu
-        // provider limitation (unavailable_count>0 tapi status TETAP
-        // 'success') TIDAK BOLEH bikin sync konten yang sukses kelihatan
-        // gagal (Langkah "PARTIAL EXAMPLE"). Evidence-based: baris HANYA
-        // muncul kalau ada sinyal task/status genuine, tidak pernah
-        // mengarang langkah seperti "Profil diperbarui"/"Demografi
-        // diperbarui" yang backend tidak pernah laporkan.
-        //
-        // FINAL CORRECTNESS GATE (Langkah "CROSS-RUN TASK COMPOSITION
-        // SEMANTICS") - hasil count/success/failed task SEKUNDER (mis.
-        // instagram_audience) HANYA boleh ikut ditampilkan sebagai bagian
-        // dari hasil task PRIMARY (primaryTask, mis. instagram_content)
-        // kalau KEDUANYA genuinely task dari operasi TERKOORDINASI yang
-        // SAMA - dibuktikan run_id SAMA PERSIS (analytics_sync_run_id,
-        // BUKAN heuristik timestamp/string - dispatch()/retryTask() SELALU
-        // membuat SATU AnalyticsSyncRun per panggilan, dipakai bareng
-        // SEMUA subjob yang genuinely didispatch BARENGAN). Task sekunder
-        // dari run LAIN (mis. audience sukses KEMARIN, content baru saja
-        // sukses/sedang jalan run BARU) TIDAK ikut ditampilkan sama sekali
-        // di sini - bukan "disembunyikan" (data aslinya tetap ada & terlihat
-        // di tab Audiens sendiri dengan freshness-nya sendiri), cuma TIDAK
-        // diklaim sebagai bagian dari hasil operasi yang SEDANG/BARU SAJA
-        // ditampilkan di kartu ini (Langkah B/C, "must NOT claim ... as
-        // evidence of the currently-running/just-completed update unless
-        // genuinely part of it").
-        //
-        // Pengecualian: needs_reconnect TIDAK di-gate run_id - itu FAKTA
-        // KONEKSI YANG BERLAKU SEKARANG (dibaca live dari status integrasi,
-        // subjobs[key].status, BUKAN dari 1 task/run tertentu), relevan
-        // ditampilkan kapan pun terlepas dari run task-nya.
-        function secondaryChecklistLines(group, subjobs, progressTasks, primaryTask) {
-            var lines = [];
-            group.secondary.forEach(function (secKey) {
-                var secState = subjobs[secKey];
-                var secTask = progressTasks ? progressTasks[secKey] : null;
-                var secLabel = secondaryLabels[secKey] || secKey;
-                if (! secState) return;
-
-                if (secState.status === 'needs_reconnect') {
-                    lines.push({ ok: false, text: esc(secLabel) + ' butuh dihubungkan ulang' });
-                    lines.push({ ok: null, html: '<a href="' + reconnectUrl + '" class="text-[11px] font-medium text-[var(--brand)] hover:underline">Hubungkan kembali ' + esc(group.label) + '</a>' });
-                    return;
-                }
-
-                // Task sekunder TANPA primaryTask buat dibandingkan, ATAU
-                // run_id-nya BEDA dari primaryTask - BUKAN bagian dari
-                // operasi yang sama, jangan diklaim sebagai bagian hasil
-                // ini (Langkah B/C).
-                if (! primaryTask || ! secTask || secTask.run_id !== primaryTask.run_id) return;
-
-                if (secState.status === 'failed' && secTask.failed_count > 0) {
-                    lines.push({ ok: false, text: 'Data ' + esc(secLabel).toLowerCase() + ' belum berhasil diperbarui' });
-                    if (secTask.id) {
-                        lines.push({ ok: null, html: '<button type="button" class="text-[11px] font-medium text-[var(--brand)] hover:underline analytics-retry-btn" data-task-id="' + secTask.id + '" data-action="retry-task">Coba lagi data ' + esc(secLabel) + '</button>' });
-                    }
-                    return;
-                }
-
-                if (secTask.unavailable_count > 0) {
-                    // Provider limitation (mis. threshold Meta) - INFO, BUKAN
-                    // kegagalan - tidak ditonjolkan di area utama.
-                    lines.push({ ok: null, text: 'Sebagian data ' + esc(secLabel).toLowerCase() + ' belum tersedia dari ' + esc(group.label) });
-                    return;
-                }
-
-                if (secState.status === 'success') {
-                    lines.push({ ok: true, text: 'Data ' + esc(secLabel).toLowerCase() + ' diperbarui' });
-                }
-            });
-            return lines;
-        }
-
-        // Baris peringatan di area UTAMA (visible tanpa expand "Lihat
-        // detail") - HANYA buat kegagalan genuine/reconnect, TIDAK PERNAH
-        // buat provider limitation (Langkah 13, "a provider limitation
-        // must not make successful Instagram content look like a failed
-        // sync"), DAN (Langkah "CROSS-RUN") HANYA kalau task sekunder
-        // genuinely dari run yang SAMA dengan primaryTask - lihat
-        // secondaryChecklistLines() buat penjelasan lengkap.
-        function secondaryPrimaryWarning(group, subjobs, progressTasks, primaryTask) {
-            var html = '';
-            group.secondary.forEach(function (secKey) {
-                var secState = subjobs[secKey];
-                var secTask = progressTasks ? progressTasks[secKey] : null;
-                if (! secState) return;
-
-                if (secState.status === 'needs_reconnect') {
-                    html += '<p class="text-xs text-[var(--warning-text)] mt-1.5 flex items-center gap-1.5">'
-                        + '<span class="material-symbols-outlined text-[15px]">link_off</span> Koneksi butuh dihubungkan ulang untuk sebagian data</p>';
-                    return;
-                }
-
-                if (! primaryTask || ! secTask || secTask.run_id !== primaryTask.run_id) return;
-
-                if (secState.status === 'failed' && secTask.failed_count > 0) {
-                    html += '<p class="text-xs text-[var(--danger-text)] mt-1.5 flex items-center gap-1.5">'
-                        + '<span class="material-symbols-outlined text-[15px]">warning</span> Sebagian data belum berhasil diperbarui</p>';
-                }
-            });
-            return html;
-        }
-
-        // ===== PASS 3 (Langkah H) - targeted retry, HANYA menyasar scope
-        // yang backend TAHU gagal (item-level buat subjob yang punya
-        // AnalyticsSyncFailure retryable, task-level kalau seluruh subjob
-        // gagal) - TIDAK PERNAH dispatch sync lengkap kalau backend sudah
-        // tahu persis apa yang perlu dicoba ulang. =====
-        function retryButtonHtml(subjobKey, task, groupLabel, unit) {
-            if (! task || ! task.id || task.status !== 'failed' || ! task.failed_count) return '';
-
-            var canItemRetry = subjobKey === 'instagram_content' || subjobKey === 'tiktok_content';
-            var text = canItemRetry
-                ? 'Coba lagi ' + task.failed_count + ' ' + unit
-                : (subjobKey === 'instagram_audience' ? 'Coba lagi data Audiens' : 'Coba lagi ' + groupLabel);
-            var action = canItemRetry ? 'retry-items' : 'retry-task';
-
-            return '<button type="button" class="text-xs font-medium text-[var(--brand)] hover:underline analytics-retry-btn" '
-                + 'data-task-id="' + task.id + '" data-action="' + action + '">' + esc(text) + '</button>';
-        }
-
-        // ===== Bangun 1 kartu platform (Langkah D/F/G/H/I) =====
-        function renderGroup(group, subjobs, progressTasks) {
-            var relevantKeys = [group.primary].concat(group.secondary).filter(function (k) { return subjobs[k]; });
-            if (! relevantKeys.length) return '';
-
-            var primaryState = subjobs[group.primary];
-            // Semua subjob grup ini not_connected - tidak ada apapun buat
-            // ditampilkan, JANGAN render kartu kosong (Langkah Q, "no alert
-            // overload").
-            if (relevantKeys.every(function (k) { return subjobs[k].status === 'not_connected'; })) return '';
-
-            var task = progressTasks ? progressTasks[group.primary] : null;
-            var body = '';
-
-            if (primaryState && primaryState.status === 'needs_reconnect') {
-                body = '<p class="text-xs text-[var(--warning-text)] flex items-center gap-1.5">'
-                    + '<span class="material-symbols-outlined text-[15px]">link_off</span> Koneksi ' + group.label + ' butuh dihubungkan ulang'
-                    + '</p><a href="' + reconnectUrl + '" class="text-xs font-medium text-[var(--brand)] hover:underline mt-1 inline-block">Hubungkan kembali ' + esc(group.label) + '</a>';
-            } else if (primaryState && isBusy(primaryState.status)) {
-                if (task && task.discovered_count > 0) {
-                    var pct = Math.min(100, Math.round((task.processed_count / task.discovered_count) * 100));
-                    body = '<div class="flex items-center justify-between text-xs mb-1.5">'
-                        + '<span class="text-[var(--text-secondary)]">' + task.processed_count + ' dari ' + task.discovered_count + ' ' + group.unit + '</span>'
-                        + '<span class="text-[var(--text-muted)]">' + formatElapsed(task.started_at) + '</span>'
-                        + '</div>'
-                        + '<div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden mb-1"><div class="h-full rounded-full bg-[var(--brand)] transition-[width]" style="width:' + pct + '%"></div></div>'
-                        + '<p class="text-[11px] text-[var(--text-muted)]">' + esc(stageLabels[task.stage] || 'Memproses...') + '</p>';
-                } else {
-                    // Langkah D - SEBELUM discovered_count diketahui: stage
-                    // indeterminate, TIDAK PERNAH mengarang persentase.
-                    body = '<div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">'
-                        + '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>'
-                        + '<span>' + esc((task && stageLabels[task.stage]) || ('Menyiapkan ' + group.label + '...')) + '</span>'
-                        + '</div>';
-                }
-
-                // Langkah F - "taking longer than usual", SOFT warning saja,
-                // backend (bukan JS) yang berwenang bilang benar-benar mati.
-                var idleSeconds = task ? secondsSince(task.last_progress_at) : null;
-                if (idleSeconds !== null && idleSeconds > SLOW_PROGRESS_SECONDS) {
-                    body += '<p class="text-[11px] text-[var(--warning-text)] mt-1.5">Pembaruan membutuhkan waktu lebih lama dari biasanya.</p>';
-                }
-            } else if (task && task.finished_at) {
-                // UX POLISH item 13 - "no generic success when better data
-                // exists": task (progressTasks[group.primary]) SEKARANG
-                // reliably terisi lintas run (lihat AnalyticsSyncOrchestrator::
-                // latestRunProgress() bugfix) - reconciliationLines() SELALU
-                // dicoba duluan, fallback pesan generik HANYA kalau memang
-                // tidak ada discovered_count sama sekali buat dilaporkan.
-                var lines = reconciliationLines(task, group.unit);
-                if (lines.length) {
-                    body = lines.map(function (l) {
-                        return '<p class="text-xs ' + toneClass(l.tone) + '">' + esc(l.text) + '</p>';
-                    }).join('');
-                } else if (primaryState) {
-                    body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || '') + '</p>';
-                }
-
-                // Sekunder (mis. Instagram Audiens) - HANYA kegagalan genuine/
-                // reconnect yang boleh nongol di area utama, provider
-                // limitation & sukses masuk "Lihat detail" saja.
-                body += secondaryPrimaryWarning(group, subjobs, progressTasks, task);
-
-                var retryHtml = retryButtonHtml(group.primary, task, group.label, group.unit);
-                if (retryHtml) body += '<div class="mt-1.5">' + retryHtml + '</div>';
-            } else if (primaryState) {
-                body = '<p class="text-xs text-[var(--text-muted)]">' + esc(lastResultMessages[primaryState.status] || (primaryState.message || '')) + '</p>';
-            }
-
-            var checklist = detailChecklist(task, group.unit).concat(secondaryChecklistLines(group, subjobs, progressTasks, task));
-            var detailHtml = checklist.length
-                ? '<details class="mt-2"><summary class="text-[11px] font-medium text-[var(--brand)] cursor-pointer select-none">Lihat detail</summary>'
-                    + '<div class="mt-2 space-y-1">' + checklist.map(function (c) {
-                        return '<p class="text-[11px] text-[var(--text-secondary)] flex items-center gap-1.5">' + checklistIcon(c.ok) + ' ' + (c.html || esc(c.text)) + '</p>';
-                    }).join('') + '</div></details>'
-                : '';
-
-            return '<div class="py-3 first:pt-0 last:pb-0 border-b last:border-0 border-[var(--surface-muted)]">'
-                + '<p class="text-xs font-semibold text-[var(--text-primary)] mb-1.5">' + esc(group.label) + '</p>'
-                + body + detailHtml
-                + '</div>';
-        }
-
-        function renderSyncPanel(data) {
-            if (! panel) return;
-
-            var subjobs = data.subjobs || {};
-            var progressTasks = (data.progress && data.progress.tasks) || null;
-            var html = PLATFORM_GROUPS.map(function (g) { return renderGroup(g, subjobs, progressTasks); }).join('');
-
-            if (! html) { panel.hidden = true; panel.innerHTML = ''; return; }
-
-            panel.innerHTML = '<div class="card p-4">' + html + '</div>';
-            panel.hidden = false;
-
-            panel.querySelectorAll('.analytics-retry-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () { handleRetryClick(btn); });
-            });
-        }
-
-        function handleRetryClick(btn) {
-            var taskId = btn.getAttribute('data-task-id');
-            var action = btn.getAttribute('data-action');
-            var url = action === 'retry-items' ? retryFailedItemsUrl : retryTaskUrl;
-            btn.disabled = true;
-            btn.textContent = 'Mencoba lagi...';
-
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                body: JSON.stringify({ task_id: taskId }),
-            })
-                .then(function (res) { return res.json(); })
-                .then(function () {
-                    isTracking = true;
-                    startPolling();
-                })
-                .catch(function () {
-                    btn.disabled = false;
-                });
-        }
-
-        // PASS 3 (Langkah O, "AUTO-SYNC UX") - "Data diperbarui hari ini,
-        // 20:42" style, bukan lagi timestamp teknis mentah - user tidak
-        // perlu paham jadwal auto-sync, cukup tahu KAPAN terakhir segar.
-        function formatFreshness(iso) {
-            var date = new Date(iso);
-            var now = new Date();
-            var isToday = date.toDateString() === now.toDateString();
-            var yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-            var isYesterday = date.toDateString() === yesterday.toDateString();
-            var time = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-            if (isToday) return 'Data diperbarui hari ini, ' + time;
-            if (isYesterday) return 'Data diperbarui kemarin, ' + time;
-            return 'Data diperbarui ' + date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + time;
-        }
-
-        function applyStatus(data) {
-            var busy = isBusy(data.overall_status);
-
-            if (busy) {
-                // Operasi SEDANG berjalan - entah baru kita trigger, atau
-                // ketemu sudah jalan (tab/sesi lain/scheduled sync - Langkah
-                // E) pas halaman dibuka - WAJIB dilacak sampai selesai.
-                isTracking = true;
-            }
-
-            if (freshness) {
-                if (data.last_observation_at) {
-                    freshness.textContent = formatFreshness(data.last_observation_at);
-                } else if (! busy && ! isTracking) {
-                    freshness.textContent = lastResultMessages[data.overall_status] || 'Belum ada data yang tersinkronkan.';
-                }
-                freshness.hidden = false;
-            }
-
-            renderSyncPanel(data);
-
-            if (! busy && data.overall_status === 'needs_reconnect') {
-                applyNeedsReconnectButtonState();
-            } else {
-                applyNormalButtonState(busy, data.subjobs);
-            }
-
-            if (! busy) {
-                stopPolling();
-
-                // Langkah 13/E - reload SEKALI, TAPI CUMA kalau kita memang
-                // sedang melacak satu siklus operasi nyata (isTracking) -
-                // last_result historis yang ditemukan TANPA tracking aktif
-                // TIDAK PERNAH memicu reload. window.location.reload()
-                // otomatis preserve SEMUA query string yang lagi aktif.
-                if (isTracking && (data.overall_status === 'success' || data.overall_status === 'partial' || data.overall_status === 'failed')) {
-                    setTimeout(function () { window.location.reload(); }, 900);
-                }
-                isTracking = false;
-            }
-        }
-
-        function showSafeError(text) {
-            if (freshness) { freshness.textContent = text; freshness.hidden = false; }
-        }
-
-        // Langkah 6 - status endpoint error (401/403/419/500/network
-        // timeout/malformed response) TIDAK BOLEH bikin polling jalan
-        // selamanya tanpa feedback DAN tombol tidak boleh nyangkut
-        // disabled permanen. Session expiry (401/419) berhenti SEKETIKA -
-        // itu bukan masalah transient. Error lain (500/network/malformed
-        // JSON) dikasih toleransi beberapa kali gagal berturut-turut dulu
-        // (bisa cuma blip jaringan sesaat) sebelum berhenti - TIDAK PERNAH
-        // menampilkan raw stack trace/pesan API/token, cuma pesan aman.
-        function poll() {
-            fetch(statusUrl + '?' + query({ client_id: clientId, platform_id: platformId }), { headers: { Accept: 'application/json' } })
-                .then(function (res) {
-                    if (res.status === 401 || res.status === 419) {
-                        throw { safeStop: true, message: 'Sesi Anda berakhir. Muat ulang halaman dan login kembali untuk melanjutkan.' };
-                    }
-                    if (! res.ok) {
-                        throw { safeStop: false };
-                    }
-                    return res.json();
-                })
-                .then(function (data) {
-                    consecutivePollFailures = 0;
-                    applyStatus(data);
-                })
-                .catch(function (err) {
-                    if (err && err.safeStop) {
-                        stopPolling();
-                        isTracking = false;
-                        showSafeError(err.message || 'Terjadi kesalahan. Muat ulang halaman.');
-                        applyNormalButtonState(false, null);
-                        return;
-                    }
-
-                    consecutivePollFailures++;
-                    if (consecutivePollFailures >= MAX_POLL_FAILURES) {
-                        stopPolling();
-                        isTracking = false;
-                        showSafeError('Gagal memuat status sinkronisasi. Coba muat ulang halaman.');
-                        applyNormalButtonState(false, null);
-                        return;
-                    }
-                    // < MAX_POLL_FAILURES - diamkan, kemungkinan cuma blip jaringan sesaat, coba lagi di poll berikutnya.
-                });
-        }
-
-        function startPolling() {
-            if (pollTimer) return;
-            poll();
-            pollTimer = setInterval(poll, 2500);
-        }
-
-        function stopPolling() {
-            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        }
-
-        function dispatchSync() {
-            isTracking = true;
-            applyNormalButtonState(true, null);
-
-            fetch(dispatchUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ client_id: clientId, platform_id: platformId }),
-            })
-                .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
-                .then(function (result) {
-                    if (! result.ok) {
-                        isTracking = false;
-                        showSafeError(result.body.message || 'Pembaruan data gagal dimulai.');
-                        applyNormalButtonState(false, null);
-                        return;
-                    }
-                    startPolling();
-                })
-                .catch(function () {
-                    isTracking = false;
-                    showSafeError('Pembaruan data gagal dimulai.');
-                    applyNormalButtonState(false, null);
-                });
-        }
-
-        applyNormalButtonState(false, null);
-        button.onclick = dispatchSync;
-
-        // Ambil status begitu halaman dibuka (bukan cuma setelah klik) -
-        // biar freshness indicator & (kalau kebetulan ada sync yang masih
-        // berjalan dari klik sebelumnya/tab lain/scheduled - Langkah E)
-        // panel langsung akurat tanpa perlu klik dulu. isTracking TETAP
-        // false di titik ini - kalau hasilnya status busy, applyStatus()
-        // sendiri yang akan menyalakan tracking; kalau hasilnya terminal,
-        // itu last_result historis APA ADANYA, TIDAK memicu reload.
-        poll();
+        window.AnalyticsSyncPanel.createSyncController({
+            clientId: {{ (int) $selectedClientId }},
+            platformId: {{ $selectedPlatformId ? (int) $selectedPlatformId : 'null' }},
+            urls: {
+                dispatch: @json(route('analytics.sync')),
+                status: @json(route('analytics.sync-status')),
+                retryTask: @json(route('analytics.sync.retry-task')),
+                retryFailedItems: @json(route('analytics.sync.retry-failed-items')),
+            },
+            reconnectUrl: @json(route('client-management.show', $selectedClientId)),
+            csrfToken: document.querySelector('meta[name="csrf-token"]').content,
+            elements: {
+                button: document.getElementById('analytics-sync-button'),
+                icon: document.getElementById('analytics-sync-icon'),
+                label: document.getElementById('analytics-sync-button-label'),
+                freshness: document.getElementById('analytics-freshness'),
+                panel: document.getElementById('analytics-sync-panel'),
+            },
+            // Analytics TETAP pakai SEMUA grup platform default (Instagram +
+            // TikTok) - filter platform_id (kalau ada) sudah membatasi
+            // subjobs yang dikembalikan endpoint, renderGroup() otomatis
+            // skip grup yang tidak relevan (lihat "not_connected" check).
+        });
     })();
 </script>
 @endif

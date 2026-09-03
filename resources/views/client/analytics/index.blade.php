@@ -68,10 +68,15 @@
                         <div class="flex items-center justify-between gap-3 {{ !$loop->last ? 'pb-3 border-b border-[var(--border)]' : '' }}">
                             <div class="min-w-0">
                                 <p class="text-sm font-medium text-[var(--text-primary)] truncate">{{ $content['title'] }}</p>
-                                <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ $content['type'] }} &middot; {{ $content['platform'] }}</p>
+                                <p class="text-xs text-[var(--text-muted)] mt-0.5">{{ collect([$content['production_type'] ?? null, $content['content_format'] ?? null])->filter()->implode(' · ') ?: '-' }} &middot; {{ $content['platform'] }}</p>
                             </div>
                             <div class="text-right shrink-0">
-                                <p class="text-sm font-semibold text-[var(--text-primary)]">{{ number_format($content['views']) }}</p>
+                                @if (($content['current_views'] ?? null) !== null)
+                                    <p class="text-sm font-semibold text-[var(--text-primary)]">{{ number_format($content['current_views']) }}</p>
+                                    <p class="text-[11px] text-[var(--text-muted)]">{{ $content['views'] >= 0 ? '+' : '' }}{{ number_format($content['views']) }} periode ini</p>
+                                @else
+                                    <p class="text-sm font-semibold text-[var(--text-primary)]">{{ number_format($content['views']) }}</p>
+                                @endif
                                 <p class="text-xs text-[var(--text-muted)]">{{ $content['engagement_rate'] }}% eng.</p>
                             </div>
                         </div>

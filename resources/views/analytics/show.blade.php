@@ -62,18 +62,74 @@
 
         <div class="lg:col-span-2 space-y-5">
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
-                    <p class="text-xs text-[var(--text-muted)] mb-1.5">Total Views</p>
-                    <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ number_format($totalViews) }}</p>
+            {{-- SYSTEM CONSISTENCY PASS (Part AD) - "PERFORMA 30 Hari
+                 Terakhir" (gain periode, delta) SEKARANG eksplisit
+                 terpisah dari "Total Saat Ini" di bawah (total provider
+                 kumulatif). Dulu delta ini SUDAH dihitung ($thisResult)
+                 tapi cuma dipakai internal buat badge persentase peer
+                 comparison di atas - angkanya sendiri tidak pernah
+                 ditampilkan. Metric yang genuinely null (bukan 0) TETAP
+                 tampil "-", tidak pernah difabrikasi jadi 0. --}}
+            @if ($periodDeltaAvailable)
+                <div class="card p-5">
+                    <p class="text-sm font-semibold text-[var(--text-primary)] mb-4">Performa 30 Hari Terakhir</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div>
+                            <p class="text-xs text-[var(--text-muted)] mb-1">Views bertambah</p>
+                            <p class="text-base font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                {{ $periodDelta['views'] !== null ? ($periodDelta['views'] >= 0 ? '+' : '').number_format($periodDelta['views']) : '-' }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[var(--text-muted)] mb-1">Likes bertambah</p>
+                            <p class="text-base font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                {{ $periodDelta['likes'] !== null ? ($periodDelta['likes'] >= 0 ? '+' : '').number_format($periodDelta['likes']) : '-' }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[var(--text-muted)] mb-1">Comments bertambah</p>
+                            <p class="text-base font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                {{ $periodDelta['comments'] !== null ? ($periodDelta['comments'] >= 0 ? '+' : '').number_format($periodDelta['comments']) : '-' }}
+                            </p>
+                        </div>
+                        @if ($hasVideoMetrics)
+                            <div>
+                                <p class="text-xs text-[var(--text-muted)] mb-1">Shares bertambah</p>
+                                <p class="text-base font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                    {{ $periodDelta['shares'] !== null ? ($periodDelta['shares'] >= 0 ? '+' : '').number_format($periodDelta['shares']) : '-' }}
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-[var(--text-muted)] mb-1">Saves bertambah</p>
+                                <p class="text-base font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                                    {{ $periodDelta['saves'] !== null ? ($periodDelta['saves'] >= 0 ? '+' : '').number_format($periodDelta['saves']) : '-' }}
+                                </p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-                <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
-                    <p class="text-xs text-[var(--text-muted)] mb-1.5">Rata-rata Engagement</p>
-                    <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $avgEngagement }}%</p>
+            @endif
+
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <p class="text-sm font-semibold text-[var(--text-primary)]">Total Saat Ini</p>
+                    @if (\App\Services\FreshnessPresenter::label($currentObservedAt))
+                        <p class="text-[11px] text-[var(--text-muted)]">{{ \App\Services\FreshnessPresenter::label($currentObservedAt) }}</p>
+                    @endif
                 </div>
-                <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
-                    <p class="text-xs text-[var(--text-muted)] mb-1.5">Hari Terlacak</p>
-                    <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $daysTracked }}</p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Total Views</p>
+                        <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ number_format($totalViews) }}</p>
+                    </div>
+                    <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Rata-rata Engagement</p>
+                        <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $avgEngagement }}%</p>
+                    </div>
+                    <div class="card p-5 transition-shadow hover:shadow-[0_2px_10px_rgba(20,24,26,0.05)]">
+                        <p class="text-xs text-[var(--text-muted)] mb-1.5">Hari Terlacak</p>
+                        <p class="font-display text-xl font-semibold text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $daysTracked }}</p>
+                    </div>
                 </div>
             </div>
 
@@ -153,9 +209,15 @@
                         <span class="font-medium text-[var(--text-primary)]">{{ $contentItem->platform->name ?? '-' }}</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span class="text-[var(--text-muted)]">Tipe Konten</span>
+                        <span class="text-[var(--text-muted)]">Jenis Produksi</span>
                         <span class="font-medium text-[var(--text-primary)]">{{ $contentItem->contentType->name ?? '-' }}</span>
                     </div>
+                    @if ($contentItem->contentFormat || $contentItem->content_format)
+                        <div class="flex items-center justify-between">
+                            <span class="text-[var(--text-muted)]">Format Konten</span>
+                            <span class="font-medium text-[var(--text-primary)]">{{ $contentItem->contentFormat->name ?? $contentItem->content_format }}</span>
+                        </div>
+                    @endif
                     <div class="flex items-center justify-between">
                         <span class="text-[var(--text-muted)]">Deadline</span>
                         <span class="font-medium text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">{{ $contentItem->deadline_at?->translatedFormat('d M Y') }}</span>

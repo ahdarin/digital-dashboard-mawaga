@@ -148,8 +148,8 @@
                             <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
                                 {{ $item->contentType->name ?? '-' }}
                             </span>
-                            @if ($item->content_format)
-                                <span class="block text-[10px] text-[var(--text-muted)] mt-1">{{ $item->content_format }}</span>
+                            @if ($item->contentFormat || $item->content_format)
+                                <span class="block text-[10px] text-[var(--text-muted)] mt-1">{{ $item->contentFormat->name ?? $item->content_format }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-3.5 text-[var(--text-secondary)] truncate">{{ $item->platform->name ?? '-' }}</td>
@@ -221,15 +221,15 @@
 
                 <div x-show="open" x-cloak x-transition class="mt-3 pt-3 border-t border-[var(--surface-muted)] space-y-2">
                     <div class="flex items-center justify-between text-xs">
-                        <span class="text-[var(--text-muted)]">Kategori</span>
+                        <span class="text-[var(--text-muted)]">Jenis Produksi</span>
                         <span class="text-xs font-medium px-2 py-0.5 rounded-full" style="background-color: {{ $typeColor }}14; color: {{ $typeColor }}">
                             {{ $item->contentType->name ?? '-' }}
                         </span>
                     </div>
-                    @if ($item->content_format)
+                    @if ($item->contentFormat || $item->content_format)
                         <div class="flex items-center justify-between text-xs">
-                            <span class="text-[var(--text-muted)]">Format</span>
-                            <span class="text-[var(--text-primary)] font-medium">{{ $item->content_format }}</span>
+                            <span class="text-[var(--text-muted)]">Format Konten</span>
+                            <span class="text-[var(--text-primary)] font-medium">{{ $item->contentFormat->name ?? $item->content_format }}</span>
                         </div>
                     @endif
                     <div class="flex items-center justify-between text-xs">

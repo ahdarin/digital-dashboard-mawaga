@@ -377,7 +377,7 @@ class PeriodPerformanceService
         $apiMetrics = ContentMetric::where('client_id', $clientId)
             ->when($platformId, fn ($q) => $q->where('platform_id', $platformId))
             ->where(fn ($q) => $q->whereNotNull('instagram_media_snapshot_id')->orWhereNotNull('tiktok_video_snapshot_id'))
-            ->with(['contentItem.contentPillar', 'contentItem.contentType', 'contentItem.workflow', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
+            ->with(['contentItem.contentPillar', 'contentItem.contentType', 'contentItem.contentFormat', 'contentItem.workflow', 'platform', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
             ->get();
 
         $csvMetrics = ContentMetric::where('client_id', $clientId)
@@ -385,7 +385,7 @@ class PeriodPerformanceService
             ->whereNull('instagram_media_snapshot_id')
             ->whereNull('tiktok_video_snapshot_id')
             ->whereBetween('metric_date', [$periodStart->copy()->startOfDay(), $periodEnd->copy()->endOfDay()])
-            ->with(['contentItem.contentPillar', 'contentItem.contentType', 'contentItem.workflow', 'platform'])
+            ->with(['contentItem.contentPillar', 'contentItem.contentType', 'contentItem.contentFormat', 'contentItem.workflow', 'platform'])
             ->get();
 
         return $this->computeAggregate($apiMetrics, $csvMetrics, $periodStart, $periodEnd);

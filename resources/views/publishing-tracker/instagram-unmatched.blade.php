@@ -65,7 +65,7 @@
                                     <span class="material-symbols-outlined text-[24px]" style="display:none">broken_image</span>
                                 @else
                                     <span class="material-symbols-outlined text-[24px]">
-                                        {{ str_contains(strtolower($media['media_type'] ?? ''), 'video') ? 'play_circle' : 'image' }}
+                                        {{ str_contains(strtolower($media['format'] ?? ''), 'video') ? 'play_circle' : 'image' }}
                                     </span>
                                 @endif
                             </div>
@@ -75,7 +75,7 @@
                                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-[var(--text-muted)]">
                                     <span>{{ $media['timestamp']?->translatedFormat('d M Y, H:i') ?? '-' }}</span>
                                     <span>&middot;</span>
-                                    <span>{{ $media['media_type'] ?? '-' }}</span>
+                                    <span>{{ $media['format'] ?? '-' }}</span>
                                     @if ($media['permalink'])
                                         <span>&middot;</span>
                                         <a href="{{ $media['permalink'] }}" target="_blank" rel="noopener noreferrer" class="text-[var(--brand)] hover:underline">Lihat post</a>

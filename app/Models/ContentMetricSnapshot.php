@@ -19,12 +19,14 @@ class ContentMetricSnapshot extends Model
         'snapshot_date',
         'views', 'reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'profile_visit',
         'engagement_rate', 'watch_time_avg', 'completion_rate',
+        'watch_time_total', 'skip_rate', 'profile_activity', 'attributed_follows',
     ];
 
     protected $casts = [
         'snapshot_date' => 'date',
         'engagement_rate' => 'decimal:2',
         'completion_rate' => 'decimal:2',
+        'skip_rate' => 'decimal:2',
     ];
 
     public function client() { return $this->belongsTo(Client::class); }

@@ -58,6 +58,35 @@ class InstagramAnalyticsService
         'VIDEO' => ['reach', 'likes', 'comments', 'views'],
     ];
 
+    // FINAL INSTAGRAM OPTIONAL INSIGHTS COMPLETENESS GATE - metric
+    // OPSIONAL, DILUAR PREFERRED_METRICS/SAFE_METRICS SENGAJA (Part 4,
+    // "core vs optional") - kegagalan metric-metric ini TIDAK PERNAH
+    // memicu fallback SAFE_METRICS yang kehilangan shares/saved/
+    // total_interactions yang SEBENARNYA valid. SEMUA diverifikasi
+    // resmi ada per referensi Meta (developers.facebook.com/docs/
+    // instagram-platform/reference/instagram-media/insights/, v25.0,
+    // dicek 2026-09-03), scope instagram_business_manage_insights (SAMA
+    // scope yang sudah dipakai app ini, TIDAK BUTUH scope baru).
+    //
+    // REELS ONLY (media_product_type=REELS) - SATU request batched
+    // (Part 4, "do NOT make one HTTP request per optional metric"),
+    // BUKAN 3 request terpisah:
+    // - ig_reels_avg_watch_time: rata-rata waktu tonton (ms dari Meta).
+    // - ig_reels_video_view_total_time: TOTAL waktu tonton agregat (ms) -
+    //   metric TERPISAH dari rata-rata, kolom TERPISAH (Part 5, "jangan
+    //   overload").
+    // - reels_skip_rate: rasio skip (persentase).
+    private const OPTIONAL_REELS_METRICS = ['ig_reels_avg_watch_time', 'ig_reels_video_view_total_time', 'reels_skip_rate'];
+
+    // FEED ONLY (IMAGE/CAROUSEL_ALBUM, media_product_type FEED) - metric
+    // atribusi profil dari post SPESIFIK ini (BUKAN account_type/follower
+    // total akun, itu domain berbeda - ApiIntegration/AudienceInsight).
+    // Ketiganya "FEED, STORY" per referensi Meta - app ini tidak pernah
+    // sync Story, jadi cuma FEED yang relevan. SATU request batched,
+    // TERPISAH dari batch REELS di atas (Meta men-scope metric per media
+    // type, tidak bisa dicampur 1 request).
+    private const OPTIONAL_FEED_METRICS = ['profile_visits', 'profile_activity', 'follows'];
+
     public function __construct(
         private readonly ApiIntegration $integration,
     ) {
@@ -218,7 +247,128 @@ class InstagramAnalyticsService
             return ['metrics' => $this->emptyMetrics(), 'error' => 'Insights tidak tersedia untuk media ini (mungkin sudah dihapus atau metric tidak didukung)', 'category' => $result['category']];
         }
 
-        return ['metrics' => $this->normalizeMetrics($result['data']), 'error' => null, 'category' => null];
+        $metrics = $this->normalizeMetrics($result['data']);
+
+        // FINAL INSTAGRAM OPTIONAL INSIGHTS COMPLETENESS GATE - metric
+        // opsional, request TERPISAH (SATU batch per media type - Part 4,
+        // "do NOT make one HTTP request per optional metric") SETELAH
+        // core metrics di atas SUDAH berhasil - kegagalan di sini TIDAK
+        // PERNAH mengubah $error/$category return value (masih null/null,
+        // core metrics tetap dilaporkan sukses apa adanya).
+        if ($mediaProductType === 'REELS') {
+            $metrics = [...$metrics, ...$this->getOptionalReelsMetrics($mediaId)];
+        } elseif (in_array($mediaProductType, ['FEED', 'IMAGE', 'CAROUSEL_ALBUM'], true) || $mediaProductType === null) {
+            $metrics = [...$metrics, ...$this->getOptionalFeedMetrics($mediaId)];
+        }
+
+        return ['metrics' => $metrics, 'error' => null, 'category' => null];
+    }
+
+    /**
+     * SATU request batched buat ketiga metric opsional REELS
+     * (OPTIONAL_REELS_METRICS) - BUKAN 3 request terpisah (Part 4).
+     * ig_reels_avg_watch_time & ig_reels_video_view_total_time balik
+     * dalam MILIDETIK dari Meta - dikonversi ke DETIK (avg_watch_time
+     * satu semantik persis sama dengan kolom content_metrics.
+     * watch_time_avg yang sudah dipakai TikTok, Part 7 "jangan overload
+     * kolom dengan makna beda" - ini makna yang SAMA, cuma provider
+     * beda, bukan overload; watch_time_total kolom TERPISAH, metric
+     * TERPISAH - total agregat, BUKAN rata-rata). reels_skip_rate
+     * sudah dalam bentuk rate/persentase, disimpan apa adanya (CURRENT_RATE,
+     * TIDAK PERNAH di-delta - lihat docblock InstagramAnalyticsSyncService::
+     * saveMetric()).
+     *
+     * Kegagalan APAPUN (metric belum tersedia buat media ini, rate limit,
+     * dst) -> SEMUA null, TIDAK PERNAH exception yang bocor ke caller,
+     * TIDAK PERNAH mempengaruhi core metrics.
+     *
+     * @return array{watch_time_avg: ?int, watch_time_total: ?int, skip_rate: ?float}
+     */
+    private function getOptionalReelsMetrics(string $mediaId): array
+    {
+        $empty = ['watch_time_avg' => null, 'watch_time_total' => null, 'skip_rate' => null];
+
+        try {
+            $response = $this->get($this->url("{$mediaId}/insights"), [
+                'metric' => implode(',', self::OPTIONAL_REELS_METRICS),
+            ]);
+
+            if (! $response->successful()) {
+                return $empty;
+            }
+
+            $flat = $this->flattenInsightValues($response->json('data') ?? []);
+            $avgMs = $flat['ig_reels_avg_watch_time'] ?? null;
+            $totalMs = $flat['ig_reels_video_view_total_time'] ?? null;
+            $skipRate = $flat['reels_skip_rate'] ?? null;
+
+            return [
+                'watch_time_avg' => $avgMs !== null ? (int) round(((float) $avgMs) / 1000) : null,
+                'watch_time_total' => $totalMs !== null ? (int) round(((float) $totalMs) / 1000) : null,
+                'skip_rate' => $skipRate !== null ? (float) $skipRate : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::info('Instagram: metric opsional Reels tidak tersedia (diabaikan, core metrics tidak terpengaruh)', [
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $empty;
+        }
+    }
+
+    /**
+     * SATU request batched buat ketiga metric opsional FEED
+     * (OPTIONAL_FEED_METRICS) - atribusi profil dari POST SPESIFIK ini
+     * (BUKAN total akun - itu domain AudienceInsight/ApiIntegration,
+     * TIDAK disentuh di sini).
+     *
+     * LIVE VERIFICATION NOTE (dicek langsung terhadap integration real,
+     * 2026-09-04) - asumsi awal (profile_activity balik sebagai
+     * breakdown, sama pola dengan demografis di
+     * InstagramAudienceInsightsService) TERBUKTI SALAH begitu dicek
+     * live: response NYATA-nya SAMA PERSIS bentuknya dengan
+     * profile_visits/follows - angka tunggal di `values[0].value`, BUKAN
+     * `total_value.breakdowns`. Kode DIPERBAIKI mengikuti bukti live ini
+     * (bukan asumsi dokumentasi yang tidak terverifikasi) - pakai
+     * flattenInsightValues() yang sama, TIDAK ADA parsing breakdown
+     * khusus lagi.
+     *
+     * Kegagalan APAPUN -> SEMUA null, TIDAK PERNAH mempengaruhi core
+     * metrics. 0 genuine (SUDAH terbukti live: follows/profile_activity
+     * bisa balik 0 asli) TETAP dibedakan dari null (metric tidak ada di
+     * response sama sekali).
+     *
+     * @return array{profile_visits: ?int, profile_activity: ?int, attributed_follows: ?int}
+     */
+    private function getOptionalFeedMetrics(string $mediaId): array
+    {
+        $empty = ['profile_visits' => null, 'profile_activity' => null, 'attributed_follows' => null];
+
+        try {
+            $response = $this->get($this->url("{$mediaId}/insights"), [
+                'metric' => implode(',', self::OPTIONAL_FEED_METRICS),
+            ]);
+
+            if (! $response->successful()) {
+                return $empty;
+            }
+
+            $flat = $this->flattenInsightValues($response->json('data') ?? []);
+
+            return [
+                'profile_visits' => isset($flat['profile_visits']) ? (int) $flat['profile_visits'] : null,
+                'profile_activity' => isset($flat['profile_activity']) ? (int) $flat['profile_activity'] : null,
+                'attributed_follows' => isset($flat['follows']) ? (int) $flat['follows'] : null,
+            ];
+        } catch (\Throwable $e) {
+            Log::info('Instagram: metric opsional FEED tidak tersedia (diabaikan, core metrics tidak terpengaruh)', [
+                'media_id' => $mediaId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $empty;
+        }
     }
 
     /**

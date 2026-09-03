@@ -320,7 +320,15 @@ class RefreshKnownContentTest extends TestCase
 
         $this->assertSame(2, $result['total_count']);
         $this->assertSame(2, $result['refreshed_count']);
-        Http::assertSentCount(2);
+        // FINAL INSTAGRAM OPTIONAL INSIGHTS COMPLETENESS GATE - fixture
+        // igMedia() pakai media_product_type=IMAGE (FEED family), jadi
+        // SEKARANG tiap media dapat 2 request (core insights + SATU
+        // optional FEED batch profile_visits/profile_activity/follows,
+        // Part 4 "batch, jangan 1 request per metric") - budget 2 media =
+        // 4 request total, BUKAN lagi 2. Ini kenaikan biaya API yang
+        // SUDAH didokumentasikan eksplisit di laporan gate ini (Part 7),
+        // bukan regresi tak disengaja.
+        Http::assertSentCount(4);
     }
 
     // ===== Scenario D: TikTok budget caps selected videos AND chunks requests <= 20 IDs =====

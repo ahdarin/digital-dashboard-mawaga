@@ -12,6 +12,7 @@ class ContentMetric extends Model
         'metric_date', 'views', 'engagement_rate',
         'watch_time_avg', 'completion_rate', 'shares', 'saves',
         'reach', 'impressions', 'likes', 'comments', 'profile_visit',
+        'watch_time_total', 'skip_rate', 'profile_activity', 'attributed_follows',
     ];
 
     protected $casts = [

@@ -28,6 +28,7 @@ class AnalyticsSummaryService
     public function __construct(
         private readonly PeriodPerformanceService $periodPerformanceService,
         private readonly AnalyticsPeriodResolver $periodResolver,
+        private readonly ContentFormatResolver $contentFormatResolver,
     ) {
     }
 
@@ -131,22 +132,38 @@ class AnalyticsSummaryService
         $result = $row['result'];
 
         if ($metric->content_item_id) {
-            $item = ContentItem::with(['client', 'contentType', 'platform'])->find($metric->content_item_id);
+            $item = ContentItem::with(['client', 'contentType', 'contentFormat', 'platform'])->find($metric->content_item_id);
             if (! $item) {
                 return null;
             }
 
-            $linkedSnapshot = $metric->instagram_media_snapshot_id
-                ? InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id)
-                : ($metric->tiktok_video_snapshot_id ? \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id) : null);
+            $linkedIgSnapshot = $metric->instagram_media_snapshot_id
+                ? InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id) : null;
+            $linkedTtSnapshot = ! $linkedIgSnapshot && $metric->tiktok_video_snapshot_id
+                ? \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id) : null;
+            $linkedSnapshot = $linkedIgSnapshot ?? $linkedTtSnapshot;
 
             return [
                 'id' => $item->id,
                 'title' => $item->title,
                 'client' => $item->client->name ?? '-',
-                'type' => $item->contentType->name ?? '-',
+                // SYSTEM CONSISTENCY PASS (Part B/C/H) - production_type
+                // (Desain/Video) & content_format (Single Post/Carousel/
+                // Video, master kalau sudah diisi, fallback provider kalau
+                // belum) SEKARANG dua field terpisah - jangan campur lagi
+                // jadi satu 'type'.
+                'production_type' => $item->contentType->name ?? '-',
+                'content_format' => $this->contentFormatResolver->labelForContentItem($item, $linkedIgSnapshot, $linkedTtSnapshot) ?? '-',
                 'platform' => $item->platform->name ?? '-',
+                // SYSTEM CONSISTENCY PASS (Part AA/AB) - 'views' TETAP gain
+                // periode terpilih (dipakai buat ranking Top Content by
+                // views, TIDAK diubah supaya urutan ranking tidak
+                // regresi) - 'current_views' BARU, total provider TERKINI
+                // (content_metrics.views mentah) buat ditampilkan
+                // BERDAMPINGAN, bukan menggantikan. Null (bukan
+                // difabrikasi) buat konten yang tidak API-linked.
                 'views' => $result->views() ?? 0,
+                'current_views' => $linkedSnapshot ? $metric->views : null,
                 'engagement_rate' => $result->engagementRate,
                 'coverage_status' => $result->coverageStatus,
                 'linked' => true,
@@ -157,24 +174,29 @@ class AnalyticsSummaryService
         // Post API real TAPI belum ke-link - metadata dari
         // InstagramMediaSnapshot/TikTokVideoSnapshot (caption/permalink),
         // bukan ContentItem. TIDAK di-skip (tetap dihitung dalam Analytics),
-        // cuma nggak ada link "Detail" internal.
+        // cuma nggak ada link "Detail" internal. production_type TETAP
+        // '-' (belum diketahui, TIDAK ditebak dari format) - content_format
+        // murni normalisasi provider lewat ContentFormatResolver (Part C,
+        // "unmatched -> provider normalization fallback").
         if ($metric->instagram_media_snapshot_id) {
             $snapshot = InstagramMediaSnapshot::find($metric->instagram_media_snapshot_id);
             $title = $snapshot?->caption ? Str::limit($snapshot->caption, 60) : 'Instagram Post (belum terhubung)';
-            $type = $snapshot?->display_format ?? '-';
+            $format = $this->contentFormatResolver->labelForSnapshot($snapshot, null) ?? '-';
         } else {
             $snapshot = \App\Models\TikTokVideoSnapshot::find($metric->tiktok_video_snapshot_id);
             $title = $snapshot?->video_description ? Str::limit($snapshot->video_description, 60) : 'TikTok Video (belum terhubung)';
-            $type = $snapshot?->display_format ?? '-';
+            $format = $this->contentFormatResolver->labelForSnapshot(null, $snapshot) ?? '-';
         }
 
         return [
             'id' => null,
             'title' => $title,
             'client' => '-',
-            'type' => $type,
+            'production_type' => '-',
+            'content_format' => $format,
             'platform' => $metric->platform->name ?? Platform::find($metric->platform_id)?->name ?? '-',
             'views' => $result->views() ?? 0,
+            'current_views' => $snapshot ? $metric->views : null,
             'engagement_rate' => $result->engagementRate,
             'coverage_status' => $result->coverageStatus,
             'linked' => false,

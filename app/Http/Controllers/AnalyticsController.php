@@ -239,7 +239,7 @@ class AnalyticsController extends Controller
      */
     public function show(ContentItem $contentItem)
     {
-        $contentItem->load(['client', 'contentType', 'platform']);
+        $contentItem->load(['client', 'contentType', 'contentFormat', 'platform']);
 
         $metrics = ContentMetric::where('content_item_id', $contentItem->id)
             ->with(['platform', 'syncLog', 'importedBy', 'instagramMediaSnapshot', 'tiktokVideoSnapshot'])
@@ -300,6 +300,25 @@ class AnalyticsController extends Controller
             $recentViews = $thisResult->views() ?? 0;
             $recentEngagement = $thisResult->engagementRate;
             $hasRecentData = $thisResult->isUsable();
+            // SYSTEM CONSISTENCY PASS (Part AD) - breakdown gain periode
+            // (views/likes/comments/shares/saves), TERPISAH dari "TOTAL
+            // SAAT INI" di bawah - delta ini SUDAH dihitung
+            // computeContentDelta() di atas (dulu HANYA dipakai internal
+            // buat persentase peer comparison, tidak pernah ditampilkan
+            // sebagai angka sendiri). Null TETAP null (metric yang genuinely
+            // tidak bisa dihitung/reset), TIDAK di-default 0 di sini.
+            $periodDelta = $thisResult->delta;
+            $periodDeltaAvailable = $thisResult->isUsable();
+            // Total SAAT INI (content_metrics.views dkk, sudah benar
+            // menyimpan raw provider terkini tiap sync) - freshness dari
+            // last_fetched_at snapshot sumbernya sendiri, BUKAN
+            // updated_at ContentMetric (kolom itu ikut ter-update tiap
+            // upsert row yang sama, tapi last_fetched_at snapshot adalah
+            // sinyal "kapan angka INI terakhir genuinely disegarkan dari
+            // provider" yang sudah dipakai konsisten di tempat lain
+            // - Settings/Analytics sync panel).
+            $currentObservedAt = $apiMetric->instagramMediaSnapshot?->last_fetched_at
+                ?? $apiMetric->tiktokVideoSnapshot?->last_fetched_at;
         } else {
             // CSV/manual - semantik lama dipertahankan APA ADANYA
             // (metric_date CSV = nilai per-periode ASLI dari user, bukan
@@ -317,6 +336,20 @@ class AnalyticsController extends Controller
             $recentViews = (int) $thisContentRecent->sum('views');
             $recentEngagement = $thisContentRecent->count() > 0 ? (float) $thisContentRecent->avg('engagement_rate') : null;
             $hasRecentData = $thisContentRecent->isNotEmpty();
+            // CSV/manual TIDAK punya konsep "total saat ini" terpisah dari
+            // periode (Part AC, "do not fabricate current-total semantics
+            // where they do not exist") - periodDelta di sini murni sum
+            // baris dalam window, TIDAK ADA current_observed_at (tidak ada
+            // sync provider sama sekali).
+            $periodDelta = [
+                'views' => $recentViews,
+                'likes' => $thisContentRecent->isNotEmpty() ? (int) $thisContentRecent->sum('likes') : null,
+                'comments' => $thisContentRecent->isNotEmpty() ? (int) $thisContentRecent->sum('comments') : null,
+                'shares' => $thisContentRecent->isNotEmpty() ? (int) $thisContentRecent->sum('shares') : null,
+                'saves' => $thisContentRecent->isNotEmpty() ? (int) $thisContentRecent->sum('saves') : null,
+            ];
+            $periodDeltaAvailable = $hasRecentData;
+            $currentObservedAt = null;
         }
 
         // --- Perbandingan vs rata-rata konten lain milik client yang sama ---
@@ -361,7 +394,10 @@ class AnalyticsController extends Controller
             'viewsVsPeerPct',
             'engagementVsPeerPct',
             'peerAvgViews',
-            'peerAvgEngagement'
+            'peerAvgEngagement',
+            'periodDelta',
+            'periodDeltaAvailable',
+            'currentObservedAt'
         ));
     }
 
@@ -722,27 +758,42 @@ class AnalyticsController extends Controller
         // "diketahui nol", bukan "tidak diketahui"). Full & partial
         // dua-duanya TETAP masuk (Langkah 12, "solusi minimal yang jujur")
         // dengan coverage_status diikutkan biar UI kasih badge partial.
+        $formatResolver = app(\App\Services\ContentFormatResolver::class);
+
         $rows = collect($aggregate['rows'])
             ->filter(fn ($row) => $row['result']->isUsable())
-            ->map(function ($row) {
+            ->map(function ($row) use ($formatResolver) {
                 $metric = $row['content_metric'];
                 $result = $row['result'];
                 $item = $metric->contentItem;
-                $snapshot = $metric->instagramMediaSnapshot ?? $metric->tiktokVideoSnapshot ?? null;
+                $igSnapshot = $metric->instagramMediaSnapshot;
+                $ttSnapshot = $metric->tiktokVideoSnapshot;
+                $snapshot = $igSnapshot ?? $ttSnapshot;
 
                 return (object) [
                     'id' => $item?->id,
                     'title' => $item?->title ?? \Illuminate\Support\Str::limit(($snapshot?->caption ?? $snapshot?->video_description) ?: 'Post', 60),
                     'platform' => $metric->platform->name ?? '-',
                     'content_type_id' => $item?->content_type_id,
-                    // Linked: SELALU ContentType internal (taxonomy produksi) -
-                    // walau content_type_id-nya kosong, JANGAN jatuh ke format
-                    // Instagram (itu domain beda, jangan campur - tampil '-').
-                    // Unmatched: fallback DISPLAY-ONLY dari format Instagram/
-                    // TikTok - BUKAN ContentType, tidak pernah ditulis ke
-                    // content_type_id (lihat docblock InstagramMediaSnapshot::
-                    // getDisplayFormatAttribute()).
-                    'type' => $item ? $item->contentType?->name : $snapshot?->display_format,
+                    // SYSTEM CONSISTENCY PASS (Part B/C/H) - "type" tunggal
+                    // yang dulu bergantian isi ContentType ATAU format
+                    // provider (2 dimensi beda dicampur 1 field) DIPECAH
+                    // jadi 2 field terpisah, konsisten di kedua kondisi
+                    // link:
+                    // - production_type: SELALU ContentType internal
+                    //   (Desain/Video) - null kalau unmatched (belum ada
+                    //   ContentItem sama sekali, TIDAK PERNAH ditebak dari
+                    //   format provider).
+                    // - content_format: kanonis (Single Post/Carousel/
+                    //   Video) lewat ContentFormatResolver - prioritas
+                    //   master ContentItem->contentFormat kalau sudah
+                    //   ke-link & diisi, fallback normalisasi provider utk
+                    //   yang belum (linked TANPA content_format_id maupun
+                    //   unmatched sama-sama boleh fallback).
+                    'production_type' => $item?->contentType?->name,
+                    'content_format' => $item
+                        ? $formatResolver->labelForContentItem($item, $igSnapshot, $ttSnapshot)
+                        : $formatResolver->labelForSnapshot($igSnapshot, $ttSnapshot),
                     // PASS 3 (Data Health, "never turn missing into zero") -
                     // BUG DITEMUKAN & DIPERBAIKI: versi lama "?? 0" di sini
                     // diam-diam mengubah views/engagement yang genuinely NULL
@@ -751,6 +802,24 @@ class AnalyticsController extends Controller
                     // jadi "0" SEBELUM sempat sampai ke blade - padahal blade
                     // SUDAH benar cek `!== null`, cuma nilainya sudah keburu
                     // ditimpa di sini. Null TETAP null sekarang.
+                    //
+                    // SYSTEM CONSISTENCY PASS (Part AA/AB) - BUG NYATA
+                    // ditemukan & diperbaiki lewat trace end-to-end data
+                    // real (client Metro Software, media Reels id=3):
+                    // content_metrics.views SUDAH BENAR menyimpan total
+                    // provider TERKINI di setiap sync (18.573 pada kasus
+                    // nyata di atas) - masalahnya SEMATA presentasi (root
+                    // cause kategori G): tabel ini HANYA PERNAH menampilkan
+                    // $result->views() (GAIN periode terpilih, sengaja kecil
+                    // kalau riwayat snapshot baru mulai belakangan), dilabeli
+                    // polos "Views" - user membacanya sebagai total saat
+                    // ini. 'current_views' SEKARANG eksplisit total provider
+                    // TERKINI (content_metrics.views mentah) - HANYA diisi
+                    // buat konten yang genuinely API-linked ($snapshot ada),
+                    // TIDAK PERNAH difabrikasi buat CSV/manual (tidak ada
+                    // konsep "current total" terpisah dari periode di sana).
+                    'current_views' => $snapshot ? $metric->views : null,
+                    'current_observed_at' => $snapshot?->last_fetched_at,
                     'total_views' => $result->views(),
                     'avg_engagement' => $result->engagementRate,
                     'coverage_status' => $result->coverageStatus,

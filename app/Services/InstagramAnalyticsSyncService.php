@@ -121,9 +121,17 @@ class InstagramAnalyticsSyncService
             // baru di InstagramAnalyticsService::getProfile()) - array_filter
             // biar TIDAK menimpa nilai lama dengan null kalau field ini
             // kebetulan absen di response.
+            //
+            // FINAL API COVERAGE GATE - account_type/media_count SUDAH
+            // SELALU ada di response getProfile() yang SAMA (nol biaya API
+            // tambahan) - dulu dibuang, sekarang dipersist tiap sync biar
+            // media_count tetap segar (snapshot-in-time, bukan metric
+            // performa - lihat docblock migration).
             ...array_filter([
                 'external_display_name' => $profile['name'] ?? null,
                 'external_avatar_url' => $profile['profile_picture_url'] ?? null,
+                'external_account_type' => $profile['account_type'] ?? null,
+                'external_media_count' => $profile['media_count'] ?? null,
             ], fn ($v) => $v !== null),
         ]);
 
@@ -719,6 +727,30 @@ class InstagramAnalyticsSyncService
                 'comments' => $metrics['comments'],
                 'shares' => $metrics['shares'],
                 'saves' => $metrics['saves'],
+                // FINAL INSTAGRAM OPTIONAL INSIGHTS COMPLETENESS GATE -
+                // metric opsional (lihat InstagramAnalyticsService::
+                // getOptionalReelsMetrics()/getOptionalFeedMetrics()) -
+                // null buat media yang tidak relevan (mis. watch_time_*/
+                // skip_rate buat non-Reels, profile_activity/
+                // attributed_follows buat non-Feed) ATAU kalau metric
+                // genuinely gagal diambil, TIDAK PERNAH 0.
+                //
+                // watch_time_avg (rata-rata) TERPISAH dari watch_time_total
+                // (agregat) - dua metric beda, dua kolom beda (Part 5,
+                // "jangan overload"). skip_rate = CURRENT_RATE, TIDAK
+                // PERNAH masuk delta periode (lihat fixed field list
+                // PeriodPerformanceService::diffMetricsWithResetDetection(),
+                // TIDAK diubah pass ini).
+                'watch_time_avg' => $metrics['watch_time_avg'] ?? null,
+                'watch_time_total' => $metrics['watch_time_total'] ?? null,
+                'skip_rate' => $metrics['skip_rate'] ?? null,
+                // profile_visits (Meta) -> kolom profile_visit yang SUDAH
+                // ADA sejak migration awal (dulu cuma diisi CSV import
+                // manual, sekarang JUGA lewat sync API - makna sama, bukan
+                // kolom baru/overload, lihat docblock migration).
+                'profile_visit' => $metrics['profile_visits'] ?? null,
+                'profile_activity' => $metrics['profile_activity'] ?? null,
+                'attributed_follows' => $metrics['attributed_follows'] ?? null,
             ]
         );
     }
@@ -743,10 +775,19 @@ class InstagramAnalyticsSyncService
      * di atas yang kolomnya NOT NULL) - content_metric_snapshots.views dkk
      * semua nullable, jadi NULL asli dari normalizeMetrics() (metric yang
      * memang tidak tersedia dari API) harus tetap NULL, bukan didefault ke
-     * nol. profile_visit/watch_time_avg/completion_rate SENGAJA tidak
-     * disebut di array values (dibiarkan default NULL kolom) - Instagram
-     * API contract (InstagramAnalyticsService::normalizeMetrics()) tidak
-     * pernah menyediakan tiga metric ini sama sekali.
+     * nol. completion_rate SENGAJA tidak disebut di array values
+     * (dibiarkan default NULL kolom) - Instagram API contract
+     * (InstagramAnalyticsService::normalizeMetrics()) tidak pernah
+     * menyediakan metric ini sama sekali. watch_time_avg/watch_time_total/
+     * skip_rate/profile_visit/profile_activity/attributed_follows (FINAL
+     * INSTAGRAM OPTIONAL INSIGHTS COMPLETENESS GATE) genuinely
+     * terverifikasi tersedia (lihat InstagramAnalyticsService::
+     * getOptionalReelsMetrics()/getOptionalFeedMetrics()), disebut
+     * eksplisit di bawah - null buat media yang tidak relevan/kegagalan
+     * metric opsional itu sendiri, TIDAK PERNAH di-delta (watch_time
+     * avg/total dan skip_rate bukan cumulative count yang bisa
+     * dikurangkan bermakna - lihat fixed field list
+     * PeriodPerformanceService, TIDAK diubah).
      */
     private function recordSnapshot(InstagramMediaSnapshot $snapshot, array $metrics, ApiIntegration $integration, Platform $platform, ?int $contentItemId): void
     {
@@ -766,6 +807,12 @@ class InstagramAnalyticsSyncService
                 'comments' => $metrics['comments'] ?? null,
                 'shares' => $metrics['shares'] ?? null,
                 'saves' => $metrics['saves'] ?? null,
+                'watch_time_avg' => $metrics['watch_time_avg'] ?? null,
+                'watch_time_total' => $metrics['watch_time_total'] ?? null,
+                'skip_rate' => $metrics['skip_rate'] ?? null,
+                'profile_visit' => $metrics['profile_visits'] ?? null,
+                'profile_activity' => $metrics['profile_activity'] ?? null,
+                'attributed_follows' => $metrics['attributed_follows'] ?? null,
                 'engagement_rate' => $this->computeSnapshotEngagementRate($metrics),
             ]
         );
