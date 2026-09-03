@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 
 /**
  * Sync account-level Audience Insights - job TERPISAH dari
@@ -77,6 +78,17 @@ class SyncInstagramAudienceJob implements ShouldQueue
         // dicatat per hari - reach summary row-nya sendiri yang jadi bukti).
         if ($this->backfill) {
             $service->backfillReachHistory();
+
+            // KPI Fase 4 (koreksi lanjutan #3) - backfill mengisi
+            // audience_insights sampai REACH_BACKFILL_DAYS (180 hari) ke
+            // belakang, seringkali melintasi beberapa bulan kalender -
+            // jadwalkan SETIAP bulan yang tercakup, bukan cuma bulan
+            // berjalan (dulu backfill tidak memicu trigger sama sekali).
+            \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDateRange(
+                Carbon::today()->subDays(InstagramAudienceInsightsService::REACH_BACKFILL_DAYS - 1),
+                Carbon::today()
+            );
+
             return;
         }
 
@@ -107,6 +119,10 @@ class SyncInstagramAudienceJob implements ShouldQueue
 
             throw $e;
         }
+
+        // KPI Fase 4 - audience insight diperbarui, jadwalkan kalkulasi ulang
+        // di latar belakang (debounced).
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleCurrentPeriod();
     }
 
     public function failed(\Throwable $e): void

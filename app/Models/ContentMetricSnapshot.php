@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ContentMetricSnapshot extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'client_id', 'platform_id', 'content_item_id',
         'instagram_media_snapshot_id', 'tiktok_video_snapshot_id',

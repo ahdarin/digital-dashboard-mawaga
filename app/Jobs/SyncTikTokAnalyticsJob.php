@@ -118,6 +118,14 @@ class SyncTikTokAnalyticsJob implements ShouldQueue
 
             throw $e;
         }
+
+        // KPI Fase 4 (koreksi lanjutan #3) - analytics sync selesai,
+        // jadwalkan kalkulasi ulang untuk SETIAP bulan yang tercakup rentang
+        // sync ini (bisa historis), bukan cuma bulan berjalan.
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDateRange(
+            Carbon::parse($this->rangeFrom),
+            Carbon::parse($this->rangeTo)
+        );
     }
 
     public function failed(\Throwable $e): void

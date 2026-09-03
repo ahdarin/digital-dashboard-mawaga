@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ContentItemAssignment extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'user_id', 'assignment_role',
     ];

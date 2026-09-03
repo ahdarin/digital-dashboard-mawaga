@@ -46,6 +46,13 @@ Schedule::command('analytics:refresh-tiktok-tokens')->daily();
 // audience demografis seperti Instagram Insights.
 Schedule::command('analytics:sync-all-tiktok')->daily();
 
+// KPI (Fase 5) - dijadwalkan SETELAH sync analytics harian di atas supaya
+// content_metric_snapshots/audience_insights hari ini sudah masuk sebelum
+// dihitung. Lock (Cache::lock di dalam command) mencegah tabrakan dengan
+// eksekusi manual `php artisan kpi:calculate` yang kebetulan berbarengan.
+// Selalu menghitung bulan BERJALAN (idempotent - lihat CalculateKpi docblock).
+Schedule::command('kpi:calculate')->dailyAt('03:00');
+
 // PENTING - dependency operasional yang harus disetup terpisah, BUKAN
 // otomatis aktif cuma karena baris ini ada:
 // 1. Baris Schedule:: di file ini cuma "terdaftar", baru benar-benar jalan

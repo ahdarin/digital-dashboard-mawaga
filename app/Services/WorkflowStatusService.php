@@ -130,6 +130,7 @@ class WorkflowStatusService
                         'content_item_id' => $contentItem->id,
                         'platform_id' => $pub['platform_id'],
                         'published_by' => $actor->id,
+                        'recorded_via' => ContentPublication::RECORDED_VIA_MANUAL,
                         'published_at' => $pub['published_at'],
                         'post_url' => $pub['post_url'] ?? null,
                         'thumbnail_url' => $pub['thumbnail_url'] ?? null,
@@ -154,6 +155,11 @@ class WorkflowStatusService
                 'changed_at' => now(),
             ]);
         });
+
+        // KPI Fase 4 - workflow status/revision/publication berubah, jadwalkan
+        // kalkulasi ulang di latar belakang (debounced). TIDAK mengubah alur/
+        // return value transition() sama sekali.
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleCurrentPeriod();
     }
 
     /**
@@ -238,6 +244,8 @@ class WorkflowStatusService
                 }
             }
         });
+
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleCurrentPeriod();
 
         return $draftItems->count();
     }

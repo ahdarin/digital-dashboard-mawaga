@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentBriefDraft extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'created_by',
         'hook_title', 'start_date', 'post_date', 'platform', 'reference_link',
@@ -13,7 +16,7 @@ class ContentBriefDraft extends Model
         'estimated_duration_seconds', 'slide_count', 'talent_count',
         'location_count', 'complexity_level',
         'feasibility_level', 'feasibility_notes',
-        'status', 'chat_history', 'finalized_at', 'previous_snapshot',
+        'status', 'chat_history', 'finalized_at', 'previous_snapshot', 'returned_count',
     ];
 
     protected $casts = [

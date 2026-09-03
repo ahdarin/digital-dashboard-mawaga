@@ -18,7 +18,7 @@ class ContentTypeFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'name' => $this->faker->unique()->randomElement(['Video', 'Desain']),
         ];
     }
 }

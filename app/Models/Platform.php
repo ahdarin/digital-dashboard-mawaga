@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Platform extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['name'];
 
     public function contentItems() { return $this->hasMany(ContentItem::class); }

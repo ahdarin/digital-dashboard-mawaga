@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ContentItem extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'content_plan_id',
@@ -82,6 +82,11 @@ class ContentItem extends Model
     {
         return $this->hasMany(ContentStatusLog::class);
     }
+    /**
+     * PIC content item - SATU-SATUNYA source of truth "siapa mengerjakan
+     * konten ini" untuk KPI (docs/kpi/ATTRIBUTION_RULES.md). Satu content
+     * item boleh punya beberapa baris (multi-PIC).
+     */
     public function assignments()
     {
         return $this->hasMany(ContentItemAssignment::class);

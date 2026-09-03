@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\ContentItem;
 use App\Models\ContentWorkflow;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,7 +19,9 @@ class ContentWorkflowFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'content_item_id' => ContentItem::factory(),
+            'current_status' => 'brief_ready',
+            'is_overdue' => false,
         ];
     }
 }

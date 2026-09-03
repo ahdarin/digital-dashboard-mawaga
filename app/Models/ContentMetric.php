@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentMetric extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'client_id', 'instagram_media_snapshot_id', 'tiktok_video_snapshot_id',
         'platform_id', 'sync_log_id', 'imported_by',

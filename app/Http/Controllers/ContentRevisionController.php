@@ -53,6 +53,11 @@ class ContentRevisionController extends Controller
                     'revision_note' => $validated['revision_note'],
                     'status' => 'open',
                 ]);
+
+                // KPI Fase 4 - revisi dibuat (jalur ini TIDAK lewat
+                // WorkflowStatusService::transition(), jadi trigger-nya
+                // ditaruh eksplisit di sini juga).
+                \App\Kpi\Services\KpiRecalculationTrigger::scheduleCurrentPeriod();
             }
         } catch (WorkflowTransitionException $e) {
             if ($request->wantsJson()) {

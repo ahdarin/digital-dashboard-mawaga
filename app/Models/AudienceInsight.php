@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AudienceInsight extends Model
 {
+    use HasFactory;
+
     public const SOURCE_API = 'instagram_api';
     public const SOURCE_TIKTOK_API = 'tiktok_api';
     public const SOURCE_CSV = 'csv_import';

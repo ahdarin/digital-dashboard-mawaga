@@ -148,6 +148,12 @@ class SyncInstagramAnalyticsJob implements ShouldQueue
 
             throw $e; // retryable - biar Laravel jadwalkan ulang sesuai $tries/backoff()
         }
+
+        // KPI Fase 4 (koreksi lanjutan #3) - analytics sync selesai,
+        // jadwalkan kalkulasi ulang untuk SETIAP bulan yang tercakup rentang
+        // sync ini (bisa historis - "Sync Selected Month" bukan selalu
+        // bulan berjalan), bukan cuma bulan berjalan.
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDateRange($since, $until);
     }
 
     /**

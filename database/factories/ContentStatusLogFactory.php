@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\ContentItem;
 use App\Models\ContentStatusLog;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,7 +19,10 @@ class ContentStatusLogFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'content_item_id' => ContentItem::factory(),
+            'from_status' => 'brief_ready',
+            'to_status' => 'in_progress',
+            'changed_at' => now(),
         ];
     }
 }

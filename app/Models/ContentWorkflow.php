@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ContentWorkflow extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'current_pic_id', 'current_status', 'is_overdue',
         'client_reviewed_at', 'client_reviewed_by_client_id', 'client_review_result',

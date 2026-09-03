@@ -519,9 +519,26 @@ class InstagramAudienceInsightsService
         }
     }
 
+    /**
+     * `external_account_id` nullable di skema (diisi saat OAuth connect
+     * selesai) - integration yang belum lengkap tersambung (mis. baris lama/
+     * OAuth belum pernah selesai) TIDAK BOLEH bikin sync ini crash dengan
+     * TypeError mentah. Dilempar sebagai InstagramApiException(AUTHENTICATION)
+     * - kategori yang sudah ada, non-retryable, ditangani gagal terkontrol
+     * (markFailed + job fail()) oleh pemanggil, bukan exception tak tertangani.
+     */
     private function igUserId(): string
     {
-        return $this->integration->external_account_id;
+        $accountId = $this->integration->external_account_id;
+
+        if ($accountId === null) {
+            throw new InstagramApiException(
+                "Integration #{$this->integration->id} belum punya external_account_id - OAuth belum selesai tersambung.",
+                InstagramApiException::AUTHENTICATION
+            );
+        }
+
+        return $accountId;
     }
 
     private function logSoftFailure(string $metric, Response $response): void

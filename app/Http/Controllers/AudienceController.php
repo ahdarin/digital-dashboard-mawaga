@@ -85,6 +85,7 @@ class AudienceController extends Controller
         $skippedRows = [];
         $rowNumber = 1;
         $platformIdsUsed = [];
+        $importedSnapshotDates = [];
 
         while (($row = fgetcsv($handle)) !== false) {
             $rowNumber++;
@@ -167,6 +168,7 @@ class AudienceController extends Controller
             );
 
             $successCount++;
+            $importedSnapshotDates[] = $snapshotDate;
         }
 
         fclose($handle);
@@ -179,6 +181,16 @@ class AudienceController extends Controller
         $message = "{$successCount} baris berhasil diimport.";
         if (! empty($skippedRows)) {
             $message .= ' '.count($skippedRows).' baris dilewati.';
+        }
+
+        // KPI Fase 4 (koreksi lanjutan #3) - audience insight diperbarui
+        // (import CSV manual), jadwalkan kalkulasi ulang untuk SETIAP bulan
+        // yang tercakup tanggal snapshot yang diimpor (CSV sering berisi
+        // data historis - bukan cuma bulan berjalan).
+        if ($successCount > 0) {
+            $earliest = min($importedSnapshotDates);
+            $latest = max($importedSnapshotDates);
+            \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDateRange($earliest, $latest);
         }
 
         return back()

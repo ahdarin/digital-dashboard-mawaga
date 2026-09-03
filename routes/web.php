@@ -276,6 +276,9 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/team-performance', [TeamPerformanceController::class, 'index'])
         ->middleware('permission:team_performance,view')
         ->name('team-performance.index');
+    Route::get('/team-performance/anggota/{user}', [TeamPerformanceController::class, 'show'])
+        ->middleware('permission:team_performance,view')
+        ->name('team-performance.show');
 
     // Phase 4.2 (Langkah 2) - route Analytics diaudit SATU-PER-SATU dan
     // dipisah 2 grup permission: READ (GET tanpa side effect) tetap

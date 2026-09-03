@@ -245,6 +245,7 @@ class ContentPublicationController extends Controller
                         'external_post_id' => $validated['external_post_id'],
                         'api_integration_id' => $apiIntegration->id,
                         'published_by' => auth()->id(),
+                        'recorded_via' => ContentPublication::RECORDED_VIA_MANUAL,
                         'published_at' => $validated['timestamp'] ?? now(),
                         'post_url' => $validated['permalink'] ?? null,
                         'caption_final' => $validated['caption'] ?? null,
@@ -286,6 +287,13 @@ class ContentPublicationController extends Controller
 
             return back()->with('import_error', 'Gagal menghubungkan - media ini kemungkinan baru saja terhubung dari proses lain.');
         }
+
+        // KPI Fase 4 (koreksi lanjutan #3) - publication diubah (manual
+        // link Instagram), jadwalkan kalkulasi ulang untuk BULAN
+        // published_at-nya (bisa post lama - bukan selalu bulan berjalan).
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDate(
+            \Illuminate\Support\Carbon::parse($validated['timestamp'] ?? now())
+        );
 
         return back()->with('import_success', "Media berhasil dihubungkan ke \"{$contentItem->title}\".");
     }
@@ -379,6 +387,7 @@ class ContentPublicationController extends Controller
                         'external_post_id' => $validated['external_post_id'],
                         'api_integration_id' => $apiIntegration->id,
                         'published_by' => auth()->id(),
+                        'recorded_via' => ContentPublication::RECORDED_VIA_MANUAL,
                         'published_at' => $validated['timestamp'] ?? now(),
                         'post_url' => $validated['permalink'] ?? null,
                         'caption_final' => $validated['caption'] ?? null,
@@ -408,6 +417,13 @@ class ContentPublicationController extends Controller
 
             return back()->with('import_error', 'Gagal menghubungkan - video ini kemungkinan baru saja terhubung dari proses lain.');
         }
+
+        // KPI Fase 4 (koreksi lanjutan #3) - publication diubah (manual
+        // link TikTok), jadwalkan kalkulasi ulang untuk BULAN
+        // published_at-nya (bisa video lama - bukan selalu bulan berjalan).
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleForDate(
+            \Illuminate\Support\Carbon::parse($validated['timestamp'] ?? now())
+        );
 
         return back()->with('import_success', "Video berhasil dihubungkan ke \"{$contentItem->title}\".");
     }

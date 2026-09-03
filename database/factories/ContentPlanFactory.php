@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Client;
 use App\Models\ContentPlan;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +20,11 @@ class ContentPlanFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'client_id' => Client::factory(),
+            'created_by' => User::factory(),
+            'month' => $this->faker->numberBetween(1, 12),
+            'year' => (int) now()->year,
+            'status' => 'approved',
         ];
     }
 }

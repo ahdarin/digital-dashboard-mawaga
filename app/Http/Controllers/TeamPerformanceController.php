@@ -2,179 +2,202 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ContentItemAssignment;
-use App\Models\ContentRevision;
+use App\Kpi\Services\KpiRecalculationTrigger;
+use App\Kpi\Services\TeamPerformanceDashboardService;
+use App\Models\Client;
+use App\Models\Role;
 use App\Models\User;
-use App\Models\DelayRiskScore;
 use App\Services\AttendanceService;
 use App\Services\DelayRiskAccuracyService;
-use App\Services\UserContentResolver;
-use App\Support\WorkflowTransitions;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
+/**
+ * Controller TIPIS: seluruh query/formula KPI hidup di App\Kpi\Services\*
+ * (TeamPerformanceDashboardService cs). Tidak ada leaderboard/ranking lintas
+ * role di sini (dilarang spesifikasi) - tiap baris `UserKpiResult` berdiri
+ * sendiri per (user, role).
+ *
+ * Koreksi produk 2026-09-02 (Fase 4): TIDAK PERNAH mensyaratkan
+ * user/administrator menjalankan kalkulasi manual. Kalau hasil untuk
+ * periode ini belum ada/stale, kalkulasi di-dispatch OTOMATIS di latar
+ * belakang (debounced, lihat KpiRecalculationTrigger) - halaman tetap
+ * menampilkan snapshot run TERAKHIR yang ada (periode apa pun) sambil
+ * pembaruan berjalan, atau "Data KPI sedang disiapkan otomatis" kalau
+ * belum pernah ada sama sekali. TIDAK ADA instruksi command developer yang
+ * ditampilkan ke pengguna.
+ */
 class TeamPerformanceController extends Controller
 {
-    private array $doneStatuses = WorkflowTransitions::INACTIVE_STATUSES;
-    private int $overloadThreshold = 5;
-
-    public function index(Request $request, AttendanceService $attendanceService, UserContentResolver $contentResolver)
-    {
-        $tab = $request->input('tab', 'performa');
+    public function index(
+        Request $request,
+        AttendanceService $attendanceService,
+        TeamPerformanceDashboardService $dashboard,
+    ) {
+        $tab = $request->input('tab', 'ringkasan');
 
         if ($tab === 'kehadiran') {
-            $date = $request->filled('date')
-                ? Carbon::parse($request->input('date'))
-                : Carbon::now();
-            $month = $request->filled('month')
-                ? Carbon::parse($request->input('month').'-01')
-                : Carbon::now()->startOfMonth();
-
-            $attendanceRecords = $attendanceService->dailyRecords($date);
-            $monthlySummary = $attendanceService->monthlySummary($month);
-
-            // "Hari Kerja" nilainya sama buat semua orang (cuma tergantung
-            // bulan, bukan per-user) - ambil sekali dari baris pertama
-            // sebelum di-filter/paginate, biar tidak perlu jadi kolom
-            // berulang di tabel.
-            $totalWorkdays = $monthlySummary->first()['total_workdays'] ?? 0;
-
-            $search = $request->input('search');
-            if ($search) {
-                $monthlySummary = $monthlySummary
-                    ->filter(fn ($s) => str_contains(strtolower($s['user']->name), strtolower($search)))
-                    ->values();
-            }
-
-            // monthlySummary dihitung manual per user (bukan query builder - lihat
-            // AttendanceService::monthlySummary), jadi paginate juga manual pakai
-            // LengthAwarePaginator - sama pola dengan list Production Workflow.
-            $summaryPage = (int) $request->input('page', 1);
-            $summaryPerPage = 10;
-            $monthlySummary = new \Illuminate\Pagination\LengthAwarePaginator(
-                $monthlySummary->forPage($summaryPage, $summaryPerPage)->values(),
-                $monthlySummary->count(),
-                $summaryPerPage,
-                $summaryPage,
-                ['path' => $request->url(), 'query' => $request->query()]
-            );
-
-            return view('team-performance.index', [
-                'tab' => $tab,
-                'date' => $date,
-                'month' => $month,
-                'search' => $search,
-                'totalWorkdays' => $totalWorkdays,
-                'attendanceRecords' => $attendanceRecords,
-                'monthlySummary' => $monthlySummary,
-            ]);
+            return $this->kehadiranTab($request, $attendanceService);
         }
 
-        $users = User::query()
-            ->where('status', 'active')
-            ->with(['roles', 'assignments.contentItem.workflow'])
-            ->get();
+        [$periodStart, $periodEnd] = $this->resolvePeriod($request);
+        [$run, $isCalculating, $usingFallbackPeriod] = $this->resolveRunWithAutoDispatch($dashboard, $periodStart, $periodEnd);
 
-        // Content item per anggota, dikelompokkan dari assignments yang
-        // sudah di-eager-load - keyed by user_id biar bisa diambil per
-        // anggota (Collection::get()) di map() di bawah.
-        $contentItemsByMember = $users->mapWithKeys(
-            fn (User $user) => [$user->id => $user->assignments->pluck('contentItem')->filter()->unique('id')->values()]
-        );
+        $filters = $request->only(['client_id', 'role_id', 'coverage_status']);
+        $memberRows = $run ? $dashboard->memberRows($run, $filters) : collect();
 
-        // Kumpulkan seluruh content_item_id lintas User dulu, biar revision
-        // count dan delay risk score bisa diambil lewat 2 query agregat
-        // total (bukan per-anggota) - flat terhadap jumlah User.
-        $allContentItemIds = $contentItemsByMember
-            ->flatten(1)
-            ->filter(fn ($item) => $item->workflow)
-            ->pluck('id')
-            ->unique()
-            ->values();
-
-        $revisionCountByItem = ContentRevision::whereIn('content_item_id', $allContentItemIds)
-            ->selectRaw('content_item_id, count(*) as cnt')
-            ->groupBy('content_item_id')
-            ->pluck('cnt', 'content_item_id');
-
-        $riskScoreByItem = DelayRiskScore::whereIn('content_item_id', $allContentItemIds)
-            ->whereIn('id', function ($query) use ($allContentItemIds) {
-                // ambil skor TERBARU per content item (bukan semua histori)
-                $query->selectRaw('MAX(id)')
-                    ->from('delay_risk_scores')
-                    ->whereIn('content_item_id', $allContentItemIds)
-                    ->groupBy('content_item_id');
-            })
-            ->pluck('risk_score', 'content_item_id');
-
-        $members = $users->map(function (User $user) use ($contentItemsByMember, $revisionCountByItem, $riskScoreByItem) {
-            $allItems = $contentItemsByMember->get($user->id) ?? collect();
-            $items = $allItems->filter(fn ($item) => $item->workflow);
-
-            $activeCount = $items->filter(
-                fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses)
-            )->count();
-
-            $overdueCount = $items->filter(
-                fn ($item) => $item->workflow->is_overdue
-            )->count();
-
-            $doneCount = $items->filter(
-                fn ($item) => $item->workflow->current_status === 'uploaded'
-            )->count();
-
-            $revisionCount = $items
-                ->pluck('id')
-                ->sum(fn ($id) => $revisionCountByItem[$id] ?? 0);
-
-            $activeContentItemIds = $items
-                ->filter(fn ($item) => ! in_array($item->workflow->current_status, $this->doneStatuses))
-                ->pluck('id');
-
-            $activeRiskScores = $activeContentItemIds
-                ->map(fn ($id) => $riskScoreByItem[$id] ?? null)
-                ->filter(fn ($score) => $score !== null);
-
-            $avgRiskScore = $activeRiskScores->isNotEmpty() ? $activeRiskScores->avg() : null;
-
-            return [
-                'user' => $user,
-                'content_count' => $allItems->count(),
-                'active_count' => $activeCount,
-                'overdue_count' => $overdueCount,
-                'done_count' => $doneCount,
-                'revision_count' => $revisionCount,
-                'is_overloaded' => $activeCount > $this->overloadThreshold,
-                'avg_risk_score' => $avgRiskScore ? round($avgRiskScore) : null,
-            ];
-        });
-
-        // Ringkasan atas
-        $summary = [
-            'personnel_active' => $members->count(),
-            'total_active_items' => $members->sum('active_count'),
-            'avg_revision' => $members->count() > 0
-                ? round($members->sum('revision_count') / $members->count(), 1)
-                : 0,
+        $filterOptions = [
+            'clients' => Client::orderBy('name')->get(['id', 'name']),
+            'roles' => $run ? $dashboard->rolesWithResults($run) : Role::orderBy('name')->get(),
         ];
 
+        $shared = [
+            'run' => $run,
+            'isCalculating' => $isCalculating,
+            'usingFallbackPeriod' => $usingFallbackPeriod,
+            'periodStart' => $periodStart,
+            'periodEnd' => $periodEnd,
+            'memberRows' => $memberRows,
+            'filters' => $filters,
+            'filterOptions' => $filterOptions,
+        ];
+
+        if ($tab === 'anggota') {
+            return view('team-performance.index', ['tab' => $tab, ...$shared]);
+        }
+
+        $summary = $run ? $dashboard->teamSummary($run, $memberRows) : null;
         $riskAccuracy = app(DelayRiskAccuracyService::class)->calculate();
 
         return view('team-performance.index', [
-            'tab' => $tab,
-            'members' => $members,
+            'tab' => 'ringkasan',
             'summary' => $summary,
             'riskAccuracy' => $riskAccuracy,
+            ...$shared,
         ]);
     }
 
-    public function show(User $user)
+    /**
+     * Detail KPI satu anggota - mendukung satu user beberapa role & beberapa
+     * klien sekaligus (tidak pernah satu overall score lintas role).
+     */
+    public function show(Request $request, User $user, TeamPerformanceDashboardService $dashboard)
     {
-        $assignments = ContentItemAssignment::where('user_id', $user->id)
-            ->with(['contentItem.client', 'contentItem.workflow', 'contentItem.contentType'])
-            ->get()
-            ->filter(fn($a) => $a->contentItem && $a->contentItem->workflow);
+        [$periodStart, $periodEnd] = $this->resolvePeriod($request);
+        [$run, $isCalculating, $usingFallbackPeriod] = $this->resolveRunWithAutoDispatch($dashboard, $periodStart, $periodEnd);
 
-        return view('team-performance.show', compact('user', 'assignments'));
+        $results = $run ? $dashboard->resultsForUser($run, $user) : collect();
+
+        $selectedRoleId = (int) $request->input('role_id', $results->first()?->role_id);
+        $selectedClientId = $request->input('client_id') ? (int) $request->input('client_id') : $results->first()?->client_id;
+        $selectedResult = $results->first(fn ($r) => $r->role_id === $selectedRoleId && $r->client_id === $selectedClientId);
+        $contentOutcomes = $selectedResult ? $dashboard->contentOutcomesForResult($selectedResult) : collect();
+
+        return view('team-performance.show', [
+            'member' => $user,
+            'run' => $run,
+            'isCalculating' => $isCalculating,
+            'usingFallbackPeriod' => $usingFallbackPeriod,
+            'periodStart' => $periodStart,
+            'periodEnd' => $periodEnd,
+            'results' => $results,
+            'selectedRoleId' => $selectedRoleId,
+            'contentOutcomes' => $contentOutcomes,
+        ]);
+    }
+
+    /**
+     * Resolve run untuk ditampilkan + auto-dispatch kalkulasi kalau
+     * stale/belum ada - TIDAK PERNAH meminta user melakukan apa pun.
+     *
+     * Koreksi lanjutan 2026-09-02 (#3): dispatch memakai PERIODE YANG
+     * DIPILIH pengguna ($periodStart/$periodEnd), BUKAN selalu bulan
+     * berjalan - membuka periode historis (mis. Juni lewat filter bulan)
+     * harus menjadwalkan kalkulasi ULANG Juni, bukan diam-diam menghitung
+     * bulan sekarang.
+     *
+     * @return array{0: ?\App\Models\KpiCalculationRun, 1: bool, 2: bool}
+     */
+    private function resolveRunWithAutoDispatch(TeamPerformanceDashboardService $dashboard, Carbon $periodStart, Carbon $periodEnd): array
+    {
+        $run = $dashboard->latestCompletedRun($periodStart, $periodEnd);
+        $isStale = $dashboard->isStale($run);
+
+        if ($isStale) {
+            KpiRecalculationTrigger::schedule($periodStart, $periodEnd);
+        }
+
+        $usingFallbackPeriod = false;
+
+        if ($run === null) {
+            $run = $dashboard->latestCompletedRunAnyPeriod();
+            $usingFallbackPeriod = $run !== null;
+        }
+
+        return [$run, $isStale, $usingFallbackPeriod];
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function resolvePeriod(Request $request): array
+    {
+        $periodStart = $request->filled('period_start')
+            ? Carbon::parse($request->input('period_start'))->startOfMonth()
+            : Carbon::now('Asia/Jakarta')->startOfMonth();
+
+        $periodEnd = $periodStart->copy()->endOfMonth();
+
+        return [$periodStart, $periodEnd];
+    }
+
+    private function kehadiranTab(Request $request, AttendanceService $attendanceService)
+    {
+        $date = $request->filled('date')
+            ? Carbon::parse($request->input('date'))
+            : Carbon::now();
+        $month = $request->filled('month')
+            ? Carbon::parse($request->input('month').'-01')
+            : Carbon::now()->startOfMonth();
+
+        $attendanceRecords = $attendanceService->dailyRecords($date);
+        $monthlySummary = $attendanceService->monthlySummary($month);
+
+        // "Hari Kerja" nilainya sama buat semua orang (cuma tergantung
+        // bulan, bukan per-user) - ambil sekali dari baris pertama
+        // sebelum di-filter/paginate, biar tidak perlu jadi kolom
+        // berulang di tabel.
+        $totalWorkdays = $monthlySummary->first()['total_workdays'] ?? 0;
+
+        $search = $request->input('search');
+        if ($search) {
+            $monthlySummary = $monthlySummary
+                ->filter(fn ($s) => str_contains(strtolower($s['user']->name), strtolower($search)))
+                ->values();
+        }
+
+        // monthlySummary dihitung manual per user (bukan query builder - lihat
+        // AttendanceService::monthlySummary), jadi paginate juga manual pakai
+        // LengthAwarePaginator - sama pola dengan list Production Workflow.
+        $summaryPage = (int) $request->input('page', 1);
+        $summaryPerPage = 10;
+        $monthlySummary = new LengthAwarePaginator(
+            $monthlySummary->forPage($summaryPage, $summaryPerPage)->values(),
+            $monthlySummary->count(),
+            $summaryPerPage,
+            $summaryPage,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('team-performance.index', [
+            'tab' => 'kehadiran',
+            'date' => $date,
+            'month' => $month,
+            'search' => $search,
+            'totalWorkdays' => $totalWorkdays,
+            'attendanceRecords' => $attendanceRecords,
+            'monthlySummary' => $monthlySummary,
+        ]);
     }
 }

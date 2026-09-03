@@ -322,6 +322,12 @@ class ContentItemController extends Controller
             $contentItem
         );
 
+        // KPI Fase 4 (koreksi lanjutan #3) - assignment PIC berubah,
+        // jadwalkan kalkulasi ulang untuk bulan berjalan DAN bulan
+        // publication content ini yang sudah ada (koreksi PIC konten yang
+        // sudah pernah tayang harus menghitung ulang periode itu juga).
+        \App\Kpi\Services\KpiRecalculationTrigger::scheduleForContentItem($contentItem);
+
         return back()->with('status', "Penanggung Jawab berhasil dipindahkan ke {$newPic->name}.");
     }
 }

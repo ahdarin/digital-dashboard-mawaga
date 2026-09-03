@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ClientCategory extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['name'];
     public function clients() { return $this->hasMany(Client::class); }
 }
