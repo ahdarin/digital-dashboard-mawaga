@@ -42,6 +42,10 @@
         </div>
     </div>
 
+    @if ($canViewKpi)
+        @include('partials.user-kpi-summary')
+    @endif
+
     @include('partials.user-work-summary')
 </div>
 @endsection

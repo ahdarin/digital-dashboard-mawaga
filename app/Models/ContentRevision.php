@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ContentRevision extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'requested_by_user_id', 'requested_by_client_id',
         'revision_round', 'revision_note', 'status',

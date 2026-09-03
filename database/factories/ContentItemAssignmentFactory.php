@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +20,9 @@ class ContentItemAssignmentFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'content_item_id' => ContentItem::factory(),
+            'user_id' => User::factory(),
+            'assignment_role' => 'primary',
         ];
     }
 }

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use App\Console\Commands\RecomputeDelayRiskScores;
 use App\Console\Commands\SendDelayRiskNotifications;
+use App\Jobs\RecalculateMonthlyKpi;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -15,6 +16,12 @@ Schedule::command('analytics:detect-anomalies')->hourly();
 Schedule::command(RecomputeDelayRiskScores::class)->dailyAt('10:00');
 Schedule::command(SendDelayRiskNotifications::class)->dailyAt('08:00');
 Schedule::command('workflow:update-overdue')->hourly();
+
+// KPI Team Performance - satu-satunya jadwal otomatis (pemicu kedua adalah
+// membuka halaman Team Performance saat hasil bulan berjalan belum ada/basi,
+// lihat TeamPerformanceController). ShouldBeUnique pada job mencegah dobel
+// kalau trigger halaman kebetulan jalan berdekatan dengan jadwal ini.
+Schedule::job(new RecalculateMonthlyKpi(now()->startOfMonth()->toDateString()))->dailyAt('02:00');
 
 // Long-lived token Instagram (OAuth per client) cuma berlaku ~60 hari -
 // di-refresh otomatis tiap hari sebelum kadaluarsa (lihat RefreshInstagramTokens).

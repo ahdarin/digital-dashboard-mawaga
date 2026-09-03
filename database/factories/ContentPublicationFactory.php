@@ -3,13 +3,15 @@
 namespace Database\Factories;
 
 use App\Models\ContentItem;
-use App\Models\ContentRevision;
+use App\Models\ContentPublication;
+use App\Models\Platform;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ContentRevision>
+ * @extends Factory<ContentPublication>
  */
-class ContentRevisionFactory extends Factory
+class ContentPublicationFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,8 +22,9 @@ class ContentRevisionFactory extends Factory
     {
         return [
             'content_item_id' => ContentItem::factory(),
-            'revision_note' => fake()->sentence(),
-            'status' => 'open',
+            'platform_id' => fn () => Platform::firstOrCreate(['name' => 'Instagram'])->id,
+            'published_by' => User::factory(),
+            'published_at' => now(),
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Client;
+use App\Models\ClientCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,9 @@ class ClientFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'client_category_id' => fn () => ClientCategory::firstOrCreate(['name' => 'UMKM'])->id,
+            'name' => fake()->unique()->company(),
+            'status' => 'active',
         ];
     }
 }

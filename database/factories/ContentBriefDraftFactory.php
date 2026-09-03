@@ -2,14 +2,14 @@
 
 namespace Database\Factories;
 
+use App\Models\ContentBriefDraft;
 use App\Models\ContentItem;
-use App\Models\ContentRevision;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ContentRevision>
+ * @extends Factory<ContentBriefDraft>
  */
-class ContentRevisionFactory extends Factory
+class ContentBriefDraftFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,8 +20,7 @@ class ContentRevisionFactory extends Factory
     {
         return [
             'content_item_id' => ContentItem::factory(),
-            'revision_note' => fake()->sentence(),
-            'status' => 'open',
+            'status' => 'finalized',
         ];
     }
 }

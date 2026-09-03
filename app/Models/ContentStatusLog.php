@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class ContentStatusLog extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'content_item_id', 'changed_by_user_id', 'changed_by_client_id', 'from_status',
         'to_status', 'approval_type', 'notes', 'changed_at',
