@@ -126,9 +126,17 @@ class InstagramAnalyticsService
      * MAX_PAGES tetap dipertahankan sebagai pengaman defense-in-depth
      * (mis. kalau since/until entah kenapa diabaikan API).
      *
+     * $onPage (SYNC PROGRESS UX pass) - dipanggil sekali per halaman dengan
+     * jumlah media terkumpul SEJAUH INI (count($media) setelah halaman itu
+     * ditambahkan), optional & default null supaya 100% backward compatible
+     * ke 2 caller yang ada (sync() lama tidak pernah mengirim ini,
+     * planProgressiveRun() mengirim buat live discovery-count di UI). TIDAK
+     * PERNAH memanggil $onPage dengan angka final/percentage - cuma raw
+     * count, caller yang tahu makna angkanya.
+     *
      * @return array<int, array<string, mixed>>
      */
-    public function getMedia(?Carbon $since = null, ?Carbon $until = null): array
+    public function getMedia(?Carbon $since = null, ?Carbon $until = null, ?callable $onPage = null): array
     {
         $media = [];
         $url = $this->url('me/media');
@@ -167,6 +175,10 @@ class InstagramAnalyticsService
 
             $url = $body['paging']['next'] ?? null;
             $params = null; // paging.next udah full URL + access_token + cursor + since/until, jangan dobel di-append
+
+            if ($onPage) {
+                $onPage(count($media));
+            }
         }
 
         return $media;

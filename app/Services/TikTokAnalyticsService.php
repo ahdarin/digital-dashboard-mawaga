@@ -114,7 +114,7 @@ class TikTokAnalyticsService
      *
      * @return array{videos: array<int, array>, has_more: bool, cursor: ?int, oldest_fetched: ?int, newest_fetched: ?int}
      */
-    public function getVideoList(?\Illuminate\Support\Carbon $cutoff = null): array
+    public function getVideoList(?\Illuminate\Support\Carbon $cutoff = null, ?callable $onPage = null): array
     {
         $videos = [];
         $cursor = null;
@@ -149,6 +149,10 @@ class TikTokAnalyticsService
 
             $hasMore = (bool) ($data['has_more'] ?? false);
             $cursor = $data['cursor'] ?? null;
+
+            if ($onPage) {
+                $onPage(count($videos));
+            }
         }
 
         $timestamps = array_column($videos, 'create_time');
@@ -210,10 +214,10 @@ class TikTokAnalyticsService
      *
      * @return array{profile: array, videos: array<int, array>, has_more: bool, stopped_early: bool, oldest_fetched: ?int, newest_fetched: ?int}
      */
-    public function sync(?\Illuminate\Support\Carbon $cutoff = null): array
+    public function sync(?\Illuminate\Support\Carbon $cutoff = null, ?callable $onPage = null): array
     {
         $profile = $this->getUserInfo();
-        $result = $this->getVideoList($cutoff);
+        $result = $this->getVideoList($cutoff, $onPage);
 
         return [
             'profile' => $profile,

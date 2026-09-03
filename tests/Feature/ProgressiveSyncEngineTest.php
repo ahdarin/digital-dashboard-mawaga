@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\AnalyticsSyncOrchestrator;
 use App\Services\InstagramAnalyticsSyncService;
 use App\Services\TikTokAnalyticsSyncService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -1358,5 +1359,203 @@ class ProgressiveSyncEngineTest extends TestCase
         $after = app(AnalyticsSyncOrchestrator::class)->lastObservationAt($client, null);
         $this->assertTrue($after->gt($before), 'Freshness HARUS maju begitu ada ContentMetricSnapshot baru dari run yang baru saja sukses - tidak perlu full page reload, payload polling yang sama sudah cukup.');
         $this->assertTrue($after->isToday());
+    }
+
+    // =====================================================================
+    // 90-DAY BOUNDARY PRECISION AUDIT - triggered by a real production
+    // observation (unmatched content visible back to ~4 June 2026 while
+    // "today" was 3 September 2026 - exactly 91 days back, one day outside
+    // the documented rolling window). Investigated against REAL local data
+    // (integration id=12): the oldest genuine row is published_at=2026-06-16,
+    // and every row's created_at/last_fetched_at traces to this
+    // engagement's own earlier live-verification passes (Aug 20/21, Sep 2)
+    // - no row at/near June 4 exists locally, so the exact observation could
+    // not be reproduced here. Re-reading resolveSyncWindow()'s own docblock
+    // confirms the boundary is DELIBERATELY documented as "hari ini s/d 90
+    // hari lalu" (today through 90 days ago, inclusive) = now()->subDays(90)
+    // ->startOfDay() - for "today"=3 Sep, that resolves to 5 Jun 00:00:00,
+    // meaning 4 Jun is correctly one full day OUTSIDE the window by design,
+    // not an off-by-one. This test proves that precisely rather than
+    // inferring it from the (locally boundary-consistent) real table alone.
+    // =====================================================================
+
+    public function test_rolling_boundary_excludes_media_one_second_before_cutoff_and_includes_at_and_after(): void
+    {
+        config(['analytics.sync_chunk_size' => 20]);
+        Carbon::setTestNow(Carbon::parse('2026-09-03 12:00:00'));
+
+        try {
+            $client = $this->client();
+            $integration = $this->instagramIntegration($client);
+            $userId = $this->userId();
+            $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $userId);
+
+            [, $since] = app(InstagramAnalyticsSyncService::class)->resolveSyncWindow(null);
+            $this->assertSame('2026-06-05 00:00:00', $since->toDateTimeString(), 'Sanity - cutoff HARUS persis 2026-06-05 00:00:00 buat "now"=2026-09-03 12:00:00 (subDays(90)->startOfDay()).');
+
+            $cutoffMinus1s = $since->copy()->subSecond();   // 2026-06-04 23:59:59 - HARUS DIKECUALIKAN
+            $cutoffExact = $since->copy();                   // 2026-06-05 00:00:00 - HARUS TERMASUK
+            $cutoffPlus1s = $since->copy()->addSecond();     // 2026-06-05 00:00:01 - HARUS TERMASUK
+
+            $items = [
+                ['id' => 'ig-before-cutoff', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => $cutoffMinus1s->toIso8601String(), 'permalink' => 'p/1'],
+                ['id' => 'ig-at-cutoff', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => $cutoffExact->toIso8601String(), 'permalink' => 'p/2'],
+                ['id' => 'ig-after-cutoff', 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE', 'timestamp' => $cutoffPlus1s->toIso8601String(), 'permalink' => 'p/3'],
+            ];
+
+            // Instagram's own `since` param is server-side inclusive (Meta
+            // Graph API docs, verified live in an earlier pass) - simulate
+            // that honestly: the fake only returns items >= the since param
+            // actually sent, exactly like the real API would.
+            Http::fake(function ($request) use ($items, $since) {
+                $url = $request->url();
+                if (str_contains($url, 'me/media')) {
+                    $sentSince = $request->data()['since'] ?? null;
+                    $eligible = array_values(array_filter($items, fn ($i) => $sentSince === null || Carbon::parse($i['timestamp'])->timestamp >= $sentSince));
+
+                    return Http::response(['data' => $eligible], 200);
+                }
+                if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                    return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 3], 200);
+                }
+                if (str_contains($url, '/insights')) {
+                    return Http::response(['data' => [['name' => 'reach', 'values' => [['value' => 10]]]]], 200);
+                }
+
+                return Http::response(['error' => 'unexpected URL: '.$url], 404);
+            });
+
+            $plan = app(InstagramAnalyticsSyncService::class)->planProgressiveRun($integration, $task, $since, now());
+
+            $discoveredIds = AnalyticsSyncTaskItem::where('analytics_sync_task_id', $task->id)->pluck('external_item_id');
+
+            $this->assertSame(2, $plan['discovery_count'], 'Persis 2 media (at-cutoff + after-cutoff) yang HARUS ter-discover, bukan 3 (before-cutoff TIDAK BOLEH lolos) atau 1.');
+            $this->assertTrue($discoveredIds->contains('ig-at-cutoff'), 'Media PERSIS di cutoff (>=, inklusif) HARUS ter-discover.');
+            $this->assertTrue($discoveredIds->contains('ig-after-cutoff'));
+            $this->assertFalse($discoveredIds->contains('ig-before-cutoff'), 'Media 1 detik SEBELUM cutoff HARUS DIKECUALIKAN - bukti TIDAK ADA off-by-one yang mengizinkan konten di luar rolling 90-day window.');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    // =====================================================================
+    // SYNC PROGRESS UX - real numeric progress backend contract (Section
+    // 14 A/B/C). C/D/E/F/G/H sudah tercakup implisit: C/D lewat formula
+    // pct = round(processed/discovered*100) yang TIDAK diubah pass ini
+    // (cuma konsumsi data baru), E/F lewat reconciliationLines() yang sudah
+    // dites CrossConsumerDataAgreementTest/test lain di file ini, G lewat
+    // test stale-task-selection yang sudah ada di atas, H struktural (satu
+    // renderGroup() dipakai identik oleh ketiga halaman).
+    // =====================================================================
+
+    public function test_discovery_with_zero_media_reports_zero_without_a_fake_percentage(): void
+    {
+        config(['analytics.sync_chunk_size' => 20, 'analytics.instagram_known_refresh_budget' => 0]);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+
+        Http::fake($this->igMediaResponse([]));
+
+        $plan = app(InstagramAnalyticsSyncService::class)->planProgressiveRun($integration, $task, now()->subDays(90), now());
+
+        $this->assertSame(0, $plan['discovery_count']);
+        $task->refresh();
+        $this->assertSame(0, $task->discovered_count, 'discovered_count=0 HARUS apa adanya (bukan dipaksa jadi 1 biar tidak divide-by-zero) - UI (renderGroup()) HARUS mendeteksi ini lewat cabang "discovered_count > 0 ? ... : indeterminate", bukan menghitung 0/0 jadi persentase palsu.');
+        $this->assertSame('processing_recent', $task->stage, 'Begitu planning selesai (bahkan dengan 0 hasil), stage HARUS keluar dari discovering_media - task ini akan langsung finish tanpa ada apapun buat diproses.');
+    }
+
+    public function test_discovery_count_grows_incrementally_per_page_while_stage_stays_discovering(): void
+    {
+        config(['analytics.sync_chunk_size' => 20, 'analytics.instagram_known_refresh_budget' => 0]);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+
+        $page1Items = collect(range(1, 20))->map(fn ($i) => [
+            'id' => 'ig-p1-'.$i, 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE',
+            'timestamp' => now()->subDays(1)->toIso8601String(), 'permalink' => 'p/'.$i,
+        ])->all();
+        $page2Items = collect(range(1, 17))->map(fn ($i) => [
+            'id' => 'ig-p2-'.$i, 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE',
+            'timestamp' => now()->subDays(1)->toIso8601String(), 'permalink' => 'q/'.$i,
+        ])->all();
+
+        // 2 halaman asli (bukan 1 respons besar) - membuktikan onPage()
+        // benar2 terpanggil TIAP HALAMAN, bukan cuma sekali di akhir:
+        // closure halaman-2 memverifikasi task SUDAH mencerminkan hasil
+        // halaman-1 (20) SEBELUM halaman-2 (17 lagi) bahkan diminta -
+        // bukti real-time incremental, bukan simulasi di test saja.
+        Http::fake(function ($request) use ($page1Items, $page2Items, $task) {
+            $url = $request->url();
+            if (str_contains($url, 'me/media') && str_contains($url, 'page=2')) {
+                $fresh = $task->fresh();
+                $this->assertSame(20, $fresh->discovered_count, 'Setelah halaman 1 (20 item) diproses, discovered_count HARUS SUDAH mencerminkan 20 SEBELUM halaman 2 diminta - bukti progres tumbuh per halaman, bukan cuma di akhir.');
+                $this->assertSame('discovering_media', $fresh->stage, 'Stage HARUS TETAP discovering_media selagi masih paginasi - angka yang tumbuh ini TIDAK PERNAH dipakai UI sebagai persentase (total belum diketahui).');
+
+                return Http::response(['data' => $page2Items], 200);
+            }
+            if (str_contains($url, 'me/media')) {
+                return Http::response(['data' => $page1Items, 'paging' => ['next' => 'https://graph.instagram.com/v1/me/media?page=2']], 200);
+            }
+            if (str_contains($url, 'me?') || str_contains($url, '/me')) {
+                return Http::response(['id' => '999', 'username' => 'creator', 'account_type' => 'BUSINESS', 'media_count' => 37], 200);
+            }
+
+            return Http::response(['error' => 'unexpected URL: '.$url], 404);
+        });
+
+        $plan = app(InstagramAnalyticsSyncService::class)->planProgressiveRun($integration, $task, now()->subDays(90), now());
+
+        $this->assertSame(37, $plan['discovery_count'], 'Total akhir (20+17) HARUS 37 - halaman kedua benar2 ditambahkan, bukan menimpa halaman pertama.');
+        $task->refresh();
+        $this->assertSame(37, $task->discovered_count, 'Absolute-set TERAKHIR (touchDiscoveryProgress) HARUS jadi total definitif 37 - TIDAK dobel-hitung di atas akumulasi paginasi sebelumnya (37+37=74 kalau salah).');
+        $this->assertSame('processing_recent', $task->stage);
+    }
+
+    public function test_processing_percentage_reflects_real_processed_over_real_discovered_mid_run(): void
+    {
+        config(['analytics.sync_chunk_size' => 10, 'analytics.instagram_known_refresh_budget' => 0]);
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $task = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $userId = $this->userId();
+
+        $items = collect(range(1, 25))->map(fn ($i) => [
+            'id' => 'ig-c-'.$i, 'media_type' => 'IMAGE', 'media_product_type' => 'IMAGE',
+            'timestamp' => now()->subDays(1)->toIso8601String(), 'permalink' => 'p/'.$i,
+        ])->all();
+        Http::fake($this->igMediaResponse($items));
+
+        $service = app(InstagramAnalyticsSyncService::class);
+        $service->planProgressiveRun($integration, $task, now()->subDays(90), now());
+        $task->refresh();
+        $this->assertSame(25, $task->discovered_count, 'Total definitif (25 discovery + 0 known-refresh) HARUS sudah jadi penyebut persentase yang benar SEBELUM chunk manapun diproses.');
+        $this->assertSame(0, $task->processed_count);
+
+        $syncLog = AnalyticsSyncLog::create([
+            'client_id' => $integration->client_id, 'platform_id' => $integration->platform_id,
+            'api_integration_id' => $integration->id, 'imported_by' => $userId,
+            'source_type' => 'api_sync', 'status' => 'pending', 'sync_mode' => 'default',
+        ]);
+
+        // Chunk 1 (item 1-10 dari 25) diproses - MIRROR ProcessInstagramSyncChunkJob,
+        // dipanggil LANGSUNG (bukan lewat queue) supaya bisa memeriksa state
+        // task PERSIS di titik tengah (mid-run), bukan cuma di akhir.
+        $service->processChunk($task, 1, $syncLog, $userId);
+        $task->refresh();
+        $this->assertSame(25, $task->discovered_count, 'Penyebut TIDAK BOLEH berubah selagi chunk diproses - hanya processed/success/dst yang bertambah.');
+        $this->assertSame(10, $task->processed_count);
+        $this->assertSame(10, $task->success_count);
+        $this->assertSame(40, (int) round(($task->processed_count / $task->discovered_count) * 100), 'Formula UI (Math.round(processed/discovered*100)) HARUS menghasilkan 40% persis buat 10/25 - membuktikan kontrak data backend cocok dengan formula frontend, bukan cuma "ada angkanya".');
+        $this->assertNotNull($task->last_progress_at);
+
+        // Chunk 2 (item 11-20 dari 25) - progres HARUS lanjut bertambah,
+        // bukan reset/stuck.
+        $service->processChunk($task, 2, $syncLog, $userId);
+        $task->refresh();
+        $this->assertSame(20, $task->processed_count);
+        $this->assertSame(80, (int) round(($task->processed_count / $task->discovered_count) * 100));
+        $this->assertNull($task->finished_at, 'Task belum finish() - masih ada chunk 3 (item 21-25) tersisa, TIDAK BOLEH dianggap selesai cuma karena sebagian besar sudah 80%.');
     }
 }

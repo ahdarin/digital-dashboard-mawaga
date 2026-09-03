@@ -526,7 +526,9 @@ class TikTokAnalyticsSyncService
         $task->markRunning('discovering_videos');
 
         $providerService = new TikTokAnalyticsService($integration);
-        $result = $providerService->sync($cutoff);
+        $result = $providerService->sync($cutoff, function (int $foundSoFar) use ($task) {
+            $task->touchDiscoveryProgress($foundSoFar);
+        });
         $videos = $this->deduplicateById($result['videos']);
         $profile = $result['profile'];
 
@@ -616,7 +618,7 @@ class TikTokAnalyticsSyncService
             AnalyticsSyncTaskItem::insert($insertBatch);
         }
 
-        $task->recordDiscovered(count($rows), 'processing_recent');
+        $task->touchDiscoveryProgress(count($rows), 'processing_recent');
 
         return [
             'total_chunks' => $chunkIndex,

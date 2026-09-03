@@ -412,7 +412,9 @@ class InstagramAnalyticsSyncService
 
         $providerService = new InstagramAnalyticsService($integration);
         $profile = $providerService->getProfile();
-        $media = $this->deduplicateById($providerService->getMedia($since, $until));
+        $media = $this->deduplicateById($providerService->getMedia($since, $until, function (int $foundSoFar) use ($task) {
+            $task->touchDiscoveryProgress($foundSoFar);
+        }));
 
         // MIRROR InstagramAnalyticsService::sync()'s per-item normalisasi
         // (thumbnail_url IMAGE media kosong di getMedia() mentah - fallback
@@ -518,7 +520,7 @@ class InstagramAnalyticsSyncService
             AnalyticsSyncTaskItem::insert($insertBatch);
         }
 
-        $task->recordDiscovered(count($rows), count($rows) > 0 ? 'processing_recent' : 'processing_recent');
+        $task->touchDiscoveryProgress(count($rows), 'processing_recent');
 
         return [
             'total_chunks' => $chunkIndex,

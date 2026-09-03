@@ -67,11 +67,20 @@
         return 'Data terakhir diperbarui ' + date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
+    // DISCOVERING_STAGES - fase paginasi provider (Instagram getMedia()/
+    // TikTok getVideoList()) SEDANG berjalan, AnalyticsSyncTask.discovered_
+    // count di fase ini adalah "ditemukan sejauh ini" (bertambah per
+    // halaman, lihat AnalyticsSyncTask::touchDiscoveryProgress()) - BUKAN
+    // total definitif, jadi TIDAK PERNAH boleh dipakai menghitung
+    // persentase (SYNC PROGRESS UX pass, "Do NOT fake progress
+    // percentages").
+    var DISCOVERING_STAGES = { discovering_media: true, discovering_videos: true };
+
     var STAGE_LABELS = {
-        discovering_media: 'Mengambil daftar konten...',
+        discovering_media: 'Mencari konten 90 hari terakhir...',
         fetching_insights: 'Memproses insight konten',
         refreshing_known_media: 'Memperbarui konten yang sudah tercatat',
-        discovering_videos: 'Mengambil daftar video...',
+        discovering_videos: 'Mencari video 90 hari terakhir...',
         processing_videos: 'Memproses insight video',
         refreshing_known_videos: 'Memperbarui video yang sudah tercatat',
         fetching_audience_metrics: 'Mengambil data audiens',
@@ -81,9 +90,12 @@
         // stageLabelFor()/ProcessTikTokSyncChunkJob::stageLabelFor()).
         // Backend TIDAK PERNAH mengirim istilah "chunk"/"queue"/"job"/
         // "worker" ke sini - label ini SATU-SATUNYA yang user lihat.
-        processing_recent: 'Memperbarui data 30 hari terbaru',
-        processing_previous: 'Memperbarui data sebelumnya',
-        processing_older: 'Memperbarui data hingga 90 hari terakhir',
+        // SYNC PROGRESS UX pass - rentang hari eksplisit (SyncStageBoundary::
+        // STAGE_RECENT/MID/OLDER = 0-29/30-59/60-89 hari) menggantikan
+        // wording "sebelumnya"/"hingga 90 hari" yang lebih kabur.
+        processing_recent: 'Memperbarui performa konten 30 hari terakhir',
+        processing_previous: 'Memperbarui performa konten 30-59 hari yang lalu',
+        processing_older: 'Memperbarui performa konten 60-89 hari yang lalu',
         // FINAL CLOSURE GATE (Langkah 1) - AnalyticsSyncTask::finish() SELALU
         // menyetel stage ke 'completed' begitu task terminal (lihat model).
         // Panel TIDAK PERNAH benar-benar merender ini (isBusy() sudah false
@@ -268,18 +280,54 @@
                 + '<span class="material-symbols-outlined text-[15px]">link_off</span> Koneksi ' + esc(group.label) + ' butuh dihubungkan ulang'
                 + '</p><a href="' + reconnectUrl + '" class="text-xs font-medium text-[var(--brand)] hover:underline mt-1 inline-block">Hubungkan kembali ' + esc(group.label) + '</a>';
         } else if (primaryState && isBusy(primaryState.status)) {
-            if (task && task.discovered_count > 0) {
+            var stage = task ? task.stage : null;
+            var discovering = !!DISCOVERING_STAGES[stage];
+            var spinnerSvg = '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>';
+
+            if (discovering) {
+                // FASE 1/3 (discovery) - discovered_count di sini TUMBUH per
+                // halaman provider (touchDiscoveryProgress()), total belum
+                // diketahui - TAMPILKAN ANGKA MENTAH, JANGAN PERNAH mengarang
+                // persentase dari angka yang belum final.
+                var foundText = (task && task.discovered_count > 0)
+                    ? (' · ' + task.discovered_count + ' ' + group.unit + ' ditemukan sejauh ini')
+                    : '';
+                body = '<div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">'
+                    + spinnerSvg
+                    + '<span>' + esc(STAGE_LABELS[stage] || ('Mencari ' + group.unit + '...')) + esc(foundText) + '</span>'
+                    + '</div>';
+            } else if (task && task.discovered_count > 0) {
+                // FASE 2 (processing) - discovered_count SEKARANG total
+                // definitif (di-set absolut sekali begitu discovery+known-
+                // refresh selesai direncanakan), aman dipakai penyebut
+                // persentase real.
                 var pct = Math.min(100, Math.round((task.processed_count / task.discovered_count) * 100));
+                var finishing = task.processed_count >= task.discovered_count;
+                var countParts = [];
+                if (task.success_count > 0) countParts.push(task.success_count + ' berhasil');
+                if (task.failed_count > 0) countParts.push(task.failed_count + ' gagal');
+                if (task.unavailable_count > 0) countParts.push(task.unavailable_count + ' tidak tersedia');
+
                 body = '<div class="flex items-center justify-between text-xs mb-1.5">'
-                    + '<span class="text-[var(--text-secondary)]">' + task.processed_count + ' dari ' + task.discovered_count + ' ' + group.unit + '</span>'
+                    + '<span class="text-[var(--text-secondary)]">' + task.processed_count + ' dari ' + task.discovered_count + ' ' + group.unit + ' selesai · ' + pct + '%</span>'
                     + '<span class="text-[var(--text-muted)]">' + formatElapsed(task.started_at) + '</span>'
                     + '</div>'
-                    + '<div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden mb-1"><div class="h-full rounded-full bg-[var(--brand)] transition-[width]" style="width:' + pct + '%"></div></div>'
-                    + '<p class="text-[11px] text-[var(--text-muted)]">' + esc(STAGE_LABELS[task.stage] || 'Memproses...') + '</p>';
+                    + '<div class="w-full h-1.5 rounded-full bg-[var(--surface-muted)] overflow-hidden mb-1" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Progres pembaruan ' + esc(group.label) + '">'
+                    + '<div class="h-full rounded-full bg-[var(--brand)] transition-[width]" style="width:' + pct + '%"></div></div>'
+                    // FASE 3 - "Menyelesaikan pembaruan..." begitu seluruh
+                    // item TERPROSES (bukan cuma persen visual 100%) tapi
+                    // task belum finished_at (window finalisasi singkat
+                    // antara chunk terakhir & finish()).
+                    + '<p class="text-[11px] text-[var(--text-muted)]">' + (finishing
+                        ? 'Menyelesaikan pembaruan...'
+                        : esc((countParts.length ? countParts.join(', ') + ' · ' : '') + (STAGE_LABELS[stage] || 'Memperbarui performa konten...'))) + '</p>';
             } else {
+                // Task ada tapi discovered_count=0 (genuinely 0 item buat
+                // diproses, mis. akun tanpa konten baru) - TIDAK PERNAH
+                // 0/0 dipaksa jadi persentase, indeterminate spinner biasa.
                 body = '<div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">'
-                    + '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>'
-                    + '<span>' + esc((task && STAGE_LABELS[task.stage]) || ('Menyiapkan ' + group.label + '...')) + '</span>'
+                    + spinnerSvg
+                    + '<span>' + esc((task && STAGE_LABELS[stage]) || ('Menyiapkan ' + group.label + '...')) + '</span>'
                     + '</div>';
             }
 
