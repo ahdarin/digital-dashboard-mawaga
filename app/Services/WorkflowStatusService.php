@@ -143,6 +143,23 @@ class WorkflowStatusService
                 app(PinService::class)->unpinForAllUsers($contentItem);
             }
 
+            // FINAL REMAINING-GAPS CLOSURE PASS (content workflow audit) -
+            // ProductionWorkflowController::updateStatus() masih memvalidasi
+            // content_file_link (nullable|url) sebagai field payload yang SAH,
+            // TAPI method ini sebelumnya TIDAK PERNAH menyentuhnya sama sekali -
+            // kalau ADA caller yang mengirimkannya (payload transition),
+            // nilainya akan hilang diam-diam. Jalur UI SAAT INI TIDAK
+            // mengirim field ini lagi lewat transisi manapun (drag in_progress
+            // -> waiting_review sengaja sudah dipisah ke ContentItemController::
+            // updateContentLink(), lihat komentar production-workflow/index.blade.php
+            // "TIDAK butuh apa-apa lagi") - baris ini murni penyelesaian
+            // defensif supaya kontrak validasi controller (yang MASIH
+            // menerima field ini) tidak lagi diam-diam berbohong ke pemanggil
+            // manapun di masa depan yang genuinely mengirimkannya.
+            if (array_key_exists('content_file_link', $payload)) {
+                $contentItem->update(['content_file_link' => $payload['content_file_link']]);
+            }
+
             $workflow->update(['current_status' => $toStatus]);
 
             ContentStatusLog::create([

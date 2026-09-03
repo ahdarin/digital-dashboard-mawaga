@@ -425,9 +425,23 @@
             if (busy) isTracking = true;
 
             if (els.freshness) {
-                if (data.last_observation_at) {
+                // FRESHNESS AUDIT ADDENDUM - "Data diperbarui hari ini,
+                // HH:MM" claims the WHOLE platform refresh is done.
+                // last_observation_at can legitimately advance mid-run
+                // (progressive engine persists each chunk's observations
+                // immediately, not held until the end) - showing that
+                // wording while busy=true would misleadingly imply a
+                // partial run (e.g. "42 dari 137 konten") had already
+                // finished entirely. While busy, this line defers to the
+                // panel's own progress display (renderPanel() below)
+                // instead of claiming completion; the accurate freshness
+                // timestamp is only shown once the run reaches a genuine
+                // terminal state (not busy).
+                if (busy) {
+                    els.freshness.textContent = 'Sedang memperbarui data...';
+                } else if (data.last_observation_at) {
                     els.freshness.textContent = formatFreshness(data.last_observation_at);
-                } else if (!busy && !isTracking) {
+                } else if (!isTracking) {
                     els.freshness.textContent = LAST_RESULT_MESSAGES[data.overall_status] || 'Belum ada data yang tersinkronkan.';
                 }
                 els.freshness.hidden = false;
@@ -451,7 +465,7 @@
         }
 
         function poll() {
-            fetch(config.urls.status + '?' + query({ client_id: config.clientId, platform_id: config.platformId }), { headers: { Accept: 'application/json' } })
+            fetch(config.urls.status + '?' + query({ client_id: config.clientId, platform_id: config.platformId }), { headers: { Accept: 'application/json' }, cache: 'no-store' })
                 .then(function (res) {
                     if (res.status === 401 || res.status === 419) {
                         throw { safeStop: true, message: 'Sesi Anda berakhir. Muat ulang halaman dan login kembali untuk melanjutkan.' };
@@ -491,9 +505,28 @@
             if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
         }
 
+        // SYNC UI STALE TERMINAL STATE BUG FIX (Langkah 9, "button + panel
+        // must be coherent") - dispatchSync() sebelumnya membuat tombol
+        // langsung busy TAPI TIDAK menyentuh els.panel sama sekali, jadi
+        // hasil terminal RUN LAMA (mis. "Pembaruan gagal.") tetap ter-render
+        // apa adanya sampai poll() PERTAMA selesai (network round-trip) -
+        // sebentar, tapi genuinely ada momen tombol bilang "Memperbarui..."
+        // sementara panel yang SAMA masih bilang gagal. Panel SEKARANG
+        // langsung diganti placeholder netral di sini juga, SEBELUM
+        // fetch() apapun selesai - begitu poll() pertama benar2 landing,
+        // renderPanel(data) menimpanya lagi dengan progress genuine.
+        function showQueuedPlaceholder() {
+            if (!els.panel) return;
+            els.panel.innerHTML = '<div class="card p-4"><div class="flex items-center gap-2 text-xs text-[var(--text-secondary)]">'
+                + '<svg class="animate-spin h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>'
+                + '<span>Menunggu proses...</span></div></div>';
+            els.panel.hidden = false;
+        }
+
         function dispatchSync() {
             isTracking = true;
             applyNormalButtonState(true, null);
+            showQueuedPlaceholder();
 
             fetch(config.urls.dispatch, {
                 method: 'POST',

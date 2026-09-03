@@ -1061,13 +1061,38 @@ class ProgressiveSyncEngineTest extends TestCase
 
     private function makeTerminalTask(ApiIntegration $integration, string $subjob, string $status, int $ageMinutes): AnalyticsSyncTask
     {
+        // SATU timestamp dipakai bareng task+log (bukan now() dipanggil
+        // ulang per baris) - menghindari drift kalau kebetulan dipanggil
+        // pas melewati batas menit real wall-clock.
+        $at = now()->subMinutes($ageMinutes);
+
         $task = $this->task($integration, $subjob, $this->userId());
         $task->update([
             'status' => $status,
             'stage' => AnalyticsSyncTask::STAGE_COMPLETED,
-            'finished_at' => now()->subMinutes($ageMinutes),
-            'created_at' => now()->subMinutes($ageMinutes),
+            'finished_at' => $at,
+            'created_at' => $at,
         ]);
+
+        // Matching AnalyticsSyncLog - a real terminal task always has one
+        // (created inside the sync job's handle(), finalized alongside the
+        // task) - statusFromTask() still reads finished_at/synced_count/
+        // error_message metadata from the log, not the task, so fixtures
+        // exercising that metadata need this present.
+        $log = AnalyticsSyncLog::create([
+            'client_id' => $integration->client_id, 'platform_id' => $integration->platform_id,
+            'api_integration_id' => $integration->id, 'imported_by' => $this->userId(),
+            'source_type' => $subjob === AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_AUDIENCE ? 'audience_api_sync' : 'api_sync',
+            'status' => $status === 'needs_reconnect' ? 'failed' : $status,
+            'sync_mode' => 'default',
+            'range_from' => now()->subDays(90)->toDateString(), 'range_to' => now()->toDateString(),
+            'synced_count' => $task->success_count, 'skipped_count' => $task->failed_count,
+        ]);
+        // Eloquent create() ALWAYS auto-stamps created_at/updated_at with
+        // the real "now" (overwriting whatever was passed in the array,
+        // since both are Eloquent-managed timestamp columns) - a raw
+        // update is the only way to force a genuinely old value.
+        \Illuminate\Support\Facades\DB::table('analytics_sync_logs')->where('id', $log->id)->update(['created_at' => $at, 'updated_at' => $at]);
 
         return $task;
     }
@@ -1176,5 +1201,162 @@ class ProgressiveSyncEngineTest extends TestCase
         $progress = app(AnalyticsSyncOrchestrator::class)->latestRunProgress($client, null);
         $this->assertSame('queued', $progress['tasks'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
         $this->assertNotSame('failed', $progress['tasks'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'Task yang baru saja di-dispatch (belum sempat diproses worker) TIDAK PERNAH boleh terlihat sebagai failed.');
+    }
+
+    // =====================================================================
+    // SYNC UI STALE TERMINAL STATE BUG - video-confirmed. Root cause found:
+    // statusForClient()'s busy/failed determination previously came from a
+    // SEPARATE signal (cache lock peek + `jobs` table scan + latest
+    // AnalyticsSyncLog heuristic) than latestRunProgress()'s presentation
+    // data (AnalyticsSyncTask.status, read directly) - two independently-
+    // computed signals with no structural guarantee of agreeing. Fixed by
+    // making statusForClient() derive its status DIRECTLY from the latest
+    // AnalyticsSyncTask (the exact same row latestRunProgress() shows)
+    // whenever one exists - eliminating the possibility of the two ever
+    // disagreeing, rather than patching individual interleavings.
+    // =====================================================================
+
+    public function test_old_failed_task_plus_new_queued_task_shows_only_queued(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'failed', 30);
+        $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+
+        $this->assertSame('queued', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
+        $this->assertNotSame('failed', $status['overall_status'], 'Task lama yang failed TIDAK BOLEH bocor ke overall_status begitu task baru (queued) sudah ada.');
+    }
+
+    public function test_old_failed_task_plus_new_running_task_shows_only_running(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'failed', 30);
+        $newTask = $this->task($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $this->userId());
+        $newTask->update(['status' => 'running', 'stage' => 'processing_recent']);
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+
+        $this->assertSame('running', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
+        $this->assertStringContainsString('sedang mengambil data', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['message']);
+    }
+
+    public function test_old_failed_task_plus_new_success_task_shows_new_success(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'failed', 30);
+        $newTask = $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'success', 1);
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+
+        $this->assertSame('success', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
+        $this->assertSame($newTask->finished_at->toIso8601String(), $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['finished_at']);
+    }
+
+    public function test_old_success_task_plus_new_failed_task_shows_new_failure(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'success', 30);
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'failed', 1);
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+
+        $this->assertSame('failed', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'Kegagalan BARU HARUS ditampilkan, walau task sebelumnya sukses.');
+    }
+
+    /**
+     * Section 6 - Settings dan Client Detail SENGAJA tidak diuji terpisah:
+     * KEDUANYA memanggil route('analytics.sync-status') yang SAMA persis
+     * (lihat AnalyticsController::syncStatus(), satu-satunya sumber JSON,
+     * dikonsumsi shared public/js/analytics-sync-panel.js oleh Analytics/
+     * Settings/Client Management/Client Detail identik) - test terhadap
+     * statusForClient() di sini SUDAH otomatis mencakup semua halaman,
+     * duplikasi test per-halaman cuma mengetes routing/Blade wiring yang
+     * sudah dites terpisah di test file lain (mis. TikTokSyncStatusEndpointTest).
+     */
+    public function test_stale_state_fix_holds_across_default_and_platform_scoped_status_calls(): void
+    {
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        $platformId = $integration->platform_id;
+
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'failed', 30);
+        $this->makeTerminalTask($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, 'success', 1);
+
+        $orchestrator = app(AnalyticsSyncOrchestrator::class);
+        // platform_id=null (Analytics "All Platforms") DAN platform_id
+        // spesifik (Settings/Client Detail per-kartu) HARUS sepakat -
+        // keduanya lewat resolveSubjobStatus() yang SAMA.
+        $this->assertSame('success', $orchestrator->statusForClient($client, null)['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
+        $this->assertSame('success', $orchestrator->statusForClient($client, $platformId)['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status']);
+    }
+
+    public function test_legacy_no_task_path_still_uses_log_based_fallback(): void
+    {
+        // Preserve legacy behavior (Langkah "resolveSubjobStatus() legacy
+        // fallback") - sync yang DISPATCH DI LUAR AnalyticsSyncOrchestrator
+        // (historical --month CLI/Settings-form path) TIDAK PERNAH membuat
+        // AnalyticsSyncTask - statusForClient() HARUS tetap jalan lewat
+        // mekanisme lock/jobs-table/AnalyticsSyncLog LAMA utuh, TIDAK regresi.
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+        AnalyticsSyncLog::create([
+            'client_id' => $client->id, 'platform_id' => $integration->platform_id,
+            'api_integration_id' => $integration->id, 'imported_by' => $this->userId(),
+            'source_type' => 'api_sync', 'status' => 'success', 'sync_mode' => 'historical',
+            'range_from' => now()->subMonth()->startOfMonth()->toDateString(), 'range_to' => now()->subMonth()->endOfMonth()->toDateString(),
+            'synced_count' => 5, 'skipped_count' => 0,
+        ]);
+
+        $this->assertSame(0, AnalyticsSyncTask::where('api_integration_id', $integration->id)->count(), 'Fixture ini SENGAJA tidak punya Task sama sekali.');
+
+        $status = app(AnalyticsSyncOrchestrator::class)->statusForClient($client, null);
+
+        $this->assertSame('success', $status['subjobs'][AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT]['status'], 'Tanpa Task sama sekali, jalur lama (AnalyticsSyncLog-based) HARUS tetap dipakai dan tetap benar.');
+    }
+
+    public function test_freshness_reflects_new_content_metric_writes_after_successful_run(): void
+    {
+        // Section 7 - "Data diperbarui hari ini, 06.56" persisting setelah
+        // run BARU sukses. last_observation_at (formatFreshness JS)
+        // berasal dari ContentMetricSnapshot.updated_at TERBARU milik
+        // client ini - progressive engine SUDAH menulis snapshot progresif
+        // per chunk (bukan ditahan sampai akhir), jadi ini murni
+        // verifikasi lastObservationAt() correctly reflects a write that
+        // just happened, TIDAK butuh reload halaman penuh.
+        $client = $this->client();
+        $integration = $this->instagramIntegration($client);
+
+        $oldSnapshot = \App\Models\ContentMetricSnapshot::create([
+            'client_id' => $client->id, 'platform_id' => $integration->platform_id,
+            'snapshot_date' => now()->subDays(2)->toDateString(), 'views' => 100,
+        ]);
+        // Eloquent create() always stamps updated_at with the real "now" -
+        // force it back to a genuinely old value via a raw update, bypassing
+        // that auto-timestamp behavior, to simulate "last write was 2 days
+        // ago" (a raw DB::table()->update() has the same effect).
+        \Illuminate\Support\Facades\DB::table('content_metric_snapshots')->where('id', $oldSnapshot->id)->update(['updated_at' => now()->subDays(2)]);
+
+        $before = app(AnalyticsSyncOrchestrator::class)->lastObservationAt($client, null);
+        $this->assertTrue($before->lt(now()->subDay()));
+
+        // Progressive run baru genuinely menulis snapshot HARI INI (chunk
+        // processing, bukan hanya di akhir run).
+        \App\Models\ContentMetricSnapshot::create([
+            'client_id' => $client->id, 'platform_id' => $integration->platform_id,
+            'snapshot_date' => now()->toDateString(), 'views' => 500,
+        ]);
+
+        $after = app(AnalyticsSyncOrchestrator::class)->lastObservationAt($client, null);
+        $this->assertTrue($after->gt($before), 'Freshness HARUS maju begitu ada ContentMetricSnapshot baru dari run yang baru saja sukses - tidak perlu full page reload, payload polling yang sama sudah cukup.');
+        $this->assertTrue($after->isToday());
     }
 }
