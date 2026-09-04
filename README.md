@@ -1,7 +1,6 @@
 <div align="center">
 
-# Mawaga Intel
-### 523 Studio Creative Dashboard
+# 523 Studio Platform
 
 Dashboard operasional agensi kreatif untuk mengelola klien, perencanaan konten, workflow produksi, analitik media sosial, dan rekomendasi strategi berbasis AI dalam satu sistem.
 
@@ -17,7 +16,7 @@ Dashboard operasional agensi kreatif untuk mengelola klien, perencanaan konten, 
 
 ## Tentang Project
 
-**Mawaga Intel** adalah sistem dashboard kreatif berbasis Laravel yang dikembangkan untuk mendukung proses kerja 523 Studio secara end-to-end. Sistem menghubungkan proses manajemen klien, content planning, production workflow, publishing, content analytics, audience insights, reporting, hingga AI Strategy Analysis.
+**523 Studio Platform** adalah sistem dashboard kreatif berbasis Laravel yang dikembangkan untuk mendukung proses kerja 523 Studio secara end-to-end. Sistem menghubungkan proses manajemen klien, content planning, production workflow, publishing, content analytics, audience insights, reporting, hingga AI Strategy Analysis.
 
 Fokus utama sistem bukan sekadar menampilkan data, tetapi menjadikan data operasional dan performa media sosial sebagai dasar pengambilan keputusan tim kreatif.
 
@@ -73,7 +72,7 @@ flowchart LR
 Integrasi media sosial menggunakan pola **per client × per platform**. Credential aplikasi seperti client ID/client secret disimpan sebagai konfigurasi environment, sedangkan token akun klien disimpan pada `api_integrations` menggunakan encrypted cast.
 
 ```text
-523 Studio Dashboard
+523 Studio Platform
         │
         ├── Client A
         │    ├── Instagram Integration
@@ -361,6 +360,6 @@ Project dikembangkan secara kolaboratif dengan pembagian domain:
 
 <div align="center">
 
-**523 Studio Creative Dashboard — turning creative operations into measurable decisions.**
+**523 Studio Platform — turning creative operations into measurable decisions.**
 
 </div>
