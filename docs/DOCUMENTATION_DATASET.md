@@ -140,10 +140,11 @@ supaya master data resmi tidak kotor oleh entri khusus buku.
 
 | Kondisi | Contoh | Yang bisa difoto |
 |---|---|---|
-| **Draf** | Ruang Belajar (bulan depan) · Sora Residence (bulan berjalan) | Tombol **Ajukan Rencana** |
+| **Draf** | Sora Residence (bulan berjalan) | Tombol **Ajukan Rencana** |
 | **Menunggu Persetujuan** | **Nusa Apparel (bulan depan)** | Tombol **Setujui** / **Tolak** |
 | **Disetujui** | Seluruh rencana bulan lampau & bulan berjalan, plus Kopi Senja bulan depan | Rencana aktif + target kuota |
 | **Pernah ditolak → dikembalikan ke draf → diajukan ulang → disetujui** | **Nusa Apparel bulan berjalan** | Panel **Riwayat Keputusan** lengkap dengan alasan penolakan |
+| **Ditolak permanen** (belum dikembalikan ke draf) | **Ruang Belajar (bulan depan)** | Badge **Ditolak** + alasan penolakan + Riwayat Keputusan + tombol **Kembalikan ke Draf & Perbaiki** |
 
 Jumlah rencana mengikuti bulan yang benar-benar dipakai konten (3–6 bulan per
 klien untuk menopang data performa dan tren KPI 6 bulan), bukan angka tetap.
@@ -159,7 +160,7 @@ bisa difoto. Seeder menyiapkan **tiga rencana bulan depan** khusus untuk itu:
 |---|---|:--:|---|---|
 | **Kopi Senja** | Disetujui | 18 (`C1…C10`, `D1…D8`) | terisi semua | Halaman **Atur Deadline** dengan tanggal sudah terisi, dan tombol **Kirim ke Produksi** yang siap ditekan |
 | **Nusa Apparel** | Menunggu Persetujuan | 18 | kosong | Tombol **Setujui** / **Tolak**; Atur Deadline masih terkunci |
-| **Ruang Belajar** | Draf | 10 (`C1…C6`, `D1…D4`) | kosong | Tombol **Ajukan Rencana**; daftar slot Draf yang briefnya belum diisi |
+| **Ruang Belajar** | Ditolak (permanen) | 10 (`C1…C6`, `D1…D4`) | kosong | Badge **Ditolak**, alasan penolakan, Riwayat Keputusan, dan tombol **Kembalikan ke Draf & Perbaiki** — beda dari siklus Nusa Apparel bulan berjalan yang berakhir Disetujui |
 
 Slot dibuat lewat `ContentPlanItemGeneratorService` **yang asli** (bukan salinan
 logika), jadi jumlah dan penamaannya persis sama dengan yang dilihat pengguna.
