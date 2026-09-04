@@ -583,7 +583,11 @@ class DocumentationSeeder extends Seeder
 
         // Bulan depan: satu rencana Draf (tombol "Ajukan Rencana") dan satu
         // rencana Menunggu Persetujuan (tombol "Setujui"/"Tolak") - dua
-        // kondisi yang wajib ada screenshot-nya di buku.
+        // kondisi yang wajib ada screenshot-nya di buku. Cabang ini TIDAK
+        // pernah dieksekusi lewat seedPlans() (itemDefinitions() tidak
+        // pernah punya offset yang jatuh ke bulan depan) - rencana bulan
+        // depan seluruhnya dari seedDraftSlots(), termasuk status Ditolak
+        // permanen (lihat $defs di sana).
         return match ($clientKey) {
             'nusa' => 'pending',
             default => 'draft',
@@ -634,6 +638,12 @@ class DocumentationSeeder extends Seeder
 
         if ($status === 'pending') {
             $log(null, 'pending', 'Rencana konten bulan depan diajukan untuk ditinjau.', $this->now->copy()->subDays(2)->setTime(9, 40), $copywriter);
+        }
+
+        if ($status === 'rejected') {
+            $base = $this->now->copy()->subDays(3);
+            $log(null, 'pending', 'Rencana konten bulan depan diajukan untuk ditinjau.', $base->copy(), $copywriter);
+            $log('pending', 'rejected', 'Jumlah slot desain belum sesuai kuota Paket Starter - mohon disesuaikan lagi sebelum diajukan ulang.', $base->copy()->addDay(), $manager);
         }
     }
 
@@ -839,9 +849,33 @@ class DocumentationSeeder extends Seeder
             ['client' => 'kopi',  'status' => 'approved', 'deadlines' => 'all'],
             // Menunggu persetujuan -> tombol Setujui / Tolak.
             ['client' => 'nusa',  'status' => 'pending',  'deadlines' => 'none'],
-            // Masih draf -> tombol Ajukan Rencana.
-            ['client' => 'ruang', 'status' => 'draft',    'deadlines' => 'none'],
+            // Ditolak PERMANEN (beda dari siklus Nusa bulan berjalan yang
+            // berakhir approved) -> alasan penolakan, Riwayat Keputusan,
+            // dan tombol "Kembalikan ke Draf & Perbaiki" masih ada. Dipakai
+            // Ruang Belajar (bukan Sora) karena Copywriter memang di-assign
+            // ke client ini - Sora sengaja tanpa PIC sama sekali (empty
+            // state), jadi Copywriter tidak akan bisa membuka halamannya.
+            // Contoh "Draf, tombol Ajukan Rencana" generik tetap terwakili
+            // oleh rencana Sora bulan berjalan (lihat planStatusFor()).
+            ['client' => 'ruang', 'status' => 'rejected', 'deadlines' => 'none'],
         ];
+
+        // Bulan depan seluruhnya milik seeder ini (tidak ada jalur lain yang
+        // membuat rencana bulan depan di database dokumentasi) - buang dulu
+        // rencana bulan depan milik client yang TIDAK ADA di $defs run ini,
+        // supaya mengubah daftar $defs antar revisi seeder tidak meninggalkan
+        // rencana yatim dari konfigurasi sebelumnya (mis. saat client di
+        // baris ini pernah diganti).
+        $keepClientIds = collect($defs)->pluck('client')->map(fn ($key) => $this->clients[$key]->id)->all();
+        $orphanIds = ContentPlan::where('month', (int) $nextMonth->month)
+            ->where('year', (int) $nextMonth->year)
+            ->whereNotIn('client_id', $keepClientIds)
+            ->pluck('id');
+        if ($orphanIds->isNotEmpty()) {
+            ContentPlanStatusLog::whereIn('content_plan_id', $orphanIds)->delete();
+            ContentItem::whereIn('content_plan_id', $orphanIds)->delete();
+            ContentPlan::whereIn('id', $orphanIds)->delete();
+        }
 
         foreach ($defs as $def) {
             $client = $this->clients[$def['client']];
