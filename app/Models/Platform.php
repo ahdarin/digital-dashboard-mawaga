@@ -15,6 +15,8 @@ class Platform extends Model
     public function apiIntegrations() { return $this->hasMany(ApiIntegration::class); }
     public function analyticsSyncLogs() { return $this->hasMany(AnalyticsSyncLog::class); }
     public function contentMetrics() { return $this->hasMany(ContentMetric::class); }
+    public function contentMetricSnapshots() { return $this->hasMany(ContentMetricSnapshot::class); }
+    public function aiStrategyInsights() { return $this->hasMany(AiStrategyInsight::class); }
 
     /**
      * SYSTEM CONSISTENCY PASS (Part L) - SATU-SATUNYA tempat nama route
