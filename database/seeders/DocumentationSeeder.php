@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\ClientCategory;
 use App\Models\ClientPackage;
 use App\Models\ContentBriefDraft;
+use App\Models\ContentFormat;
 use App\Models\ContentItem;
 use App\Models\ContentItemAssignment;
 use App\Models\ContentMetric;
@@ -31,7 +32,11 @@ use App\Models\Platform;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserClientAssignment;
+use App\Models\UserMonthlyKpiResult;
 use App\Services\AttendanceService;
+use App\Services\ContentFormatResolver;
+use App\Services\ContentPlanItemGeneratorService;
+use App\Services\TeamPerformanceKpiCalculator;
 use App\Support\WorkflowTransitions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -99,6 +104,11 @@ class DocumentationSeeder extends Seeder
     private array $contentTypes = [];
     private array $platforms = [];
 
+    /** label format di itemDefinitions() => id master content_formats */
+    private array $contentFormats = [];
+    /** label format di itemDefinitions() => nama kanonis master */
+    private array $contentFormatNames = [];
+
     public function run(): void
     {
         $this->guardEnvironment();
@@ -120,6 +130,7 @@ class DocumentationSeeder extends Seeder
         $this->seedPackages();
         $this->seedPlans();
         $this->seedContentItems();
+        $this->seedDraftSlots();
         $this->seedBriefs();
         $this->seedRevisions();
         $this->seedPublications();
@@ -131,6 +142,8 @@ class DocumentationSeeder extends Seeder
         $this->seedAttendance();
         $this->seedNotifications();
         $this->seedPins();
+        // Paling akhir: KPI dihitung dari SELURUH data di atas.
+        $this->seedKpiResults();
 
         $this->report();
     }
@@ -209,6 +222,24 @@ class DocumentationSeeder extends Seeder
             ContentItemAssignment::whereIn('content_item_id', $itemIds)->delete();
             ContentBriefDraft::whereIn('content_item_id', $itemIds)->delete();
             ContentWorkflow::whereIn('content_item_id', $itemIds)->delete();
+            DB::table('content_item_platforms')->whereIn('content_item_id', $itemIds)->delete();
+
+            // Slot kosong hasil generate kuota (C1/D1 dst) IKUT DIHAPUS,
+            // beda dari content item bernomor DOC:* yang sengaja
+            // dipertahankan supaya id-nya stabil. Slot tidak pernah jadi
+            // target URL screenshot (yang difoto halaman rencananya), dan
+            // unique (content_plan_id, provisional_code) bikin slot lama
+            // menghalangi generate ulang.
+            ContentItem::withTrashed()
+                ->where('import_source', self::MARKER)
+                ->where('external_reference', 'like', 'DOC:slot:%')
+                ->forceDelete();
+        }
+
+        // Hasil hitungan KPI selalu dibangun ulang dari data terbaru seeder
+        // ini (lihat seedKpiResults()), tidak pernah ditumpuk.
+        if (! empty($userIds)) {
+            UserMonthlyKpiResult::whereIn('user_id', $userIds)->delete();
         }
 
         if (! empty($planIds)) {
@@ -248,6 +279,22 @@ class DocumentationSeeder extends Seeder
         $this->pillars = ContentPillar::pluck('id', 'name')->all();
         $this->contentTypes = ContentType::pluck('id', 'name')->all();
         $this->platforms = Platform::pluck('id', 'name')->all();
+
+        // Master Content Format (Single Post/Carousel/Video) dipasang oleh
+        // migration, bukan MasterDataSeeder - dipetakan dari label lama yang
+        // dipakai itemDefinitions() lewat slug kanonis di ContentFormatResolver.
+        $formatsBySlug = ContentFormat::pluck('id', 'slug');
+        $namesBySlug = ContentFormat::pluck('name', 'slug');
+        $slugFor = [
+            'Video' => ContentFormatResolver::SLUG_VIDEO,
+            'Carousel Feed' => ContentFormatResolver::SLUG_CAROUSEL,
+            'Single Feed' => ContentFormatResolver::SLUG_SINGLE_POST,
+        ];
+
+        foreach ($slugFor as $label => $slug) {
+            $this->contentFormats[$label] = $formatsBySlug[$slug] ?? null;
+            $this->contentFormatNames[$label] = $namesBySlug[$slug] ?? $label;
+        }
     }
 
     // =================================================================
@@ -260,7 +307,7 @@ class DocumentationSeeder extends Seeder
         // dokumentasi - seeder ini TIDAK memanggil RoleSeeder sendiri karena
         // RoleSeeder juga membuat akun CEO bootstrap dengan email asli, dan
         // itu tidak boleh ikut masuk lewat jalur "data untuk buku panduan".
-        $expected = ['CEO', 'Manager', 'SMO', 'Copywriter', 'Content Creator', 'Graphic Designer'];
+        $expected = ['CEO', 'Manager', 'SMO', 'Copywriter', 'Content Creator', 'Graphic Designer', 'Admin'];
         $missing = array_diff($expected, Role::whereIn('name', $expected)->pluck('name')->all());
 
         if (! empty($missing)) {
@@ -283,6 +330,11 @@ class DocumentationSeeder extends Seeder
             ['key' => 'designer',   'name' => 'Sarah Amelia',  'roles' => ['Graphic Designer'],              'login' => true],
             ['key' => 'designer2',  'name' => 'Lina Kartika',  'roles' => ['Graphic Designer', 'Copywriter'], 'login' => true],
             ['key' => 'designer3',  'name' => 'Bayu Saputra',  'roles' => ['Graphic Designer'],              'login' => false],
+            // Role Admin (read-only) lahir setelah documentation freeze -
+            // sidebar-nya selengkap CEO tapi tidak punya satu pun tombol
+            // yang mengubah data. Perlu ada satu akun supaya bab Role &
+            // Permission di buku bisa memotret sidebar Admin apa adanya.
+            ['key' => 'admin',      'name' => 'Galih Prasetya', 'roles' => ['Admin'],                        'login' => true],
         ];
 
         foreach ($defs as $def) {
@@ -307,6 +359,43 @@ class DocumentationSeeder extends Seeder
 
             $this->users->put($def['key'], $user);
         }
+
+        $this->neutralizeBootstrapAccount();
+    }
+
+    /**
+     * RoleSeeder membuat akun CEO bootstrap "523 Studio" dengan alamat email
+     * 523 Studio yang SUNGGUHAN. Akun itu ikut terlihat di Kelola Pengguna,
+     * Performa Tim, dan hitungan "Tim Aktif" di Dashboard - artinya alamat
+     * email asli ikut terfoto pada screenshot buku panduan, persis yang
+     * dilarang "Checklist Keamanan Data Dokumentasi". Seeder ini tidak boleh
+     * menghapus akunnya (nanti data yang menempel padanya ikut hilang), jadi
+     * identitasnya diganti dengan identitas dokumentasi.
+     *
+     * Aman & bisa dibalik: seeder ini menolak jalan di database production
+     * (guardEnvironment()), dan menjalankan
+     * `php artisan db:seed --class=RoleSeeder`
+     * akan membuat kembali akun bootstrap aslinya (firstOrCreate by email).
+     */
+    private function neutralizeBootstrapAccount(): void
+    {
+        $bootstrap = User::where('email', 'hello523studio@gmail.com')->first();
+
+        if (! $bootstrap) {
+            return;
+        }
+
+        $bootstrap->update([
+            'name' => 'Akun Sistem 523',
+            'email' => 'akun.sistem'.self::EMAIL_DOMAIN,
+            'source' => self::MARKER,
+            'external_reference' => 'DOC:user:bootstrap',
+        ]);
+
+        $this->command?->warn(
+            'Akun CEO bootstrap (hello523studio@gmail.com) diganti jadi identitas dokumentasi '
+            .'supaya email asli tidak ikut terfoto. Jalankan `php artisan db:seed --class=RoleSeeder` untuk mengembalikannya.'
+        );
     }
 
     // =================================================================
@@ -569,7 +658,7 @@ class DocumentationSeeder extends Seeder
             ['ref' => 'KS-01', 'client' => 'kopi', 'title' => 'Cerita di Balik Kopi Senja',            'type' => 'Video',  'format' => 'Video',         'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded',       'offset' => -75, 'pic' => 'creator',   'extra' => ['copywriter' => 'copywriter', 'smo' => 'smo']],
             ['ref' => 'KS-02', 'client' => 'kopi', 'title' => 'Fakta Menarik Tentang Arabika',         'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded',       'offset' => -62, 'pic' => 'designer',  'extra' => ['copywriter' => 'copywriter']],
             ['ref' => 'KS-03', 'client' => 'kopi', 'title' => 'Behind the Scene Proses Roasting',      'type' => 'Video',  'format' => 'Video',         'platform' => 'TikTok',    'pillar' => 'Entertainment',    'status' => 'uploaded',       'offset' => -50, 'pic' => 'creator',   'extra' => ['smo' => 'smo']],
-            ['ref' => 'KS-04', 'client' => 'kopi', 'title' => 'Promo Weekend Kopi Susu',               'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Hard Selling',     'status' => 'uploaded',       'offset' => -38, 'pic' => 'designer',  'extra' => ['smo' => 'smo']],
+            ['ref' => 'KS-04', 'client' => 'kopi', 'title' => 'Promo Weekend Kopi Susu',               'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Hard Selling',     'status' => 'uploaded',       'offset' => -38, 'pic' => 'designer',  'extra' => ['smo' => 'smo'], 'late' => true],
             ['ref' => 'KS-05', 'client' => 'kopi', 'title' => '3 Cara Menikmati Kopi di Pagi Hari',    'type' => 'Video',  'format' => 'Video',         'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded',       'offset' => -25, 'pic' => 'creator',   'extra' => ['copywriter' => 'copywriter']],
             ['ref' => 'KS-06', 'client' => 'kopi', 'title' => 'Menu Favorit Pelanggan Bulan Ini',      'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Product Highlight','status' => 'uploaded',       'offset' => -12, 'pic' => 'designer',  'extra' => []],
             ['ref' => 'KS-07', 'client' => 'kopi', 'title' => 'Racikan Baru: Kopi Senja Pandan',       'type' => 'Video',  'format' => 'Video',         'platform' => 'TikTok',    'pillar' => 'Product Highlight','status' => 'scheduled',      'offset' => 2,   'pic' => 'creator',   'extra' => ['smo' => 'smo']],
@@ -589,7 +678,7 @@ class DocumentationSeeder extends Seeder
             ['ref' => 'NA-08', 'client' => 'nusa', 'title' => 'Perawatan Bahan Katun Agar Awet',       'type' => 'Video',  'format' => 'Video',         'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'brief_ready',    'offset' => 14,  'pic' => 'creator',   'extra' => []],
             ['ref' => 'NA-09', 'client' => 'nusa', 'title' => 'Rekomendasi Outfit Hangout Akhir Pekan','type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Soft Selling',     'status' => 'waiting_review', 'offset' => 7,   'pic' => 'designer3', 'extra' => []],
             ['ref' => 'NA-10', 'client' => 'nusa', 'title' => 'Koleksi Kemeja Linen Musim Kemarau',    'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Product Highlight','status' => 'uploaded',       'offset' => -68, 'pic' => 'designer2', 'extra' => ['smo' => 'smo']],
-            ['ref' => 'NA-11', 'client' => 'nusa', 'title' => 'Tren Warna Earth Tone Bulan Ini',       'type' => 'Video',  'format' => 'Video',         'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded',       'offset' => -44, 'pic' => 'creator',   'extra' => ['smo' => 'smo']],
+            ['ref' => 'NA-11', 'client' => 'nusa', 'title' => 'Tren Warna Earth Tone Bulan Ini',       'type' => 'Video',  'format' => 'Video',         'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded',       'offset' => -44, 'pic' => 'creator',   'extra' => ['smo' => 'smo'], 'late' => true],
 
             // ---------- Ruang Belajar: rencana konten & AI Brief ----------
             ['ref' => 'RB-01', 'client' => 'ruang', 'title' => 'Tips Belajar Fokus 25 Menit',                  'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Education',    'status' => 'approved',       'offset' => 2,  'pic' => 'designer',  'extra' => ['copywriter' => 'copywriter']],
@@ -599,6 +688,25 @@ class DocumentationSeeder extends Seeder
             ['ref' => 'RB-05', 'client' => 'ruang', 'title' => 'Rekomendasi Aplikasi Pencatat Materi',         'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Information',  'status' => 'scheduled',      'offset' => 3,  'pic' => 'designer',  'extra' => ['smo' => 'smo']],
             ['ref' => 'RB-06', 'client' => 'ruang', 'title' => 'Promo Paket Belajar Semester',                 'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Hard Selling', 'status' => 'cancelled',      'offset' => -6, 'pic' => 'designer',  'extra' => []],
 
+            // ---------- Konten tayang BULAN BERJALAN (menopang Performa Tim/KPI) ----------
+            // Nilai KPI bulanan dihitung dari konten yang TANGGAL TAYANGnya
+            // jatuh di bulan yang dipilih (lihat docs/KPI_TEAM_PERFORMANCE.md).
+            // Tanpa publikasi di bulan berjalan, halaman Performa Tim yang
+            // default-nya membuka bulan berjalan tampil kosong seluruhnya -
+            // tidak ada yang bisa difoto. 'anchor' => 'this_month' menjamin
+            // tanggalnya tetap jatuh di bulan berjalan kapan pun seeder
+            // dijalankan, tidak seperti offset polos.
+            ['ref' => 'KS-12', 'client' => 'kopi', 'title' => 'Rahasia Es Kopi Susu Tidak Cepat Encer',  'type' => 'Video',  'format' => 'Video',         'platform' => 'TikTok',    'pillar' => 'Education',        'status' => 'uploaded', 'offset' => -3, 'anchor' => 'this_month', 'pic' => 'creator',   'extra' => ['copywriter' => 'copywriter', 'smo' => 'smo']],
+            ['ref' => 'KS-13', 'client' => 'kopi', 'title' => 'Rekomendasi Menu untuk Teman Kerja',      'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Product Highlight','status' => 'uploaded', 'offset' => -1, 'anchor' => 'this_month', 'pic' => 'designer',  'extra' => ['smo' => 'smo'], 'late' => true],
+            ['ref' => 'NA-12', 'client' => 'nusa', 'title' => 'Padu Padan Kemeja untuk Akhir Pekan',     'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Soft Selling',     'status' => 'uploaded', 'offset' => -2, 'anchor' => 'this_month', 'pic' => 'designer2', 'extra' => ['smo' => 'smo']],
+            ['ref' => 'RB-07', 'client' => 'ruang', 'title' => 'Teknik Mencatat Cornell untuk Pemula',   'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Education',        'status' => 'uploaded', 'offset' => -2, 'anchor' => 'this_month', 'pic' => 'designer3', 'extra' => ['copywriter' => 'copywriter']],
+
+            // ---------- Arsip lama: menopang tren KPI 6 bulan ----------
+            // Grafik "Ringkasan Tim - Tren 6 Bulan Terakhir" butuh konten
+            // tayang di bulan-bulan itu, bukan cuma 3 bulan terakhir.
+            ['ref' => 'KS-A1', 'client' => 'kopi', 'title' => 'Kopi Senja Ikut Festival UMKM',           'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Information',      'status' => 'uploaded', 'offset' => -140, 'pic' => 'designer',  'extra' => ['smo' => 'smo']],
+            ['ref' => 'NA-A1', 'client' => 'nusa', 'title' => 'Katalog Koleksi Awal Tahun',              'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Product Highlight','status' => 'uploaded', 'offset' => -110, 'pic' => 'designer2', 'extra' => ['smo' => 'smo']],
+
             // ---------- Sora Residence: empty state ----------
             ['ref' => 'SR-01', 'client' => 'sora', 'title' => 'Tips Memilih Rumah Pertama',            'type' => 'Desain', 'format' => 'Carousel Feed', 'platform' => 'Instagram', 'pillar' => 'Education',    'status' => 'brief_ready', 'offset' => 11, 'pic' => null, 'extra' => []],
             ['ref' => 'SR-02', 'client' => 'sora', 'title' => 'Mengenal Lingkungan Hunian Nyaman',     'type' => 'Desain', 'format' => 'Single Feed',   'platform' => 'Instagram', 'pillar' => 'Soft Selling', 'status' => 'brief_ready', 'offset' => 18, 'pic' => null, 'extra' => []],
@@ -607,7 +715,20 @@ class DocumentationSeeder extends Seeder
 
     private function deadlineFor(array $def): Carbon
     {
-        return $this->now->copy()->addDays($def['offset'])->setTime(17, 0);
+        $deadline = $this->now->copy()->addDays($def['offset'])->setTime(17, 0);
+
+        // anchor 'this_month': offset dipakai apa adanya, TAPI tidak boleh
+        // sampai keluar dari bulan berjalan. Tanpa penjepit ini, seeder yang
+        // dijalankan tanggal 1-3 akan melempar konten "tayang bulan ini" ke
+        // bulan sebelumnya dan halaman Performa Tim kembali kosong.
+        if (($def['anchor'] ?? null) === 'this_month') {
+            $floor = $this->now->copy()->startOfMonth()->setTime(17, 0);
+            if ($deadline->lt($floor)) {
+                $deadline = $floor;
+            }
+        }
+
+        return $deadline;
     }
 
     private function seedContentItems(): void
@@ -628,8 +749,18 @@ class DocumentationSeeder extends Seeder
                     'client_id' => $client->id,
                     'content_pillar_id' => $this->pillars[$def['pillar']] ?? null,
                     'content_type_id' => $this->contentTypes[$def['type']] ?? null,
-                    'content_format' => $def['format'],
+                    // content_format (teks bebas warisan import lama) DAN
+                    // content_format_id (master kanonis Single Post/Carousel/
+                    // Video) diisi dua-duanya dengan label yang SAMA. Tanpa
+                    // content_format_id, halaman yang sudah memakai
+                    // ContentFormatResolver menampilkan istilah lain dari
+                    // halaman yang masih membaca kolom teks lama - buku
+                    // panduan tidak boleh memuat dua nama untuk format yang
+                    // sama.
+                    'content_format' => $this->contentFormatNames[$def['format']] ?? $def['format'],
+                    'content_format_id' => $this->contentFormats[$def['format']] ?? null,
                     'platform_id' => $this->platforms[$def['platform']] ?? null,
+                    'reference_link' => $this->referenceLinkFor($def),
                     'title' => $def['title'],
                     'brief' => $this->briefTextFor($def),
                     'caption_draft' => $this->captionFor($def),
@@ -643,6 +774,13 @@ class DocumentationSeeder extends Seeder
                     'scheduled_upload_at' => in_array($def['status'], ['scheduled', 'uploaded'], true)
                         ? $deadline->copy()->setTime(19, 0)
                         : null,
+                    // Deadline upload adalah tanggal yang diisi SMO lewat
+                    // "Atur Deadline" setelah rencana disetujui; deadline
+                    // pengerjaan (deadline_at) memang 2 hari sebelumnya -
+                    // aturan yang sama dipakai ContentPlanController::
+                    // updateDeadlines(). Item Draf sengaja TIDAK diisi di
+                    // sini (lihat seedDraftSlots()).
+                    'upload_deadline_at' => $deadline->copy()->addDays(2)->setTime(19, 0),
                     'is_posted' => $isPosted,
                     'is_urgent' => $def['ref'] === 'KS-10',
                     'estimated_duration_seconds' => $isVideo ? $this->rand(18, 58) : null,
@@ -653,9 +791,122 @@ class DocumentationSeeder extends Seeder
 
             $this->items->put($def['ref'], $item);
 
+            // content_item_platforms - tabel pivot multi-platform yang dipakai
+            // form "Ubah Info Konten". platform_id skalar tetap diisi di atas
+            // (dipakai publikasi & metrik), pivot ini yang dibaca UI-nya.
+            // KS-05 sengaja dua platform, supaya buku punya satu contoh
+            // konten yang tayang di Instagram DAN TikTok.
+            $platformIds = [$this->platforms[$def['platform']] ?? null];
+            if ($def['ref'] === 'KS-05') {
+                $platformIds[] = $this->platforms['TikTok'] ?? null;
+            }
+            $item->platforms()->sync(array_values(array_filter($platformIds)));
+
             $this->seedWorkflowFor($item, $def);
             $this->seedAssignmentsFor($item, $def);
             $this->seedStatusHistoryFor($item, $def);
+        }
+    }
+
+    /**
+     * Rencana konten BULAN DEPAN beserta slot Draf-nya.
+     *
+     * Sejak perombakan alur Content Plan, membuat rencana TIDAK lagi diikuti
+     * "Tambah Konten" manual: slot C1..Cn / D1..Dn digenerate otomatis
+     * sejumlah kuota paket dan lahir berstatus Draf. Rangkaian layar
+     * barunya - Atur Deadline dan tombol Kirim ke Produksi - hanya bisa
+     * difoto kalau ada rencana disetujui yang isinya masih Draf, dan itu
+     * tidak pernah muncul dari itemDefinitions() (semua item di sana sudah
+     * masuk workflow produksi).
+     *
+     * Sekaligus melengkapi tiga status rencana yang selama ini dijanjikan
+     * dokumentasi tapi belum pernah benar-benar ada di dataset: Draf
+     * (tombol Ajukan Rencana), Menunggu Persetujuan (tombol Setujui/Tolak),
+     * dan Disetujui.
+     *
+     * Dipakai ContentPlanItemGeneratorService yang asli - bukan salinan
+     * logika - supaya jumlah & penamaan slotnya persis sama dengan yang
+     * dilihat pengguna.
+     */
+    private function seedDraftSlots(): void
+    {
+        $nextMonth = $this->now->copy()->addMonthNoOverflow()->startOfMonth();
+        $generator = app(ContentPlanItemGeneratorService::class);
+
+        $defs = [
+            // Disetujui + deadline upload sudah diisi seluruhnya -> tombol
+            // "Kirim ke Produksi" siap ditekan.
+            ['client' => 'kopi',  'status' => 'approved', 'deadlines' => 'all'],
+            // Menunggu persetujuan -> tombol Setujui / Tolak.
+            ['client' => 'nusa',  'status' => 'pending',  'deadlines' => 'none'],
+            // Masih draf -> tombol Ajukan Rencana.
+            ['client' => 'ruang', 'status' => 'draft',    'deadlines' => 'none'],
+        ];
+
+        foreach ($defs as $def) {
+            $client = $this->clients[$def['client']];
+            $package = ClientPackage::where('client_id', $client->id)->where('status', 'active')->first();
+
+            if (! $package) {
+                continue;
+            }
+
+            $plan = ContentPlan::updateOrCreate(
+                ['client_id' => $client->id, 'month' => (int) $nextMonth->month, 'year' => (int) $nextMonth->year],
+                [
+                    'client_package_id' => $package->id,
+                    'created_by' => $this->users['copywriter']->id,
+                    'approved_by' => $def['status'] === 'approved' ? $this->users['manager']->id : null,
+                    'status' => $def['status'],
+                ]
+            );
+
+            $this->plans->put($def['client'].'-'.$nextMonth->year.'-'.$nextMonth->month, $plan);
+            $this->seedPlanHistory($plan, $def['client'], $nextMonth, $this->now->copy()->startOfMonth(), $def['status']);
+
+            $slots = $generator->generate($plan, $package);
+
+            foreach ($slots as $index => $slot) {
+                $slot->forceFill([
+                    'import_source' => self::MARKER,
+                    'external_reference' => 'DOC:slot:'.$def['client'].':'.$slot->provisional_code,
+                    // Deadline upload disebar merata di bulan depan, deadline
+                    // pengerjaan 2 hari sebelumnya - aturan yang sama dipakai
+                    // ContentPlanController::updateDeadlines().
+                    'upload_deadline_at' => $def['deadlines'] === 'all'
+                        ? $nextMonth->copy()->addDays(min(27, 2 + $index * 2))->setTime(19, 0)
+                        : null,
+                ]);
+
+                if ($def['deadlines'] === 'all') {
+                    $slot->deadline_at = $nextMonth->copy()->addDays(min(27, 2 + $index * 2))->setTime(19, 0)->subDays(2);
+                }
+
+                $slot->save();
+            }
+        }
+    }
+
+    /**
+     * Nilai KPI bulanan. Sengaja DIHITUNG dari data seeder ini lewat service
+     * aslinya, bukan ditulis sebagai angka lepas - jadi angka di Performa
+     * Tim, kartu KPI di Profil, dan konten yang jadi dasarnya benar-benar
+     * konsisten satu sama lain.
+     *
+     * Dijalankan langsung (bukan lewat queue) supaya sesi pemotretan tidak
+     * perlu menyalakan worker; TeamPerformanceKpiCalculator::ensureCalculated()
+     * di controller hanya men-dispatch ulang kalau hasilnya sudah basi
+     * (calculated_at sebelum hari ini), dan baris yang baru dibuat di sini
+     * bertanggal hari ini.
+     */
+    private function seedKpiResults(): void
+    {
+        $calculator = app(TeamPerformanceKpiCalculator::class);
+
+        // 6 bulan = persis rentang grafik "Ringkasan Tim - Tren 6 Bulan
+        // Terakhir" di halaman Performa Tim.
+        for ($i = 5; $i >= 0; $i--) {
+            $calculator->calculateForPeriod($this->now->copy()->subMonthsNoOverflow($i)->startOfMonth());
         }
     }
 
@@ -709,6 +960,31 @@ class DocumentationSeeder extends Seeder
 
     private function statusEnteredAt(array $def): Carbon
     {
+        // Konten yang sudah tayang/dibatalkan: riwayat statusnya harus
+        // berhenti di sekitar tanggal tayangnya sendiri, bukan beberapa hari
+        // lalu. Kalau dianggap "baru saja masuk status ini", konten yang
+        // tayang dua bulan lalu tetap punya log "Sudah Tayang" bertanggal
+        // minggu ini - tab Riwayat Status jadi tidak masuk akal untuk
+        // difoto, dan kartu "Ketepatan Prediksi Risiko Tinggi" membaca
+        // SEMUA konten sebagai telat karena log upload-nya selalu jauh
+        // setelah deadline.
+        //
+        // seedStatusHistoryFor() menaruh log TERAKHIR sekitar 2 hari sebelum
+        // nilai yang dikembalikan di sini, jadi ditambah 2 hari supaya log
+        // "Sudah Tayang" mendarat pas di tanggal tayang.
+        if (in_array($def['status'], ['uploaded', 'cancelled'], true)) {
+            $anchor = $this->deadlineFor($def)->copy()->setTime(19, 0);
+
+            // Sebagian konten memang telat tayang - tanpa ini, evaluasi
+            // model AI Delay Risk cuma punya satu sisi (semua tepat waktu)
+            // dan angkanya tidak menarik untuk dijelaskan di buku.
+            if ($def['late'] ?? false) {
+                $anchor->addDays(4);
+            }
+
+            return $anchor->addDays(2);
+        }
+
         $stuckDays = ($def['overdue'] ?? false) ? $this->rand(6, 14) : $this->rand(0, 5);
 
         return $this->now->copy()->subDays($stuckDays)->setTime(9, 0);
@@ -814,6 +1090,21 @@ class DocumentationSeeder extends Seeder
             'cancelled' => 'Dibatalkan atas permintaan klien.',
             default => null,
         };
+    }
+
+    /**
+     * "Link Referensi" - kolom opsional pada form Ubah Info Konten, dipakai
+     * PIC untuk menempel contoh/moodboard. Sengaja hanya diisi sebagian
+     * konten: buku harus menunjukkan tampilan kalau kolomnya terisi DAN
+     * kalau dibiarkan kosong.
+     */
+    private function referenceLinkFor(array $def): ?string
+    {
+        $withReference = ['KS-08', 'KS-11', 'NA-04', 'NA-06', 'RB-03'];
+
+        return in_array($def['ref'], $withReference, true)
+            ? 'https://example.com/referensi/'.mb_strtolower($def['ref'])
+            : null;
     }
 
     private function briefTextFor(array $def): string
@@ -1028,7 +1319,18 @@ class DocumentationSeeder extends Seeder
             }
 
             $item = $this->items[$def['ref']];
+
+            // Konten ber-'late' benar-benar tayang lewat dari jadwal yang
+            // sudah dikunci di scheduled_upload_at, bukan cuma log statusnya
+            // yang digeser. Tanpa ini seluruh anggota tim mendapat Ketepatan
+            // Kerja 100% pada setiap bulan, dan halaman Performa Tim tidak
+            // punya satu pun contoh nilai di bawah sempurna untuk
+            // dijelaskan di buku. Selisihnya sengaja > toleransi 24 jam yang
+            // dipakai TeamPerformanceKpiCalculator.
             $publishedAt = $item->deadline_at->copy()->setTime(19, 0);
+            if ($def['late'] ?? false) {
+                $publishedAt->addDays(4);
+            }
 
             // URL sengaja memakai domain contoh - JANGAN pernah diganti link
             // Instagram/TikTok sungguhan di dataset dokumentasi.
@@ -1069,6 +1371,54 @@ class DocumentationSeeder extends Seeder
             'RB-01' => [15, 'low',    'Sudah disetujui, tinggal menunggu jadwal tayang'],
             'SR-01' => [22, 'low',    'Belum ada penanggung jawab, tapi deadline masih jauh'],
         ];
+
+        // Skor HISTORIS untuk konten yang sudah tayang. Tanpa ini, kartu
+        // "Ketepatan Prediksi Risiko Tinggi" di Performa Tim & Dashboard
+        // selalu berbunyi "Belum ada cukup data": DelayRiskAccuracyService
+        // hanya menghitung konten uploaded yang PUNYA skor bertanggal
+        // SEBELUM log uploaded-nya, sedangkan skor di atas semuanya
+        // bertanggal hari ini. Campuran level & ketepatannya sengaja tidak
+        // seragam supaya precision/recall-nya bukan 0% atau 100% bulat.
+        $historical = [
+            // ref => [skor, level, faktor]  (item ber-'late' => true tayang telat)
+            'KS-04' => [74, 'high',   'Revisi berulang menjelang jadwal tayang'],
+            'NA-11' => [69, 'high',   'Proses produksi video molor dari rencana'],
+            'KS-13' => [58, 'medium', 'Deadline berdekatan dengan konten lain milik PIC yang sama'],
+            'KS-01' => [21, 'low',    'Brief lengkap dan deadline masih lapang'],
+            'KS-02' => [27, 'low',    'Aset desain sudah tersedia sejak awal'],
+            'KS-03' => [64, 'high',   'Take ulang di lokasi kedua'],
+            'KS-05' => [24, 'low',    'Konten seri lanjutan, template sudah ada'],
+            'KS-06' => [31, 'low',    'Materi menu sudah difoto sebelumnya'],
+            'KS-12' => [43, 'medium', 'Voice over belum direkam saat brief dikunci'],
+            'NA-10' => [29, 'low',    'Katalog foto produk sudah siap'],
+            'NA-12' => [37, 'medium', 'Revisi kecil pada urutan slide'],
+            'RB-07' => [26, 'low',    'Materi ringkas dan sumbernya sudah dikurasi'],
+        ];
+
+        foreach ($historical as $ref => [$score, $level, $factor]) {
+            if (! $this->items->has($ref)) {
+                continue;
+            }
+
+            $item = $this->items[$ref];
+            // Dibuat 3 hari sebelum tanggal tayang - harus lebih awal dari
+            // log "Sudah Tayang", karena service-nya memang memilih skor
+            // terakhir yang dibuat SEBELUM upload terjadi.
+            $at = $item->deadline_at->copy()->subDays(3)->setTime(8, 0);
+
+            $row = DelayRiskScore::create([
+                'content_item_id' => $item->id,
+                'risk_score' => $score,
+                'risk_level' => $level,
+                'top_factor' => $factor,
+                'features_snapshot' => [
+                    'days_to_deadline' => 3,
+                    'current_status' => 'in_progress',
+                    'source' => 'documentation_seeder_synthetic_historical',
+                ],
+            ]);
+            $row->forceFill(['created_at' => $at, 'updated_at' => $at])->save();
+        }
 
         foreach ($scores as $ref => [$score, $level, $factor]) {
             $item = $this->items[$ref];
@@ -1115,6 +1465,13 @@ class DocumentationSeeder extends Seeder
             'KS-06' => ['peak' => 8600,  'tau' => 6.0, 'er' => 5.5],
             'NA-10' => ['peak' => 2600,  'tau' => 4.5, 'er' => 3.1],
             'NA-11' => ['peak' => 15200, 'tau' => 6.2, 'er' => 6.8],
+            // Konten bulan berjalan - dibutuhkan supaya kartu "Total Views
+            // Bulan Ini"/cohort bulan berjalan di Performa & Dashboard punya
+            // isi, dan supaya Bonus Performa di KPI bulan ini bisa dihitung
+            // (bonus butuh metrik konten bulan itu, bukan bulan lalu).
+            'KS-12' => ['peak' => 18800, 'tau' => 5.8, 'er' => 7.1],
+            'KS-13' => ['peak' => 5400,  'tau' => 4.8, 'er' => 4.6],
+            'NA-12' => ['peak' => 6100,  'tau' => 5.0, 'er' => 4.9],
         ];
 
         foreach ($profiles as $ref => $profile) {
@@ -1366,6 +1723,14 @@ class DocumentationSeeder extends Seeder
         $periodStart = $this->now->copy()->subMonthNoOverflow()->startOfMonth();
         $periodEnd = $this->now->copy()->subMonthNoOverflow()->endOfMonth();
 
+        // Panel AI Strategy di halaman Performa membuka BULAN BERJALAN secara
+        // default, dan hanya menampilkan insight yang periodenya cocok dengan
+        // bulan itu. Insight bulan lalu saja berarti panelnya tampil "Belum
+        // ada analisis buat client ini" pada screenshot default - jadi satu
+        // insight bulan berjalan ikut dibuat (jendelanya sama persis dengan
+        // AiStrategyService::resolveMonthWindow(): awal bulan s/d hari ini).
+        $this->seedCurrentMonthAiStrategy();
+
         $defs = [
             [
                 'client' => 'kopi',
@@ -1437,6 +1802,63 @@ class DocumentationSeeder extends Seeder
                 $this->seedStrategyDiscussion($insight);
             }
         }
+    }
+
+    /**
+     * Insight bulan berjalan untuk Kopi Senja - inilah yang muncul begitu
+     * halaman Performa dibuka tanpa mengubah filter apa pun, jadi screenshot
+     * bab AI Strategy bisa langsung memotret ringkasan, rekomendasi split,
+     * daftar ide, dan tombol Terapkan/Generate Ulang.
+     *
+     * Jendelanya HARUS identik dengan AiStrategyService::resolveMonthWindow()
+     * untuk bulan berjalan (awal bulan s/d hari ini) supaya baris ini benar-
+     * benar terbaca panelnya.
+     */
+    private function seedCurrentMonthAiStrategy(): void
+    {
+        $client = $this->clients['kopi'];
+        $start = $this->now->copy()->startOfMonth();
+        $end = $this->now->copy()->endOfDay();
+
+        $split = [
+            ['label' => 'Education', 'value' => 40],
+            ['label' => 'Entertainment', 'value' => 25],
+            ['label' => 'Product Highlight', 'value' => 20],
+            ['label' => 'Soft Selling', 'value' => 15],
+        ];
+
+        $performanceData = $this->buildPerformanceData($client, $start, $end);
+
+        $insight = AiStrategyInsight::create([
+            'client_id' => $client->id,
+            'platform_id' => null,
+            'generated_by' => $this->users['smo']->id,
+            'period_start' => $start,
+            'period_end' => $end,
+            'performance_data' => $performanceData,
+            'summary' => 'Sepanjang '.$start->translatedFormat('F Y').' berjalan, konten edukasi tetap menjadi penopang utama performa Kopi Senja. Video pendek di TikTok mencatat views tertinggi, sementara konten carousel menahan angka simpan di level yang sehat. Belum terlihat penurunan pada konten non-promosi, jadi komposisi bulan ini layak dipertahankan sambil menambah satu slot konten interaktif.',
+            'action_items' => [
+                'Pertahankan porsi konten edukasi di kisaran 40% dan jangan turunkan sebelum akhir bulan.',
+                'Tambah satu konten interaktif (kuis atau tanya jawab) di akhir bulan untuk menahan engagement.',
+                'Jadwalkan unggahan TikTok pada rentang pukul 19.00-21.00 mengikuti jam aktif audiens.',
+                'Simpan format carousel "rekomendasi menu" sebagai seri berkala karena angka simpannya paling tinggi.',
+            ],
+            'suggested_split' => $split,
+            'top_pillars' => collect($split)->take(3)->map(fn ($row) => [
+                'name' => $row['label'],
+                'reasoning' => 'Pilar '.$row['label'].' mencatat rata-rata engagement tertinggi pada periode berjalan.',
+            ])->all(),
+            'content_ideas' => $this->buildContentIdeas('kopi', $split, $performanceData['target_content_count']),
+            'data_completeness_percent' => 82,
+            'status' => 'completed',
+            'applied_at' => null,
+            'applied_by' => null,
+        ]);
+
+        $at = $this->now->copy()->subDays(1)->setTime(10, 5);
+        $insight->forceFill(['created_at' => $at, 'updated_at' => $at])->save();
+
+        $this->seedStrategyDiscussion($insight);
     }
 
     private function buildPerformanceData(Client $client, Carbon $start, Carbon $end): array
@@ -1750,8 +2172,11 @@ class DocumentationSeeder extends Seeder
 
     private function report(): void
     {
-        $itemIds = $this->items->pluck('id')->all();
         $clientIds = $this->clients->pluck('id')->all();
+
+        // Slot Draf ikut dihitung: mereka juga content item milik seeder ini,
+        // cuma tidak masuk $this->items (tidak punya ref DOC:<kode>).
+        $itemIds = ContentItem::where('import_source', self::MARKER)->pluck('id')->all();
 
         $statuses = ContentWorkflow::whereIn('content_item_id', $itemIds)
             ->selectRaw('current_status, count(*) as total')
@@ -1762,7 +2187,7 @@ class DocumentationSeeder extends Seeder
             'Users              : '.$this->users->count(),
             'Clients            : '.$this->clients->count(),
             'Content plans      : '.$this->plans->count(),
-            'Content items      : '.$this->items->count(),
+            'Content items      : '.count($itemIds).' (termasuk slot Draf bulan depan)',
             'AI Brief drafts    : '.ContentBriefDraft::whereIn('content_item_id', $itemIds)->count(),
             'Revisions          : '.ContentRevision::whereIn('content_item_id', $itemIds)->count(),
             'Publications       : '.ContentPublication::whereIn('content_item_id', $itemIds)->count(),
@@ -1772,6 +2197,9 @@ class DocumentationSeeder extends Seeder
             'Delay risk scores  : '.DelayRiskScore::whereIn('content_item_id', $itemIds)->count(),
             'Attendance         : '.Attendance::whereIn('user_id', $this->users->pluck('id'))->count(),
             'Notifications      : '.Notification::whereIn('user_id', $this->users->pluck('id'))->count(),
+            'Nilai KPI bulanan  : '.UserMonthlyKpiResult::whereIn('user_id', $this->users->pluck('id'))->count()
+                .' baris ('.UserMonthlyKpiResult::whereIn('user_id', $this->users->pluck('id'))
+                    ->where('period_start', $this->now->copy()->startOfMonth()->toDateString())->count().' bulan berjalan)',
         ];
 
         foreach ($lines as $line) {
