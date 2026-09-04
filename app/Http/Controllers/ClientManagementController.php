@@ -10,6 +10,7 @@ use App\Models\AudienceInsight;
 use App\Models\Client;
 use App\Models\ClientCategory;
 use App\Models\ClientPackage;
+use App\Models\ContentMetric;
 use App\Models\PackageTemplate;
 use App\Models\TikTokVideoSnapshot;
 use App\Models\User;
@@ -529,13 +530,30 @@ class ClientManagementController extends Controller
     {
         $this->authorizeManage();
 
-        $hasHistory = $client->contentItems()->exists() || $client->contentPlans()->exists();
+        $hasContentHistory = $client->contentItems()->exists() || $client->contentPlans()->exists();
 
-        if ($hasHistory) {
+        // Riwayat performa dihitung juga. analytics_sync_logs.client_id
+        // adalah FK RESTRICT (bukan cascade seperti api_integrations/
+        // audience_insights/content_metric_snapshots), jadi client yang
+        // pernah di-sync atau pernah dipakai Import CSV Performa TAPI belum
+        // punya ContentItem/ContentPlan dulu lolos guard di atas lalu bikin
+        // $client->delete() gagal dengan SQLSTATE 23000 (halaman error 500,
+        // bukan pesan yang bisa dimengerti user). Skenario nyatanya biasa:
+        // klien baru di-onboard, akun sosialnya disambung/di-import, lalu
+        // dibatalkan sebelum ada konten. Perlakuannya disamakan dengan
+        // riwayat konten - dijeda, tidak dihapus permanen.
+        $hasAnalyticsHistory = AnalyticsSyncLog::where('client_id', $client->id)->exists()
+            || ContentMetric::where('client_id', $client->id)->exists()
+            || AudienceInsight::where('client_id', $client->id)->exists()
+            || $client->apiIntegrations()->exists();
+
+        if ($hasContentHistory || $hasAnalyticsHistory) {
             $client->update(['status' => 'paused']);
 
+            $reason = $hasContentHistory ? 'riwayat konten' : 'riwayat data performa';
+
             return redirect()->route('client-management.index')
-                ->with('status', "{$client->name} punya riwayat konten, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
+                ->with('status', "{$client->name} punya {$reason}, jadi tidak dihapus permanen — status diubah jadi Dijeda.");
         }
 
         DB::transaction(function () use ($client) {

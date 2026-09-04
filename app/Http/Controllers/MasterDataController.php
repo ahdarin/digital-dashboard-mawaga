@@ -36,21 +36,32 @@ class MasterDataController extends Controller
 
         $model = self::TYPES[$type]::findOrFail($id);
 
-        // Platform direferensikan 5 tabel berbeda (content_items,
-        // content_publications, content_metrics, api_integrations,
-        // analytics_sync_logs, audience_insights - semua RESTRICT tanpa
-        // cascade), bukan cuma content_items - kalau cuma dicek satu,
-        // platform yang sudah tidak dipakai di content item aktif tapi
-        // masih punya riwayat publikasi/metrik lama bakal lolos guard ini
-        // lalu gagal di level database (500 mentah, bukan pesan yang rapi).
+        // Platform direferensikan BANYAK tabel (content_items,
+        // content_publications, content_metrics, content_metric_snapshots,
+        // api_integrations, analytics_sync_logs, audience_insights,
+        // ai_strategy_insights - semua RESTRICT tanpa cascade), bukan cuma
+        // content_items - kalau cuma dicek satu, platform yang sudah tidak
+        // dipakai di content item aktif tapi masih punya riwayat publikasi/
+        // metrik lama bakal lolos guard ini lalu gagal di level database
+        // (500 mentah, bukan pesan yang rapi).
+        //
+        // content_metric_snapshots & ai_strategy_insights ditambahkan
+        // belakangan (tabel/kolomnya lahir setelah guard ini ditulis).
+        // Keduanya bisa punya baris untuk platform yang content item-nya
+        // NOL - snapshot metrik ada juga untuk post yang belum ke-link ke
+        // ContentItem, dan AI Strategy per-platform disimpan per client,
+        // bukan per content item. content_item_platforms sengaja TIDAK
+        // ikut dicek: FK-nya CASCADE, jadi memang dirancang ikut terhapus.
         $inUse = match ($type) {
             'client-category' => $model->clients()->exists(),
             'platform' => $model->contentItems()->exists()
                 || $model->publications()->exists()
                 || $model->contentMetrics()->exists()
+                || $model->contentMetricSnapshots()->exists()
                 || $model->apiIntegrations()->exists()
                 || $model->analyticsSyncLogs()->exists()
-                || $model->audienceInsights()->exists(),
+                || $model->audienceInsights()->exists()
+                || $model->aiStrategyInsights()->exists(),
             default => $model->contentItems()->exists(),
         };
 

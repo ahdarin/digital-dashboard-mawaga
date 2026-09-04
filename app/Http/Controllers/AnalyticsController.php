@@ -181,7 +181,17 @@ class AnalyticsController extends Controller
                 fn ($q) => $q->where('platform_id', $selectedPlatformId)
             )
             ->where('period_start', $aiWindow['start']->toDateString())
-            ->where('period_end', $aiWindow['end']->toDateString())
+            // period_end DICOCOKKAN SEBAGAI RENTANG, bukan sama persis.
+            // Buat bulan yang sudah lewat keduanya identik (effectiveDateTo
+            // = akhir bulan), jadi tidak ada perubahan perilaku. Buat BULAN
+            // BERJALAN, resolveMonthWindow() memberi end = HARI INI, jadi
+            // pencocokan sama-persis bikin analisis yang digenerate kemarin
+            // hilang dari panel hari ini ("Belum ada analisis buat client
+            // ini") walau barisnya masih ada - user terpaksa generate ulang
+            // tiap hari dan kehilangan thread diskusi/status Terapkan.
+            // Rentang start..end tetap tidak bisa bocor lintas bulan karena
+            // period_start sudah dikunci di atas.
+            ->whereBetween('period_end', [$aiWindow['start']->toDateString(), $aiWindow['end']->toDateString()])
             // Phase 4.2 audit (Langkah 6, "context history behavior") -
             // orderByDesc('id') dipakai, BUKAN latest()/created_at, karena
             // 2 Generate Ulang buat context SAMA bisa kejadian dalam detik

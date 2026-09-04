@@ -25,7 +25,23 @@
         [
             'label' => 'Klien',
             'items' => [
-                ['label' => 'Kelola Klien', 'route' => 'client-management.index', 'icon' => 'apartment', 'permission' => ['client', 'view']],
+                // 'client,view' TIDAK cukup di sini. Permission itu memang
+                // dibuka ke SEMUA role internal, tapi cuma buat halaman
+                // DETAIL 1 client (client-management.show, discope ke
+                // assignment). Daftar lengkapnya (client-management.index)
+                // sengaja lebih ketat - lihat abort_unless() di
+                // ClientManagementController@index - jadi kalau menu ini
+                // cuma digerbang 'client,view', SMO/Copywriter/Content
+                // Creator/Graphic Designer melihat menu "Kelola Klien" yang
+                // langsung 403 begitu diklik. Syarat di bawah dijaga
+                // identik dengan controller-nya.
+                [
+                    'label' => 'Kelola Klien',
+                    'route' => 'client-management.index',
+                    'icon' => 'apartment',
+                    'permission' => ['client', 'view'],
+                    'visible' => fn ($user) => $user->hasPermissionTo('client', 'manage') || $user->canSeeAllClients(),
+                ],
             ],
         ],
         [
@@ -48,6 +64,7 @@
             $group['items'] = array_values(array_filter(
                 $group['items'],
                 fn ($item) => $authUser->hasPermissionTo(...$item['permission'])
+                    && (! isset($item['visible']) || $item['visible']($authUser))
             ));
             return $group;
         })
