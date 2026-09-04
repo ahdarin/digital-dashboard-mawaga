@@ -1,5 +1,9 @@
 # Pre-Documentation Stabilization Report — 523 Studio Platform
 
+> ⚠️ **Dokumen historis — berhenti di 26 Agustus 2026.** Perubahan aplikasi
+> sesudah tanggal itu ada di **`docs/USER_MANUAL_SOURCE_OF_TRUTH.md` Bagian 0**
+> dan **`docs/POST_FREEZE_AUDIT_REPORT.md`**.
+
 > Laporan hasil sprint **FIX → TEST → VERIFY → CLEANUP → RE-AUDIT**, dijalankan
 > di branch `stabilization/pre-user-manual`, bertitik-tolak dari audit
 > `docs/USER_MANUAL_SOURCE_OF_TRUTH.md` (commit `d637369`). Buku Panduan

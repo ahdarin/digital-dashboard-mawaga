@@ -73,7 +73,20 @@ class DelayRiskAccuracyService
                 continue;
             }
 
-            $wasLate = $log->changed_at->greaterThan($item->deadline_at);
+            // Dibandingkan dengan tanggal target TAYANG, bukan deadline
+            // produksi. Sejak perombakan alur Content Plan, deadline_at
+            // adalah deadline PENGERJAAN yang memang dihitung 2 hari SEBELUM
+            // upload_deadline_at - jadi konten yang tayang tepat pada
+            // jadwalnya otomatis "melewati deadline_at" dan SETIAP item
+            // terhitung telat. Akibatnya precision High Risk selalu ~100%
+            // dan angka ini berhenti berarti sebagai evaluasi model.
+            //
+            // upload_deadline_at baru ada untuk konten yang lewat alur
+            // Atur Deadline; item lama (import planner) tetap dinilai
+            // memakai deadline_at seperti sebelumnya.
+            $targetDate = $item->upload_deadline_at ?? $item->deadline_at;
+
+            $wasLate = $log->changed_at->greaterThan($targetDate);
 
             $breakdown[$scoreBeforeUpload->risk_level]['total']++;
             if ($wasLate) {

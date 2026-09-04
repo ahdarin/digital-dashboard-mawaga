@@ -26,10 +26,18 @@ Bedanya dengan `DemoSeeder`:
 
 ## How to Seed
 
-Prasyarat: role & permission dasar sudah terpasang.
+> ⛔ **JANGAN jalankan `php artisan db:seed` polos untuk database dokumentasi.**
+> Sejak `TeamClientSeeder` masuk ke `DatabaseSeeder`, perintah itu ikut
+> memasukkan **daftar klien dan staf 523 Studio yang sungguhan** — nama-nama itu
+> akan ikut terfoto di Kelola Klien dan Kelola Pengguna.
+
+Pakai database **terpisah** dari database kerja sehari-hari, lalu panggil
+prasyaratnya satu per satu:
 
 ```bash
-php artisan db:seed                                   # RoleSeeder, PermissionSeeder, MasterDataSeeder
+php artisan db:seed --class=RoleSeeder
+php artisan db:seed --class=PermissionSeeder
+php artisan db:seed --class=MasterDataSeeder
 php artisan db:seed --class=DocumentationSeeder
 ```
 
@@ -39,9 +47,18 @@ berjalan kalau:
 - `app()->isProduction()` bernilai true, atau
 - nama database mengandung `prod` / `production` / `live`.
 
-Kalau role belum ada, seeder berhenti dengan pesan yang menyuruh menjalankan
-`php artisan db:seed` lebih dulu — ia sengaja **tidak** memanggil `RoleSeeder`
+Kalau role belum ada, seeder berhenti dengan pesan yang menyuruh memasang role &
+permission dasar lebih dulu — ia sengaja **tidak** memanggil `RoleSeeder`
 sendiri, karena `RoleSeeder` juga membuat akun CEO bootstrap dengan email asli.
+
+### Akun CEO bootstrap ikut disamarkan
+
+`RoleSeeder` membuat akun `523 Studio <hello523studio@gmail.com>` — alamat email
+**sungguhan**, dan akun itu tampil di Kelola Pengguna, Performa Tim, serta ikut
+terhitung di kartu "Tim Aktif" pada Dashboard. `DocumentationSeeder` mengganti
+identitasnya menjadi `Akun Sistem 523 <akun.sistem@example.test>`.
+
+Mengembalikannya: `php artisan db:seed --class=RoleSeeder`.
 
 ### Idempotency
 
@@ -54,13 +71,19 @@ Aman dijalankan berulang. Jangkarnya:
   sudah ada di schema, dengan `import_source = 'documentation_seeder'`
 
 Baris turunan (workflow, assignment, log status, revisi, publikasi, metrik,
-brief, audience, notifikasi, pin) **dihapus lalu dibuat ulang** setiap run —
-tapi hanya baris milik seeder ini, dikenali dari marker/relasi di atas. Tidak
-ada `truncate`, tidak ada `delete` tanpa filter.
+brief, audience, notifikasi, pin, platform konten, hasil KPI) **dihapus lalu
+dibuat ulang** setiap run — tapi hanya baris milik seeder ini, dikenali dari
+marker/relasi di atas. Tidak ada `truncate`, tidak ada `delete` tanpa filter.
 
-`content_items` sendiri tidak pernah dihapus, jadi **id-nya stabil**: URL
-screenshot seperti `/content-items/8` tetap menunjuk konten yang sama setelah
-seeder dijalankan ulang.
+`content_items` bernomor (`DOC:KS-01` dst) tidak pernah dihapus, jadi **id-nya
+stabil**: URL screenshot seperti `/content-items/8` tetap menunjuk konten yang
+sama setelah seeder dijalankan ulang.
+
+**Perkecualian:** slot Draf bulan depan (`DOC:slot:*`, lihat "Slot Draf" di
+bawah) **dihapus dan digenerate ulang** tiap run, jadi id-nya berubah. Slot
+memang tidak pernah jadi target URL screenshot — yang difoto halaman rencananya
+(`/content-plan/<id>` dan `/content-plan/<id>/deadlines`), dan id rencana tetap
+stabil.
 
 Angka pun deterministik (PRNG internal, bukan `rand()`), jadi grafik pada
 screenshot lama tidak jadi basi hanya karena seeder dijalankan ulang.
@@ -80,6 +103,8 @@ Semua berstatus `active`.
 | Sarah Amelia | Graphic Designer | ✓ | Kopi Senja, Ruang Belajar | Alur harian PIC desain, Detail Konten |
 | Lina Kartika | Graphic Designer + Copywriter | ✓ | Nusa Apparel, Ruang Belajar | **Multi-role** — Kelola Pengguna & modal Ubah Role |
 | Bayu Saputra | Graphic Designer | ✗ | Nusa Apparel | Badge **"belum memiliki akses dashboard"** & tombol Aktifkan Akses Login |
+| Galih Prasetya | **Admin** | ✓ | *(semua, via visibility)* | Role **read-only** baru — sidebar selengkap CEO tapi tanpa satu pun tombol pengubah data |
+| Akun Sistem 523 | CEO | ✓ | *(semua, via visibility)* | Akun bootstrap `RoleSeeder` yang identitasnya disamarkan — biarkan apa adanya, tidak perlu difoto |
 
 CEO & Manager sengaja tidak punya baris `user_client_assignments`:
 `User::canSeeAllClients()` sudah memberi mereka visibility ke semua klien, jadi
@@ -111,33 +136,54 @@ supaya master data resmi tidak kotor oleh entri khusus buku.
 
 ## Content Plan States
 
-11 rencana konten, mencakup **keempat kondisi** yang perlu difoto:
+15 rencana konten, mencakup **keempat kondisi** yang perlu difoto:
 
 | Kondisi | Contoh | Yang bisa difoto |
 |---|---|---|
-| **Draf** | Kopi Senja & Ruang Belajar & Sora Residence (bulan depan) | Tombol **Ajukan Rencana** |
-| **Menunggu Persetujuan** | Nusa Apparel (bulan depan) | Tombol **Setujui** / **Tolak** |
-| **Disetujui** | 7 rencana bulan berjalan & bulan-bulan sebelumnya | Rencana aktif + target kuota |
+| **Draf** | Sora Residence (bulan berjalan) | Tombol **Ajukan Rencana** |
+| **Menunggu Persetujuan** | **Nusa Apparel (bulan depan)** | Tombol **Setujui** / **Tolak** |
+| **Disetujui** | Seluruh rencana bulan lampau & bulan berjalan, plus Kopi Senja bulan depan | Rencana aktif + target kuota |
 | **Pernah ditolak → dikembalikan ke draf → diajukan ulang → disetujui** | **Nusa Apparel bulan berjalan** | Panel **Riwayat Keputusan** lengkap dengan alasan penolakan |
+| **Ditolak permanen** (belum dikembalikan ke draf) | **Ruang Belajar (bulan depan)** | Badge **Ditolak** + alasan penolakan + Riwayat Keputusan + tombol **Kembalikan ke Draf & Perbaiki** |
 
-Jumlah rencana mengikuti bulan yang benar-benar dipakai konten (3–4 bulan per
-klien untuk menopang 60–90 hari data performa), bukan angka tetap.
+Jumlah rencana mengikuti bulan yang benar-benar dipakai konten (3–6 bulan per
+klien untuk menopang data performa dan tren KPI 6 bulan), bukan angka tetap.
 
 Semua tanggal relatif terhadap `Carbon::now()` — tidak ada tahun yang di-hardcode.
 
+### Slot Draf & alur Rencana Konten baru
+
+Sejak slot konten digenerate otomatis dari kuota paket, tiga layar baru harus
+bisa difoto. Seeder menyiapkan **tiga rencana bulan depan** khusus untuk itu:
+
+| Klien (bulan depan) | Status rencana | Slot | Deadline upload | Yang bisa difoto |
+|---|---|:--:|---|---|
+| **Kopi Senja** | Disetujui | 18 (`C1…C10`, `D1…D8`) | terisi semua | Halaman **Atur Deadline** dengan tanggal sudah terisi, dan tombol **Kirim ke Produksi** yang siap ditekan |
+| **Nusa Apparel** | Menunggu Persetujuan | 18 | kosong | Tombol **Setujui** / **Tolak**; Atur Deadline masih terkunci |
+| **Ruang Belajar** | Ditolak (permanen) | 10 (`C1…C6`, `D1…D4`) | kosong | Badge **Ditolak**, alasan penolakan, Riwayat Keputusan, dan tombol **Kembalikan ke Draf & Perbaiki** — beda dari siklus Nusa Apparel bulan berjalan yang berakhir Disetujui |
+
+Slot dibuat lewat `ContentPlanItemGeneratorService` **yang asli** (bukan salinan
+logika), jadi jumlah dan penamaannya persis sama dengan yang dilihat pengguna.
+
+Total 46 konten berstatus **Draf**. Ini normal dan memang perilaku aplikasi:
+konten Draf tidak muncul di papan Kanban, tidak dihitung sebagai beban kerja,
+dan tidak masuk perhitungan KPI.
+
 ## Content Workflow States
 
-30 content item, **seluruh 8 status** terwakili:
+82 content item, **seluruh 9 status** terwakili (46 di antaranya slot Draf
+bulan depan):
 
 | Status | Label | Jumlah |
 |---|---|:--:|
-| `brief_ready` | Siap Dikerjakan | 4 |
+| `draft` | Draf | 46 |
+| `brief_ready` | Brief Ready | 4 |
 | `in_progress` | Sedang Dikerjakan | 4 |
 | `waiting_review` | Menunggu Persetujuan | 4 |
 | `revision` | Perlu Revisi | 3 |
 | `approved` | Disetujui | 3 |
 | `scheduled` | Terjadwal Tayang | 3 |
-| `uploaded` | Sudah Tayang | 8 |
+| `uploaded` | Sudah Tayang | 14 |
 | `cancelled` | Dibatalkan | 1 |
 
 Tambahan kondisi yang sengaja disiapkan:
@@ -146,8 +192,23 @@ Tambahan kondisi yang sengaja disiapkan:
 - **1 konten mendesak** (`is_urgent`) → penanda Jobdesk Tambahan
 - **2 konten** punya riwayat status bolak-balik (pernah revisi lalu lanjut sampai
   tayang) → contoh alur tidak lurus di tab Riwayat Status
+- **3 konten tayang terlambat** dari jadwal yang sudah dikunci → menghidupkan
+  variasi nilai Ketepatan Kerja di KPI dan angka Ketepatan Prediksi Risiko
 - Riwayat status hanya memuat transisi yang **sah menurut `WorkflowTransitions`** —
   tidak ada lompatan status yang aplikasinya sendiri akan tolak
+- Riwayat status konten yang **sudah tayang** berhenti di sekitar tanggal
+  tayangnya sendiri, bukan di minggu ini — supaya tab Riwayat Status masuk akal
+  dibaca dan evaluasi model Delay Risk tidak menganggap semua konten telat
+
+### Kolom yang lahir setelah documentation freeze
+
+| Kolom / tabel | Isi di dataset |
+|---|---|
+| `content_format_id` (master **Single Post / Carousel / Video**) | Diisi untuk **semua** konten, sinkron dengan kolom teks lama supaya tidak ada dua nama untuk format yang sama |
+| `content_item_platforms` (multi-platform) | Diisi untuk semua konten; **KS-05** sengaja dua platform (Instagram + TikTok) |
+| `reference_link` (**Link Referensi**) | Terisi di 5 konten, kosong di sisanya — buku perlu menampilkan kedua kondisi |
+| `upload_deadline_at` | Terisi untuk semua konten produksi (= deadline pengerjaan + 2 hari), dan untuk slot Draf Kopi Senja |
+| `provisional_code` (`C1`/`D3`) | Terisi untuk slot Draf |
 
 ### AI Brief
 
@@ -175,16 +236,58 @@ konten yang sudah disetujui atau tayang.
 
 ### Publikasi
 
-8 konten tayang, semuanya punya `post_url` berdomain `https://example.com/posts/…`.
+14 konten tayang, semuanya punya `post_url` berdomain
+`https://example.com/posts/…`. Sebarannya sengaja mencakup **6 bulan terakhir
+termasuk bulan berjalan** — bulan berjalan wajib ada isinya, karena halaman
+Performa Tim membuka bulan berjalan secara default dan akan tampil kosong total
+tanpa satu pun konten tayang di bulan itu.
+
+## Performa Tim & KPI
+
+`user_monthly_kpi_results` **dihitung** oleh `TeamPerformanceKpiCalculator` yang
+asli dari data seeder ini (bukan angka yang ditulis lepas), untuk **6 bulan
+terakhir**. Jadi angka di Performa Tim, kartu KPI di Profil, dan konten yang
+jadi dasarnya benar-benar konsisten satu sama lain.
+
+Dijalankan langsung tanpa queue, dan `calculated_at`-nya bertanggal hari
+seeding — jadi sesi pemotretan **tidak perlu menyalakan queue worker**.
+
+| Yang bisa difoto | Kondisinya di dataset |
+|---|---|
+| **Tren 6 Bulan Terakhir** (3 grafik garis) | Keenam bulan terisi, nilainya naik-turun (bukan garis lurus 100%) |
+| **Perbandingan Nilai KPI Anggota** | 6 anggota, nilainya bervariasi dari sempurna sampai jauh di bawah |
+| **Ketepatan Prediksi Risiko Tinggi** | Terisi, dengan pecahan per tingkat risiko — bukan "belum cukup data" |
+| Baris `-` di Daftar Anggota | CEO/Manager/Admin tetap `-` karena tidak punya konten yang bisa diatribusikan; ini kondisi **normal** yang juga perlu dijelaskan di buku |
+| **Kartu KPI di halaman Profil** | Terisi untuk anggota yang punya nilai bulan berjalan |
+
+### ⚠️ Bonus Performa selalu `-` di dataset ini
+
+Kolom **Bonus Performa** tampil `-` untuk **semua** anggota dan **semua** bulan,
+dan itu bukan kesalahan seeder. Bonus hanya bisa dihitung dari
+`content_metric_snapshots` — rekaman per-observasi yang **cuma ditulis oleh
+sinkronisasi API Instagram/TikTok**, bukan oleh Import CSV Performa. Dataset ini
+sengaja tidak mengarang baris hasil API (lihat "Batasan yang disengaja" poin 4),
+jadi bonus memang tidak akan pernah muncul di sini.
+
+**Untuk buku:** jelaskan Bonus Performa dari rumusnya
+(`docs/KPI_TEAM_PERFORMANCE.md`), dan pakai screenshot dari **akun tester dengan
+integrasi API sungguhan** kalau kolomnya perlu ditampilkan terisi. Kondisi `-`
+sendiri juga layak difoto — itu yang akan dilihat tim untuk klien yang datanya
+masuk lewat CSV.
 
 ## Analytics Dataset
 
 | | Kopi Senja | Nusa Apparel |
 |---|---|---|
-| Baris metrik | 268 | 114 |
-| Rentang | 76 hari | 69 hari |
-| Total views | ±352.600 | ±160.600 |
+| Baris metrik | 274 | 117 |
+| Rentang | ±76 hari | ±69 hari |
 | Platform | Instagram + TikTok | Instagram |
+
+> ⚠️ **Angka di halaman Performa TIDAK sama dengan total di atas.** Sejak
+> Performa memakai **semantik cohort tanggal tayang**, kartu "Total Views Bulan
+> Ini" hanya menjumlahkan konten yang **dipublikasikan pada bulan terpilih** —
+> bukan seluruh baris metrik. Jangan menuliskan total kumulatif ini sebagai
+> "views bulan ini" di buku.
 
 Bentuk kurvanya **peluruhan**, bukan angka acak: views tertinggi di hari pertama
 lalu turun ke plateau. Tiap konten punya profil sendiri — high / average / low
@@ -198,12 +301,25 @@ lepas dari kolom lain di baris yang sama.
 - **Audience**: 90 snapshot harian × 3 pasangan klien-platform (270 baris), dengan
   demografi, lokasi teratas, dan jam aktif. Tren follower naik wajar, tidak
   bergerigi.
-- **AI Strategy**: 2 insight `completed` (Kopi Senja — sudah diterapkan, lengkap
-  dengan diskusi 4 pesan; Nusa Apparel — belum diterapkan). Ringkasan & action
-  item-nya ditulis dari angka yang benar-benar ada di metrik seeder ini.
-- **Delay Risk**: 12 skor sintetis (`high` / `medium` / `low`), termasuk 2 item
-  risiko tinggi yang **belum** overdue — syarat munculnya panel prediktif di
-  Dashboard.
+- **AI Strategy**: 3 insight `completed`. Ringkasan & action item-nya ditulis
+  dari angka yang benar-benar ada di metrik seeder ini.
+  - **Kopi Senja — bulan berjalan**: inilah yang muncul begitu halaman Performa
+    dibuka **tanpa mengubah filter apa pun**. Lengkap dengan diskusi 4 pesan dan
+    daftar ide yang siap ditekan **Terapkan ke Slot Ini**. Panel AI Strategy
+    hanya menampilkan analisis yang **bulannya cocok** dengan filter Bulan
+    Analisis, jadi tanpa baris ini screenshot default akan berbunyi "Belum ada
+    analisis buat client ini".
+  - **Kopi Senja — bulan lalu**: sudah **diterapkan** (tombol Revert aktif) →
+    untuk halaman **Riwayat AI Strategy**.
+  - **Nusa Apparel — bulan lalu**: belum diterapkan.
+- **Delay Risk**: 24 skor sintetis (`high` / `medium` / `low`).
+  - 12 skor **terkini** pada konten yang masih berjalan, termasuk 2 item risiko
+    tinggi yang **belum** overdue — syarat munculnya panel prediktif di
+    Dashboard.
+  - 12 skor **historis** pada konten yang sudah tayang, dibuat 3 hari sebelum
+    tanggal tayang masing-masing. Tanpa ini kartu **Ketepatan Prediksi Risiko
+    Tinggi** selalu berbunyi "belum ada cukup data", karena kartu itu hanya
+    menghitung konten tayang yang punya skor bertanggal **sebelum** tayang.
 - **Anomali performa**: 3 baris, dihitung dari metrik yang baru dibuat memakai
   pola yang sama dengan command `DetectPerformanceAnomalies`.
 - **Riwayat sinkronisasi**: 6 baris, termasuk **1 yang gagal** (Ruang Belajar)
@@ -234,15 +350,20 @@ Sudah diverifikasi lewat smoke test read-only — semua halaman di bawah membala
 | Dashboard | `/dashboard` | CEO | 6 KPI, tren views, Perlu Perhatian, risiko keterlambatan, top konten, peringkat klien |
 | Rencana Konten | `/content-plan`, `?view=calendar` | CEO/Manager | Tabel & kalender, status draf/pending/approved berdampingan |
 | Riwayat Keputusan | `/content-plan/<id Nusa Apparel bulan ini>` | Manager | Alasan penolakan + jejak pengajuan ulang |
-| Produksi (Kanban) | `/production-workflow` | Content Creator | 8 kolom terisi |
+| Rencana berisi slot Draf | `/content-plan/<id Kopi Senja bulan depan>` | SMO/Manager | Daftar slot `C1…D8` berstatus **Draf** + tombol **Atur Deadline & Kirim ke Produksi** |
+| **Atur Deadline** | `/content-plan/<id Kopi Senja bulan depan>/deadlines` | SMO | Form tanggal upload per slot (sudah terisi) |
+| Rencana menunggu persetujuan | `/content-plan/<id Nusa Apparel bulan depan>` | Manager | Tombol **Setujui** / **Tolak** |
+| Produksi (Kanban) | `/production-workflow` | Content Creator | Kolom produksi terisi (**kolom Draf memang tidak ada di Kanban**) |
 | Produksi (Revisi) | `/production-workflow?tab=revisions` | Manager | Revisi terbuka, termasuk yang dari klien |
 | Produksi (Sudah Tayang) | `/production-workflow?tab=published` | SMO | Daftar publikasi + link post |
 | Detail Konten | `/content-items/<id>` | Content Creator | AI Brief, Status Management, PIC, link hasil, riwayat revisi & publikasi |
-| Performa | `/analytics?client_id=<Kopi Senja>` | SMO | Overview, tabel, audience, AI Strategy |
-| Performa (empty) | `/analytics?client_id=<Sora Residence>` | SMO | Empty state |
-| Performa Tim | `/team-performance` | Manager | Beban kerja + badge beban berlebih (Dimas Ardi) |
+| Performa | `/analytics?client_id=<Kopi Senja>` | SMO | Overview, tabel, audience, AI Strategy (analisis bulan berjalan langsung tampil) |
+| Performa (empty) | `/analytics?client_id=<Sora Residence>` | **Manager / CEO / Admin** | Empty state. ⚠️ **Bukan SMO** — Raka tidak di-assign ke Sora Residence, jadi URL ini 403 baginya |
+| Performa Tim (KPI) | `/team-performance` | Manager | Tren KPI 6 bulan, perbandingan antar anggota, Ketepatan Prediksi Risiko, Daftar Anggota |
 | Kehadiran | `/team-performance?tab=kehadiran` | Manager | Absensi harian & rekap bulanan |
-| Kelola Pengguna | `/user-management` | Manager | 8 orang, multi-role, badge tanpa akses login |
+| Kartu KPI di Profil | `/profile/<id Sarah Amelia>` | Graphic Designer | Nilai KPI pribadi bulan berjalan, di atas 4 kartu ringkasan kerja |
+| Sidebar role read-only | halaman mana pun | **Admin** (Galih Prasetya) | Sidebar selengkap CEO tanpa tombol pengubah data |
+| Kelola Pengguna | `/user-management` | Manager | 10 orang, multi-role, badge tanpa akses login, **tab Aktif/Nonaktif** |
 | Kelola Klien | `/client-management` + detail | Manager | 4 klien, kartu Paket Aktif, PIC ditugaskan |
 | Laporan | `/report` | SMO | Form + data cukup untuk preview/PDF |
 | Pengaturan | `/settings?tab=data-pilihan&type=package-template` | Manager | Tab Paket |
@@ -270,6 +391,21 @@ Tiga hal yang **sengaja tidak** dibuat seeder ini, beserta alasannya:
    di `storage`; tanpa berkas aslinya, tombol unduh di halaman Laporan akan mati.
    Riwayat laporan lebih baik diisi dengan benar-benar menekan tombol **Buat
    Laporan** saat sesi pemotretan.
+
+4. **Tidak ada `content_metric_snapshots`, `instagram_media_snapshots`, maupun
+   `tiktok_video_snapshots`.** Ketiganya adalah rekaman mentah per-observasi
+   dari API provider; mengisinya berarti mengarang bahwa dataset ini pernah
+   disinkronkan dari Instagram/TikTok, padahal tidak (alasan yang sama dengan
+   poin 1 & 2). Konsekuensinya **tidak merusak halaman mana pun**: grafik tren
+   di Dashboard dan Performa punya jalur CSV/manual yang dipakai apa adanya, dan
+   itu sudah diverifikasi lewat smoke test. Yang tidak akan muncul hanyalah
+   angka "pertumbuhan periode" per konten API — di tempatnya aplikasi
+   menampilkan banner jujur "riwayat observasi belum cukup", yang justru salah
+   satu kondisi yang layak difoto untuk buku.
+5. **Tidak ada `analytics_sync_runs` / `analytics_sync_tasks`.** Panel progres
+   sinkronisasi hidup hanya masuk akal kalau ada `ApiIntegration` sungguhan
+   (poin 1). Untuk buku, panel progres & tombol coba-lagi **harus** difoto dari
+   akun tester sungguhan.
 
 Selain itu, **Delay Risk di-seed langsung tanpa memanggil script Python ML**, dan
 `ContentWorkflow` dibuat lewat `withoutEvents()` supaya `ContentWorkflowObserver`

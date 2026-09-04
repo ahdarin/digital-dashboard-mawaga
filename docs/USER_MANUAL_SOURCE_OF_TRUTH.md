@@ -3,9 +3,22 @@
 > **Dokumen ini BUKAN buku panduan.** Ini hasil audit implementasi aktual yang
 > dipakai sebagai bahan mentah untuk menyusun Buku Panduan Pengguna final.
 
-## ✅ KONDISI TERKINI — 26 Agustus 2026 (setelah Final Pre-Merge Verification)
+> ## ⚠️ BACA INI DULU — dokumen ini punya DUA tanggal
+>
+> Bagian besar dokumen ini ditulis pada **26 Agustus 2026** (documentation
+> freeze). Setelah tanggal itu aplikasi **terus berubah**, dan sebagian
+> perubahannya mengubah hal yang sudah terlanjur dijelaskan di sini: ada role
+> baru, ada status konten baru, dan cara mengisi Rencana Konten berubah total.
+>
+> **[Bagian 0. Adendum Pasca-Documentation-Freeze](#bagian-0-adendum-pasca-documentation-freeze)**
+> adalah bagian yang paling baru dan **selalu menang** kalau isinya berbeda
+> dengan bagian lain di dokumen ini. Baca Bagian 0 lebih dulu, baru bagian
+> lainnya.
 
-**Ini adalah kondisi aplikasi SEKARANG.** Dokumen sudah direkonsiliasi penuh
+## ✅ KONDISI PER 26 Agustus 2026 (setelah Final Pre-Merge Verification)
+
+**Ini kondisi aplikasi pada tanggal freeze — sebagian sudah disusul perubahan,
+lihat Bagian 0.** Dokumen sudah direkonsiliasi penuh
 setelah sprint stabilisasi (`FIX → TEST → VERIFY → CLEANUP → RE-AUDIT`) **dan**
 Final Pre-Merge Verification, keduanya di branch `stabilization/pre-user-manual`.
 Sumber: `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md` (termasuk appendix
@@ -44,17 +57,330 @@ sungguhan bergantung App Review eksternal — status `EXTERNAL_BLOCKED`.
 
 ### Cara membaca dokumen ini
 
-Dokumen ini memuat **dua lapisan**:
+Dokumen ini memuat **tiga lapisan**:
 
-1. **Kondisi sekarang** — semua Feature Record, tabel status, daftar prosedur,
-   rencana screenshot, dan struktur buku. Ini yang dipakai penulis buku.
-2. **Riwayat audit** — bagian yang diberi label eksplisit
+1. **Adendum pasca-freeze (Bagian 0)** — perubahan setelah 26 Agustus 2026.
+   **Prioritas tertinggi.** Kalau isinya bentrok dengan lapisan lain, Bagian 0
+   yang benar.
+2. **Kondisi per 26 Agustus 2026** — semua Feature Record, tabel status, daftar
+   prosedur, rencana screenshot, dan struktur buku. Masih benar untuk sebagian
+   besar fitur, tapi **wajib disaring lewat Bagian 0**.
+3. **Riwayat audit** — bagian yang diberi label eksplisit
    **HISTORIS — KONDISI SEBELUM STABILISASI**. Disimpan sebagai engineering
    history. **Status di dalamnya BUKAN kondisi aplikasi sekarang** dan tidak
    boleh dijadikan dasar penulisan buku.
 
 Kalau menemukan kalimat yang terdengar seperti "fitur X rusak" tanpa label
 historis di atasnya, itu bug dokumentasi — silakan cek ulang ke Bagian 22.
+
+---
+
+# Bagian 0. Adendum Pasca-Documentation-Freeze
+
+**Rentang:** 26 Agustus 2026 (commit `772bcef`, documentation freeze) →
+4 September 2026.
+**Cara verifikasi:** pembacaan kode + test suite penuh (**745 test · 2.304
+assertion · 0 gagal**) + smoke test read-only seluruh halaman terhadap database
+dokumentasi hasil `DocumentationSeeder`.
+
+Bagian ini menang atas seluruh isi dokumen di bawahnya.
+
+## 0.1 Ringkasan sekali baca
+
+| # | Perubahan | Dampak ke buku |
+|---|---|---|
+| 1 | **Role baru: Admin** (read-only) | Bagian 2, 3, 4 — jadi **7 role**, bukan 6 |
+| 2 | Role **"Desain Grafis" → "Graphic Designer"** | Sweep istilah di seluruh naskah |
+| 3 | **Status konten baru: Draf** + label `brief_ready` jadi **"Brief Ready"** | Bagian 5 — jadi **9 status**, diagram alur berubah |
+| 4 | **Rencana Konten tidak lagi diisi manual** — slot digenerate dari kuota paket, lalu Atur Deadline → Kirim ke Produksi | Bagian 6 ditulis ulang; prosedur "Tambah Konten" **dihapus** |
+| 5 | **Kelola Klien: kolom Nama Brand dihapus**, dilebur ke Nama Klien | Bagian 11 & form onboarding |
+| 6 | **Undangan lewat email dihapus** dari Kelola Pengguna | Bagian 17 — prosedur "undang anggota" tidak ada lagi |
+| 7 | Kelola Pengguna punya **tab Aktif / Nonaktif** | Bagian 17 + screenshot |
+| 8 | **Performa memakai semantik cohort tanggal tayang** + filter Bulan/Rentang, panel sinkronisasi progresif, tombol coba lagi | Bagian 13 — angka & istilah berubah |
+| 9 | **AI Strategy** punya filter bulan & platform sendiri; angka "Potensi" per ide **dihapus** | Bagian 14 |
+| 10 | **Performa Tim: fitur KPI bulanan baru** (Nilai KPI, Ketepatan Kerja, Kualitas Kerja, Bonus Performa) | Bagian 17 + bab baru; rujuk `docs/KPI_TEAM_PERFORMANCE.md` |
+| 11 | **Kartu KPI di halaman Profil** | Bagian 15/17 |
+| 12 | **Content Format** jadi master resmi: Single Post / Carousel / Video | Glosarium & Bagian 13 |
+| 13 | Konten bisa punya **lebih dari satu platform** + kolom **Link Referensi** | Bagian 8 |
+| 14 | **Link Konten (Draft)** punya kolom & modal sendiri (tidak wajib) | Bagian 8 |
+| 15 | **AI Brief tidak pernah lagi menentukan tanggal produksi/upload** | Bagian 7 |
+| 16 | Kalender Rencana Konten: **filter status kerja + penanda ikon** | Bagian 6 |
+| 17 | `php artisan db:seed` sekarang **ikut memasang roster klien & staf asli** | Prosedur menyiapkan data dokumentasi — lihat 0.14 |
+
+## 0.2 Role Admin (baru)
+
+Aplikasi sekarang punya **7 role**: CEO, Manager, SMO, Copywriter, Content
+Creator, Graphic Designer, **Admin**.
+
+- **Admin = pengamat internal.** Sidebar-nya selengkap CEO (Beranda, Dashboard,
+  Performa, Rencana Konten, Produksi, Performa Tim, Kelola Pengguna, Kelola
+  Klien, Laporan, Pengaturan) dan ia melihat **semua klien**, tapi hanya punya
+  izin `view` di setiap modul — **tidak ada satu pun tombol yang mengubah data**.
+- Admin **tidak bisa**: menyetujui rencana/konten, memindahkan status, mengubah
+  klien atau pengguna, men-generate AI Strategy, menekan **Perbarui Data**
+  (sinkronisasi), atau mengubah Data Pilihan.
+- *Implementasi: `App\Enums\UserRole::Admin`, `PermissionSeeder` (hanya aksi
+  `view`), `User::canSeeAllClients()` sudah mencakup Admin.*
+
+> **Untuk buku:** jelaskan Admin sebagai role "boleh lihat semuanya, tidak boleh
+> menyentuh apa pun" — cocok untuk pemilik/auditor yang butuh visibilitas tanpa
+> risiko salah klik.
+
+## 0.3 Status konten: sekarang 9, bukan 8
+
+Status **Draf** (`draft`) ditambahkan di depan alur:
+
+```text
+        Draf  ← slot hasil generate kuota paket, belum masuk produksi
+          │    (satu-satunya jalan keluar: tombol "Kirim ke Produksi"
+          │     di halaman Rencana Konten — batch, bukan per item)
+          ▼
+     Brief Ready
+          │
+          ▼
+   Sedang Dikerjakan  ◄─────────────┐
+          │                         │
+          ▼                         │
+  Menunggu Persetujuan              │
+     │          │                   │
+     ▼          ▼                   │
+ Disetujui   Perlu Revisi ──────────┘
+     │
+     ▼
+Terjadwal Tayang
+     │
+     ▼
+Sudah Tayang        (akhir)
+```
+
+Yang perlu ditegaskan di buku:
+
+- Konten berstatus **Draf tidak muncul di papan Kanban Produksi**, tidak masuk
+  hitungan beban kerja PIC, tidak pernah ditandai terlambat, dan tidak masuk
+  perhitungan KPI. Ia hanya "slot kosong" di halaman Rencana Konten.
+- Draf **tidak bisa** dipindahkan satu per satu. Satu-satunya jalan keluar
+  adalah **Kirim ke Produksi** untuk seluruh rencana sekaligus.
+- Label `brief_ready` sekarang tampil **"Brief Ready"** (sebelumnya "Siap
+  Dikerjakan"). Seluruh naskah buku harus memakai "Brief Ready".
+
+*Implementasi: `WorkflowTransitions::DRAFT_STATUS`, `INACTIVE_STATUSES`,
+`WorkflowStatusService::releaseToProduction()`.*
+
+## 0.4 Rencana Konten: alur baru (perubahan terbesar)
+
+Form **"Tambah Konten"** manual **sudah dihapus**. Alurnya sekarang:
+
+| Langkah | Pelaku | Yang terjadi |
+|---|---|---|
+| 1. Buat Rencana Konten | CEO / Manager / Copywriter | Sistem **otomatis** membuat slot kosong sebanyak kuota paket aktif klien: `C1…Cn` untuk kuota konten, `D1…Dn` untuk kuota desain. Semua lahir berstatus **Draf**. |
+| 2. Isi brief tiap slot | Copywriter | Buka tiap slot, susun brief (manual atau AI Brief). |
+| 3. Ajukan Rencana | Copywriter | Status rencana: Draf → Menunggu Persetujuan. |
+| 4. Setujui / Tolak | Manager / SMO / CEO | Ditolak → bisa dikembalikan ke Draf lalu diajukan ulang (riwayat keputusan tersimpan). |
+| 5. **Atur Deadline** | SMO | Halaman baru `/content-plan/{id}/deadlines`. Isi **tanggal upload** tiap slot. Deadline pengerjaan dihitung otomatis = tanggal upload − 2 hari. Hanya bisa dibuka kalau rencana **sudah disetujui**. |
+| 6. **Kirim ke Produksi** | SMO | Batch: semua slot Draf pindah ke **Brief Ready** sekaligus dan briefnya dikunci. **Ditolak** kalau masih ada slot yang tanggal upload-nya kosong. |
+
+Konsekuensi yang wajib masuk buku:
+
+- **Klien wajib punya paket aktif sebelum rencana bisa dibuat.** Tanpa paket,
+  tombol Buat Rencana menolak dengan pesan yang mengarahkan ke Kelola Klien →
+  Ubah Paket. Tidak ada jalur lain untuk mengisi rencana.
+- **Satu klien hanya boleh punya satu rencana per bulan.** Percobaan membuat
+  yang kedua ditolak dengan pesan yang menyuruh membuka rencana yang sudah ada.
+- Jumlah slot **mengikuti kuota paket**, jadi mengubah paket klien mengubah
+  jumlah slot rencana berikutnya (rencana yang sudah dibuat tidak ikut berubah).
+
+*Implementasi: `ContentPlanItemGeneratorService`, `ContentPlanController::store/
+deadlines/updateDeadlines/sendToProduction`, view `content-plan/deadlines`.*
+
+### Kalender Rencana Konten
+
+Tampilan kalender sekarang punya **filter status kerja** dan memakai
+**ikon + garis tepi** per status (bukan titik warna kecil seperti sebelumnya).
+
+## 0.5 Content Format & multi-platform
+
+- **Content Format** kini master data resmi dengan tiga nilai baku:
+  **Single Post**, **Carousel**, **Video**. Semua halaman memetakan format
+  mentah dari Instagram/TikTok ke tiga nilai ini lewat satu tempat
+  (`ContentFormatResolver`). Kalau formatnya belum bisa dipastikan, sistem
+  menampilkan kosong — **tidak pernah menebak**.
+- Satu konten sekarang boleh ditandai tayang di **lebih dari satu platform**
+  (form **Ubah Info Konten**).
+- Ada kolom baru **Link Referensi** pada konten (moodboard/contoh), terpisah
+  dari **Link Konten (Draft)** dan dari **Link Post** publikasi.
+
+> **Istilah untuk buku:** "Single Post / Carousel / Video" adalah **format**;
+> "Video / Desain" adalah **tipe konten** (dipakai kuota paket). Dua hal
+> berbeda — jangan dicampur.
+
+## 0.6 Link Konten (Draft)
+
+Kolom **Link Konten (Draft)** ada di halaman Detail Konten, lengkap dengan modal
+pengisian cepat pada tombol perpindahan status.
+
+- Isinya link file hasil produksi (Google Drive/Canva/dsb), **bukan** link
+  postingan yang sudah tayang.
+- **Tidak wajib.** Sempat dibuat wajib sebelum "Menunggu Persetujuan", lalu
+  keputusan itu ditarik kembali — jangan tulis di buku bahwa link ini wajib.
+
+## 0.7 AI Brief: tidak lagi menentukan tanggal
+
+AI Brief **tidak pernah** lagi mengisi tanggal mulai produksi maupun tanggal
+upload, dan tanggal-tanggal itu **tidak ditampilkan** sebagai keluaran AI.
+
+- Tanggal upload diisi **manual** (`PATCH content-brief/{id}/upload-date`), atau
+  lewat **Atur Deadline** di Rencana Konten.
+- Untuk brief yang deadline-nya sudah lewat, pembangkitan tanggal oleh AI
+  memang sengaja dilewati.
+- **Cek Kelayakan** (Jadwal Aman / Perlu Perhatian / Kritis) tetap ada dan tetap
+  dihitung dari jarak tanggal ke deadline + beban PIC.
+
+## 0.8 Performa: semantik cohort tanggal tayang
+
+Ini perubahan makna, bukan sekadar tampilan — **wajib** dijelaskan di buku
+supaya pembaca tidak salah menafsirkan angkanya.
+
+| Widget | Artinya sekarang |
+|---|---|
+| **Total Views Bulan Ini**, **Content Published**, tabel Konten | **Cohort tanggal tayang**: konten yang **dipublikasikan** pada periode terpilih, dengan angka performa **terkini**-nya. |
+| **Tren Views** / grafik harian | **Pertumbuhan harian** (selisih antar-observasi) selama periode itu — bukan cohort. |
+| Banner **"Data melalui <tanggal>"** | Batas tanggal data yang benar-benar sudah terkumpul. |
+| Banner kuning "riwayat observasi belum cukup" | Sebagian konten belum punya cukup riwayat untuk menghitung pertumbuhan periode; **angka totalnya tetap benar**. |
+
+Filter periode sekarang **satu** untuk seluruh halaman Performa, dengan dua
+mode: **Bulan** dan **Rentang**. (AI Strategy punya filter bulannya sendiri —
+lihat 0.9.)
+
+### Panel sinkronisasi
+
+Tombol **Perbarui Data** kini menjalankan sinkronisasi **progresif** dengan
+status hidup:
+
+- progres per tahap dan per konten, ter-update sendiri tanpa reload;
+- daftar item yang gagal, dengan tombol **coba lagi** per tugas maupun untuk
+  seluruh item yang gagal;
+- riwayat sinkronisasi (termasuk baris gagal) di **Pengaturan → Integrasi**,
+  juga ter-update hidup.
+
+**Admin tidak boleh menekan Perbarui Data** (izin `analytics,manage`), begitu
+juga Copywriter/Content Creator/Graphic Designer.
+
+## 0.9 AI Strategy
+
+- Punya **filter bulan sendiri** (terpisah dari filter periode Performa di
+  atasnya) karena analisis strategi selalu retrospektif per **bulan penuh**,
+  sementara filter atas boleh berupa rentang bebas. Keduanya memang sengaja
+  tidak digabung. Filter ini tidak bisa memilih bulan yang belum terjadi.
+- Analisis juga **terikat platform** yang sedang dipilih (Semua Platform /
+  Instagram / TikTok). Analisis Agustus-TikTok tidak akan muncul saat pengguna
+  sedang melihat September-Instagram.
+- **Angka "Potensi" per ide konten sudah dihapus** — perhitungannya tidak
+  pernah bisa dijelaskan ke pengguna. Jangan menyebutnya di buku.
+- Menerapkan ide sekarang berarti **mengisi slot Draf yang sudah ada**
+  ("Terapkan ke Slot Ini"), konsekuensi dari alur Rencana Konten baru — bukan
+  membuat konten baru dari nol.
+
+## 0.10 Performa Tim: KPI bulanan (fitur baru)
+
+Halaman **Performa Tim** sekarang memuat:
+
+- **Ringkasan Tim — Tren 6 Bulan Terakhir**: tiga grafik garis (Rata-rata Nilai
+  KPI, Ketepatan Kerja Tim, Kualitas Kerja Tim).
+- **Perbandingan Nilai KPI Anggota**: diagram batang per anggota untuk bulan
+  terpilih.
+- **Ketepatan Prediksi Risiko Tinggi**: evaluasi model AI Delay Risk
+  (precision/recall) — **bukan** penilaian karyawan.
+- **Daftar Anggota**: Nilai KPI · Ketepatan Kerja · Kualitas Kerja · **Bonus
+  Performa** · jumlah konten, plus keterangan arti tiap kolom di bawah tabel.
+
+Rumus, aturan atribusi, dan seluruh batasannya ada di
+**`docs/KPI_TEAM_PERFORMANCE.md`** — itu rujukan tunggal, jangan ditulis ulang
+dengan kata-kata sendiri di buku.
+
+Dua hal yang **harus** disebut di buku:
+
+1. KPI dihitung dari konten yang **tanggal tayangnya** jatuh di bulan terpilih.
+   Bulan yang belum ada konten tayang akan tampil `-`, dan itu **bukan** nilai
+   nol.
+2. Anggota tanpa penugasan/jejak yang bisa diatribusikan juga tampil `-`.
+   Penugasan PIC bersifat opsional di alur produksi, jadi kelengkapan KPI
+   bergantung pada disiplin tim mengisi PIC — ini soal proses, bukan bug.
+
+Nilai KPI setiap orang juga muncul sebagai kartu ringkas di **halaman Profil**.
+
+## 0.11 Kelola Pengguna
+
+- **Undangan lewat email dihapus seluruhnya.** Tidak ada lagi email undangan;
+  akun dibuat langsung lewat **Tambah Pengguna**, dan akses login dinyalakan
+  lewat tombol **Aktifkan Akses Login**. Hapus prosedur "undang anggota" dari
+  naskah buku.
+- Daftar pengguna kini terbagi **tab Aktif** dan **tab Nonaktif**.
+- Tooltip aksi memakai tooltip aplikasi sendiri (bukan tooltip bawaan browser).
+
+## 0.12 Kelola Klien
+
+- Kolom **Nama Brand** **dihapus** dan dilebur ke **Nama Klien** — form
+  onboarding sekarang hanya punya satu kolom nama.
+- **Menghapus klien**: klien yang punya riwayat konten **atau** riwayat data
+  performa (sinkronisasi, import CSV, audiens, akun sosial tersambung) tidak
+  dihapus permanen, melainkan diubah statusnya menjadi **Dijeda**. Hanya klien
+  yang benar-benar belum punya jejak apa pun yang bisa dihapus.
+
+## 0.13 Perbaikan kecil lain yang terlihat pengguna
+
+- Tombol **kembali** di Detail Konten kembali ke halaman asal (Rencana Konten
+  atau Produksi), bukan selalu ke Produksi.
+- Sidebar **Kelola Klien** kini hanya muncul untuk role yang benar-benar boleh
+  membuka daftarnya (CEO, Manager, Admin). Sebelumnya menu itu tampil untuk
+  semua role internal lalu berujung 403.
+- Pemilih tema **Terang / Gelap / Ikut Sistem** ada di bagian bawah sidebar.
+- Input tanggal/bulan di seluruh aplikasi memakai kalender yang seragam
+  (ikon kalender + pemilih bulan).
+
+## 0.14 Menyiapkan database untuk sesi pemotretan (BERUBAH)
+
+`php artisan db:seed` sekarang **ikut menjalankan `TeamClientSeeder`**, yang
+memasukkan **daftar klien dan staf 523 Studio yang sungguhan**. Kalau perintah
+itu dijalankan di database yang dipakai untuk screenshot, nama klien dan nama
+staf asli akan ikut terfoto.
+
+**Urutan yang benar untuk database dokumentasi:**
+
+```bash
+# 1. Database TERPISAH, jangan pakai database kerja sehari-hari
+php artisan migrate:fresh --database=... # atau set DB_DATABASE ke db khusus
+
+# 2. Prasyarat saja - JANGAN `php artisan db:seed` polos
+php artisan db:seed --class=RoleSeeder
+php artisan db:seed --class=PermissionSeeder
+php artisan db:seed --class=MasterDataSeeder
+
+# 3. Dataset buku
+php artisan db:seed --class=DocumentationSeeder
+```
+
+`DocumentationSeeder` juga **mengganti identitas akun CEO bootstrap**
+(`hello523studio@gmail.com` → `Akun Sistem 523 <akun.sistem@example.test>`)
+supaya alamat email asli tidak ikut terfoto di Kelola Pengguna, Performa Tim,
+dan hitungan "Tim Aktif" di Dashboard. Untuk mengembalikannya:
+`php artisan db:seed --class=RoleSeeder`.
+
+Rincian isi dataset ada di **`docs/DOCUMENTATION_DATASET.md`**.
+
+## 0.15 Temuan audit yang sudah diperbaiki pada tanggal adendum ini
+
+Enam masalah ditemukan saat audit akhir dan **sudah diperbaiki**, jadi buku
+boleh menjelaskan perilaku yang benar. Rinciannya (gejala, sebab, cara
+verifikasi) ada di **`docs/POST_FREEZE_AUDIT_REPORT.md`**.
+
+| # | Masalah | Perilaku sekarang |
+|---|---|---|
+| 1 | Analisis AI Strategy bulan berjalan **hilang dari panel keesokan harinya** (jendela periodenya ikut bergeser tiap hari) | Analisis bulan berjalan tetap tampil sampai bulannya berganti |
+| 2 | Menu **Kelola Klien** muncul untuk SMO/Copywriter/Content Creator/Graphic Designer lalu 403 saat diklik | Menu hanya muncul untuk role yang boleh membukanya |
+| 3 | **Menghapus klien** yang punya riwayat sinkronisasi/import tapi belum punya konten → halaman error 500 | Klien diubah jadi **Dijeda**, dengan pesan yang jelas |
+| 4 | **Menghapus Platform** di Data Pilihan bisa lolos pemeriksaan lalu gagal di database (500) | Pemeriksaan "masih dipakai" mencakup seluruh tabel terkait |
+| 5 | Satu klien bisa punya **dua Rencana Konten untuk bulan yang sama**, masing-masing menggandakan slot kuota | Ditolak dengan pesan yang mengarahkan ke rencana yang sudah ada |
+| 6 | **Ketepatan Prediksi Risiko Tinggi** membaca hampir semua konten sebagai "terlambat" (dibandingkan ke deadline pengerjaan, padahal tayang memang dijadwalkan 2 hari sesudahnya) | Dibandingkan ke tanggal target tayang |
 
 ---
 
@@ -144,7 +470,7 @@ operasional agensi:
 1. **Bulan ini kita janji bikin konten apa saja untuk klien siapa?**
    → Rencana Konten (target per klien, per bulan, mengikuti paket langganannya)
 2. **Konten mana yang sedang dikerjakan siapa, dan sudah sampai tahap apa?**
-   → Produksi (papan alur produksi dari "Siap Dikerjakan" sampai "Sudah Tayang")
+   → Produksi (papan alur produksi dari "Brief Ready" sampai "Sudah Tayang")
 3. **Klien sudah setuju belum?**
    → Portal Klien (klien membuka link sendiri, menyetujui atau minta revisi)
 4. **Setelah tayang, hasilnya bagaimana?**
@@ -198,14 +524,19 @@ Panduan Administrator, bukan Buku Panduan Pengguna (lihat Bagian 19 & 22).
 
 # Bagian 2. Role dan Permission
 
-Sistem punya **6 role**, didefinisikan di `App\Enums\UserRole` dan dibuat oleh
+> **Diperbarui pasca-freeze — lihat [Bagian 0.2](#02-role-admin-baru).** Sistem
+> sekarang punya **7 role**: role **Admin** (read-only) ditambahkan setelah
+> dokumen ini ditulis, dan Admin ikut melihat semua klien. Enam profil role di
+> bawah tetap berlaku apa adanya.
+
+Sistem punya **7 role**, didefinisikan di `App\Enums\UserRole` dan dibuat oleh
 `RoleSeeder`. **Satu orang bisa memegang lebih dari satu role sekaligus**
 (relasi many-to-many lewat tabel `user_roles`) — misalnya seseorang bisa
 sekaligus Manager dan SMO, dan akan mendapat gabungan hak akses keduanya.
 
 Aturan khusus yang berlaku lintas role:
 
-- **CEO dan Manager selalu melihat SEMUA klien.** Empat role lainnya hanya
+- **CEO, Manager, dan Admin selalu melihat SEMUA klien.** Empat role lainnya hanya
   melihat klien yang secara eksplisit ditugaskan kepada mereka lewat
   **Kelola Pengguna → Assign Klien** (atau, dari arah sebaliknya,
   **Detail Klien → PIC Ditugaskan**).
@@ -363,6 +694,15 @@ Graphic Designer dan bertipe "Video" ke Content Creator.
 Legenda: ✓ = bisa · (kosong) = tidak bisa · ⚠ = bisa, tapi ada catatan ·
 Klien = pengguna Portal Klien (bukan role Laravel)
 
+> **Role Admin tidak ada di tabel ini** karena ditambahkan setelah dokumen ini
+> ditulis. Aturannya sederhana dan tidak perlu kolom sendiri: **Admin bisa
+> MELIHAT semua yang bisa dilihat CEO, dan tidak bisa melakukan apa pun yang
+> mengubah data.** Setiap baris tabel yang kata kerjanya "Melihat…" → ✓ untuk
+> Admin; baris lainnya → kosong. Lihat [Bagian 0.2](#02-role-admin-baru).
+>
+> Baris **"Menambah Konten ke Rencana"** sudah tidak berlaku — form-nya dihapus,
+> lihat [Bagian 0.4](#04-rencana-konten-alur-baru-perubahan-terbesar).
+
 | Fitur | CEO | Manager | Copywriter | Content Creator | Graphic Designer | SMO | Klien |
 |---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | Melihat Beranda | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | |
@@ -426,7 +766,18 @@ Sidebar dibangun dari daftar statis di `components/sidebar.blade.php` lalu
 di-filter per permission. **Grup yang seluruh isinya tidak boleh diakses akan
 hilang sepenuhnya**, jadi jumlah grup yang terlihat berbeda-beda per role.
 
-## CEO & Manager (identik)
+> **Diperbarui pasca-freeze:**
+> - **Admin** punya sidebar yang **identik dengan CEO & Manager** (semua menu
+>   terlihat), tapi seluruh tombol pengubah data tidak tersedia di dalam
+>   halamannya.
+> - **"Kelola Klien" tidak lagi muncul** di sidebar SMO, Copywriter, Content
+>   Creator, dan Graphic Designer. Empat role itu memang tidak boleh membuka
+>   daftar klien (hanya halaman detail 1 klien yang ditugaskan kepada mereka).
+>   Sebelumnya menu ini tampil lalu berujung 403 saat diklik — kalau ada draf
+>   naskah/screenshot lama yang menampilkannya, itu sudah usang.
+> - Bagian bawah sidebar memuat **pemilih tema** (Terang / Gelap / Ikut Sistem).
+
+## CEO, Manager & Admin (sidebar identik)
 
 **Ringkasan**
 - Beranda
@@ -511,12 +862,18 @@ dari halaman lain, bukan dari menu.
 
 # Bagian 5. Workflow Utama Konten
 
-Alur produksi punya **8 status**. Label internal → label yang tampil ke pengguna
+> **Diperbarui pasca-freeze — lihat [Bagian 0.3](#03-status-konten-sekarang-9-bukan-8).**
+> Sekarang ada **9 status**: **Draf** ditambahkan di depan alur, dan
+> `brief_ready` tampil sebagai **"Brief Ready"** (bukan lagi "Siap
+> Dikerjakan"). Semua penyebutan "Siap Dikerjakan" di bawah harus dibaca
+> sebagai "Brief Ready".
+
+Alur produksi punya **9 status**. Label internal → label yang tampil ke pengguna
 didefinisikan sekali di `App\Support\WorkflowTransitions` dan dipakai konsisten
 di semua halaman.
 
 ```text
-                    Siap Dikerjakan
+                    Brief Ready
                           │
                           ▼
                    Sedang Dikerjakan  ◄─────────────┐
@@ -543,7 +900,8 @@ di semua halaman.
 
 | Dari | Ke |
 |---|---|
-| Siap Dikerjakan | Sedang Dikerjakan · Dibatalkan |
+| Draf | Brief Ready — **hanya lewat tombol "Kirim ke Produksi"** (batch per Rencana Konten), tidak bisa dipindah satu per satu |
+| Brief Ready | Sedang Dikerjakan · Dibatalkan |
 | Sedang Dikerjakan | Menunggu Persetujuan · Dibatalkan |
 | Menunggu Persetujuan | Disetujui · Perlu Revisi · Dibatalkan |
 | Perlu Revisi | Sedang Dikerjakan · Dibatalkan |
@@ -554,7 +912,7 @@ di semua halaman.
 
 ## Detail per status
 
-### Siap Dikerjakan (`brief_ready`)
+### Brief Ready (`brief_ready`)
 
 **Makna bagi user** — Konten sudah tercatat di sistem dan sudah punya penanggung
 jawab, tapi belum ada yang mulai menggarapnya.
@@ -644,6 +1002,19 @@ dibatalkan.
 
 # Bagian 6. Content Plan (UI: **Rencana Konten**)
 
+> ## ⚠️ BAGIAN INI SUDAH TIDAK BERLAKU PENUH
+>
+> Alur Rencana Konten **dirombak** setelah documentation freeze. Yang berubah
+> paling mendasar: **form "Tambah Konten" manual sudah dihapus** — slot konten
+> sekarang digenerate otomatis dari kuota paket klien, dan ada dua langkah baru
+> (**Atur Deadline** dan **Kirim ke Produksi**).
+>
+> **Tulis bab Rencana Konten di buku berdasarkan
+> [Bagian 0.4](#04-rencana-konten-alur-baru-perubahan-terbesar), bukan
+> berdasarkan bagian ini.** Bagian ini disimpan sebagai rujukan istilah dan
+> aturan yang memang tidak berubah (siklus hidup status rencana, aturan
+> tanggal/periode, hubungan antar entitas).
+
 ## Konsep
 
 Satu **Rencana Konten** = satu klien × satu bulan × satu tahun. Di dalamnya ada
@@ -651,8 +1022,11 @@ banyak **konten** (content item). Setiap rencana menyimpan salinan kuota paket
 klien saat rencana dibuat, yang tampil sebagai **Target** (misalnya "Target: 8
 Konten / 4 Desain").
 
-Kalau klien belum punya paket tercatat, rencana **tetap boleh dibuat** — target-
-nya saja yang kosong. (Ini perubahan disengaja; dulu diblokir.)
+~~Kalau klien belum punya paket tercatat, rencana **tetap boleh dibuat** —
+target-nya saja yang kosong.~~ **Sudah tidak berlaku.** Sejak slot digenerate
+dari kuota paket, **klien wajib punya paket aktif** sebelum rencana bisa dibuat
+— tanpa paket tidak ada cara lain mengisi rencananya. Selain itu, satu klien
+hanya boleh punya **satu rencana per bulan**.
 
 ## Siklus hidup Rencana Konten
 
@@ -702,17 +1076,20 @@ halaman detailnya
 **Permission** — `content_plan,create`
 **Status** — `READY`
 
-### Menambah Konten ke Rencana
+### ~~Menambah Konten ke Rencana~~ — PROSEDUR DIHAPUS DARI APLIKASI
 
-**Role** — CEO, Manager, Copywriter
-**Entry point** — Detail Rencana Konten → tombol Tambah Konten
-**Precondition** — PIC yang dipilih **harus sudah di-assign ke klien rencana ini**
-**Langkah user** — Isi judul · brief singkat · pilar konten · tipe konten ·
-platform · deadline · Penanggung Jawab · Simpan
-**Expected result** *(secara desain)* — Konten baru muncul di papan Produksi
-dengan status **Siap Dikerjakan**, PIC tercatat sebagai penanggung jawab utama
-**Permission** — `content_plan,create`
-**Status** — `READY` (KI-01 diperbaiki; `ContentPlanTest`)
+> **Jangan tulis prosedur ini di buku.** Form "Tambah Konten" (dan view
+> `content-plan/create-item`) sudah dihapus. Slot konten sekarang muncul
+> otomatis sejumlah kuota paket saat rencana dibuat, berstatus **Draf**, lalu
+> diisi brief-nya satu per satu. Prosedur penggantinya ada di
+> [Bagian 0.4](#04-rencana-konten-alur-baru-perubahan-terbesar):
+> **Buat Rencana → isi brief tiap slot → Ajukan → Setujui → Atur Deadline →
+> Kirim ke Produksi.**
+>
+> Teks lama disimpan hanya sebagai jejak audit:
+> *Role — CEO, Manager, Copywriter · Entry point — Detail Rencana Konten →
+> tombol Tambah Konten · Permission `content_plan,create` · Status `READY`
+> (KI-01, `ContentPlanTest`).*
 
 ### Jobdesk Tambahan (permintaan mendadak)
 
@@ -999,7 +1376,7 @@ Tombol yang muncul tergantung status saat ini:
 
 | Status sekarang | Tombol | Yang boleh menekan |
 |---|---|---|
-| Siap Dikerjakan | **Kerjakan Konten** | pemegang `workflow,update` |
+| Brief Ready | **Kerjakan Konten** | pemegang `workflow,update` |
 | Sedang Dikerjakan | **Konten Telah Selesai** | pemegang `workflow,update` |
 | Menunggu Persetujuan | **Approve Konten** | CEO, Manager, SMO |
 | Menunggu Persetujuan / Perlu Revisi | **Tambah Catatan Revisi** | pemegang `workflow,update` |
@@ -1382,7 +1759,7 @@ Detail lengkap di **Bagian 12**.
 | Penanggung jawab | CEO / Manager / Copywriter |
 | Menu | Rencana Konten → **Buat Rencana** → pilih klien, bulan, tahun |
 | Lalu | Tambahkan konten satu per satu, atau pakai **AI Strategy → Terapkan** untuk membuat kerangka otomatis |
-| Indikator berhasil | Konten muncul di papan Produksi dengan status **Siap Dikerjakan** |
+| Indikator berhasil | Konten muncul di papan Produksi dengan status **Brief Ready** |
 | **Klien siap digunakan** | ✅ |
 
 ## Ringkasan urutan onboarding
@@ -1822,7 +2199,7 @@ untuk klien tersebut:
 
 Menghapus **semua draft** yang dibuat dari analisis itu, **asal belum ada
 progres nyata**. Kalau ada satu saja yang sudah diposting, punya revisi, punya
-metrik, atau statusnya sudah melewati Siap Dikerjakan, **seluruh revert
+metrik, atau statusnya sudah melewati Brief Ready, **seluruh revert
 ditolak** dengan pesan jelas — sistem tidak akan menghapus pekerjaan yang sudah
 kadung berjalan. Setelah revert, analisis bisa diterapkan ulang.
 
@@ -1998,11 +2375,16 @@ sisa bulan tidak langsung terhitung sebagai tidak hadir.
 > dan judul tab peramban semuanya menulis **"Kelola Pengguna"**. Istilah lama
 > "Kelola Tim" sudah tidak ada lagi di aplikasi — jangan dipakai di buku.
 
-**Role:** CEO & Manager saja.
+**Role:** CEO & Manager (bisa mengubah), **Admin** (hanya bisa melihat —
+lihat [Bagian 0.2](#02-role-admin-baru)).
 
 Halaman ini menampilkan **seluruh** staf internal — baik yang punya akses
 dashboard maupun yang tidak. Tiap baris memuat: nama, email, **semua role**-nya,
 klien yang ditangani, jumlah task aktif, dan status.
+
+> **Diperbarui pasca-freeze:** daftar sekarang terbagi dua tab, **Aktif** dan
+> **Nonaktif**. Staf yang dinonaktifkan pindah ke tab Nonaktif, bukan hilang
+> dari halaman. Sediakan screenshot untuk kedua tab.
 
 ### Tambah Pengguna
 
@@ -2653,11 +3035,32 @@ atau yang perlu ditunda.**
 
 Prinsip: **1 screenshot = 1 konsep penting.** Jangan memotret setiap klik.
 
-**Prasyarat data — sudah terpenuhi.** Database development sekarang berisi data
-demo dari `database/seeders/DemoSeeder.php`: 10 user, 5 client, 15 rencana
-konten, 85 content item. Cukup untuk seluruh rencana screenshot di bawah.
-Provenance-nya sudah dikonfirmasi (`KNOWN_SOURCE`) — lihat "Checklist Keamanan
-Data Dokumentasi".
+> **Prasyarat data — DIPERBARUI.** Jangan lagi memotret dari database
+> development / `DemoSeeder` (isinya nama klien mendekati portofolio riil dan
+> tidak aman dipublikasikan). Pakai **database terpisah** yang diisi
+> `DocumentationSeeder`; prosedurnya ada di
+> [Bagian 0.14](#014-menyiapkan-database-untuk-sesi-pemotretan-berubah) dan
+> daftar isi datasetnya di **`docs/DOCUMENTATION_DATASET.md`** — termasuk tabel
+> **Screenshot Recommendations** dengan URL & role yang sudah diverifikasi
+> membalas `200` **dan** memuat kondisi yang dimaksud.
+>
+> **Halaman baru yang belum ada di daftar di bawah** (semuanya sudah ada
+> datanya di `DocumentationSeeder`):
+>
+> - Rencana Konten berisi **slot Draf** + tombol Atur Deadline & Kirim ke
+>   Produksi
+> - Halaman **Atur Deadline** (`/content-plan/<id>/deadlines`)
+> - **Performa Tim**: tren KPI 6 bulan, perbandingan antar anggota, Ketepatan
+>   Prediksi Risiko Tinggi, Daftar Anggota + keterangan kolom
+> - **Kartu KPI** di halaman Profil
+> - **Sidebar role Admin** (read-only)
+> - Kelola Pengguna **tab Aktif / Nonaktif**
+> - Panel sinkronisasi progresif di Performa & Pengaturan → Integrasi
+>   *(butuh akun tester ber-API sungguhan — jangan direkayasa)*
+
+*Teks lama, disimpan sebagai jejak:* database development berisi data demo dari
+`DemoSeeder.php` (10 user, 5 client, 15 rencana konten, 85 content item),
+provenance `KNOWN_SOURCE`.
 
 **Tidak ada lagi screenshot yang diblokir oleh bug.** Semua larangan pemotretan
 di versi sebelumnya berasal dari KI-01…KI-04 dan KI-07, yang sudah diperbaiki.
@@ -2964,7 +3367,8 @@ client asli manapun, sebelum screenshot final diambil.
 
 | Istilah | Arti |
 |---|---|
-| **Siap Dikerjakan** | Tercatat & ada PIC, belum digarap |
+| **Draf** | Slot kosong hasil generate kuota paket. Belum masuk produksi: tidak muncul di Kanban, tidak dihitung sebagai beban kerja, tidak pernah terlambat, tidak masuk KPI |
+| **Brief Ready** | Tercatat & ada PIC, belum digarap |
 | **Sedang Dikerjakan** | Sedang digarap |
 | **Menunggu Persetujuan** | Menunggu review; tampil di Portal Klien |
 | **Perlu Revisi** | Ada catatan perbaikan yang harus dikerjakan |

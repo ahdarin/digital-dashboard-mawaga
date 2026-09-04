@@ -187,6 +187,17 @@ perhitungan per content, dipakai bagian KPI di halaman Profil),
   analytics belum lengkap untuk klien/format tertentu, bonus akan terus
   tampil "belum tersedia" untuk PIC yang menangani klien/format itu -
   ini bukan bug, tapi konsekuensi eksplisit aturan "jangan mengarang data".
+  **Konsekuensi yang perlu disadari:** `content_metric_snapshots` HANYA
+  ditulis oleh sinkronisasi API Instagram/TikTok
+  (`InstagramAnalyticsSyncService`/`TikTokAnalyticsSyncService`), TIDAK
+  PERNAH oleh Import CSV Performa maupun input manual. Untuk klien yang
+  data performanya masuk lewat CSV saja, Bonus Performa **tidak akan
+  pernah** terisi - Nilai KPI klien itu efektif hanya Ketepatan Kerja
+  (60%) + Kualitas Kerja (40%). Itu bukan penalti (bonus tidak pernah
+  mengurangi), tapi berarti PIC klien CSV-only tidak punya jalan menembus
+  batas 100 lewat bonus, sementara PIC klien ber-API punya. Kalau tim
+  memakai KPI ini untuk membandingkan orang lintas klien, perbedaan ini
+  harus disebut terlebih dahulu.
 - Skor dihitung ulang penuh tiap kali job jalan (bukan incremental) -
   cukup murah untuk skala data saat ini, tapi perlu diperhatikan kalau
   jumlah content publication per bulan tumbuh sangat besar.

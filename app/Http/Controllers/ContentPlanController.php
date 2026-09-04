@@ -165,6 +165,27 @@ class ContentPlanController extends Controller
             ], 'createContentPlan')->withInput();
         }
 
+        // Satu client cuma boleh punya SATU rencana per bulan. Dulu rencana
+        // ganda relatif tidak berbahaya (isinya diisi manual satu-satu),
+        // tapi sejak slot digenerate otomatis dari kuota paket, rencana
+        // kedua untuk bulan yang sama langsung menambah satu set penuh slot
+        // Draf baru - kuota "Target vs Realisasi" di halaman Rencana Konten
+        // jadi berlipat dan tim melihat dua kartu bulan yang sama tanpa tahu
+        // mana yang dipakai. Tidak ada unique index di tabelnya, jadi
+        // dijaga di sini.
+        $existing = ContentPlan::where('client_id', $client->id)
+            ->where('month', $validated['month'])
+            ->where('year', $validated['year'])
+            ->first();
+
+        if ($existing) {
+            $monthLabel = Carbon::create($existing->year, $existing->month, 1)->translatedFormat('F Y');
+
+            return back()->withErrors([
+                'client_id' => "Rencana konten {$client->name} untuk {$monthLabel} sudah ada - buka rencana yang sudah ada itu, jangan membuat yang kedua.",
+            ], 'createContentPlan')->withInput();
+        }
+
         $plan = ContentPlan::create([
             'client_id' => $client->id,
             'client_package_id' => $package->id,

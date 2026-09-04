@@ -1,5 +1,14 @@
 # Documentation Freeze Checklist
 
+> ⚠️ **Dokumen historis — potret kondisi 26 Agustus 2026.** Aplikasi terus
+> berubah setelah tanggal ini (role Admin, status konten Draf, alur Rencana
+> Konten baru, KPI Performa Tim, dan lain-lain). Angka test suite di bawah
+> (148 test) juga sudah lama terlampaui — kondisi terkini **745 test / 2.304
+> assertion / 0 gagal**.
+>
+> Untuk kondisi sekarang: **`docs/USER_MANUAL_SOURCE_OF_TRUTH.md` Bagian 0** dan
+> **`docs/POST_FREEZE_AUDIT_REPORT.md`**.
+
 > Branch: `stabilization/pre-user-manual` · Commit dasar: `d637369` · Tanggal:
 > 26 Agustus 2026. Lihat `docs/PRE_DOCUMENTATION_STABILIZATION_REPORT.md`
 > (termasuk appendix "Final Pre-Merge Verification") dan
