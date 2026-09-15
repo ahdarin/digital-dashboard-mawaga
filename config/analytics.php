@@ -59,35 +59,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Snapshot Retention (audit sync horizon - REVIEW-ONLY, belum final)
+    | Snapshot Retention (audit sync horizon - AKTIF, lihat routes/console.php)
     |--------------------------------------------------------------------------
     |
-    | content_metric_snapshots (histori observasi harian, Phase 2) - kandidat
-    | retention rolling. Fakta yang SUDAH diverifikasi terhadap
-    | PeriodPerformanceService: minimum MUTLAK buat filter 90-hari saat ini
-    | (filter terpanjang yang UI tawarkan) benar-benar full coverage adalah
-    | 91 hari (period_start s/d hari ini, PLUS 1 hari sebelum period_start
-    | sebagai baseline ideal). 120 = 91 + buffer ~29 hari buat toleransi
-    | scheduler yang kelewat/API down sementara/sync telat.
+    | content_metric_snapshots (histori observasi harian, Phase 2) - retention
+    | rolling. Fakta yang SUDAH diverifikasi terhadap PeriodPerformanceService:
+    | minimum MUTLAK buat filter 90-hari saat ini (filter terpanjang yang UI
+    | tawarkan) benar-benar full coverage adalah 91 hari (period_start s/d
+    | hari ini, PLUS 1 hari sebelum period_start sebagai baseline ideal).
+    | 120 = 91 + buffer ~29 hari buat toleransi scheduler yang kelewat/API
+    | down sementara/sync telat.
     |
     | PENTING - buffer 29 hari ini BELUM DIKALIBRASI dari data operasional
     | nyata (sama seperti instagram_schedule_match_tolerance_minutes di atas)
     | - JANGAN anggap 120 sebagai angka optimal, cuma starting point yang
-    | matematis cukup (91) plus margin aman yang masuk akal.
+    | matematis cukup (91) plus margin aman yang masuk akal. Kalau kebutuhan
+    | historical-reporting jangka panjang ternyata lebih dari 120 hari,
+    | NAIKKAN angka ini - JANGAN menonaktifkan schedule-nya lagi.
     |
     | DELETION IRREVERSIBLE - content_metric_snapshots yang terhapus TIDAK
     | BISA direkonstruksi dari Instagram/TikTok API (kedua platform cuma
     | expose nilai cumulative SAAT INI, bukan "nilai per tanggal X di masa
     | lalu"). Karena itu:
     |
-    | analytics:prune-content-metric-snapshots (app/Console/Commands) SUDAH
-    | ADA dan struktural benar (aman dijalankan manual, HANYA menyentuh
-    | content_metric_snapshots), TAPI SCHEDULE OTOMATISNYA SENGAJA
-    | DINONAKTIFKAN (lihat routes/console.php - baris Schedule:: buat
-    | command ini dikomentari, BUKAN dihapus) sampai ada keputusan retention
-    | policy eksplisit yang mempertimbangkan: pertumbuhan tabel nyata,
-    | dampak storage, kebutuhan historical-reporting jangka panjang di masa
-    | depan. Command tetap bisa dijalankan manual kapan saja buat testing.
+    | RETENTION POLICY DECISION (Langkah audit "sync bulan tertentu tidak ada
+    | loading/hilang setelah 1 minggu?") - analytics:prune-content-metric-
+    | snapshots (app/Console/Commands) SEKARANG dijadwalkan otomatis harian
+    | (lihat routes/console.php), sebagai jawaban ke kekhawatiran storage
+    | tumbuh tak terbatas. Cakupannya TETAP HANYA content_metric_snapshots
+    | (histori observasi harian) - ContentMetric (angka performa terkini)
+    | dan InstagramMediaSnapshot/TikTokVideoSnapshot (identitas konten,
+    | termasuk yang di-backfill lewat "Sinkronisasi Konten Historis" bulan
+    | tertentu) TIDAK PERNAH disentuh, TETAP PERMANEN. Retensi ini berlaku
+    | rata untuk snapshot dari SEMUA jalur sync (90 hari rolling maupun
+    | historical bulan tertentu) - keduanya menulis ke tabel yang sama,
+    | tidak dibedakan asal sync-nya.
     |
     */
     'content_metric_snapshot_retention_days' => 120,

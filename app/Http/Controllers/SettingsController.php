@@ -13,13 +13,13 @@ use App\Models\ContentItem;
 use App\Models\ContentMetric;
 use App\Models\PackageTemplate;
 use App\Models\Platform;
+use App\Services\AnalyticsSyncOrchestrator;
 use App\Services\InstagramAnalyticsSyncService;
 use App\Services\TikTokAnalyticsSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
-use App\Http\Controllers\MasterDataController;
 
 /**
  * NOTE UNTUK TIM:
@@ -254,6 +254,7 @@ class SettingsController extends Controller
         $lock = Cache::lock($cacheLockKey, 10);
         if ($lock->get()) {
             $lock->release();
+
             return false;
         }
 
@@ -314,6 +315,7 @@ class SettingsController extends Controller
 
         if (! $header) {
             $syncLog->update(['status' => 'failed']);
+
             return back()->with('import_error', 'File CSV kosong atau formatnya nggak kebaca.');
         }
 
@@ -324,6 +326,7 @@ class SettingsController extends Controller
         if (! empty($missingColumns)) {
             fclose($handle);
             $syncLog->update(['status' => 'failed']);
+
             return back()->with('import_error', 'Kolom CSV tidak lengkap. Wajib ada: '.implode(', ', $required).'. Yang hilang: '.implode(', ', $missingColumns));
         }
 
@@ -345,6 +348,7 @@ class SettingsController extends Controller
 
             if (! $platform) {
                 $skippedRows[] = "Baris {$rowNumber}: platform '".trim($data['platform'] ?? '-')."' tidak dikenali";
+
                 continue;
             }
 
@@ -356,6 +360,7 @@ class SettingsController extends Controller
 
             if (! $contentItem) {
                 $skippedRows[] = "Baris {$rowNumber}: konten '".trim($data['content_title'] ?? '-')."' tidak ditemukan untuk client {$client->name}";
+
                 continue;
             }
 
@@ -364,6 +369,7 @@ class SettingsController extends Controller
                 $metricDate = Carbon::parse($data['metric_date']);
             } catch (\Exception $e) {
                 $skippedRows[] = "Baris {$rowNumber}: format tanggal '{$data['metric_date']}' tidak valid";
+
                 continue;
             }
 
@@ -459,7 +465,7 @@ class SettingsController extends Controller
      * butuh `php artisan queue:work` (atau setara) jalan terus-menerus -
      * lihat docs/RUNTIME.md.
      */
-    public function syncInstagram(Request $request)
+    public function syncInstagram(Request $request, AnalyticsSyncOrchestrator $orchestrator)
     {
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
@@ -486,7 +492,38 @@ class SettingsController extends Controller
         $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
 
         if (! $integration || ! filled($integration->access_token)) {
-            return back()->with('import_error', 'Client ini belum connect Instagram (OAuth). Hubungkan dulu lewat tombol "Connect Instagram".');
+            return $this->syncFailResponse($request, 'Client ini belum connect Instagram (OAuth). Hubungkan dulu lewat tombol "Connect Instagram".');
+        }
+
+        // SYNC PROGRESS PARITY (bulan tertentu) - form "Sinkronisasi Konten
+        // Historis" SEKARANG lewat AnalyticsSyncOrchestrator::
+        // dispatchHistorical() supaya dapat AnalyticsSyncTask (progress
+        // live sama seperti "Perbarui Data"), bukan lagi dispatch Job
+        // langsung tanpa jejak apapun. $month SELALU terisi dari form ini
+        // (input type="month" required) - null hanya path defensif kalau
+        // ada caller lain yang belum kirim month, TETAP pakai jalur lama
+        // (lock peek + dispatch tanpa Task) biar perilakunya identik apa
+        // adanya buat caller itu.
+        if (! empty($validated['month'])) {
+            try {
+                $result = $orchestrator->dispatchHistorical(
+                    $integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $validated['month'], $user->id
+                );
+            } catch (\InvalidArgumentException $e) {
+                return $this->syncFailResponse($request, $e->getMessage());
+            }
+
+            if (! $result['dispatched']) {
+                $message = match ($result['reason']) {
+                    'already_in_flight' => 'Sinkronisasi Instagram untuk akun ini sedang berjalan.',
+                    'needs_reconnect' => 'Client ini belum connect Instagram (OAuth). Hubungkan dulu lewat tombol "Connect Instagram".',
+                    default => 'Sinkronisasi Instagram tidak dapat dimulai.',
+                };
+
+                return $this->syncFailResponse($request, $message);
+            }
+
+            return $this->syncSuccessResponse($request, 'Sinkronisasi Instagram bulan terpilih dimulai.', $result['task_id']);
         }
 
         // Cegah 2 sync bersamaan buat integration yang sama (defense-in-depth,
@@ -495,15 +532,15 @@ class SettingsController extends Controller
         // dipegang atau nggak", bukan benar-benar mau pegang dari sini.
         $lock = Cache::lock(SyncInstagramAnalyticsJob::cacheLockKey($integration->id), 10);
         if (! $lock->get()) {
-            return back()->with('import_error', 'Sinkronisasi Instagram untuk akun ini sedang berjalan.');
+            return $this->syncFailResponse($request, 'Sinkronisasi Instagram untuk akun ini sedang berjalan.');
         }
         $lock->release();
 
         try {
             [$syncMode, $since, $until] = app(InstagramAnalyticsSyncService::class)
-                ->resolveSyncWindow($validated['month'] ?? null);
+                ->resolveSyncWindow(null);
         } catch (\InvalidArgumentException $e) {
-            return back()->with('import_error', $e->getMessage());
+            return $this->syncFailResponse($request, $e->getMessage());
         }
 
         SyncInstagramAnalyticsJob::dispatch(
@@ -511,14 +548,15 @@ class SettingsController extends Controller
             $since->toDateString(), $until->toDateString(), auth()->id()
         );
 
-        return back()->with('import_success', 'Sinkronisasi Instagram dimulai.');
+        return $this->syncSuccessResponse($request, 'Sinkronisasi Instagram dimulai.');
     }
 
     /**
-     * MIRROR syncInstagram() - identik strukturnya (scope check, lock peek,
-     * dispatch Job), cuma menunjuk platform/Job/Service TikTok.
+     * MIRROR syncInstagram() - identik strukturnya (scope check, historical
+     * dispatch via orchestrator, lock peek buat jalur non-month), cuma
+     * menunjuk platform/Job/Service TikTok.
      */
-    public function syncTiktok(Request $request)
+    public function syncTiktok(Request $request, AnalyticsSyncOrchestrator $orchestrator)
     {
         $validated = $request->validate([
             'client_id' => ['required', 'exists:clients,id'],
@@ -536,20 +574,42 @@ class SettingsController extends Controller
         $integration = ApiIntegration::where('client_id', $validated['client_id'])->where('platform_id', $platform->id)->first();
 
         if (! $integration || ! filled($integration->access_token)) {
-            return back()->with('import_error', 'Client ini belum connect TikTok (OAuth). Hubungkan dulu lewat tombol "Connect TikTok".');
+            return $this->syncFailResponse($request, 'Client ini belum connect TikTok (OAuth). Hubungkan dulu lewat tombol "Connect TikTok".');
+        }
+
+        if (! empty($validated['month'])) {
+            try {
+                $result = $orchestrator->dispatchHistorical(
+                    $integration, AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, $validated['month'], $user->id
+                );
+            } catch (\InvalidArgumentException $e) {
+                return $this->syncFailResponse($request, $e->getMessage());
+            }
+
+            if (! $result['dispatched']) {
+                $message = match ($result['reason']) {
+                    'already_in_flight' => 'Sinkronisasi TikTok untuk akun ini sedang berjalan.',
+                    'needs_reconnect' => 'Client ini belum connect TikTok (OAuth). Hubungkan dulu lewat tombol "Connect TikTok".',
+                    default => 'Sinkronisasi TikTok tidak dapat dimulai.',
+                };
+
+                return $this->syncFailResponse($request, $message);
+            }
+
+            return $this->syncSuccessResponse($request, 'Sinkronisasi TikTok bulan terpilih dimulai.', $result['task_id']);
         }
 
         $lock = Cache::lock(SyncTikTokAnalyticsJob::cacheLockKey($integration->id), 10);
         if (! $lock->get()) {
-            return back()->with('import_error', 'Sinkronisasi TikTok untuk akun ini sedang berjalan.');
+            return $this->syncFailResponse($request, 'Sinkronisasi TikTok untuk akun ini sedang berjalan.');
         }
         $lock->release();
 
         try {
             [$syncMode, $since, $until] = app(TikTokAnalyticsSyncService::class)
-                ->resolveSyncWindow($validated['month'] ?? null);
+                ->resolveSyncWindow(null);
         } catch (\InvalidArgumentException $e) {
-            return back()->with('import_error', $e->getMessage());
+            return $this->syncFailResponse($request, $e->getMessage());
         }
 
         SyncTikTokAnalyticsJob::dispatch(
@@ -557,7 +617,34 @@ class SettingsController extends Controller
             $since->toDateString(), $until->toDateString(), auth()->id()
         );
 
-        return back()->with('import_success', 'Sinkronisasi TikTok dimulai.');
+        return $this->syncSuccessResponse($request, 'Sinkronisasi TikTok dimulai.');
+    }
+
+    /**
+     * SYNC PROGRESS PARITY (bulan tertentu) - form "Sinkronisasi Konten
+     * Historis" sekarang submit lewat fetch() (public/js/analytics-sync-
+     * panel.js, wireHistoricalForm()) supaya bisa lanjut startPolling()
+     * pada AnalyticsSyncPanel yang sudah ada, TANPA reload halaman.
+     * $request->wantsJson() membedakan itu dari submit form biasa (no-JS
+     * fallback) yang tetap redirect back() apa adanya seperti sebelumnya -
+     * SATU controller method melayani dua jalur, bukan endpoint terpisah.
+     */
+    private function syncSuccessResponse(Request $request, string $message, ?int $taskId = null)
+    {
+        if ($request->wantsJson()) {
+            return response()->json(['message' => $message, 'task_id' => $taskId]);
+        }
+
+        return back()->with('import_success', $message);
+    }
+
+    private function syncFailResponse(Request $request, string $message)
+    {
+        if ($request->wantsJson()) {
+            return response()->json(['message' => $message], 422);
+        }
+
+        return back()->with('import_error', $message);
     }
 
     /**

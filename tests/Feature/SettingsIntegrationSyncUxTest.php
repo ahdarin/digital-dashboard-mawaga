@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SyncInstagramAnalyticsJob;
+use App\Jobs\SyncTikTokAnalyticsJob;
 use App\Models\AnalyticsSyncRun;
 use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
@@ -513,5 +515,196 @@ class SettingsIntegrationSyncUxTest extends TestCase
         $response->assertSee('id="analytics-sync-button"', false);
         $response->assertSee('id="analytics-sync-panel"', false);
         $response->assertSee(asset('js/analytics-sync-panel.js'), false);
+    }
+
+    // ===== SYNC PROGRESS PARITY (bulan tertentu) - form "Sinkronisasi
+    // Konten Historis" dulu dispatch Job LANGSUNG tanpa AnalyticsSyncTask
+    // sama sekali (fire-and-forget: submit -> reload halaman -> flash
+    // message doang, tidak ada progress/jumlah konten seperti "Perbarui
+    // Data") - AnalyticsSyncOrchestrator::dispatchHistorical() mengisi
+    // kekosongan itu (Task genuinely ADDITIVE ke jalur monolitik lama,
+    // lihat docblocknya). =====
+
+    public function test_historical_instagram_sync_creates_progress_trackable_task(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+
+        Queue::fake();
+
+        $response = $this->actingAs($manager)->postJson(route('settings.sync-instagram'), [
+            'client_id' => $client->id,
+            'month' => '2026-05',
+        ]);
+
+        $response->assertOk();
+        $taskId = $response->json('task_id');
+        $this->assertNotNull($taskId, 'Response JSON harus punya task_id supaya JS bisa mulai polling.');
+
+        $task = AnalyticsSyncTask::find($taskId);
+        $this->assertNotNull($task);
+        $this->assertSame(AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, $task->subjob);
+        $this->assertSame('queued', $task->status);
+        $this->assertSame(AnalyticsSyncRun::TRIGGER_HISTORICAL, $task->run->trigger);
+
+        Queue::assertPushed(SyncInstagramAnalyticsJob::class, function ($job) use ($task) {
+            return $job->syncTaskId === $task->id && $job->syncMode === 'historical';
+        });
+
+        // Progress harus terlihat lewat endpoint status yang SAMA dengan
+        // "Perbarui Data" (Langkah audit: "sync bulan tertentu tidak ada
+        // loading kayak sync 90 hari, tidak tahu berapa kontennya") -
+        // polling JS (startPolling() dipanggil wireHistoricalForm() setelah
+        // dispatch sukses) SEKARANG punya sesuatu buat ditampilkan.
+        $status = $this->actingAs($manager)->getJson(route('analytics.sync-status', [
+            'client_id' => $client->id, 'platform_id' => $integration->platform_id,
+        ]));
+        $status->assertOk();
+        $this->assertSame($task->id, $status->json('progress.tasks.instagram_content.id') ?? $task->id);
+        $this->assertNotNull($status->json('progress.tasks.instagram_content'));
+    }
+
+    public function test_historical_tiktok_sync_creates_progress_trackable_task(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->tiktokIntegration($client);
+
+        Queue::fake();
+
+        $response = $this->actingAs($manager)->postJson(route('settings.sync-tiktok'), [
+            'client_id' => $client->id,
+            'month' => '2026-03',
+        ]);
+
+        $response->assertOk();
+        $taskId = $response->json('task_id');
+        $this->assertNotNull($taskId);
+
+        $task = AnalyticsSyncTask::find($taskId);
+        $this->assertSame(AnalyticsSyncOrchestrator::SUBJOB_TIKTOK_CONTENT, $task->subjob);
+
+        Queue::assertPushed(SyncTikTokAnalyticsJob::class, function ($job) use ($task) {
+            return $job->syncTaskId === $task->id && $job->syncMode === 'historical';
+        });
+    }
+
+    /**
+     * Progressive enhancement - form ASLI (action+method) dipertahankan
+     * apa adanya, jadi kalau JS gagal load, submit biasa (tanpa header
+     * Accept: application/json) TETAP jalan seperti sebelumnya: redirect
+     * back() + flash message, BUKAN error/blank response.
+     */
+    public function test_historical_sync_without_json_header_still_redirects_back(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->instagramIntegration($client);
+
+        Queue::fake();
+
+        $response = $this->actingAs($manager)->post(route('settings.sync-instagram'), [
+            'client_id' => $client->id,
+            'month' => '2026-05',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('import_success');
+        $this->assertStringContainsString('dimulai', session('import_success'));
+    }
+
+    public function test_historical_sync_blocked_while_already_in_flight(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $integration = $this->instagramIntegration($client);
+        $this->taskFor($integration, AnalyticsSyncOrchestrator::SUBJOB_INSTAGRAM_CONTENT, ['status' => 'running']);
+
+        Queue::fake();
+        $before = AnalyticsSyncTask::count();
+
+        $response = $this->actingAs($manager)->postJson(route('settings.sync-instagram'), [
+            'client_id' => $client->id,
+            'month' => '2026-05',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('sedang berjalan', $response->json('message'));
+        $this->assertSame($before, AnalyticsSyncTask::count(), 'TIDAK BOLEH bikin Task baru selagi subjob ini masih in-flight.');
+        Queue::assertNotPushed(SyncInstagramAnalyticsJob::class);
+    }
+
+    public function test_historical_sync_needs_reconnect_when_integration_inactive(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->instagramIntegration($client, 'inactive');
+
+        Queue::fake();
+
+        $response = $this->actingAs($manager)->postJson(route('settings.sync-instagram'), [
+            'client_id' => $client->id,
+            'month' => '2026-05',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('Connect Instagram', $response->json('message'));
+        Queue::assertNotPushed(SyncInstagramAnalyticsJob::class);
+    }
+
+    public function test_historical_sync_rejects_future_month(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->instagramIntegration($client);
+
+        Queue::fake();
+        $futureMonth = now()->addMonth()->format('Y-m');
+
+        $response = $this->actingAs($manager)->postJson(route('settings.sync-instagram'), [
+            'client_id' => $client->id,
+            'month' => $futureMonth,
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertSame(0, AnalyticsSyncTask::count());
+        Queue::assertNotPushed(SyncInstagramAnalyticsJob::class);
+    }
+
+    /**
+     * Markup wiring - form "Sinkronisasi Konten Historis" harus punya id
+     * yang dipakai wireHistoricalForm() supaya submit-nya benar-benar
+     * diintersep JS (bukan cuma fallback full-page-reload selamanya).
+     * Dicek di KEDUA halaman yang punya form ini (Settings & Client Detail).
+     */
+    public function test_historical_form_wired_to_shared_sync_panel_on_settings_page(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->instagramIntegration($client);
+        $this->tiktokIntegration($client);
+
+        $response = $this->actingAs($manager)->get($this->settingsUrl($client));
+
+        $response->assertOk();
+        $response->assertSee('id="ig-historical-form"', false);
+        $response->assertSee('id="tt-historical-form"', false);
+        $response->assertSee('wireHistoricalForm', false);
+    }
+
+    public function test_historical_form_wired_to_shared_sync_panel_on_client_detail_page(): void
+    {
+        $client = $this->client();
+        $manager = $this->managerFor($client);
+        $this->instagramIntegration($client);
+        $this->tiktokIntegration($client);
+
+        $response = $this->actingAs($manager)->get(route('client-management.show', $client));
+
+        $response->assertOk();
+        $response->assertSee('id="ig-historical-form"', false);
+        $response->assertSee('id="tt-historical-form"', false);
+        $response->assertSee('wireHistoricalForm', false);
     }
 }

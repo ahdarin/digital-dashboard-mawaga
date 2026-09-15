@@ -120,15 +120,21 @@
                     @if ($canManageSettings)
                         {{-- Sinkronisasi bulan tertentu - fitur TERPISAH dari
                              "Perbarui Data" (backfill 1 bulan spesifik, bukan
-                             "ambil data terbaru") - SENGAJA tetap jalur lama
-                             (settings.sync-instagram + $month), dikumpulkan
-                             di disclosure sekunder biar TIDAK bersaing
-                             sebagai aksi utama (Langkah 12, "avoid multiple
-                             sync buttons"). --}}
+                             "ambil data terbaru") - dikumpulkan di disclosure
+                             sekunder biar TIDAK bersaing sebagai aksi utama
+                             (Langkah 12, "avoid multiple sync buttons").
+                             SYNC PROGRESS PARITY - dispatch-nya SEKARANG
+                             lewat AnalyticsSyncOrchestrator::dispatchHistorical()
+                             (bukan lagi dispatch Job langsung tanpa jejak),
+                             dan submit-nya diintersep JS (wireHistoricalForm()
+                             di bawah, id="ig-historical-form") supaya progress
+                             tampil di panel "Perbarui Data" yang sama - lihat
+                             docblock wireHistoricalForm() di public/js/
+                             analytics-sync-panel.js. --}}
                         <details class="text-xs mt-3">
                             <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                             <div class="mt-2 flex items-center gap-2">
-                                <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
+                                <form id="ig-historical-form" action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
                                     @csrf
                                     <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
                                     <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
@@ -217,10 +223,13 @@
                     <div id="tt-sync-panel" class="mt-3" hidden></div>
 
                     @if ($canManageSettings)
+                        {{-- SYNC PROGRESS PARITY - MIRROR form historis Instagram
+                             di atas (id="tt-historical-form"), lihat komentar
+                             lengkap di sana. --}}
                         <details class="text-xs mt-3">
                             <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                             <div class="mt-2 flex items-center gap-2">
-                                <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                                <form id="tt-historical-form" action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
                                     @csrf
                                     <input type="hidden" name="client_id" value="{{ $selectedClient->id }}">
                                     <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
@@ -437,7 +446,7 @@
         };
 
         @if ($instagramCard['connected'])
-            window.AnalyticsSyncPanel.createSyncController({
+            var igController = window.AnalyticsSyncPanel.createSyncController({
                 clientId: clientId,
                 platformId: {{ (int) $instagramCard['integration']->platform_id }},
                 groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[0]],
@@ -452,10 +461,13 @@
                     panel: document.getElementById('ig-sync-panel'),
                 },
             });
+            // SYNC PROGRESS PARITY (bulan tertentu) - lihat komentar lengkap
+            // di wireHistoricalForm() (analytics-sync-panel.js).
+            window.AnalyticsSyncPanel.wireHistoricalForm(document.getElementById('ig-historical-form'), igController);
         @endif
 
         @if ($tiktokCard['connected'])
-            window.AnalyticsSyncPanel.createSyncController({
+            var ttController = window.AnalyticsSyncPanel.createSyncController({
                 clientId: clientId,
                 platformId: {{ (int) $tiktokCard['integration']->platform_id }},
                 groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[1]],
@@ -470,6 +482,7 @@
                     panel: document.getElementById('tt-sync-panel'),
                 },
             });
+            window.AnalyticsSyncPanel.wireHistoricalForm(document.getElementById('tt-historical-form'), ttController);
         @endif
     })();
 </script>

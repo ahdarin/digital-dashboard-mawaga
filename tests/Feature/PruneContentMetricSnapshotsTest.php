@@ -199,33 +199,33 @@ class PruneContentMetricSnapshotsTest extends TestCase
     }
 
     /**
-     * Snapshot maintenance correction (Langkah 11) - jadwal otomatis
-     * prune SENGAJA belum diaktifkan (retention policy belum final,
-     * deletion irreversible) sampai ada keputusan eksplisit. Command
-     * TETAP boleh dijalankan manual (dibuktikan seluruh test lain di
-     * file ini) - yang tidak boleh ada cuma baris Schedule:: AKTIF
-     * buat command ini di routes/console.php.
+     * RETENTION POLICY DECISION (Langkah audit "sync bulan tertentu tidak
+     * ada loading/hilang setelah 1 minggu?") - jadwal otomatis prune
+     * SEMPAT sengaja dinonaktifkan (retention policy belum final,
+     * deletion irreversible) sampai ada keputusan eksplisit. Keputusan
+     * itu sekarang sudah diambil: retensi 120 hari rolling DIAKTIFKAN
+     * (lihat routes/console.php + docblock content_metric_snapshot_
+     * retention_days di config/analytics.php buat alasan lengkap) sebagai
+     * jawaban ke kekhawatiran storage tumbuh tak terbatas, TANPA
+     * menghapus ContentMetric/identitas konten - tes ini (dulu memastikan
+     * jadwal TIDAK aktif) sekarang membalik arah, memastikan jadwal itu
+     * BENAR-BENAR terdaftar dengan waktu yang diharapkan - regresi diam-
+     * diam (baris ke-comment lagi, atau jam berubah tanpa sadar) HARUS
+     * ketahuan di sini, bukan cuma dari isi routes/console.php sebagai teks.
      */
-    public function test_automatic_prune_schedule_is_absent_or_disabled(): void
+    public function test_automatic_prune_schedule_is_registered_and_active(): void
     {
-        $source = file_get_contents(base_path('routes/console.php'));
+        $events = app(\Illuminate\Console\Scheduling\Schedule::class)->events();
+        $event = collect($events)->first(fn ($e) => str_contains($e->command ?? '', 'analytics:prune-content-metric-snapshots'));
 
-        $this->assertMatchesRegularExpression(
-            '/\/\/\s*Schedule::command\(\'analytics:prune-content-metric-snapshots\'\)/',
-            $source,
-            'Baris schedule prune harus dikomentari (dinonaktifkan), bukan dihapus - command-nya sendiri tetap ada.'
-        );
+        $this->assertNotNull($event, 'analytics:prune-content-metric-snapshots HARUS terdaftar di scheduler (retensi 120 hari sekarang aktif).');
+        $this->assertSame('0 3 * * *', $event->expression, 'Harus dailyAt(03:00) - digeser 15 menit sebelum analytics:auto-sync (03:15) biar tidak tumpang tindih.');
+        $this->assertSame(config('app.timezone'), $event->timezone, 'Timezone HARUS eksplisit dari config(app.timezone), konsisten dengan analytics:auto-sync.');
 
-        // Pastikan TIDAK ada baris AKTIF (tanpa komentar) yang menjadwalkan
-        // command ini - regex di atas cuma memastikan versi commented ada,
-        // ini memastikan tidak ada baris lain yang genuinely live.
-        $activeLines = array_filter(
-            explode("\n", $source),
-            fn ($line) => str_contains($line, "Schedule::command('analytics:prune-content-metric-snapshots')")
-                && ! preg_match('/^\s*\/\//', $line)
-        );
-
-        $this->assertEmpty($activeLines, 'Tidak boleh ada baris Schedule:: AKTIF (tidak dikomentari) buat prune command.');
+        // Cuma SATU jadwal terdaftar buat prune command ini - jangan sampai
+        // ada duplikasi baris Schedule:: yang bikin dijalankan 2x/hari.
+        $pruneEvents = collect($events)->filter(fn ($e) => str_contains($e->command ?? '', 'analytics:prune-content-metric-snapshots'));
+        $this->assertCount(1, $pruneEvents, 'HARUS cuma 1 jadwal otomatis buat prune command ini.');
     }
 
     public function test_pruning_is_scoped_to_content_metric_snapshots_only(): void

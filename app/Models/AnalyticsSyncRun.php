@@ -21,6 +21,15 @@ class AnalyticsSyncRun extends Model
 
     public const TRIGGER_INITIAL = 'initial';
 
+    // SYNC PROGRESS PARITY (bulan tertentu) - form "Sinkronisasi Konten
+    // Historis" (SettingsController::syncInstagram()/syncTiktok() dengan
+    // $month terisi) sekarang bikin Run/Task sendiri lewat
+    // AnalyticsSyncOrchestrator::dispatchHistorical(), supaya progress-nya
+    // tervisualisasi sama seperti sync 90 hari default - trigger terpisah
+    // murni buat audit trail (dibaca latestRunProgress() sebagai
+    // 'trigger', TIDAK ADA logic yang bercabang berdasarkan nilai ini).
+    public const TRIGGER_HISTORICAL = 'historical';
+
     protected $fillable = [
         'client_id', 'trigger', 'initiated_by', 'status', 'started_at', 'finished_at',
     ];
@@ -30,9 +39,20 @@ class AnalyticsSyncRun extends Model
         'finished_at' => 'datetime',
     ];
 
-    public function client() { return $this->belongsTo(Client::class); }
-    public function initiatedBy() { return $this->belongsTo(User::class, 'initiated_by'); }
-    public function tasks() { return $this->hasMany(AnalyticsSyncTask::class); }
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function initiatedBy()
+    {
+        return $this->belongsTo(User::class, 'initiated_by');
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(AnalyticsSyncTask::class);
+    }
 
     /**
      * Rollup run.status dari SELURUH task di dalamnya - dipanggil setiap

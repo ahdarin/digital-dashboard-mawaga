@@ -60,15 +60,30 @@ Schedule::command('analytics:auto-sync')
     ->timezone(config('app.timezone'));
 
 // Retention rolling content_metric_snapshots (audit sync horizon +
-// snapshot retention) - command SUDAH ADA & struktural benar (lihat
-// PruneContentMetricSnapshots buat semantik inclusive/exclusive cutoff
-// lengkap, bisa dijalankan manual kapan saja buat testing), TAPI JADWAL
-// OTOMATISNYA SENGAJA DINONAKTIFKAN (dikomentari, BUKAN dihapus) sampai
-// ada keputusan retention policy eksplisit - deletion snapshot TIDAK BISA
-// direkonstruksi dari API manapun (lihat config/analytics.php), jadi
-// belum boleh jalan otomatis tanpa review pertumbuhan tabel/storage/
-// kebutuhan historical-reporting jangka panjang terlebih dulu.
-// Schedule::command('analytics:prune-content-metric-snapshots')->dailyAt('03:00');
+// snapshot retention) - command SUDAH ADA & struktural benar sejak lama
+// (lihat PruneContentMetricSnapshots buat semantik inclusive/exclusive
+// cutoff lengkap), tapi jadwal otomatisnya sempat SENGAJA dinonaktifkan
+// sampai ada keputusan retention policy eksplisit.
+//
+// RETENTION POLICY DECISION (Langkah audit "sync bulan tertentu tidak
+// ada loading/hilang setelah 1 minggu?") - keputusan eksplisit: retensi
+// 120 hari rolling DIAKTIFKAN sebagai jawaban ke kekhawatiran storage
+// tumbuh tak terbatas, TAPI cakupannya TETAP HANYA content_metric_
+// snapshots (histori observasi harian) - BUKAN dibuat sebagai TTL 1
+// minggu, dan BUKAN menghapus ContentMetric (angka performa terkini)
+// ataupun InstagramMediaSnapshot/TikTokVideoSnapshot (identitas konten).
+// Konten yang di-backfill lewat "Sinkronisasi Konten Historis" (bulan
+// tertentu) TETAP permanen kelihatan di sistem persis seperti konten
+// dari sync 90 hari rolling - keduanya menulis ke tabel yang sama, tidak
+// dibedakan asal sync-nya, jadi retensi ini berlaku rata untuk semua
+// snapshot tanpa perlu tahu dari jalur mana baris itu berasal. Deletion
+// snapshot TIDAK BISA direkonstruksi dari API manapun (lihat
+// config/analytics.php) - kalau kebutuhan historical-reporting jangka
+// panjang berubah nanti, naikkan content_metric_snapshot_retention_days,
+// JANGAN menonaktifkan baris ini lagi secara diam-diam.
+Schedule::command('analytics:prune-content-metric-snapshots')
+    ->dailyAt('03:00')
+    ->timezone(config('app.timezone'));
 
 // PENTING - dependency operasional yang harus disetup terpisah, BUKAN
 // otomatis aktif cuma karena baris ini ada:

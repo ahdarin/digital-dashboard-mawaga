@@ -324,11 +324,14 @@
                     </div>
                     <div id="ig-sync-panel" class="mb-2" hidden></div>
 
+                    {{-- SYNC PROGRESS PARITY - MIRROR Settings integrations-
+                         panel (id="ig-historical-form"), lihat komentar
+                         lengkap di sana. --}}
                     <details class="text-xs">
                         <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                         <div class="mt-2 space-y-1.5">
                             <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
-                            <form action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
+                            <form id="ig-historical-form" action="{{ route('settings.sync-instagram') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
                                 <input type="hidden" name="client_id" value="{{ $client->id }}">
                                 <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
@@ -410,7 +413,7 @@
                         <summary class="cursor-pointer text-[var(--brand)] font-medium select-none">Sinkronisasi Konten Historis</summary>
                         <div class="mt-2 space-y-1.5">
                             <p class="text-[11px] text-[var(--text-muted)]">Gunakan ini untuk mengambil data bulan lama yang belum tersync.</p>
-                            <form action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
+                            <form id="tt-historical-form" action="{{ route('settings.sync-tiktok') }}" method="POST" class="flex items-center gap-2">
                                 @csrf
                                 <input type="hidden" name="client_id" value="{{ $client->id }}">
                                 <input type="month" name="month" required max="{{ now()->format('Y-m') }}"
@@ -731,7 +734,7 @@
                 retryFailedItems: @json(route('analytics.sync.retry-failed-items')),
             };
             @if ($instagramIntegration)
-                window.AnalyticsSyncPanel.createSyncController({
+                var igController = window.AnalyticsSyncPanel.createSyncController({
                     clientId: clientId,
                     platformId: {{ (int) $instagramIntegration->platform_id }},
                     groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[0]],
@@ -746,9 +749,12 @@
                         panel: document.getElementById('ig-sync-panel'),
                     },
                 });
+                {{-- SYNC PROGRESS PARITY (bulan tertentu) - lihat komentar
+                     lengkap di wireHistoricalForm() (analytics-sync-panel.js). --}}
+                window.AnalyticsSyncPanel.wireHistoricalForm(document.getElementById('ig-historical-form'), igController);
             @endif
             @if ($tiktokIntegration)
-                window.AnalyticsSyncPanel.createSyncController({
+                var ttController = window.AnalyticsSyncPanel.createSyncController({
                     clientId: clientId,
                     platformId: {{ (int) $tiktokIntegration->platform_id }},
                     groups: [window.AnalyticsSyncPanel.DEFAULT_PLATFORM_GROUPS[1]],
@@ -763,6 +769,7 @@
                         panel: document.getElementById('tt-sync-panel'),
                     },
                 });
+                window.AnalyticsSyncPanel.wireHistoricalForm(document.getElementById('tt-historical-form'), ttController);
             @endif
         })();
     </script>

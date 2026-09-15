@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Jobs\ProcessInstagramSyncChunkJob;
+use App\Jobs\ProcessTikTokSyncChunkJob;
 use App\Jobs\SyncInstagramAnalyticsJob;
 use App\Jobs\SyncInstagramAudienceJob;
 use App\Jobs\SyncTikTokAnalyticsJob;
@@ -10,6 +12,7 @@ use App\Models\AnalyticsSyncRun;
 use App\Models\AnalyticsSyncTask;
 use App\Models\ApiIntegration;
 use App\Models\Client;
+use App\Models\ContentMetric;
 use App\Models\ContentMetricSnapshot;
 use App\Models\Platform;
 use Illuminate\Support\Carbon;
@@ -105,11 +108,13 @@ class AnalyticsSyncOrchestrator
 
             if (! $integration) {
                 $skipped[$subjob] = 'not_connected';
+
                 continue;
             }
 
             if ($integration->status !== 'active') {
                 $skipped[$subjob] = 'needs_reconnect';
+
                 continue;
             }
 
@@ -119,6 +124,7 @@ class AnalyticsSyncOrchestrator
                 // dispatch job kedua, dan JANGAN bikin Run/Task baru buat
                 // sesuatu yang sudah punya jejak progress sendiri.
                 $dispatched[] = $subjob;
+
                 continue;
             }
 
@@ -169,6 +175,90 @@ class AnalyticsSyncOrchestrator
     {
         [$syncMode, $since, $until] = app(TikTokAnalyticsSyncService::class)->resolveSyncWindow(null);
         SyncTikTokAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId, $syncTaskId);
+    }
+
+    /**
+     * SYNC PROGRESS PARITY (bulan tertentu) - dipakai
+     * SettingsController::syncInstagram()/syncTiktok() buat form
+     * "Sinkronisasi Konten Historis" (backfill 1 bulan spesifik, di luar
+     * cakupan dispatch() yang SELALU rolling lookback default - lihat
+     * docblock dispatchInstagramContent()). Sebelum method ini ada,
+     * historical sync dispatch job TANPA AnalyticsSyncTask sama sekali
+     * (SettingsController panggil Job::dispatch() langsung, $syncTaskId
+     * selalu null) - user submit form, halaman reload, dan TIDAK ADA
+     * feedback apapun sampai selesai (tidak seperti "Perbarui Data" yang
+     * live-progress lewat AnalyticsSyncTask + polling). Job (handle())
+     * SUDAH mendukung $task di jalur monolitik lama (sync()/persistMedia()
+     * memanggil $task?->markRunning()/recordDiscovered()/finish() apa
+     * adanya, "Task murni ADDITIVE" - lihat komentar constructor Job) -
+     * yang belum ada cuma CALLER yang membuat Task itu buat jalur ini.
+     * Method ini mengisi kekosongan itu TANPA menyentuh dispatch()
+     * (jalur multi-subjob "Perbarui Data") sama sekali - method baru,
+     * terpisah, SELALU 1 integration + 1 subjob content-only (audience
+     * tidak berkonsep "bulan tertentu", tidak diikutkan).
+     *
+     * Task yang dihasilkan di sini genuinely kompatibel dengan
+     * statusForClient()/latestRunProgress() TANPA perubahan apapun di
+     * kedua method itu - keduanya SUDAH query "task TERBARU milik subjob
+     * ini, lintas run manapun", tidak peduli dispatch()-nya lewat jalur
+     * mana (lihat docblock latestRunProgress() soal fix "task diambil PER
+     * SUBJOB").
+     *
+     * @return array{dispatched: bool, reason: ?string, task_id: ?int}
+     */
+    public function dispatchHistorical(ApiIntegration $integration, string $subjob, string $month, int $userId): array
+    {
+        if (! in_array($subjob, [self::SUBJOB_INSTAGRAM_CONTENT, self::SUBJOB_TIKTOK_CONTENT], true)) {
+            return ['dispatched' => false, 'reason' => 'not_applicable', 'task_id' => null];
+        }
+
+        if ($integration->status !== 'active') {
+            return ['dispatched' => false, 'reason' => 'needs_reconnect', 'task_id' => null];
+        }
+
+        // Pengecekan in-flight YANG SAMA dengan dispatch()/retryTask() -
+        // lock WithoutOverlapping Job dikunci per-integration (bukan
+        // per-sync_mode), jadi ini juga menangkap "default sync 90 hari
+        // sedang jalan, jangan mulai historical bertumpuk di atasnya" dan
+        // sebaliknya.
+        if ($this->hasActiveTask($integration, $subjob)) {
+            return ['dispatched' => false, 'reason' => 'already_in_flight', 'task_id' => null];
+        }
+
+        // resolveSyncWindow() bisa throw InvalidArgumentException (bulan di
+        // masa depan/format salah - defense kedua, format sendiri sudah
+        // divalidasi controller) - SENGAJA dipanggil SEBELUM Run/Task
+        // dibuat, supaya kegagalan validasi TIDAK PERNAH meninggalkan Task
+        // 'queued' yatim yang tidak akan pernah diproses Job manapun
+        // (exception di sini harus propagate ke caller apa adanya, biar
+        // caller yang menampilkan pesannya - method ini TIDAK menangkapnya).
+        $service = $subjob === self::SUBJOB_INSTAGRAM_CONTENT
+            ? app(InstagramAnalyticsSyncService::class)
+            : app(TikTokAnalyticsSyncService::class);
+        [$syncMode, $since, $until] = $service->resolveSyncWindow($month);
+
+        $run = AnalyticsSyncRun::create([
+            'client_id' => $integration->client_id,
+            'trigger' => AnalyticsSyncRun::TRIGGER_HISTORICAL,
+            'initiated_by' => $userId,
+            'status' => 'queued',
+            'started_at' => now(),
+        ]);
+
+        $task = AnalyticsSyncTask::create([
+            'analytics_sync_run_id' => $run->id,
+            'api_integration_id' => $integration->id,
+            'subjob' => $subjob,
+            'status' => 'queued',
+        ]);
+
+        if ($subjob === self::SUBJOB_INSTAGRAM_CONTENT) {
+            SyncInstagramAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId, $task->id);
+        } else {
+            SyncTikTokAnalyticsJob::dispatch($integration->id, $syncMode, $since->toDateString(), $until->toDateString(), $userId, $task->id);
+        }
+
+        return ['dispatched' => true, 'reason' => null, 'task_id' => $task->id];
     }
 
     /**
@@ -599,7 +689,7 @@ class AnalyticsSyncOrchestrator
      * akhir - dikembalikan sebagai 'failed' (pesan aman, BUKAN endless
      * 'running', BUKAN 'success' palsu, TIDAK expose exception/token).
      */
-    private function mapLogStatus(string $subjob, ?AnalyticsSyncLog $lastLog, ?\Illuminate\Support\Carbon $activeTaskProgressAt = null): string
+    private function mapLogStatus(string $subjob, ?AnalyticsSyncLog $lastLog, ?Carbon $activeTaskProgressAt = null): string
     {
         if ($lastLog?->status !== 'pending') {
             return match ($lastLog?->status) {
@@ -711,8 +801,8 @@ class AnalyticsSyncOrchestrator
     private function chunkJobClassFor(string $subjob): ?string
     {
         return match ($subjob) {
-            self::SUBJOB_INSTAGRAM_CONTENT => \App\Jobs\ProcessInstagramSyncChunkJob::class,
-            self::SUBJOB_TIKTOK_CONTENT => \App\Jobs\ProcessTikTokSyncChunkJob::class,
+            self::SUBJOB_INSTAGRAM_CONTENT => ProcessInstagramSyncChunkJob::class,
+            self::SUBJOB_TIKTOK_CONTENT => ProcessTikTokSyncChunkJob::class,
             default => null,
         };
     }
@@ -966,7 +1056,7 @@ class AnalyticsSyncOrchestrator
             return false;
         }
 
-        return \App\Models\ContentMetric::where('client_id', $client->id)
+        return ContentMetric::where('client_id', $client->id)
             ->where('platform_id', $platformId)
             ->whereNull('instagram_media_snapshot_id')
             ->whereNull('tiktok_video_snapshot_id')

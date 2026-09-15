@@ -77,10 +77,19 @@
     var DISCOVERING_STAGES = { discovering_media: true, discovering_videos: true };
 
     var STAGE_LABELS = {
-        discovering_media: 'Mencari konten 90 hari terakhir...',
+        // SYNC PROGRESS PARITY (bulan tertentu) - "90 hari terakhir" DIHAPUS
+        // dari label ini (dulu hardcoded, cuma benar buat sync 90 hari
+        // default). Task yang sama, stage yang sama ("discovering_media"),
+        // sekarang JUGA dipakai historical month sync (lihat
+        // AnalyticsSyncOrchestrator::dispatchHistorical()) yang window-nya
+        // 1 bulan, bukan 90 hari - label lama akan salah/menyesatkan buat
+        // run itu. Wording generik ini tetap akurat buat KEDUA mode tanpa
+        // perlu Task tahu sync_mode-nya sendiri (Task genuinely tidak
+        // menyimpan itu, lihat AnalyticsSyncTask::$fillable).
+        discovering_media: 'Mencari konten...',
         fetching_insights: 'Memproses insight konten',
         refreshing_known_media: 'Memperbarui konten yang sudah tercatat',
-        discovering_videos: 'Mencari video 90 hari terakhir...',
+        discovering_videos: 'Mencari video...',
         processing_videos: 'Memproses insight video',
         refreshing_known_videos: 'Memperbarui video yang sudah tercatat',
         fetching_audience_metrics: 'Mengambil data audiens',
@@ -616,12 +625,73 @@
         // side state SATU-SATUNYA sumber kebenaran, bukan session/DOM.
         poll();
 
-        return { poll: poll, startPolling: startPolling, stopPolling: stopPolling };
+        // setError exposed (SYNC PROGRESS PARITY, bulan tertentu) - dipakai
+        // wireHistoricalForm() di bawah buat menampilkan kegagalan dispatch
+        // historical sync DI TEMPAT YANG SAMA ("Perbarui Data" pakai baris
+        // ini juga lewat showSafeError() internal), bukan alert() terpisah.
+        return { poll: poll, startPolling: startPolling, stopPolling: stopPolling, setError: showSafeError };
+    }
+
+    /**
+     * SYNC PROGRESS PARITY (bulan tertentu) - form "Sinkronisasi Konten
+     * Historis" (input type="month" + tombol "Sinkronkan Bulan Terpilih")
+     * DULU form HTML biasa: submit -> full page reload -> flash message
+     * doang, TIDAK PERNAH terlihat progress/jumlah konten seperti tombol
+     * "Perbarui Data" (Langkah audit "sync data historis bulan tertentu
+     * tidak ada loading kayak sync 90 hari, tidak tahu berapa kontennya").
+     *
+     * Method ini mengintersep submit form itu (preventDefault, fetch()
+     * dengan Accept: application/json - SettingsController::syncInstagram()/
+     * syncTiktok() merespons JSON kalau wantsJson(), lihat syncSuccessResponse()/
+     * syncFailResponse()), lalu memanggil startPolling() milik controller
+     * "Perbarui Data" YANG SAMA persis buat platform itu - progress historical
+     * sync jadi TAMPIL DI PANEL YANG SAMA (ig-sync-panel/tt-sync-panel),
+     * TIDAK ADA rendering/polling kedua yang terpisah (Langkah 11 lama,
+     * "do not maintain two independently-diverging implementations").
+     *
+     * Form TETAP form biasa (action+method POST asli dipertahankan) - kalau
+     * JS gagal load, submit biasa (full page reload, flash message) masih
+     * jalan apa adanya sebagai fallback, tidak ada fitur yang hilang.
+     */
+    function wireHistoricalForm(form, controller) {
+        if (!form || !controller) return;
+
+        form.addEventListener('submit', function (evt) {
+            evt.preventDefault();
+
+            var btn = form.querySelector('button[type="submit"]');
+            var originalLabel = btn ? btn.textContent : '';
+            var csrfInput = form.querySelector('input[name="_token"]');
+            if (btn) { btn.disabled = true; btn.textContent = 'Memulai...'; }
+
+            fetch(form.getAttribute('action'), {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfInput ? csrfInput.value : '',
+                    'Accept': 'application/json',
+                },
+                body: new FormData(form),
+            })
+                .then(function (res) { return res.json().then(function (body) { return { ok: res.ok, body: body }; }); })
+                .then(function (result) {
+                    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+                    if (!result.ok) {
+                        controller.setError(result.body.message || 'Sinkronisasi gagal dimulai.');
+                        return;
+                    }
+                    controller.startPolling();
+                })
+                .catch(function () {
+                    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+                    controller.setError('Sinkronisasi gagal dimulai. Coba lagi.');
+                });
+        });
     }
 
     window.AnalyticsSyncPanel = {
         DEFAULT_PLATFORM_GROUPS: DEFAULT_PLATFORM_GROUPS,
         createSyncController: createSyncController,
+        wireHistoricalForm: wireHistoricalForm,
         renderGroup: renderGroup,
         formatFreshness: formatFreshness,
         formatElapsed: formatElapsed,
