@@ -741,7 +741,7 @@
 
                     <div class="flex items-center gap-3 px-6 py-4 border-t border-[var(--border)]">
                         <button type="submit"
-                            :disabled="confirmAction?.withLink && !confirmLink.trim()"
+                            :disabled="!!(confirmAction?.withLink && !confirmLink.trim())"
                             :class="confirmAction?.danger ? 'btn-danger' : 'btn-primary'"
                             x-text="confirmAction?.confirmLabel || 'Ya, Lanjutkan'"></button>
                         <button type="button" @click="confirmAction = null" class="btn-secondary">

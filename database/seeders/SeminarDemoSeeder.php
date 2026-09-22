@@ -908,7 +908,13 @@ class SeminarDemoSeeder extends Seeder
             ->pluck('id');
         if ($orphanIds->isNotEmpty()) {
             ContentPlanStatusLog::whereIn('content_plan_id', $orphanIds)->delete();
-            ContentItem::whereIn('content_plan_id', $orphanIds)->delete();
+            // forceDelete, bukan delete(): ContentItem pakai SoftDeletes, jadi
+            // delete() biasa cuma isi deleted_at dan barisnya (beserta FK
+            // content_plan_id-nya) tetap ada secara fisik - ContentPlan::
+            // delete() di bawah akan kena 1451 karena FK itu masih dilihat
+            // DB. withTrashed() jaga-jaga kalau run sebelumnya sempat gagal
+            // di tengah dan meninggalkan baris yang sudah ke-soft-delete.
+            ContentItem::withTrashed()->whereIn('content_plan_id', $orphanIds)->forceDelete();
             ContentPlan::whereIn('id', $orphanIds)->delete();
         }
 
