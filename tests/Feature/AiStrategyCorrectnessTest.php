@@ -69,6 +69,17 @@ class AiStrategyCorrectnessTest extends TestCase
         return $manager;
     }
 
+    /**
+     * GROUNDEDNESS GUARD PARITY - pillar HARUS "Tanpa Pilar" (bukan
+     * "Education"), soalnya test-test file ini TIDAK PERNAH mengaitkan
+     * ContentItem ke ContentPillar manapun - buildPerformanceSummary()
+     * SELALU mengelompokkan konten tanpa pillar ke bucket "Tanpa Pilar"
+     * (fallback di kode, bukan pillar yang genuinely ada). Sejak
+     * AiStrategyService::validateStrategyOutput() ada, label pillar palsu
+     * yang tidak cocok data asli akan ditolak (RuntimeException) - fixture
+     * ini HARUS mencerminkan bucket yang benar-benar dihasilkan cohort
+     * test ini, bukan nama pillar sembarang.
+     */
     private function geminiPayload(string $summary): array
     {
         return [
@@ -76,10 +87,10 @@ class AiStrategyCorrectnessTest extends TestCase
                 ['content' => ['parts' => [['text' => json_encode([
                     'summary' => $summary,
                     'action_items' => ['Item A'],
-                    'suggested_split' => [['label' => 'Education', 'value' => 100]],
-                    'top_pillars' => [['name' => 'Education', 'reasoning' => 'Test']],
+                    'suggested_split' => [['label' => 'Tanpa Pilar', 'value' => 100]],
+                    'top_pillars' => [['name' => 'Tanpa Pilar', 'reasoning' => 'Test']],
                     'content_ideas' => [
-                        ['pillar' => 'Education', 'title' => 'Judul', 'brief' => 'Brief', 'type' => 'Video', 'platform' => 'Instagram'],
+                        ['pillar' => 'Tanpa Pilar', 'title' => 'Judul', 'brief' => 'Brief', 'type' => 'Video', 'platform' => 'Instagram'],
                     ],
                 ])]]]],
             ],
@@ -380,5 +391,158 @@ class AiStrategyCorrectnessTest extends TestCase
         $history->assertOk();
         $history->assertSee('Ringkasan pertama.');
         $history->assertSee('Ringkasan kedua (terbaru).');
+    }
+
+    // ===== GROUNDEDNESS GUARD - generateStrategy()/refineFromDiscussion() =====
+    // (Langkah audit "pastikan seluruh AI yang digunakan memiliki akurasi
+    // tinggi dan kecil kemungkinan bias") - AiStrategyService::
+    // validateStrategyOutput() SEKARANG menolak hasil AI yang menyebut
+    // pillar/type/platform yang tidak ada di data asli, PERSIS filosofi
+    // guard regenerateIdea() yang sudah lama ada tapi sebelumnya tidak
+    // berlaku buat generateStrategy()/refineFromDiscussion() - tes ini
+    // dipanggil LANGSUNG ke service (bukan lewat route), lebih presisi
+    // buat menguji validasi struktural itu sendiri, lepas dari plumbing
+    // controller/dispatch.
+
+    private function fakeGeminiRaw(array $body): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    ['content' => ['parts' => [['text' => json_encode($body)]]]],
+                ],
+            ], 200),
+        ]);
+        config(['services.gemini.api_key' => 'fake-key-for-test']);
+    }
+
+    private function samplePerformanceSummary(): array
+    {
+        return [
+            'period' => '1 Jan 2026 - 31 Jan 2026',
+            'selected_month' => '2026-01',
+            'performance_by_pillar' => ['Edukasi' => ['total_views' => 1000, 'avg_engagement' => 3.2, 'content_count' => 2]],
+            'performance_by_platform' => ['Instagram' => ['total_views' => 1000]],
+            'target_content_count' => 5,
+        ];
+    }
+
+    public function test_generate_strategy_rejects_top_pillar_not_in_data(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Edukasi', 'value' => 100]],
+            'top_pillars' => [['name' => 'Hiburan', 'reasoning' => 'ngarang']],
+            'content_ideas' => [],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Hiburan');
+        app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+    }
+
+    public function test_generate_strategy_rejects_suggested_split_pillar_not_in_data(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Hiburan', 'value' => 100]],
+            'top_pillars' => [], 'content_ideas' => [],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+    }
+
+    public function test_generate_strategy_rejects_suggested_split_total_far_from_100(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Edukasi', 'value' => 40]],
+            'top_pillars' => [], 'content_ideas' => [],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('totalnya 40');
+        app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+    }
+
+    public function test_generate_strategy_rejects_content_idea_with_invalid_type(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Edukasi', 'value' => 100]],
+            'top_pillars' => [],
+            'content_ideas' => [['pillar' => 'Edukasi', 'title' => 'X', 'brief' => 'Y', 'type' => 'Podcast', 'platform' => 'Instagram']],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Podcast');
+        app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+    }
+
+    public function test_generate_strategy_rejects_content_idea_with_invalid_platform(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Edukasi', 'value' => 100]],
+            'top_pillars' => [],
+            'content_ideas' => [['pillar' => 'Edukasi', 'title' => 'X', 'brief' => 'Y', 'type' => 'Video', 'platform' => 'YouTube']],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('YouTube');
+        app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+    }
+
+    public function test_generate_strategy_accepts_grounded_output(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan valid.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Edukasi', 'value' => 100]],
+            'top_pillars' => [['name' => 'Edukasi', 'reasoning' => 'Views tertinggi 1000']],
+            'content_ideas' => [['pillar' => 'Edukasi', 'title' => 'X', 'brief' => 'Y', 'type' => 'Video', 'platform' => 'Instagram']],
+        ]);
+
+        $result = app(AiStrategyService::class)->generateStrategy($this->samplePerformanceSummary());
+        $this->assertSame('Ringkasan valid.', $result['summary']);
+    }
+
+    /**
+     * refineFromDiscussion() SENGAJA lebih permisif dari generateStrategy()
+     * soal pillar - prompt-nya sendiri mengizinkan pillar dari ANALISIS
+     * SEBELUMNYA tetap dipertahankan walau porsinya digeser kecil, walau
+     * pillar itu genuinely sudah tidak ada di performance_by_pillar
+     * SEKARANG (mis. tidak ada konten baru pillar itu bulan ini).
+     */
+    public function test_refine_from_discussion_allows_pillar_carried_over_from_previous_analysis(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan diperbarui.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Lama', 'value' => 100]],
+            'top_pillars' => [], 'content_ideas' => [],
+        ]);
+
+        $result = app(AiStrategyService::class)->refineFromDiscussion(
+            $this->samplePerformanceSummary(),
+            ['suggested_split' => [['label' => 'Lama', 'value' => 100]]],
+            [['role' => 'user', 'message' => 'oke']]
+        );
+        $this->assertSame('Ringkasan diperbarui.', $result['summary']);
+    }
+
+    public function test_refine_from_discussion_rejects_pillar_not_in_data_or_previous_analysis(): void
+    {
+        $this->fakeGeminiRaw([
+            'summary' => 'Ringkasan.', 'action_items' => ['A'],
+            'suggested_split' => [['label' => 'Baru Sekali', 'value' => 100]],
+            'top_pillars' => [], 'content_ideas' => [],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(AiStrategyService::class)->refineFromDiscussion(
+            $this->samplePerformanceSummary(),
+            ['suggested_split' => [['label' => 'Edukasi', 'value' => 100]]],
+            [['role' => 'user', 'message' => 'oke']]
+        );
     }
 }

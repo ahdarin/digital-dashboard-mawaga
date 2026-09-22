@@ -488,6 +488,18 @@ class AiStrategyService
             throw new \RuntimeException('Gagal parsing hasil AI jadi format terstruktur.');
         }
 
+        // GROUNDEDNESS GUARD PARITY - generateStrategy() dulu HANYA
+        // memvalidasi summary/action_items ada, sementara regenerateIdea()
+        // di bawah sudah lama py guard kode (pillar echo, type/platform
+        // enum) buat mencegah hasil ngarang. Sekarang jalur analisis utama
+        // ini py guard yang setara - lihat validateStrategyOutput().
+        $this->validateStrategyOutput(
+            $parsed,
+            $performanceSummary,
+            collect($performanceSummary['performance_by_pillar'] ?? [])->keys(),
+            'generate ulang'
+        );
+
         return [
             'summary' => $parsed['summary'],
             'action_items' => $parsed['action_items'],
@@ -648,6 +660,23 @@ PROMPT;
             throw new \RuntimeException('Gagal parsing hasil pembaruan analisis.');
         }
 
+        // GROUNDEDNESS GUARD PARITY - sama seperti generateStrategy(), TAPI
+        // $allowedPillars di sini SENGAJA lebih luas: performance_by_pillar
+        // DITAMBAH label yang sudah ada di ANALISIS SEBELUMNYA
+        // (suggested_split lama). Prompt refine di atas SENGAJA mengizinkan
+        // mempertahankan pillar lama walau porsinya digeser kecil, dan
+        // mengizinkan pillar baru "kalau namanya eksplisit disebut di
+        // diskusi" - guard ini tidak bisa memverifikasi isi diskusi kata
+        // per kata (butuh NLP), jadi pillar dari analisis sebelumnya
+        // dipakai sebagai proxy aman buat itu. Efeknya: pillar yang genuine
+        // baru (bukan dari data ATAUPUN dari analisis sebelumnya) tetap
+        // ditolak - trade-off yang condong ke "lebih baik reject valid
+        // daripada meloloskan hasil ngarang".
+        $allowedPillars = collect($performanceData['performance_by_pillar'] ?? [])->keys()
+            ->merge(collect($previousResult['suggested_split'] ?? [])->pluck('label')->filter())
+            ->unique();
+        $this->validateStrategyOutput($parsed, $performanceData, $allowedPillars, 'perbarui analisis');
+
         return [
             'summary' => $parsed['summary'],
             'action_items' => $parsed['action_items'],
@@ -655,6 +684,91 @@ PROMPT;
             'top_pillars' => $parsed['top_pillars'] ?? [],
             'content_ideas' => $parsed['content_ideas'] ?? [],
         ];
+    }
+
+    /**
+     * GROUNDEDNESS GUARD - dipakai generateStrategy() & refineFromDiscussion()
+     * (Langkah audit "pastikan seluruh AI yang digunakan memiliki akurasi
+     * tinggi dan kecil kemungkinan bias"). SEBELUM guard ini ada, kedua
+     * fungsi itu HANYA memvalidasi summary/action_items ada - top_pillars/
+     * suggested_split/content_ideas SEPENUHNYA mengandalkan kepatuhan
+     * Gemini ke instruksi teks di prompt (JANGAN mengarang pillar, WAJIB
+     * angka asli, dst), TIDAK ADA pengecekan kode sama sekali. Ini beda
+     * jauh dari regenerateIdea() di bawah yang SUDAH lama py guard kode
+     * (pillar echo-back, type/platform enum) - method ini MENGGENERALISASI
+     * pola guard yang sama ke daftar (bukan cuma 1 ide), supaya jalur
+     * analisis utama punya tingkat proteksi yang setara.
+     *
+     * Kegagalan validasi SELALU throw RuntimeException (gagal eksplisit,
+     * caller diarahkan coba lagi) - PERSIS filosofi regenerateIdea(), bukan
+     * diam-diam menyimpan/membersihkan hasil yang menyimpang tanpa jejak.
+     *
+     * Yang DIVALIDASI (structural grounding - fakta yang BISA diverifikasi
+     * terhadap data yang benar-benar dikirim ke Gemini):
+     * - top_pillars[].name & suggested_split[].label HARUS ada di
+     *   $allowedPillars (bukan pillar yang genuinely tidak eksis di data)
+     * - suggested_split total HARUS mendekati 100 (toleransi pembulatan
+     *   LLM 90-110, BUKAN exact-match - deviasi besar tetap ditolak)
+     * - content_ideas[].pillar HARUS ada di $allowedPillars
+     * - content_ideas[].type HARUS salah satu ContentType asli di sistem
+     * - content_ideas[].platform HARUS salah satu platform yang benar-benar
+     *   ada di performance_by_platform (atau Instagram/TikTok kalau kosong)
+     *
+     * Yang SENGAJA TIDAK divalidasi di sini (di luar cakupan "grounding
+     * struktural" - lihat 4.4.6 Keterbatasan buat batasan yang masih
+     * berlaku): jumlah content_ideas TIDAK dipaksa persis
+     * target_content_count (outputTokenBudget() sendiri capped 8192 token,
+     * kuota client yang sangat besar bisa membuat Gemini structurally
+     * tidak muat memberi jumlah persis - memaksa exact-match di sini
+     * berisiko retry-loop tanpa akhir buat kasus itu, bukan mendeteksi
+     * hasil ngarang), dan ISI reasoning/brief/summary TIDAK diperiksa
+     * mengandung angka yang benar-benar cocok dengan data (butuh NLP,
+     * di luar kemampuan validasi berbasis kode).
+     */
+    private function validateStrategyOutput(array $parsed, array $data, Collection $allowedPillars, string $retryLabel): void
+    {
+        $allowedPillarsLower = $allowedPillars->map(fn ($p) => mb_strtolower(trim((string) $p)));
+
+        foreach (($parsed['top_pillars'] ?? []) as $topPillar) {
+            $name = trim((string) ($topPillar['name'] ?? ''));
+            if ($name !== '' && ! $allowedPillarsLower->contains(mb_strtolower($name))) {
+                throw new \RuntimeException("AI menyebut pillar \"{$name}\" di top_pillars yang tidak ada di data performa - coba {$retryLabel}.");
+            }
+        }
+
+        $splitTotal = 0;
+        foreach (($parsed['suggested_split'] ?? []) as $split) {
+            $label = trim((string) ($split['label'] ?? ''));
+            if ($label !== '' && ! $allowedPillarsLower->contains(mb_strtolower($label))) {
+                throw new \RuntimeException("AI menyebut pillar \"{$label}\" di suggested_split yang tidak ada di data performa - coba {$retryLabel}.");
+            }
+            $splitTotal += (float) ($split['value'] ?? 0);
+        }
+        if (! empty($parsed['suggested_split']) && ($splitTotal < 90 || $splitTotal > 110)) {
+            throw new \RuntimeException("AI ngasih suggested_split yang totalnya {$splitTotal} (harus sekitar 100) - coba {$retryLabel}.");
+        }
+
+        $validTypes = collect(explode(',', $this->contentTypeOptions()))->map(fn ($t) => mb_strtolower(trim($t)));
+        $platformNames = collect($data['performance_by_platform'] ?? [])->keys();
+        $validPlatforms = ($platformNames->isNotEmpty() ? $platformNames : collect(['Instagram', 'TikTok']))
+            ->map(fn ($p) => mb_strtolower(trim($p)));
+
+        foreach (($parsed['content_ideas'] ?? []) as $idea) {
+            $pillar = trim((string) ($idea['pillar'] ?? ''));
+            if ($pillar !== '' && ! $allowedPillarsLower->contains(mb_strtolower($pillar))) {
+                throw new \RuntimeException("AI ngasih content_ideas dengan pillar \"{$pillar}\" yang tidak ada di data performa - coba {$retryLabel}.");
+            }
+
+            $type = trim((string) ($idea['type'] ?? ''));
+            if ($type !== '' && ! $validTypes->contains(mb_strtolower($type))) {
+                throw new \RuntimeException("AI ngasih format \"{$type}\" di content_ideas yang nggak dikenal sistem - coba {$retryLabel}.");
+            }
+
+            $platform = trim((string) ($idea['platform'] ?? ''));
+            if ($platform !== '' && ! $validPlatforms->contains(mb_strtolower($platform))) {
+                throw new \RuntimeException("AI ngasih platform \"{$platform}\" di content_ideas yang nggak dikenal sistem - coba {$retryLabel}.");
+            }
+        }
     }
 
     /**

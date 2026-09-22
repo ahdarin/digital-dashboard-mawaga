@@ -109,6 +109,15 @@ class AiStrategyLifecycleTest extends TestCase
         ]);
     }
 
+    /**
+     * GROUNDEDNESS GUARD PARITY - pillar HARUS "Tanpa Pilar" (bukan
+     * "Education"/"Entertainment") - lihat komentar setara di
+     * AiStrategyCorrectnessTest::geminiPayload(). ContentItem di
+     * recentMetric() TIDAK diaitkan ke ContentPillar manapun, jadi cohort
+     * asli cuma punya SATU bucket ("Tanpa Pilar") - suggested_split di
+     * sini disatukan jadi 1 entri 100% (bukan 2 pillar berbeda) supaya
+     * cocok dengan itu, bukan lagi mengarang 2 pillar yang tidak eksis.
+     */
     private function fakeGeminiStrategyResponse(): void
     {
         Http::fake([
@@ -117,10 +126,10 @@ class AiStrategyLifecycleTest extends TestCase
                     ['content' => ['parts' => [['text' => json_encode([
                         'summary' => 'Performa bulan lalu cukup baik, engagement rate stabil.',
                         'action_items' => ['Tingkatkan frekuensi posting Reels', 'Coba format carousel edukasi'],
-                        'suggested_split' => [['label' => 'Education', 'value' => 60], ['label' => 'Entertainment', 'value' => 40]],
-                        'top_pillars' => [['name' => 'Education', 'reasoning' => 'Engagement tertinggi bulan lalu']],
+                        'suggested_split' => [['label' => 'Tanpa Pilar', 'value' => 100]],
+                        'top_pillars' => [['name' => 'Tanpa Pilar', 'reasoning' => 'Engagement tertinggi bulan lalu']],
                         'content_ideas' => [
-                            ['pillar' => 'Education', 'title' => 'Tips Hemat Ala UMKM', 'brief' => 'Konten edukasi singkat', 'type' => 'Video', 'platform' => 'Instagram'],
+                            ['pillar' => 'Tanpa Pilar', 'title' => 'Tips Hemat Ala UMKM', 'brief' => 'Konten edukasi singkat', 'type' => 'Video', 'platform' => 'Instagram'],
                         ],
                     ])]]]],
                 ],

@@ -83,6 +83,12 @@ class AiStrategyMonthSelectionTest extends TestCase
         return $staff;
     }
 
+    /**
+     * GROUNDEDNESS GUARD PARITY - pillar HARUS "Tanpa Pilar", bukan
+     * "Education" - lihat komentar setara di
+     * AiStrategyCorrectnessTest::geminiPayload(). Content item di test
+     * file ini tidak pernah diaitkan ke ContentPillar manapun.
+     */
     private function fakeGeminiStrategyResponse(): void
     {
         Http::fake([
@@ -91,10 +97,10 @@ class AiStrategyMonthSelectionTest extends TestCase
                     ['content' => ['parts' => [['text' => json_encode([
                         'summary' => 'Ringkasan test.',
                         'action_items' => ['Item A'],
-                        'suggested_split' => [['label' => 'Education', 'value' => 100]],
-                        'top_pillars' => [['name' => 'Education', 'reasoning' => 'Test']],
+                        'suggested_split' => [['label' => 'Tanpa Pilar', 'value' => 100]],
+                        'top_pillars' => [['name' => 'Tanpa Pilar', 'reasoning' => 'Test']],
                         'content_ideas' => [
-                            ['pillar' => 'Education', 'title' => 'Judul', 'brief' => 'Brief', 'type' => 'Video', 'platform' => 'Instagram'],
+                            ['pillar' => 'Tanpa Pilar', 'title' => 'Judul', 'brief' => 'Brief', 'type' => 'Video', 'platform' => 'Instagram'],
                         ],
                     ])]]]],
                 ],
